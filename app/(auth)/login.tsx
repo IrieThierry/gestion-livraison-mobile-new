@@ -53,80 +53,91 @@ export default function Login() {
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
-          className="flex-1 px-6 pt-4"
+          className="flex-1"
         >
-          <View className="items-start">
-            <View className="bg-slate-900 dark:bg-emerald-500/15 px-3 py-2 rounded-md">
-              <Text className="text-white dark:text-emerald-400 font-extrabold text-lg">
-                Gestion<Text className="text-emerald-500">.</Text>
+          <View className="flex-1 px-6 pt-6 pb-8">
+            {/* Header — logo + greeting */}
+            <View>
+              <View className="items-start">
+                <View className="bg-slate-900 dark:bg-emerald-500/15 px-3 py-2 rounded-md">
+                  <Text className="text-white dark:text-emerald-400 font-extrabold text-lg">
+                    Gestion<Text className="text-emerald-500">.</Text>
+                  </Text>
+                </View>
+              </View>
+
+              <Text className="text-4xl font-extrabold text-slate-900 dark:text-white mt-10">
+                Bonjour 👋
               </Text>
+              <Text className="text-slate-500 dark:text-slate-400 mt-2 text-base">
+                Connecte-toi à ton compte livreur
+              </Text>
+            </View>
+
+            {/* Form — grows to fill available space */}
+            <View className="flex-1 justify-center gap-4 py-6">
+              <View>
+                <Text className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                  Téléphone
+                </Text>
+                <TextInput
+                  value={username}
+                  onChangeText={setUsername}
+                  keyboardType="phone-pad"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  placeholder="07 12 34 56 78"
+                  placeholderTextColor="#94a3b8"
+                  className="px-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-base"
+                />
+              </View>
+              <View>
+                <Text className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                  Mot de passe
+                </Text>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  placeholder="••••••••"
+                  placeholderTextColor="#94a3b8"
+                  className="px-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-base"
+                />
+              </View>
+            </View>
+
+            {/* Footer — submit + signup link */}
+            <View>
+              <Pressable
+                onPress={onSubmit}
+                disabled={mutation.isPending}
+                className="bg-emerald-500 py-4 rounded-md items-center active:opacity-80"
+              >
+                {mutation.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="text-white font-bold text-base">Se connecter</Text>
+                )}
+              </Pressable>
+
+              <Pressable
+                onPress={() =>
+                  Alert.alert(
+                    'Inscription',
+                    'Pour créer un compte livreur, contacte ton administrateur ou rends-toi sur le portail web.',
+                  )
+                }
+                className="mt-5 items-center"
+              >
+                <Text className="text-sm text-slate-500 dark:text-slate-400">
+                  Pas encore de compte ?{' '}
+                  <Text className="font-bold text-emerald-600 dark:text-emerald-400">
+                    S'inscrire
+                  </Text>
+                </Text>
+              </Pressable>
             </View>
           </View>
-
-          <Text className="text-3xl font-extrabold text-slate-900 dark:text-white mt-8">
-            Bonjour 👋
-          </Text>
-          <Text className="text-slate-500 dark:text-slate-400 mt-1">
-            Connecte-toi à ton compte livreur
-          </Text>
-
-          <View className="mt-8 gap-3">
-            <View>
-              <Text className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Téléphone
-              </Text>
-              <TextInput
-                value={username}
-                onChangeText={setUsername}
-                keyboardType="phone-pad"
-                autoCapitalize="none"
-                autoCorrect={false}
-                placeholder="07 12 34 56 78"
-                placeholderTextColor="#94a3b8"
-                className="mt-1 px-3 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-base"
-              />
-            </View>
-            <View>
-              <Text className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Mot de passe
-              </Text>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                placeholder="••••••••"
-                placeholderTextColor="#94a3b8"
-                className="mt-1 px-3 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-base"
-              />
-            </View>
-          </View>
-
-          <Pressable
-            onPress={onSubmit}
-            disabled={mutation.isPending}
-            className="mt-6 bg-emerald-500 py-3.5 rounded-md items-center active:opacity-80"
-          >
-            {mutation.isPending ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text className="text-white font-bold text-base">Se connecter</Text>
-            )}
-          </Pressable>
-
-          <Pressable
-            onPress={() =>
-              Alert.alert(
-                'Inscription',
-                'Pour créer un compte livreur, contacte ton administrateur ou rends-toi sur le portail web.',
-              )
-            }
-            className="mt-5 mb-8 items-center"
-          >
-            <Text className="text-sm text-slate-500 dark:text-slate-400">
-              Pas encore de compte ?{' '}
-              <Text className="font-bold text-emerald-600 dark:text-emerald-400">S'inscrire</Text>
-            </Text>
-          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
