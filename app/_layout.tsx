@@ -7,15 +7,18 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, ActivityIndicator } from 'react-native';
 import { queryClient, queryPersister } from '../lib/query-client';
 import { useAuthStore } from '../stores/authStore';
+import { useThemeStore } from '../stores/themeStore';
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const hydrate = useAuthStore((s) => s.hydrate);
+  const hydrateTheme = useThemeStore((s) => s.hydrate);
   const segments = useSegments();
 
   useEffect(() => {
     hydrate();
+    hydrateTheme();
   }, []);
 
   useEffect(() => {
