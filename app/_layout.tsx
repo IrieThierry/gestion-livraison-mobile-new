@@ -1,10 +1,15 @@
 import '../global.css';
-import { View, Text } from 'react-native';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 
 export default function RootLayout() {
   return (
-    <View className="flex-1 items-center justify-center bg-emerald-500">
-      <Text className="text-white font-bold text-2xl">NativeWind OK</Text>
-    </View>
+    <>
+      <StatusBar style="auto" />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(livreur)" />
+      </Stack>
+    </>
   );
 }

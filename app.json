@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "gestion-livraison-mobile",
+    "name": "Gestion Livraison",
     "slug": "gestion-livraison-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "gestionlivraisonmobile",
+    "scheme": "gestionlivraison",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -14,9 +14,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.thierryirie.gestionlivraison"
     },
     "android": {
+      "package": "com.thierryirie.gestionlivraison",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -31,7 +33,9 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-local-authentication",
+      "expo-location"
     ],
     "experiments": {
       "typedRoutes": true
