@@ -2,7 +2,7 @@ import axios, { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } fro
 import { router } from 'expo-router';
 import { SecureStorage } from './secure-storage';
 
-const baseURL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080/api';
+const baseURL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8089';
 
 export const apiClient = axios.create({ baseURL, timeout: 15000 });
 
