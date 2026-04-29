@@ -51,31 +51,31 @@ export default function Login() {
         className="flex-1"
       >
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1 }}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
           keyboardShouldPersistTaps="handled"
           className="flex-1"
         >
-          <View className="px-6 pt-4">
+          <View className="px-6 py-8">
             {/* Logo */}
             <View className="items-start">
-              <View className="bg-slate-900 dark:bg-emerald-500/15 px-3 py-2.5 rounded-md">
-                <Text className="text-white dark:text-emerald-400 font-extrabold text-lg">
+              <View className="bg-slate-900 dark:bg-emerald-500/15 px-4 py-3 rounded-lg">
+                <Text className="text-white dark:text-emerald-400 font-extrabold text-xl">
                   Gestion<Text className="text-emerald-500">.</Text>
                 </Text>
               </View>
             </View>
 
             {/* Greeting */}
-            <Text className="text-3xl font-extrabold text-slate-900 dark:text-white mt-6">
+            <Text className="text-4xl font-extrabold text-slate-900 dark:text-white mt-10">
               Bonjour 👋
             </Text>
-            <Text className="text-slate-500 dark:text-slate-400 mt-1 text-[15px]">
+            <Text className="text-slate-500 dark:text-slate-400 mt-2 text-lg">
               Connecte-toi à ton compte livreur
             </Text>
 
             {/* Form */}
-            <View className="mt-8">
-              <Text className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+            <View className="mt-10">
+              <Text className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
                 Téléphone
               </Text>
               <TextInput
@@ -86,11 +86,11 @@ export default function Login() {
                 autoCorrect={false}
                 placeholder="07 12 34 56 78"
                 placeholderTextColor="#94a3b8"
-                className="px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-base"
+                className="px-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-lg"
               />
             </View>
-            <View className="mt-4">
-              <Text className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+            <View className="mt-5">
+              <Text className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
                 Mot de passe
               </Text>
               <TextInput
@@ -99,7 +99,7 @@ export default function Login() {
                 secureTextEntry
                 placeholder="••••••••"
                 placeholderTextColor="#94a3b8"
-                className="px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-base"
+                className="px-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-lg"
               />
             </View>
 
@@ -107,12 +107,12 @@ export default function Login() {
             <Pressable
               onPress={onSubmit}
               disabled={mutation.isPending}
-              className="mt-6 bg-emerald-500 py-4 rounded-md items-center active:opacity-80"
+              className="mt-8 bg-emerald-500 py-4 rounded-lg items-center active:opacity-80"
             >
               {mutation.isPending ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text className="text-white font-bold text-base">Se connecter</Text>
+                <Text className="text-white font-bold text-lg">Se connecter</Text>
               )}
             </Pressable>
 
@@ -124,9 +124,9 @@ export default function Login() {
                   'Pour créer un compte livreur, contacte ton administrateur ou rends-toi sur le portail web.',
                 )
               }
-              className="mt-4 items-center"
+              className="mt-6 items-center"
             >
-              <Text className="text-sm text-slate-500 dark:text-slate-400">
+              <Text className="text-base text-slate-500 dark:text-slate-400">
                 Pas encore de compte ?{' '}
                 <Text className="font-bold text-emerald-600 dark:text-emerald-400">
                   S'inscrire
