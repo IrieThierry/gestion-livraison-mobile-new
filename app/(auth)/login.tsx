@@ -56,11 +56,11 @@ export default function Login() {
           className="flex-1"
         >
           <View className="px-6 py-8">
-            {/* Logo */}
-            <View className="items-start">
-              <View className="bg-slate-900 dark:bg-emerald-500/15 px-4 py-3 rounded-lg">
-                <Text className="text-white dark:text-emerald-400 font-extrabold text-xl">
-                  Gestion<Text className="text-emerald-500">.</Text>
+            {/* Logo — large, centered hero */}
+            <View className="items-center">
+              <View className="bg-slate-900 dark:bg-emerald-500/15 dark:border dark:border-emerald-500/30 px-7 py-5 rounded-2xl shadow-md">
+                <Text className="text-white dark:text-emerald-400 font-extrabold text-3xl text-center">
+                  Gestion <Text className="text-emerald-500">Livraison</Text>
                 </Text>
               </View>
             </View>
@@ -76,15 +76,14 @@ export default function Login() {
             {/* Form */}
             <View className="mt-10">
               <Text className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-                Téléphone
+                Nom d'utilisateur
               </Text>
               <TextInput
                 value={username}
                 onChangeText={setUsername}
-                keyboardType="phone-pad"
                 autoCapitalize="none"
                 autoCorrect={false}
-                placeholder="07 12 34 56 78"
+                placeholder="ton.identifiant"
                 placeholderTextColor="#94a3b8"
                 className="px-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-lg"
               />
