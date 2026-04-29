@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Stack, router, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, ActivityIndicator } from 'react-native';
 import { queryClient, queryPersister } from '../lib/query-client';
 import { useAuthStore } from '../stores/authStore';
@@ -39,17 +40,19 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{ persister: queryPersister, maxAge: 24 * 60 * 60 * 1000 }}
-    >
-      <StatusBar style="auto" />
-      <AuthGate>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(livreur)" />
-        </Stack>
-      </AuthGate>
-    </PersistQueryClientProvider>
+    <SafeAreaProvider>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{ persister: queryPersister, maxAge: 24 * 60 * 60 * 1000 }}
+      >
+        <StatusBar style="auto" />
+        <AuthGate>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#f8fafc' } }}>
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(livreur)" />
+          </Stack>
+        </AuthGate>
+      </PersistQueryClientProvider>
+    </SafeAreaProvider>
   );
 }
