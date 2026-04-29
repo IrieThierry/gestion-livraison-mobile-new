@@ -1,8 +1,41 @@
 import '../global.css';
-import { Stack } from 'expo-router';
+import { useEffect } from 'react';
+import { Stack, router, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { View, ActivityIndicator } from 'react-native';
 import { queryClient, queryPersister } from '../lib/query-client';
+import { useAuthStore } from '../stores/authStore';
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore((s) => s.user);
+  const isHydrated = useAuthStore((s) => s.isHydrated);
+  const hydrate = useAuthStore((s) => s.hydrate);
+  const segments = useSegments();
+
+  useEffect(() => {
+    hydrate();
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    const inAuth = segments[0] === '(auth)';
+    if (!user && !inAuth) {
+      router.replace('/(auth)/login');
+    } else if (user && inAuth) {
+      router.replace('/(livreur)');
+    }
+  }, [isHydrated, user, segments]);
+
+  if (!isHydrated) {
+    return (
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <ActivityIndicator color="#10b981" />
+      </View>
+    );
+  }
+  return <>{children}</>;
+}
 
 export default function RootLayout() {
   return (
@@ -11,10 +44,12 @@ export default function RootLayout() {
       persistOptions={{ persister: queryPersister, maxAge: 24 * 60 * 60 * 1000 }}
     >
       <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(livreur)" />
-      </Stack>
+      <AuthGate>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(livreur)" />
+        </Stack>
+      </AuthGate>
     </PersistQueryClientProvider>
   );
 }
