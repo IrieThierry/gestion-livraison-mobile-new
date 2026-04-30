@@ -122,7 +122,7 @@ export default function NouveauClientStep2() {
             </Text>
             {lat != null && lng != null ? (
               <>
-                <MapPreview lat={lat} lng={lng} size={280} />
+                <MapPreview lat={lat} lng={lng} height={240} />
                 <Text className="text-[11px] text-slate-500 dark:text-slate-400 text-center mt-2">
                   {lat.toFixed(6)}, {lng.toFixed(6)}
                 </Text>
