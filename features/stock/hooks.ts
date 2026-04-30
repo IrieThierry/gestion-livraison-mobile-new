@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { stockApi } from './api';
 import { stockKeys } from './keys';
-import type { UUID } from '../../types/api';
+import type { EnregistrerStockRequest, UUID } from '../../types/api';
 
 // Mirror des hooks lecture du web (gestion-livraison-front/src/features/stock/hooks.ts)
 // — on n'a besoin que des deux sources de lecture pour la Task 22.
@@ -26,5 +26,21 @@ export function useStockCourant(dateDebut?: string, dateFin?: string) {
   return useQuery({
     queryKey: stockKeys.courant(dateDebut, dateFin),
     queryFn: () => stockApi.courant(dateDebut, dateFin),
+  });
+}
+
+/**
+ * Déclare un achat (entrée de stock) chez un fournisseur. Sur succès, on
+ * invalide tout le sous-arbre `['stock']` du cache pour que la page "Mon
+ * stock" et les agrégats `courant` se rafraîchissent automatiquement.
+ */
+export function useEnregistrerAchat() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: EnregistrerStockRequest) =>
+      stockApi.enregistrerAchat(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: stockKeys.all });
+    },
   });
 }

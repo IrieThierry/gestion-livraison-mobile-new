@@ -1,5 +1,6 @@
 import { apiClient } from '../../lib/api-client';
 import type {
+  EnregistrerStockRequest,
   StockCourantLigneResponse,
   StockLivreurResponse,
   UUID,
@@ -36,6 +37,21 @@ export const stockApi = {
     const qs = params.toString();
     const url = `/stock-livreur/me/courant${qs ? `?${qs}` : ''}`;
     const { data } = await apiClient.get<StockCourantLigneResponse[]>(url);
+    return data;
+  },
+
+  /**
+   * Déclare une entrée de stock (= un "achat" chez un fournisseur). Mirror de
+   * `stockApi.enregistrer` côté web — endpoint `POST /stock-livreur`. Le back
+   * crée une ligne d'achat par produit et alimente `stock_courant_livreur`.
+   */
+  enregistrerAchat: async (
+    payload: EnregistrerStockRequest,
+  ): Promise<StockLivreurResponse[]> => {
+    const { data } = await apiClient.post<StockLivreurResponse[]>(
+      '/stock-livreur',
+      payload,
+    );
     return data;
   },
 };

@@ -328,6 +328,28 @@ export interface AchatResponse {
 /** @deprecated Alias historique de `AchatResponse` — conservé par parité avec le web. */
 export type StockLivreurResponse = AchatResponse
 
+/**
+ * Une ligne du payload de déclaration d'achat (= entrée de stock chez un
+ * fournisseur). Mirror de `LigneStockRequest` côté web/back — pas de prix
+ * d'achat sur la ligne, le prix vient du `produit.prixAchatParDefaut` côté
+ * back.
+ */
+export interface LigneStockRequest {
+  produitId: UUID
+  qte: number
+}
+
+/**
+ * Payload de `POST /stock-livreur` — un livreur déclare avoir embarqué N
+ * lignes de stock chez un fournisseur. Renvoie la liste des `StockLivreurResponse`
+ * (= achats) créés.
+ */
+export interface EnregistrerStockRequest {
+  livreurId: UUID
+  fournisseurId: UUID
+  lignes: LigneStockRequest[]
+}
+
 // ---------- Encaissements commandes ----------
 export interface CreerEncaissementCommandeRequest {
   montantEncaisse: number
