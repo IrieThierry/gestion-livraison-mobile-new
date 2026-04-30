@@ -1,9 +1,124 @@
-import { View, Text } from 'react-native';
+import { ScrollView, View, Text, Pressable, Alert, Linking } from 'react-native';
+import { router } from 'expo-router';
+import { LogOut, Moon, Sun, Smartphone, ExternalLink, Check } from 'lucide-react-native';
+import { PageHeader } from '../../components/shared/PageHeader';
+import { useAuthStore } from '../../stores/authStore';
+import { useThemeStore, type Theme } from '../../stores/themeStore';
+
+const THEMES: Array<{ key: Theme; label: string; icon: React.ComponentType<{ color: string; size: number }> }> = [
+  { key: 'light', label: 'Clair', icon: Sun },
+  { key: 'dark', label: 'Sombre', icon: Moon },
+  { key: 'system', label: 'Système', icon: Smartphone },
+];
+
 export default function Profil() {
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const theme = useThemeStore((s) => s.theme);
+  const setTheme = useThemeStore((s) => s.setTheme);
+
+  if (!user) return null;
+
+  const onLogout = () => {
+    Alert.alert('Déconnexion', 'Tu veux te déconnecter de l’app ?', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Se déconnecter',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
+          router.replace('/(auth)/login');
+        },
+      },
+    ]);
+  };
+
+  const initials = `${user.prenom?.[0] ?? ''}${user.nom?.[0] ?? ''}`.toUpperCase();
+
   return (
-    <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
-      <Text className="text-slate-900 dark:text-white font-extrabold">Profil</Text>
-      <Text className="text-slate-500 dark:text-slate-400 text-sm mt-1">À venir en Task 28</Text>
+    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
+      <PageHeader title="Profil" showBack={false} />
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+        <View className="px-4">
+          {/* User card */}
+          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5 items-center">
+            <View className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
+              <Text className="text-emerald-700 dark:text-emerald-400 font-extrabold text-xl">
+                {initials || '?'}
+              </Text>
+            </View>
+            <Text className="font-extrabold text-slate-900 dark:text-white mt-3 text-base">
+              {user.prenom} {user.nom}
+            </Text>
+            <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              {user.username}
+              {user.role ? ` · ${user.role}` : ''}
+            </Text>
+            {user.contact ? (
+              <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                {user.contact}
+              </Text>
+            ) : null}
+          </View>
+
+          {/* Apparence */}
+          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
+            Apparence
+          </Text>
+          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+            {THEMES.map(({ key, label, icon: Icon }, i) => {
+              const active = theme === key;
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => setTheme(key)}
+                  className={`flex-row items-center justify-between px-4 py-3 active:opacity-70 ${
+                    i > 0 ? 'border-t border-slate-100 dark:border-slate-800' : ''
+                  }`}
+                >
+                  <View className="flex-row items-center gap-3">
+                    <Icon
+                      color={
+                        key === 'light' ? '#f59e0b' : key === 'dark' ? '#6366f1' : '#64748b'
+                      }
+                      size={18}
+                    />
+                    <Text className="text-slate-900 dark:text-white">{label}</Text>
+                  </View>
+                  {active ? <Check color="#10b981" size={18} /> : null}
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Plus de fonctions */}
+          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
+            Plus de fonctions
+          </Text>
+          <Pressable
+            onPress={() => Linking.openURL('https://app.gestionlivraison.example.com')}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 flex-row items-center gap-3 active:opacity-70"
+          >
+            <ExternalLink color="#3b82f6" size={20} />
+            <View className="flex-1">
+              <Text className="font-extrabold text-slate-900 dark:text-white">Portail web</Text>
+              <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                Apprentis, prix, stock équipe, rapports
+              </Text>
+            </View>
+          </Pressable>
+
+          {/* Logout */}
+          <Pressable
+            onPress={onLogout}
+            className="bg-red-500 rounded-lg py-3.5 mt-6 flex-row items-center justify-center gap-2 active:opacity-80"
+          >
+            <LogOut color="#fff" size={18} />
+            <Text className="text-white font-bold text-base">Se déconnecter</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
     </View>
   );
 }
