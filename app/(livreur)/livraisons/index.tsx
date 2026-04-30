@@ -1,16 +1,31 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native';
+import {
+  ScrollView,
+  View,
+  Text,
+  Pressable,
+  RefreshControl,
+  TextInput,
+} from 'react-native';
+import { router } from 'expo-router';
+import { Search, X, ChevronLeft } from 'lucide-react-native';
 import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useAuthStore } from '../../../stores/authStore';
-import { LivraisonCard } from '../../../components/livreur/LivraisonCard';
+import { LivraisonCard, deriveStatus } from '../../../components/livreur/LivraisonCard';
 import { EmptyState } from '../../../components/shared/EmptyState';
-import { PageHeader } from '../../../components/shared/PageHeader';
-import type { StatutLivraison } from '../../../types/api';
+import { formatFCFA } from '../../../lib/format';
+import type { LivraisonResponse } from '../../../types/api';
 
 type Period = 'today' | 'week' | 'month' | 'all';
-type StatutFilter = 'ALL' | StatutLivraison;
 
-function isInPeriod(d: Date, p: Period): boolean {
+const PERIOD_LABELS: Record<Period, string> = {
+  today: "Aujourd'hui",
+  week: 'Semaine',
+  month: 'Mois',
+  all: 'Tous',
+};
+
+function inPeriod(d: Date, p: Period): boolean {
   const now = new Date();
   if (p === 'today') return d.toDateString() === now.toDateString();
   if (p === 'all') return true;
@@ -21,64 +36,102 @@ function isInPeriod(d: Date, p: Period): boolean {
   return d >= start;
 }
 
-const PERIOD_LABELS: Record<Period, string> = {
-  today: 'Aujourd’hui',
-  week: '7 j',
-  month: '30 j',
-  all: 'Tous',
-};
-
-const STATUT_LABELS: Record<StatutFilter, string> = {
-  ALL: 'Tous statuts',
-  LIVREE: 'Livrées',
-  ENCAISSEE: 'Encaissées',
-};
-
 export default function LivraisonsList() {
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
   const q = useLivraisonsByLivreur(livreurId);
-
   const [period, setPeriod] = useState<Period>('today');
-  const [statut, setStatut] = useState<StatutFilter>('ALL');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [search, setSearch] = useState('');
 
-  const filtered = useMemo(() => {
-    return (q.data ?? [])
-      .filter((l) => isInPeriod(new Date(l.date), period))
-      .filter((l) => statut === 'ALL' || l.statut === statut);
-  }, [q.data, period, statut]);
+  const filtered = useMemo<LivraisonResponse[]>(() => {
+    let list = (q.data ?? []).filter((l) => inPeriod(new Date(l.date), period));
+    if (search.trim()) {
+      const needle = search.toLowerCase();
+      list = list.filter(
+        (l) =>
+          `${l.client.prenom} ${l.client.nom}`.toLowerCase().includes(needle) ||
+          (l.client.quartier?.libelle ?? '').toLowerCase().includes(needle),
+      );
+    }
+    return list;
+  }, [q.data, period, search]);
+
+  const stats = useMemo(() => {
+    let encaissees = 0;
+    let livrees = 0;
+    let doit = 0;
+    let totalEncaisse = 0;
+    let marge = 0;
+    for (const l of filtered) {
+      const ds = deriveStatus(l);
+      if (ds === 'ENCAISSEE') {
+        encaissees += 1;
+        totalEncaisse += l.montantLivre ?? 0;
+        for (const p of l.produitsLivraison ?? []) {
+          const ach = p.produit?.prixAchatParDefaut ?? 0;
+          const vte = p.prixDeVente ?? 0;
+          const qte = (p.qteLivre ?? 0) - (p.qteRetourne ?? 0);
+          marge += (vte - ach) * qte;
+        }
+      } else if (ds === 'LIVREE') {
+        livrees += 1;
+      } else {
+        doit += 1;
+      }
+    }
+    return { encaissees, livrees, doit, totalEncaisse, marge };
+  }, [filtered]);
 
   if (!user) return null;
 
-  const Pill = ({ active, label, onPress }: { active: boolean; label: string; onPress: () => void }) => (
-    <Pressable
-      onPress={onPress}
-      className={`px-3 py-1.5 rounded-md ${
-        active
-          ? 'bg-emerald-500'
-          : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
-      }`}
-    >
-      <Text
-        className={`text-[11px] font-bold ${
-          active ? 'text-white' : 'text-slate-700 dark:text-slate-300'
-        }`}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
+  const subtitle = `${filtered.length} livraison${filtered.length > 1 ? 's' : ''}${
+    period === 'today' ? " aujourd'hui" : ''
+  }`;
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader
-        title="Livraisons"
-        subtitle={`${filtered.length} résultat${filtered.length > 1 ? 's' : ''}`}
-        showBack={false}
-      />
+      {/* Header */}
+      <View className="flex-row items-center px-4 pt-3 pb-2 gap-3">
+        <Pressable
+          onPress={() => {
+            if (router.canGoBack()) router.back();
+            else router.push('/(livreur)' as never);
+          }}
+          hitSlop={8}
+          className="w-10 h-10 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 items-center justify-center active:opacity-70"
+        >
+          <ChevronLeft color="#475569" size={20} />
+        </Pressable>
+        <View className="flex-1">
+          <Text className="font-extrabold text-slate-900 dark:text-white text-lg">Livraisons</Text>
+          <Text className="text-[11px] text-slate-500 dark:text-slate-400">{subtitle}</Text>
+        </View>
+        <Pressable
+          onPress={() => setSearchOpen((v) => !v)}
+          hitSlop={8}
+          className="w-10 h-10 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 items-center justify-center active:opacity-70"
+        >
+          {searchOpen ? <X color="#475569" size={18} /> : <Search color="#475569" size={18} />}
+        </Pressable>
+      </View>
+
+      {searchOpen ? (
+        <View className="px-4 pb-2">
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Rechercher un client ou quartier…"
+            placeholderTextColor="#94a3b8"
+            autoFocus
+            autoCorrect={false}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2.5 text-slate-900 dark:text-white text-base"
+          />
+        </View>
+      ) : null}
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
@@ -87,54 +140,118 @@ export default function LivraisonsList() {
           />
         }
       >
-        {/* Period pills */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-          className="mb-2"
-        >
-          {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
-            <Pill
-              key={p}
-              active={period === p}
-              label={PERIOD_LABELS[p]}
-              onPress={() => setPeriod(p)}
-            />
-          ))}
-        </ScrollView>
+        <View className="px-4">
+          {/* 3 stat cards */}
+          <View className="flex-row gap-2 mt-1">
+            <StatCount label="Encaissée" value={stats.encaissees} accent="emerald" />
+            <StatCount label="Livrée" value={stats.livrees} accent="amber" />
+            <StatCount label="Doit" value={stats.doit} accent="red" />
+          </View>
 
-        {/* Statut pills */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-          className="mb-3"
-        >
-          {(Object.keys(STATUT_LABELS) as StatutFilter[]).map((s) => (
-            <Pill
-              key={s}
-              active={statut === s}
-              label={STATUT_LABELS[s]}
-              onPress={() => setStatut(s)}
-            />
-          ))}
-        </ScrollView>
+          {/* Total encaissé + Marge banner */}
+          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 mt-2 flex-row">
+            <View className="flex-1">
+              <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
+                Total encaissé
+              </Text>
+              <Text className="font-extrabold text-slate-900 dark:text-white mt-0.5">
+                <Text className="text-xl">{formatFCFA(stats.totalEncaisse)}</Text>
+                <Text className="text-xs text-slate-500 dark:text-slate-400"> FCFA</Text>
+              </Text>
+            </View>
+            <View className="items-end">
+              <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
+                Marge
+              </Text>
+              <Text className="font-extrabold text-emerald-600 dark:text-emerald-400 text-xl mt-0.5">
+                + {formatFCFA(stats.marge)}
+              </Text>
+            </View>
+          </View>
 
-        {/* List */}
-        <View className="px-4 gap-2">
+          {/* Period pills */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator
+            contentContainerStyle={{ gap: 8, paddingTop: 4, paddingBottom: 4 }}
+            className="mt-3"
+          >
+            {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
+              <Pressable
+                key={p}
+                onPress={() => setPeriod(p)}
+                className={`px-4 py-2 rounded-md ${
+                  period === p
+                    ? 'bg-emerald-500'
+                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
+                }`}
+              >
+                <Text
+                  className={`text-[12px] font-bold ${
+                    period === p ? 'text-white' : 'text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  {PERIOD_LABELS[p]}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          {/* Section title */}
+          <Text className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 dark:text-slate-400 mt-4 mb-2">
+            Ma tournée
+          </Text>
+
+          {/* List */}
           {q.isLoading ? (
             <Text className="text-slate-400 text-sm">Chargement…</Text>
           ) : filtered.length === 0 ? (
             <EmptyState
               title="Aucune livraison"
-              message="Ajuste les filtres ou crée une livraison via le bouton ➕."
+              message={
+                search
+                  ? 'Aucun résultat pour cette recherche.'
+                  : 'Ajuste les filtres ou crée une livraison via le bouton ➕.'
+              }
             />
           ) : (
-            filtered.map((l) => <LivraisonCard key={l.id} livraison={l} />)
+            <View className="gap-2">
+              {filtered.map((l) => (
+                <LivraisonCard key={l.id} livraison={l} />
+              ))}
+            </View>
           )}
         </View>
       </ScrollView>
+    </View>
+  );
+}
+
+function StatCount({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: number;
+  accent: 'emerald' | 'amber' | 'red';
+}) {
+  const border =
+    accent === 'emerald'
+      ? 'border-l-emerald-500'
+      : accent === 'amber'
+        ? 'border-l-amber-500'
+        : 'border-l-red-500';
+  return (
+    <View
+      className={`flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 ${border} rounded-lg p-2.5`}
+    >
+      <Text className="text-[9px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-extrabold">
+        {label}
+      </Text>
+      <Text className="text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5 leading-none">
+        {value}
+      </Text>
     </View>
   );
 }
