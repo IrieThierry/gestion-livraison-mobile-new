@@ -1,36 +1,43 @@
 import { ScrollView, View, Text, RefreshControl } from 'react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
-import { useStockActuel } from '../../../features/stock/hooks';
+import { useStockCourant } from '../../../features/stock/hooks';
 import { useAuthStore } from '../../../stores/authStore';
-import { formatFCFA } from '../../../lib/format';
 
-// Écran "Mon stock" — Task 22.
-// Source : `GET /stock-livreur/{livreurId}/actuel` qui renvoie le stock
-// embarqué ventilé par (produit × fournisseur). C'est exactement ce que la
-// spec mobile demande : une ligne par tuple produit/fournisseur avec sa
-// quantité, le coût d'achat, et un signal visuel "stock faible" en dessous
-// de 5 unités.
+/**
+ * Écran "Mon stock" — affiche le **stock courant livreur** Plan D
+ * (table `stock_courant_livreur`), c'est-à-dire la quantité réellement
+ * vendable APRÈS prise en compte des livraisons et des retours.
+ *
+ * Source : `GET /stock-livreur/me/courant` qui renvoie une ligne par
+ * produit avec `qteVendable` (= achats − livraisons + retours sur la
+ * période). C'est ce que le portail web montre aussi sur sa page Stock.
+ *
+ * NB : on n'utilise plus `useStockActuel` (= ventilation par achat ×
+ * fournisseur, qui ne déduit pas les livraisons et donc affichait du
+ * "stock à l'achat" trompeur).
+ */
 export default function StockCourant() {
   const user = useAuthStore((s) => s.user);
-  const livreurId = user?.id ?? '';
-  const q = useStockActuel(livreurId);
+  const q = useStockCourant();
   const items = q.data ?? [];
 
   if (!user) return null;
 
-  // Total unités vendables sur tout le stock (somme des qte par tuple).
-  const totalUnites = items.reduce((acc, s) => acc + (s.qte ?? 0), 0);
+  // Total unités vendables sur tout le stock (somme des qteVendable).
+  const totalUnites = items.reduce((acc, s) => acc + (s.qteVendable ?? 0), 0);
 
-  // Nombre de produits distincts (un produit peut apparaître sur plusieurs
-  // lignes si acheté chez plusieurs fournisseurs).
-  const produitsDistincts = new Set(items.map((s) => s.produit?.id).filter(Boolean)).size;
+  // Total des retours cumulés sur la période — informatif.
+  const totalRetours = items.reduce(
+    (acc, s) => acc + (s.qteRetourneeSurPeriode ?? 0),
+    0,
+  );
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
         title="Mon stock"
-        subtitle={`${items.length} ligne${items.length > 1 ? 's' : ''} · ${produitsDistincts} produit${produitsDistincts > 1 ? 's' : ''}`}
+        subtitle={`${items.length} produit${items.length > 1 ? 's' : ''}`}
       />
 
       <ScrollView
@@ -53,14 +60,14 @@ export default function StockCourant() {
               {totalUnites} <Text className="text-sm">unités</Text>
             </Text>
             <Text className="text-xs text-white/90 mt-1">
-              {produitsDistincts} produit{produitsDistincts > 1 ? 's' : ''} · {items.length} ligne
-              {items.length > 1 ? 's' : ''}
+              {items.length} produit{items.length > 1 ? 's' : ''}
+              {totalRetours > 0 ? ` · ${totalRetours} retours sur période` : ''}
             </Text>
           </View>
 
           {/* Liste */}
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
-            Par produit / fournisseur
+            Par produit
           </Text>
 
           {q.isLoading ? (
@@ -75,15 +82,18 @@ export default function StockCourant() {
               {items.map((it) => {
                 const designation = it.produit?.designation ?? '—';
                 const code = it.produit?.code ?? '';
-                const fournisseur = it.fournisseur?.libelle ?? '—';
-                const qte = it.qte ?? 0;
+                const qte = it.qteVendable ?? 0;
+                const retours = it.qteRetourneeSurPeriode ?? 0;
                 const lowStock = qte < 5;
-                const borderColor = lowStock
+                const outOfStock = qte === 0;
+                const borderColor = outOfStock
+                  ? 'border-l-red-500'
+                  : lowStock
                   ? 'border-l-amber-500'
                   : 'border-l-emerald-500';
                 return (
                   <View
-                    key={it.id}
+                    key={it.produit?.id ?? code}
                     className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 ${borderColor} rounded-lg p-3 flex-row items-start justify-between`}
                   >
                     <View className="flex-1 pr-2">
@@ -95,19 +105,18 @@ export default function StockCourant() {
                           {code}
                         </Text>
                       ) : null}
-                      <Text className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        {fournisseur}
-                      </Text>
-                      {it.coutTotal ? (
-                        <Text className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                          Coût {formatFCFA(it.coutTotal)} FCFA
+                      {retours > 0 ? (
+                        <Text className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
+                          {retours} retour{retours > 1 ? 's' : ''} sur la période
                         </Text>
                       ) : null}
                     </View>
                     <View className="items-end">
                       <Text
                         className={`text-2xl font-extrabold ${
-                          lowStock
+                          outOfStock
+                            ? 'text-red-600 dark:text-red-400'
+                            : lowStock
                             ? 'text-amber-600 dark:text-amber-400'
                             : 'text-slate-900 dark:text-white'
                         }`}

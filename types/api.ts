@@ -364,6 +364,29 @@ export interface EnregistrerStockRequest {
   lignes: LigneStockRequest[]
 }
 
+// ---------- Prix résolu (Plan D — résolveur) ----------
+/**
+ * Réponse de `GET /prix/resoudre?clientId=X&produitId=Y` — donne le prix
+ * unitaire à appliquer pour un (client, produit), avec la source utilisée
+ * pour la résolution.
+ *
+ *   - `source = 'CLIENT'` → prix custom enregistré pour ce couple
+ *   - `source = 'LIVREUR'` → prix par défaut du livreur connecté
+ *   - `source = null` (et `prix = null`) → aucun prix mémorisé, le
+ *     livreur doit taper le prix manuellement (fallback sur
+ *     `client.prixDeVenteProduitParDefault` ou `produit.prixAchatParDefaut`)
+ */
+export interface ResoudrePrixResponse {
+  prix: number | null
+  source: 'CLIENT' | 'LIVREUR' | null
+}
+
+export interface UpsertPrixClientRequest {
+  clientId: UUID
+  produitId: UUID
+  prix: number
+}
+
 // ---------- Encaissements commandes ----------
 export interface CreerEncaissementCommandeRequest {
   montantEncaisse: number

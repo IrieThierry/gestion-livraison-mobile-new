@@ -164,6 +164,12 @@ export default function ClientsList() {
               client={item}
               geo={geo}
               solde={solde}
+              onPress={() =>
+                router.push({
+                  pathname: '/(livreur)/clients/[id]' as never,
+                  params: { id: item.id },
+                } as never)
+              }
               onLivrer={() => onLivrer(item)}
               onEncaisser={() => onEncaisser(item)}
             />
@@ -178,12 +184,14 @@ function ClientRow({
   client,
   geo,
   solde,
+  onPress,
   onLivrer,
   onEncaisser,
 }: {
   client: ClientResponse;
   geo: { lat: number; lng: number } | null;
   solde: number;
+  onPress: () => void;
   onLivrer: () => void;
   onEncaisser: () => void;
 }) {
@@ -192,7 +200,10 @@ function ClientRow({
   const credit = solde < 0;
 
   return (
-    <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 mb-2">
+    <Pressable
+      onPress={onPress}
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 mb-2 active:opacity-80"
+    >
       {/* Identity row */}
       <View className="flex-row items-center gap-3">
         <View className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
@@ -255,7 +266,7 @@ function ClientRow({
           onPress={onEncaisser}
         />
       </View>
-    </View>
+    </Pressable>
   );
 }
 

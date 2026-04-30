@@ -29,6 +29,7 @@ export default function NouvelleLivraison() {
   const [client, setClient] = useState<ClientResponse | null>(null);
   const [lignes, setLignes] = useState<Ligne[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [insufficientCount, setInsufficientCount] = useState(0);
   const total = lignes.reduce((acc, l) => acc + l.prix * l.qte, 0);
   const m = useCreerLivraison();
   const qc = useQueryClient();
@@ -76,6 +77,16 @@ export default function NouvelleLivraison() {
     // serait fausse — on force le livreur à saisir un prix réel.
     if (validLignes.some((l) => l.prix <= 0)) {
       Alert.alert('Erreur', 'Définis un prix unitaire (> 0) pour chaque ligne');
+      return;
+    }
+    // Stock check : doublon de la garde UI (le bouton est déjà désactivé)
+    // mais on garde une dernière barrière au cas où l'état stock arrive
+    // entre le tap et le moment où le bouton se désactive.
+    if (insufficientCount > 0) {
+      Alert.alert(
+        'Stock insuffisant',
+        `${insufficientCount} ligne${insufficientCount > 1 ? 's' : ''} dépasse${insufficientCount === 1 ? '' : 'nt'} le stock dispo.`,
+      );
       return;
     }
 
@@ -135,6 +146,9 @@ export default function NouvelleLivraison() {
               lignes={lignes}
               onChange={setLignes}
               prixDeVenteParDefaut={client?.prixDeVenteProduitParDefault}
+              clientId={client?.id}
+              enforceStock
+              onValidityChange={setInsufficientCount}
             />
           </View>
 
@@ -145,15 +159,33 @@ export default function NouvelleLivraison() {
             </Text>
           </View>
 
+          {insufficientCount > 0 ? (
+            <View className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-md p-3 mt-3 flex-row items-center gap-2">
+              <Text className="text-[12px] text-red-600 dark:text-red-400 font-bold flex-1">
+                {insufficientCount} ligne{insufficientCount > 1 ? 's' : ''} dépasse{insufficientCount === 1 ? '' : 'nt'} le stock dispo — réduis les quantités pour pouvoir enregistrer.
+              </Text>
+            </View>
+          ) : null}
+
           <Pressable
             onPress={onSubmit}
-            disabled={m.isPending}
-            className="bg-emerald-500 rounded-md py-3.5 mt-5 items-center active:opacity-80"
+            disabled={m.isPending || insufficientCount > 0}
+            className={`rounded-md py-3.5 mt-5 items-center ${
+              insufficientCount > 0
+                ? 'bg-slate-300 dark:bg-slate-700'
+                : 'bg-emerald-500 active:opacity-80'
+            }`}
           >
             {m.isPending ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text className="text-white font-bold text-base">Enregistrer</Text>
+              <Text
+                className={`font-bold text-base ${
+                  insufficientCount > 0 ? 'text-slate-500' : 'text-white'
+                }`}
+              >
+                {insufficientCount > 0 ? 'Stock insuffisant' : 'Enregistrer'}
+              </Text>
             )}
           </Pressable>
         </View>
