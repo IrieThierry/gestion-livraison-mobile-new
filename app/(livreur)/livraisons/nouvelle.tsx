@@ -6,13 +6,17 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { ClientPicker } from '../../../components/livreur/ClientPicker';
 import { ProduitPicker, type Ligne } from '../../../components/livreur/ProduitPicker';
 import { useCreerLivraison } from '../../../features/livraisons/hooks';
 import { useClientsByLivreur } from '../../../features/clients/hooks';
+import { clientKeys } from '../../../features/clients/keys';
+import { produitKeys } from '../../../features/produits/keys';
 import { useAuthStore } from '../../../stores/authStore';
 import { formatFCFA } from '../../../lib/format';
 import type { ClientResponse, CreerLivraisonRequest } from '../../../types/api';
@@ -20,11 +24,29 @@ import type { ClientResponse, CreerLivraisonRequest } from '../../../types/api';
 export default function NouvelleLivraison() {
   const user = useAuthStore((s) => s.user);
   const { clientId: prefilledClientId } = useLocalSearchParams<{ clientId?: string }>();
-  const { data: clientsData = [] } = useClientsByLivreur(user?.id ?? '');
+  const clientsQ = useClientsByLivreur(user?.id ?? '');
+  const clientsData = clientsQ.data ?? [];
   const [client, setClient] = useState<ClientResponse | null>(null);
   const [lignes, setLignes] = useState<Ligne[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const total = lignes.reduce((acc, l) => acc + l.prix * l.qte, 0);
   const m = useCreerLivraison();
+  const qc = useQueryClient();
+
+  // Pull-to-refresh : invalide les lookups dont le formulaire dépend
+  // (clients du livreur + catalogue produits) pour récupérer immédiatement
+  // ce qui aurait été créé sur le portail web pendant que ce form est ouvert.
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: clientKeys.all }),
+        qc.invalidateQueries({ queryKey: produitKeys.all }),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // Pre-select client if arriving from the client list with ?clientId=…
   useEffect(() => {
@@ -92,7 +114,16 @@ export default function NouvelleLivraison() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader title="Nouvelle livraison" />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#10b981"
+          />
+        }
+      >
         <View className="px-4">
           <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-2">
             Client

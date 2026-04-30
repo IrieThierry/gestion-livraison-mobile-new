@@ -6,12 +6,15 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { ProduitPicker, type Ligne } from '../../../components/livreur/ProduitPicker';
 import { useEnregistrerAchat } from '../../../features/stock/hooks';
 import { useFournisseurs } from '../../../features/lookups/hooks';
+import { produitKeys } from '../../../features/produits/keys';
 import { useAuthStore } from '../../../stores/authStore';
 import { formatFCFA } from '../../../lib/format';
 import type { EnregistrerStockRequest } from '../../../types/api';
@@ -21,7 +24,23 @@ export default function DeclarerAchat() {
   const { data: fournisseurs = [], isLoading: loadingFournisseurs } = useFournisseurs();
   const [fournisseurId, setFournisseurId] = useState<string | null>(null);
   const [lignes, setLignes] = useState<Ligne[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const m = useEnregistrerAchat();
+  const qc = useQueryClient();
+
+  // Pull-to-refresh : invalide les fournisseurs (lookup, staleTime 5min) et
+  // le catalogue produits — utile si l'admin vient d'ajouter un produit.
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['lookups', 'fournisseurs'] }),
+        qc.invalidateQueries({ queryKey: produitKeys.all }),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // Pour le total affiché : on multiplie quantité × prix indicatif venant du
   // catalogue (`prixAchatParDefaut`). Le back ne lit pas ce prix dans la
@@ -74,7 +93,16 @@ export default function DeclarerAchat() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader title="Déclarer un achat" />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#10b981"
+          />
+        }
+      >
         <View className="px-4">
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
             Fournisseur

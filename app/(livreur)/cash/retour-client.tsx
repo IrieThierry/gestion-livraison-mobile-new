@@ -9,6 +9,7 @@ import {
   FlatList,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { X } from 'lucide-react-native';
@@ -46,6 +47,11 @@ export default function RetourClient() {
   const [livraisonId, setLivraisonId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [qtes, setQtes] = useState<ReturnQty>({});
+
+  // Pull-to-refresh : recharge la liste des livraisons retournables. Utile
+  // si une livraison vient d'être créée ou si un retour a été annulé/modifié
+  // côté admin pendant que ce form est ouvert.
+  const onRefresh = () => q.refetch();
 
   // Livraisons des 30 derniers jours qui ont au moins une ligne retournable
   // (qteLivre - qteRetourne > 0). On accepte tous statuts (LIVREE et ENCAISSEE
@@ -147,7 +153,16 @@ export default function RetourClient() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader title="Retour client" />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={q.isFetching && !q.isLoading}
+            onRefresh={onRefresh}
+            tintColor="#10b981"
+          />
+        }
+      >
         <View className="px-4">
           {/* Livraison picker */}
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">

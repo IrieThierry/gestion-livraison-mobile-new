@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ScrollView, View, Text, TextInput, Pressable, Alert } from 'react-native';
+import { ScrollView, View, Text, TextInput, Pressable, Alert, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { SelectField } from '../../../../components/shared/SelectField';
 import {
@@ -32,6 +33,24 @@ export default function NouveauClientStep1() {
   const initialZoneId =
     quartiers.find((q) => q.id === draft.quartierId)?.zone?.id ?? null;
   const [zoneId, setZoneId] = useState<string | null>(initialZoneId);
+  const [refreshing, setRefreshing] = useState(false);
+  const qc = useQueryClient();
+
+  // Pull-to-refresh : invalide les 3 lookups (zones, quartiers, catégories).
+  // Les hooks `useZones/useQuartiers/useCategories` ont un staleTime de 5min,
+  // donc sans invalidation explicite ils ne se rafraîchissent pas.
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['lookups', 'zones'] }),
+        qc.invalidateQueries({ queryKey: ['lookups', 'quartiers'] }),
+        qc.invalidateQueries({ queryKey: ['lookups', 'categories'] }),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // Re-hydrate when the user comes back from step 2 (back swipe)
   useEffect(() => {
@@ -117,7 +136,16 @@ export default function NouveauClientStep1() {
         <View className="flex-1 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800" />
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#10b981"
+          />
+        }
+      >
         <View className="px-4 gap-3">
           {/* Identity */}
           <View className="flex-row gap-3">

@@ -7,8 +7,10 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { DatePickerField } from '../../../components/shared/DatePickerField';
 import { useFournisseurs } from '../../../features/lookups/hooks';
@@ -16,6 +18,7 @@ import {
   useVersementSituation,
   useEnregistrerVersement,
 } from '../../../features/versements/hooks';
+import { versementKeys } from '../../../features/versements/keys';
 import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import { formatFCFA } from '../../../lib/format';
@@ -58,6 +61,22 @@ export default function Versement() {
   });
 
   const m = useEnregistrerVersement();
+  const qc = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Pull-to-refresh : invalide les fournisseurs (lookup, staleTime 5min) et
+  // la situation du versement courant (recalcul live des totaux par le back).
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['lookups', 'fournisseurs'] }),
+        qc.invalidateQueries({ queryKey: versementKeys.all }),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   if (!user) return null;
 
@@ -121,7 +140,16 @@ export default function Versement() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader title="Faire un versement" />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#10b981"
+          />
+        }
+      >
         <View className="px-4">
           {/* Fournisseur chip row */}
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
