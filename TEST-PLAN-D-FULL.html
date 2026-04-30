@@ -1,0 +1,1001 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Plan D — Test scenario complet</title>
+<style>
+  :root {
+    --emerald-50: #ecfdf5;
+    --emerald-100: #d1fae5;
+    --emerald-500: #10b981;
+    --emerald-600: #059669;
+    --emerald-700: #047857;
+    --slate-50: #f8fafc;
+    --slate-100: #f1f5f9;
+    --slate-200: #e2e8f0;
+    --slate-300: #cbd5e1;
+    --slate-400: #94a3b8;
+    --slate-500: #64748b;
+    --slate-600: #475569;
+    --slate-700: #334155;
+    --slate-800: #1e293b;
+    --slate-900: #0f172a;
+    --slate-950: #020617;
+    --amber-100: #fef3c7;
+    --amber-700: #b45309;
+    --red-100: #fee2e2;
+    --red-600: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--slate-50);
+    color: var(--slate-900);
+    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  header.sticky {
+    position: sticky;
+    top: 0;
+    background: white;
+    border-bottom: 1px solid var(--slate-200);
+    padding: 14px 22px;
+    z-index: 10;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  h1 { margin: 0 0 6px; font-size: 20px; }
+  .sub { color: var(--slate-500); font-size: 12px; margin: 0; }
+  .progress-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .progress-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--slate-200);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--emerald-500), var(--emerald-600));
+    transition: width 0.3s ease;
+  }
+  .progress-stat {
+    font-weight: 700;
+    color: var(--emerald-700);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    align-items: center;
+  }
+  .toolbar label {
+    font-size: 12px;
+    color: var(--slate-600);
+    cursor: pointer;
+    user-select: none;
+  }
+  .toolbar input[type="checkbox"] { vertical-align: middle; margin-right: 4px; }
+  button {
+    background: white;
+    border: 1px solid var(--slate-300);
+    color: var(--slate-700);
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { background: var(--slate-100); }
+  button.primary {
+    background: var(--emerald-500);
+    border-color: var(--emerald-500);
+    color: white;
+  }
+  button.primary:hover { background: var(--emerald-600); }
+  button.danger {
+    color: var(--red-600);
+    border-color: var(--red-100);
+  }
+  button.danger:hover { background: var(--red-100); }
+  main { max-width: 920px; margin: 22px auto; padding: 0 22px 80px; }
+
+  section.phase {
+    background: white;
+    border: 1px solid var(--slate-200);
+    border-radius: 10px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .phase-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--slate-200);
+    background: var(--slate-50);
+    cursor: pointer;
+    user-select: none;
+  }
+  .phase-header:hover { background: var(--slate-100); }
+  .phase-title { font-size: 15px; font-weight: 700; margin: 0; }
+  .phase-stat {
+    color: var(--slate-500);
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .phase-stat.done { color: var(--emerald-700); }
+  .phase-body { padding: 8px 18px 18px; }
+  section.phase.collapsed .phase-body { display: none; }
+  section.phase.collapsed .phase-header { border-bottom: 0; }
+
+  .group {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--slate-200);
+  }
+  .group:first-child { margin-top: 8px; padding-top: 0; border-top: 0; }
+  .group-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--slate-700);
+    margin: 0 0 8px;
+    letter-spacing: 0.01em;
+  }
+  .group-title .ref {
+    background: var(--emerald-100);
+    color: var(--emerald-700);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-right: 6px;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+  }
+
+  ul.items { list-style: none; padding: 0; margin: 0; }
+  ul.items li {
+    display: flex;
+    gap: 10px;
+    padding: 6px 0;
+    align-items: flex-start;
+  }
+  ul.items input[type="checkbox"] {
+    margin-top: 3px;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--emerald-500);
+  }
+  ul.items label {
+    flex: 1;
+    cursor: pointer;
+    color: var(--slate-700);
+  }
+  ul.items input:checked + label {
+    color: var(--slate-400);
+    text-decoration: line-through;
+    text-decoration-color: var(--emerald-500);
+  }
+  .context {
+    margin: 4px 0 0 26px;
+    padding: 6px 10px;
+    background: var(--slate-50);
+    border-left: 3px solid var(--slate-300);
+    border-radius: 3px;
+    font-size: 12px;
+    color: var(--slate-600);
+  }
+  .context code {
+    background: var(--slate-200);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 11px;
+  }
+
+  body.hide-done ul.items li.done { display: none; }
+  body.hide-done .group.all-done { display: none; }
+
+  .badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+  .badge.neg { background: var(--red-100); color: var(--red-600); }
+  .badge.warn { background: var(--amber-100); color: var(--amber-700); }
+  .badge.note { background: var(--slate-200); color: var(--slate-600); }
+
+  .priority-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .priority-list li {
+    padding: 8px 12px;
+    background: var(--emerald-50);
+    border-left: 3px solid var(--emerald-500);
+    margin-bottom: 6px;
+    border-radius: 0 6px 6px 0;
+    font-size: 13px;
+  }
+  .priority-list li code {
+    background: white;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--emerald-700);
+    font-weight: 700;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--slate-400);
+    font-size: 11px;
+    padding: 30px 0 10px;
+  }
+
+  @media (max-width: 600px) {
+    main { padding: 0 12px 60px; }
+    header.sticky { padding: 12px 14px; }
+    .phase-header { padding: 12px 14px; }
+    .phase-body { padding: 6px 14px 16px; }
+  }
+  @media print {
+    header.sticky { position: static; box-shadow: none; }
+    section.phase.collapsed .phase-body { display: block !important; }
+    button { display: none; }
+    .toolbar { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="sticky">
+  <h1>Plan D — Scénario de test complet</h1>
+  <p class="sub">Admin · Fournisseur · Livreur (web + mobile) — coche au fur et à mesure, l'état est sauvegardé localement.</p>
+  <div class="progress-row">
+    <div class="progress-bar"><div class="progress-fill" id="overall-fill" style="width: 0%"></div></div>
+    <div class="progress-stat" id="overall-stat">0 / 0</div>
+  </div>
+  <div class="toolbar">
+    <label><input type="checkbox" id="hide-done" /> Masquer ce qui est coché</label>
+    <button onclick="expandAll()">Tout déplier</button>
+    <button onclick="collapseAll()">Tout replier</button>
+    <button class="danger" onclick="resetAll()">Tout réinitialiser</button>
+    <button class="primary" onclick="window.print()">Imprimer</button>
+  </div>
+</header>
+
+<main id="root"></main>
+
+<footer>
+  Données sauvegardées dans le localStorage du navigateur — clé <code>test-plan-d-state</code>
+</footer>
+
+<script>
+// ============================================================================
+// Données du scénario
+// ============================================================================
+const PHASES = [
+  {
+    id: 'prep',
+    emoji: '🔧',
+    title: 'Préparation (admin)',
+    groups: [
+      {
+        ref: 'A0',
+        title: 'Reset BD propre',
+        items: [
+          { t: 'Vider la BD', ctx: '<code>DROP DATABASE livraison_db; CREATE DATABASE livraison_db;</code>' },
+          { t: 'Démarrer le back', ctx: '<code>cd gestion-livraison && JAVA_HOME=... ./mvnw spring-boot:run</code>' },
+          { t: 'Liquibase joue tous les changesets (~25 changesets dont seed admin)' },
+          { t: 'Démarrer le front', ctx: '<code>cd gestion-livraison-front && pnpm dev</code>' },
+        ],
+      },
+      {
+        ref: 'A1',
+        title: 'Connexion admin',
+        items: [
+          { t: 'Login <b>admin</b> / <b>admin123</b> (ou ce que seed-admin.sql configure)' },
+          { t: 'Tu es redirigé sur <code>/admin</code>' },
+        ],
+      },
+      {
+        ref: 'A2',
+        title: 'Référentiel',
+        items: [
+          { t: 'Créer Zone "Cocody" → Quartier "Riviera 2"' },
+          { t: 'Créer Catégorie "Boulangerie"' },
+          { t: 'Créer Profile : LIVREUR et FOURNISSEUR existent déjà (seed)' },
+        ],
+      },
+      {
+        ref: 'A3',
+        title: 'Produits (admin crée le catalogue)',
+        items: [
+          { t: 'Créer produit <b>PROD-1</b> "Baguette" prix achat défaut <b>400</b>' },
+          { t: 'Créer produit <b>PROD-2</b> "Pain de mie" prix achat défaut <b>600</b>' },
+          { t: 'Créer produit <b>PROD-3</b> "Croissant" prix achat défaut <b>200</b>' },
+        ],
+      },
+      {
+        ref: 'A4',
+        title: 'Livreurs',
+        items: [
+          { t: 'Créer <b>Marc Konan</b> (root, profile LIVREUR, parentId = null) — username <code>marc</code>' },
+          { t: 'Créer <b>Paul Diallo</b> (apprenti de Marc, parentId = marc.id) — username <code>paul</code>' },
+          { t: 'Marquer les 2 comptes comme <code>actif=true</code>, <code>statut=VALIDE</code>' },
+        ],
+      },
+      {
+        ref: 'A5',
+        title: 'Fournisseur + invitation',
+        items: [
+          { t: 'Créer <b>Boulangerie X</b> avec interlocuteur "Mme Sako"' },
+          { t: 'Inviter le fournisseur → noter le mot de passe temporaire généré' },
+          { t: 'Activer le compte (statut <code>VALIDE</code>)' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'p1',
+    emoji: '🍞',
+    title: 'Phase 1 — Catalogue fournisseur',
+    groups: [
+      {
+        ref: 'F1',
+        title: 'Login fournisseur',
+        items: [
+          { t: 'Logout admin, login [username fournisseur] / [mdp temp]' },
+          { t: 'Vérifier : redirigé sur <code>/fournisseur</code> (pas <code>/livreur</code> — fix précédent)' },
+          { t: 'Vérifier : sidebar affiche : Synthèse, Catalogue, Versements reçus, Reversements, Livreurs partenaires, Dépenses' },
+        ],
+      },
+      {
+        ref: 'F2',
+        title: 'Ajouter des produits au catalogue',
+        items: [
+          { t: 'Aller sur Catalogue → bouton "Ajouter un produit"' },
+          { t: '<b>Cas existant :</b> sélectionner PROD-1 Baguette → prix vente <b>500</b>, marge <b>50</b> → submit. Attendu : ligne ajoutée au catalogue.' },
+          { t: '<b>Cas existant :</b> PROD-2 Pain de mie → prix <b>700</b>, marge <b>80</b>' },
+          { t: '<b>Cas nouveau :</b> "✨ Créer un nouveau produit" → designation "Pain spécial maison", prix achat <b>450</b>, prix vente <b>600</b>, marge <b>60</b>. Attendu : nouveau produit créé + catalogue mis à jour.' },
+        ],
+      },
+      {
+        ref: 'F3',
+        title: 'Vérifier le portail',
+        items: [
+          { t: 'Synthèse : page chargée, mois en cours sélectionné, 0 versements pour l\'instant' },
+          { t: 'Livreurs partenaires : vide (aucun versement encore)' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'p2',
+    emoji: '🚚',
+    title: 'Phase 2 — Achats du livreur (entrées de stock)',
+    groups: [
+      {
+        ref: 'L1',
+        title: 'Login livreur (Marc)',
+        items: [
+          { t: 'Logout fournisseur, login <code>marc</code>' },
+          { t: 'Vérifier : redirigé sur <code>/livreur</code>' },
+          { t: 'Vérifier sidebar : Accueil, Livraisons, Prévisions, Encaissements, Versements, Dépenses, Reversements, Transferts, Clients, Achats (renommé), Clotures + items root (Encours, Mes apprentis, Mes prix, Stock équipe)' },
+        ],
+      },
+      {
+        ref: 'L2',
+        title: 'Première achat chez Boulangerie X',
+        items: [
+          { t: 'Aller Achats (anciennement Mon stock) → "Enregistrer un achat"' },
+          { t: 'Fournisseur : Boulangerie X' },
+          { t: 'Lignes : Baguette × <b>50</b>, Pain de mie × <b>30</b>, Pain spécial × <b>20</b>' },
+          { t: 'Submit → Attendu : 100 lignes dans la table <code>achat</code> ; 100 entries de <code>qte_vendable</code> dans <code>stock_courant_livreur</code>' },
+          { t: 'Vérifier en SQL', ctx: '<code>SELECT * FROM stock_courant_livreur WHERE livreur_id=marc.id;</code> → 3 lignes (50, 30, 20)' },
+        ],
+      },
+      {
+        ref: 'L3',
+        title: 'Vérifier "Achats" page',
+        items: [
+          { t: 'Tableau historique affiche les 3 lignes avec date, fournisseur, produit, qté' },
+          { t: 'Section "Stock vendable courant" affiche : Baguette <b>50</b>, Pain de mie <b>30</b>, Pain spécial <b>20</b>' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'p3',
+    emoji: '👥',
+    title: 'Phase 3 — Création clients',
+    groups: [
+      {
+        ref: 'L4',
+        title: 'Créer 2 clients (Marc)',
+        items: [
+          { t: 'Aller Clients → "Nouveau client"' },
+          { t: '<b>Anna Touré</b> : prénom Anna, marge convenue <b>30 FCFA/unité</b>, limite crédit <b>50 000</b>, quartier/catégorie OK' },
+          { t: '<b>Bernard Yao</b> : prénom Bernard, marge convenue <b>20 FCFA/unité</b>, limite <b>30 000</b>' },
+        ],
+      },
+      {
+        ref: 'L5',
+        title: 'Photo client (Plan C)',
+        items: [
+          { t: 'Ouvrir Anna en édition → uploader une photo → Attendu : photo affichée, URL stockée' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'p4',
+    emoji: '📦',
+    title: 'Phase 4 — Livraisons',
+    groups: [
+      {
+        ref: 'L6',
+        title: 'Livraison à Anna',
+        items: [
+          { t: 'Livraisons → "Nouvelle livraison" → client Anna' },
+          { t: 'Lignes : Baguette × <b>10</b> à 500 FCFA (Stock dispo : 50), Pain de mie × <b>5</b> à 700 FCFA' },
+          { t: 'Submit' },
+          { t: 'Vérifier : <code>stock_courant</code> Marc passe à Baguette <b>40</b>, Pain de mie <b>25</b>' },
+          { t: 'Vérifier : <code>produit_livraison.marge_unitaire = 30</code> (cristallisée depuis Anna)' },
+          { t: 'Vérifier : montant total livraison = 5 000 + 3 500 = <b>8 500</b>' },
+        ],
+      },
+      {
+        ref: 'L7',
+        title: 'Test stock insuffisant',
+        badge: 'neg',
+        items: [
+          { t: 'Tenter une livraison Bernard avec Baguette × <b>100</b>' },
+          { t: 'Attendu front : message "Stock insuffisant" + bouton submit désactivé' },
+          { t: 'Attendu back si forcé : <code>DomainException "Stock insuffisant pour Baguette"</code>' },
+        ],
+      },
+      {
+        ref: 'L8',
+        title: 'Livraison normale Bernard',
+        items: [
+          { t: 'Bernard, Baguette × <b>8</b> à 500. Si Croissant pose problème, juste Baguette × 8' },
+        ],
+      },
+      {
+        ref: 'L9',
+        title: 'Détail livraison (Plan D)',
+        items: [
+          { t: 'Ouvrir le détail de la livraison Anna' },
+          { t: 'Vérifier : ligne affiche "Marge cristallisée : <b>30 FCFA / unité</b>"' },
+          { t: 'Total marge livraison = 15 × 30 = <b>450</b> (ou recalculer selon les lignes effectivement saisies)' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'p5',
+    emoji: '💰',
+    title: 'Phase 5 — Encaissements v2',
+    groups: [
+      {
+        ref: 'L10',
+        title: 'Premier encaissement Anna',
+        items: [
+          { t: 'Encaissements → "Nouvel encaissement" → client Anna' },
+          { t: 'Plage : du 1er du mois courant → aujourd\'hui' },
+          { t: 'Attendu live : valeur livraisons <b>8 500</b>, marge cumulée <b>450</b>, dette antérieure <b>0</b>, total dû <b>8 500</b>' },
+          { t: 'Saisir montant <b>6 000</b> (encaissement partiel)' },
+          { t: 'Submit → Attendu : encaissement créé, dette après = 8 500 − 6 000 = <b>2 500</b>' },
+        ],
+      },
+      {
+        ref: 'L11',
+        title: 'Vérifier solde',
+        items: [
+          { t: 'Aller sur le détail Anna OU page Encours' },
+          { t: 'Vérifier : solde Anna = <b>2 500</b> (= dette du dernier encaissement)' },
+        ],
+      },
+      {
+        ref: 'L12',
+        title: '2e encaissement avec chevauchement',
+        badge: 'neg',
+        items: [
+          { t: 'Tenter un nouvel encaissement Anna avec plage 5-10 du mois (chevauche)' },
+          { t: 'Attendu : erreur <code>"Plage chevauche un encaissement existant"</code>' },
+        ],
+      },
+      {
+        ref: 'L13',
+        title: '2e encaissement valide (suite chronologique)',
+        items: [
+          { t: 'Plage : lendemain du dernier encaissement → aujourd\'hui (ou pas de chevauchement)' },
+          { t: 'Attendu : <code>detteAvant=2 500</code>, valeurLivraisons (sur la nouvelle plage) = <b>0</b>, totalDu = <b>2 500</b>' },
+          { t: 'Saisir <b>3 000</b> → <code>detteApres = 2 500 + 0 − 3 000 = −500</code> (crédit Anna)' },
+          { t: 'Vérifier : ligne dette_apres affichée en vert (crédit)' },
+        ],
+      },
+      {
+        ref: 'L14',
+        title: 'Suppression non-dernier',
+        badge: 'neg',
+        items: [
+          { t: 'Tenter de supprimer le 1er encaissement Anna' },
+          { t: 'Attendu : erreur <code>"Seul le dernier encaissement supprimable"</code>' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'p6',
+    emoji: '🏦',
+    title: 'Phase 6 — Versements v2 (livreur → fournisseur)',
+    groups: [
+      {
+        ref: 'L15',
+        title: 'Versement chez Boulangerie X',
+        items: [
+          { t: 'Versements → fournisseur Boulangerie X' },
+          { t: 'Plage : 1er du mois → aujourd\'hui' },
+          { t: 'Attendu live : valeur achat <b>58 000</b> (50×500+30×700+20×600), marge cumulée <b>6 100</b> (50×50+30×80+20×60), dette antérieure <b>0</b>, total dû <b>58 000</b>' },
+          { t: 'Saisir montant <b>40 000</b> (partiel)' },
+          { t: 'Submit → <code>detteApres = 58 000 − 40 000 = 18 000</code>' },
+        ],
+      },
+      {
+        ref: 'F4',
+        title: 'Vérifier côté fournisseur',
+        items: [
+          { t: 'Logout livreur, login fournisseur' },
+          { t: 'Versements reçus → table affiche le versement de Marc avec plage + montant <b>40 000</b> + dette après <b>18 000</b>' },
+          { t: 'Synthèse : total versé du mois = <b>40 000</b>, marge cumulée = <b>6 100</b>' },
+        ],
+      },
+      {
+        ref: 'F5',
+        title: 'Fournisseur enregistre un versement reçu',
+        items: [
+          { t: 'Versements reçus → "Enregistrer un versement"' },
+          { t: 'Sélectionne livreur Marc → plage différente (ex: début mois suivant)' },
+          { t: 'Attendu live : valeur achat <b>0</b>, dette antérieure = <b>18 000</b>, total dû = <b>18 000</b>' },
+          { t: 'Saisir <b>10 000</b> → soumettre → Attendu : nouvelle ligne, dette restante = <b>8 000</b>' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'p7',
+    emoji: '🚫',
+    title: 'Phase 7 — Bloquer un livreur',
+    groups: [
+      {
+        ref: 'F6',
+        title: 'Bloquer Marc',
+        items: [
+          { t: 'Livreurs partenaires → ligne Marc → bouton "Bloquer" → motif "Test"' },
+          { t: 'Attendu : badge "Bloqué" + bouton "Débloquer"' },
+        ],
+      },
+      {
+        ref: 'L16',
+        title: 'Tenter un achat',
+        badge: 'neg',
+        items: [
+          { t: 'Logout, login Marc' },
+          { t: 'Achats → tenter d\'enregistrer un achat chez Boulangerie X' },
+          { t: 'Attendu : erreur <code>"Achat refusé : vous êtes bloqué par ce fournisseur."</code>' },
+        ],
+      },
+      {
+        ref: 'F7',
+        title: 'Débloquer Marc',
+        items: [
+          { t: 'Login fournisseur → débloquer Marc' },
+          { t: 'Marc peut à nouveau acheter' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'p8',
+    emoji: '📊',
+    title: 'Phase 8 — Reversements fin de mois',
+    groups: [
+      {
+        ref: 'L17',
+        title: 'Page reversements livreur',
+        items: [
+          { t: 'Login Marc → Reversements (sidebar)' },
+          { t: 'Mois courant' },
+          { t: 'Section "À reverser à mes clients" : Anna <b>450</b>, Bernard 8 × 20 = <b>160</b>' },
+          { t: 'Section "Mes fournisseurs me doivent" : Boulangerie X marge cumulée 6 100 − dette 8 000 = max(0, −1 900) = <b>0</b> (la dette absorbe la marge)' },
+          { t: 'Cliquer "Reverser" sur Anna → 450 → submit → Attendu : ligne Anna disparaît (margeDue = 0)' },
+        ],
+      },
+      {
+        ref: 'F8',
+        title: 'Page reversements fournisseur',
+        items: [
+          { t: 'Login fournisseur → Reversements' },
+          { t: 'Section "À reverser aux livreurs" : Marc — marge cumulée 6 100, dette Marc 8 000 → net <b>0</b>' },
+          { t: 'Section "Reversements reçus" : historique correct' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'p9',
+    emoji: '🔁',
+    title: 'Phase 9 — Transferts (parent ↔ apprenti)',
+    groups: [
+      {
+        ref: 'L18',
+        title: 'Transfert Marc → Paul',
+        items: [
+          { t: 'Login Marc → Transferts → vers Paul, Baguette × <b>10</b>' },
+          { t: 'Vérifier : Stock Marc → Baguette 40−10 = <b>30</b>' },
+          { t: 'Vérifier : Stock Paul → Baguette 0+10 = <b>10</b> ✅ (corrige le bug stock_courant_livreur passé)' },
+          { t: 'Logout, login Paul → vérifier Achats Paul affiche 10 baguettes vendables' },
+        ],
+      },
+      {
+        ref: 'L19',
+        title: 'Paul livre Anna (apprenti)',
+        items: [
+          { t: 'Paul livre Anna baguette × <b>5</b> à 500' },
+          { t: 'Vérifier décrément stock Paul + cristallisation marge' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'p10',
+    emoji: '📈',
+    title: 'Phase 10 — Prévisions multi-produits',
+    groups: [
+      {
+        ref: 'L20',
+        title: 'Prévision pour demain',
+        items: [
+          { t: 'Login Marc → Prévisions → date = demain' },
+          { t: 'Sélectionner Anna → tableau de tous les produits apparaît' },
+          { t: 'Saisir : Baguette = <b>12</b>, Pain de mie = <b>6</b>, Croissant = <b>4</b>' },
+          { t: 'Bouton "Ajouter 3 lignes" → Attendu : 3 prévisions créées en 1 submit' },
+        ],
+      },
+      {
+        ref: 'L21',
+        title: 'Cumul commande',
+        items: [
+          { t: 'Section "Cumul commande" affiche : Baguette <b>12</b>, Pain de mie <b>6</b>, Croissant <b>4</b> (somme tous clients du jour)' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'p11',
+    emoji: '💳',
+    title: 'Phase 11 — Dépenses isolées',
+    groups: [
+      {
+        ref: 'L22',
+        title: 'Dépense Marc',
+        items: [
+          { t: 'Dépenses → "Nouvelle dépense" → libellé "Carburant", catégorie "TRANSPORT", montant <b>5 000</b>, date today' },
+          { t: 'Vérifier : ligne ajoutée à la liste' },
+        ],
+      },
+      {
+        ref: 'F9',
+        title: 'Dépense fournisseur',
+        items: [
+          { t: 'Login fournisseur → Dépenses → la liste de Marc n\'est PAS visible (isolation)' },
+          { t: 'Créer dépense "Loyer entrepôt" <b>50 000</b>' },
+        ],
+      },
+      {
+        ref: 'A6',
+        title: 'Admin voit tout',
+        items: [
+          { t: 'Login admin → Dépenses → voir les 2 dépenses (Marc + Boulangerie X)' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'p12',
+    emoji: '🏠',
+    title: 'Phase 12 — Dashboards',
+    groups: [
+      {
+        ref: 'L23',
+        title: 'Dashboard Marc',
+        items: [
+          { t: 'Login Marc → Accueil' },
+          { t: 'Bloc "Reversements" (Item A) — "Mes fournisseurs me doivent" : Boulangerie X = <b>0</b> (dette absorbée)' },
+          { t: 'Bloc "Reversements" — "Je dois à mes clients" : Bernard <b>160</b> (Anna 0 après reversement)' },
+          { t: 'Stats encaissements / livraisons à jour' },
+        ],
+      },
+      {
+        ref: 'F10',
+        title: 'Dashboard fournisseur',
+        items: [
+          { t: 'Login fournisseur → Synthèse' },
+          { t: 'Card "À reverser aux livreurs" : Marc <b>0</b>' },
+          { t: 'KPIs : versements reçus, marge cumulée, etc.' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'final',
+    emoji: '✅',
+    title: 'Checks finaux',
+    groups: [
+      {
+        ref: 'SYS',
+        title: 'Vérifications système',
+        items: [
+          { t: 'Aucune erreur 500 sur les endpoints touchés' },
+          { t: '<code>git log --oneline | head -30</code> : ~30 commits Plan D + features' },
+          { t: '<code>./mvnw test -Dtest=GestionBoulangerieApplicationTests</code> boot OK' },
+          { t: '<code>npx tsc --noEmit -p tsconfig.app.json</code> : 0 erreur' },
+        ],
+      },
+      {
+        ref: 'SEC',
+        title: 'Sécurité',
+        items: [
+          { t: 'Logout livreur → tenter <code>/admin</code> → redirigé <code>/livreur</code>' },
+          { t: 'Logout fournisseur → tenter <code>/livreur/...</code> → bloqué (RoleGuard)' },
+        ],
+      },
+      {
+        ref: 'DATA',
+        title: 'Data integrity',
+        items: [
+          { t: '<code>SELECT COUNT(*) FROM stock_courant_livreur WHERE qte_vendable &lt; 0;</code> = <b>0</b>' },
+          { t: '<code>SELECT COUNT(*) FROM versement WHERE date_debut &gt; date_fin;</code> = <b>0</b>' },
+          { t: 'Plages versement non chevauchantes par couple : OK' },
+        ],
+      },
+    ],
+  },
+];
+
+// Cas critiques (rendu différemment, pas de checkbox — c'est juste un raccourci)
+const PRIORITY = [
+  { ref: 'L6 + L10', t: 'décrément stock + cristallisation marge + encaissement v2' },
+  { ref: 'L13', t: 'dette cumulative qui se reporte' },
+  { ref: 'L18', t: 'transfert qui maintient le <code>stock_courant_livreur</code> (fix précédent)' },
+  { ref: 'L16', t: 'achat refusé après blocage' },
+  { ref: 'L20', t: 'prévision multi-produits' },
+  { ref: 'L17', t: 'reversement avec dette qui absorbe la marge' },
+];
+
+// ============================================================================
+// État (localStorage)
+// ============================================================================
+const STORAGE_KEY = 'test-plan-d-state';
+let state = {};
+try { state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { state = {}; }
+
+const collapsedKey = 'test-plan-d-collapsed';
+let collapsed = {};
+try { collapsed = JSON.parse(localStorage.getItem(collapsedKey) || '{}'); } catch { collapsed = {}; }
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+function saveCollapsed() {
+  localStorage.setItem(collapsedKey, JSON.stringify(collapsed));
+}
+
+// ============================================================================
+// Rendu
+// ============================================================================
+const root = document.getElementById('root');
+
+function makeId(phaseId, groupRef, idx) {
+  return `${phaseId}-${groupRef}-${idx}`;
+}
+
+function render() {
+  root.innerHTML = '';
+  for (const phase of PHASES) {
+    const sec = document.createElement('section');
+    sec.className = 'phase';
+    if (collapsed[phase.id]) sec.classList.add('collapsed');
+    sec.dataset.phase = phase.id;
+
+    const head = document.createElement('div');
+    head.className = 'phase-header';
+    head.onclick = () => toggleCollapse(phase.id);
+
+    const title = document.createElement('h2');
+    title.className = 'phase-title';
+    title.innerHTML = `${phase.emoji} ${phase.title}`;
+    head.appendChild(title);
+
+    const stat = document.createElement('span');
+    stat.className = 'phase-stat';
+    stat.dataset.phaseStat = phase.id;
+    head.appendChild(stat);
+
+    sec.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'phase-body';
+
+    for (const group of phase.groups) {
+      const g = document.createElement('div');
+      g.className = 'group';
+      g.dataset.group = `${phase.id}-${group.ref}`;
+
+      const gt = document.createElement('h3');
+      gt.className = 'group-title';
+      let badge = '';
+      if (group.badge === 'neg') badge = ' <span class="badge neg">négatif</span>';
+      gt.innerHTML = `<span class="ref">${group.ref}</span>${group.title}${badge}`;
+      g.appendChild(gt);
+
+      const ul = document.createElement('ul');
+      ul.className = 'items';
+      group.items.forEach((item, idx) => {
+        const id = makeId(phase.id, group.ref, idx);
+        const li = document.createElement('li');
+        li.dataset.id = id;
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.id = id;
+        cb.checked = !!state[id];
+        cb.onchange = () => onToggle(id, cb.checked);
+
+        const lbl = document.createElement('label');
+        lbl.htmlFor = id;
+        lbl.innerHTML = item.t;
+
+        li.appendChild(cb);
+        li.appendChild(lbl);
+        if (item.ctx) {
+          const ctx = document.createElement('div');
+          ctx.className = 'context';
+          ctx.innerHTML = item.ctx;
+          li.appendChild(ctx);
+        }
+        if (state[id]) li.classList.add('done');
+        ul.appendChild(li);
+      });
+      g.appendChild(ul);
+      body.appendChild(g);
+    }
+    sec.appendChild(body);
+
+    // Cas critiques après la dernière phase
+    if (phase.id === 'final') {
+      const priority = document.createElement('section');
+      priority.className = 'phase';
+      const head2 = document.createElement('div');
+      head2.className = 'phase-header';
+      head2.style.cursor = 'default';
+      const t2 = document.createElement('h2');
+      t2.className = 'phase-title';
+      t2.innerHTML = '🎯 Cas critiques à tester en priorité';
+      head2.appendChild(t2);
+      const sub = document.createElement('span');
+      sub.className = 'phase-stat';
+      sub.textContent = 'raccourcis (non-cochables)';
+      head2.appendChild(sub);
+      priority.appendChild(head2);
+      const body2 = document.createElement('div');
+      body2.className = 'phase-body';
+      const p = document.createElement('p');
+      p.style.cssText = 'margin: 0 0 12px; color: var(--slate-600); font-size: 13px;';
+      p.textContent = 'Si tu veux tester rapidement les points sensibles sans dérouler tout :';
+      body2.appendChild(p);
+      const ul2 = document.createElement('ul');
+      ul2.className = 'priority-list';
+      for (const prio of PRIORITY) {
+        const li2 = document.createElement('li');
+        li2.innerHTML = `<code>${prio.ref}</code> — ${prio.t}`;
+        ul2.appendChild(li2);
+      }
+      body2.appendChild(ul2);
+      priority.appendChild(body2);
+      root.appendChild(sec);
+      root.appendChild(priority);
+    } else {
+      root.appendChild(sec);
+    }
+  }
+  updateAllStats();
+}
+
+function onToggle(id, checked) {
+  if (checked) state[id] = 1; else delete state[id];
+  saveState();
+  const li = document.querySelector(`li[data-id="${id}"]`);
+  if (li) li.classList.toggle('done', checked);
+  updateAllStats();
+}
+
+function toggleCollapse(phaseId) {
+  collapsed[phaseId] = !collapsed[phaseId];
+  saveCollapsed();
+  document.querySelector(`section[data-phase="${phaseId}"]`).classList.toggle('collapsed');
+}
+
+function updateAllStats() {
+  let totalAll = 0, doneAll = 0;
+  for (const phase of PHASES) {
+    let totalP = 0, doneP = 0;
+    for (const group of phase.groups) {
+      let totalG = 0, doneG = 0;
+      group.items.forEach((item, idx) => {
+        const id = makeId(phase.id, group.ref, idx);
+        totalG++;
+        totalP++;
+        totalAll++;
+        if (state[id]) { doneG++; doneP++; doneAll++; }
+      });
+      const groupEl = document.querySelector(`div.group[data-group="${phase.id}-${group.ref}"]`);
+      if (groupEl) groupEl.classList.toggle('all-done', totalG > 0 && doneG === totalG);
+    }
+    const stat = document.querySelector(`[data-phase-stat="${phase.id}"]`);
+    if (stat) {
+      stat.textContent = `${doneP} / ${totalP}`;
+      stat.classList.toggle('done', totalP > 0 && doneP === totalP);
+    }
+  }
+  document.getElementById('overall-stat').textContent = `${doneAll} / ${totalAll}`;
+  const pct = totalAll === 0 ? 0 : (doneAll / totalAll) * 100;
+  document.getElementById('overall-fill').style.width = pct + '%';
+}
+
+function expandAll() {
+  for (const phase of PHASES) collapsed[phase.id] = false;
+  saveCollapsed();
+  document.querySelectorAll('section.phase').forEach((s) => s.classList.remove('collapsed'));
+}
+
+function collapseAll() {
+  for (const phase of PHASES) collapsed[phase.id] = true;
+  saveCollapsed();
+  document.querySelectorAll('section.phase').forEach((s) => s.classList.add('collapsed'));
+}
+
+function resetAll() {
+  if (!confirm('Réinitialiser toutes les coches ? Cette action est irréversible.')) return;
+  state = {};
+  saveState();
+  document.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+    if (cb.id) cb.checked = false;
+  });
+  document.querySelectorAll('li.done').forEach((li) => li.classList.remove('done'));
+  updateAllStats();
+}
+
+document.getElementById('hide-done').addEventListener('change', (e) => {
+  document.body.classList.toggle('hide-done', e.target.checked);
+  localStorage.setItem('test-plan-d-hide-done', e.target.checked ? '1' : '0');
+});
+if (localStorage.getItem('test-plan-d-hide-done') === '1') {
+  document.getElementById('hide-done').checked = true;
+  document.body.classList.add('hide-done');
+}
+
+render();
+</script>
+</body>
+</html>
