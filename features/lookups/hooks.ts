@@ -23,3 +23,14 @@ export function useQuartiers() {
     staleTime: 5 * 60 * 1000,
   });
 }
+
+/**
+ * Liste plate des catégories client (référence). Même staleTime.
+ */
+export function useCategories() {
+  return useQuery({
+    queryKey: ['lookups', 'categories'],
+    queryFn: lookupsApi.categories,
+    staleTime: 5 * 60 * 1000,
+  });
+}

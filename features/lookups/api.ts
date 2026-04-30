@@ -1,5 +1,9 @@
 import { apiClient } from '../../lib/api-client';
-import type { FournisseurResponse, QuartierResponse } from '../../types/api';
+import type {
+  CategorieResponse,
+  FournisseurResponse,
+  QuartierResponse,
+} from '../../types/api';
 
 // Mirror minimal de `gestion-livraison-front/src/features/refdata/api.ts` :
 // le back n'expose pas de "fournisseurs par livreur" — `GET /fournisseur`
@@ -13,6 +17,10 @@ export const lookupsApi = {
   },
   quartiers: async (): Promise<QuartierResponse[]> => {
     const { data } = await apiClient.get<QuartierResponse[]>('/quartier');
+    return data;
+  },
+  categories: async (): Promise<CategorieResponse[]> => {
+    const { data } = await apiClient.get<CategorieResponse[]>('/categorie');
     return data;
   },
 };
