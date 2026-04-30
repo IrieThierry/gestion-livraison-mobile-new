@@ -364,6 +364,27 @@ export interface EnregistrerStockRequest {
   lignes: LigneStockRequest[]
 }
 
+// ---------- Pricing livreur/client (Plan A) ----------
+export interface PrixLivreurProduitResponse {
+  id: UUID
+  produit: ProduitResponse
+  prix: number
+}
+export interface UpsertPrixLivreurRequest {
+  produitId: UUID
+  prix: number
+}
+export interface PrixClientProduitResponse {
+  id: UUID
+  produit: ProduitResponse
+  prix: number
+}
+export interface UpsertPrixClientRequest {
+  clientId: UUID
+  produitId: UUID
+  prix: number
+}
+
 // ---------- Prix résolu (Plan D — résolveur) ----------
 /**
  * Réponse de `GET /prix/resoudre?clientId=X&produitId=Y` — donne le prix
@@ -379,12 +400,6 @@ export interface EnregistrerStockRequest {
 export interface ResoudrePrixResponse {
   prix: number | null
   source: 'CLIENT' | 'LIVREUR' | null
-}
-
-export interface UpsertPrixClientRequest {
-  clientId: UUID
-  produitId: UUID
-  prix: number
 }
 
 // ---------- Encaissements commandes ----------

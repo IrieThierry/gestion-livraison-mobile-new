@@ -1,24 +1,50 @@
 import { apiClient } from '../../lib/api-client';
-import type { ResoudrePrixResponse, UpsertPrixClientRequest, UUID } from '../../types/api';
+import type {
+  PrixClientProduitResponse,
+  PrixLivreurProduitResponse,
+  ResoudrePrixResponse,
+  UpsertPrixClientRequest,
+  UpsertPrixLivreurRequest,
+  UUID,
+} from '../../types/api';
 
+/**
+ * Mirror complet de `gestion-livraison-front/src/features/prix/api.ts`.
+ * Les endpoints sont identiques côté back — l'app web et l'app mobile
+ * partagent le même état de prix (changement sur l'un visible sur l'autre).
+ */
 export const prixApi = {
-  /**
-   * Résoud le prix unitaire d'un produit pour un client donné.
-   * Le back applique la cascade : prix CLIENT → prix LIVREUR → null.
-   * Mirror de `prixApi.resoudre` côté web.
-   */
-  resoudre: async (clientId: UUID, produitId: UUID): Promise<ResoudrePrixResponse> => {
-    const { data } = await apiClient.get<ResoudrePrixResponse>('/prix/resoudre', {
-      params: { clientId, produitId },
-    });
-    return data;
+  // --- Prix par défaut du livreur connecté ---
+  mesPrix: async (): Promise<PrixLivreurProduitResponse[]> =>
+    (await apiClient.get<PrixLivreurProduitResponse[]>('/prix-livreur/me')).data,
+
+  upsertPrixLivreur: async (
+    p: UpsertPrixLivreurRequest,
+  ): Promise<PrixLivreurProduitResponse> =>
+    (await apiClient.put<PrixLivreurProduitResponse>('/prix-livreur', p)).data,
+
+  supprimerPrixLivreur: async (produitId: UUID): Promise<void> => {
+    await apiClient.delete(`/prix-livreur/${produitId}`);
   },
 
-  /**
-   * Mémorise un prix pour le couple (client, produit) — bouton « Mémoriser »
-   * affiché quand le livreur saisit un prix différent du prix résolu.
-   */
-  upsertPrixClient: async (p: UpsertPrixClientRequest): Promise<void> => {
-    await apiClient.put('/prix-client', p);
+  // --- Prix custom par client ---
+  prixClient: async (clientId: UUID): Promise<PrixClientProduitResponse[]> =>
+    (await apiClient.get<PrixClientProduitResponse[]>(`/prix-client/${clientId}`)).data,
+
+  upsertPrixClient: async (
+    p: UpsertPrixClientRequest,
+  ): Promise<PrixClientProduitResponse> =>
+    (await apiClient.put<PrixClientProduitResponse>('/prix-client', p)).data,
+
+  supprimerPrixClient: async (clientId: UUID, produitId: UUID): Promise<void> => {
+    await apiClient.delete(`/prix-client/${clientId}/${produitId}`);
   },
+
+  // --- Résolveur (cascade CLIENT → LIVREUR → null) ---
+  resoudre: async (clientId: UUID, produitId: UUID): Promise<ResoudrePrixResponse> =>
+    (
+      await apiClient.get<ResoudrePrixResponse>('/prix/resoudre', {
+        params: { clientId, produitId },
+      })
+    ).data,
 };

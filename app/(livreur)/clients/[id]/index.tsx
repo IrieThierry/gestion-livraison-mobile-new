@@ -18,18 +18,20 @@ import {
   Layers,
   Percent,
   ArrowRight,
+  DollarSign,
 } from 'lucide-react-native';
-import { PageHeader } from '../../../components/shared/PageHeader';
-import { EmptyState } from '../../../components/shared/EmptyState';
-import { LivraisonCard } from '../../../components/livreur/LivraisonCard';
-import { MapPreview } from '../../../components/livreur/MapPreview';
-import { useClientsByLivreur } from '../../../features/clients/hooks';
-import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
-import { useEncaissementsByLivreur } from '../../../features/encaissements/hooks';
-import { useAuthStore } from '../../../stores/authStore';
-import { callPhone, navigateTo } from '../../../lib/linking';
-import { formatFCFA, formatDateShort } from '../../../lib/format';
-import { computeSoldeForClient, computeEncoursForClient } from '../../../lib/credit';
+import { PageHeader } from '../../../../components/shared/PageHeader';
+import { EmptyState } from '../../../../components/shared/EmptyState';
+import { LivraisonCard } from '../../../../components/livreur/LivraisonCard';
+import { MapPreview } from '../../../../components/livreur/MapPreview';
+import { useClientsByLivreur } from '../../../../features/clients/hooks';
+import { useLivraisonsByLivreur } from '../../../../features/livraisons/hooks';
+import { useEncaissementsByLivreur } from '../../../../features/encaissements/hooks';
+import { usePrixClient } from '../../../../features/prix/hooks';
+import { useAuthStore } from '../../../../stores/authStore';
+import { callPhone, navigateTo } from '../../../../lib/linking';
+import { formatFCFA, formatDateShort } from '../../../../lib/format';
+import { computeSoldeForClient, computeEncoursForClient } from '../../../../lib/credit';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
   if (!s) return null;
@@ -53,6 +55,7 @@ export default function ClientDetail() {
   const qC = useClientsByLivreur(livreurId);
   const qL = useLivraisonsByLivreur(livreurId);
   const qE = useEncaissementsByLivreur(livreurId);
+  const qPrix = usePrixClient(id);
 
   const client = useMemo(
     () => (qC.data ?? []).find((c) => c.id === id),
@@ -247,6 +250,34 @@ export default function ClientDetail() {
               </Text>
             </View>
           )}
+
+          {/* Carte « Prix personnalisés » */}
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/(livreur)/clients/[id]/prix' as never,
+                params: { id: client.id },
+              } as never)
+            }
+            className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-3 active:opacity-70"
+          >
+            <View className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
+              <DollarSign color="#059669" size={18} />
+            </View>
+            <View className="flex-1">
+              <Text className="font-extrabold text-slate-900 dark:text-white">
+                Prix personnalisés
+              </Text>
+              <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                {qPrix.isLoading
+                  ? 'Chargement…'
+                  : (qPrix.data?.length ?? 0) === 0
+                  ? 'Aucun prix custom — paiera les prix par défaut'
+                  : `${qPrix.data?.length} produit${(qPrix.data?.length ?? 0) > 1 ? 's' : ''} avec un prix négocié`}
+              </Text>
+            </View>
+            <ArrowRight color="#94a3b8" size={16} />
+          </Pressable>
 
           {/* Récap chiffré */}
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
