@@ -16,6 +16,8 @@ import { useMutation } from '@tanstack/react-query';
 import { authApi } from '../../features/auth/api';
 import { loginSchema } from '../../features/auth/schemas';
 import { useAuthStore } from '../../stores/authStore';
+import { Biometric } from '../../lib/biometric';
+import { SecureStorage } from '../../lib/secure-storage';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -27,6 +29,38 @@ export default function Login() {
     onSuccess: async (data) => {
       const { token, ...user } = data;
       await setSession(token, user);
+
+      // Offer to enable biometric for next launches. We await the Alert
+      // promise so the user finishes choosing before we navigate away.
+      // Any failure here must NOT block the login — biometric is optional.
+      try {
+        if (await Biometric.isAvailable()) {
+          const already = await SecureStorage.get('biometric_enabled');
+          if (already !== '1') {
+            const label = await Biometric.getTypeLabel();
+            await new Promise<void>((resolve) => {
+              Alert.alert(
+                `Activer ${label} ?`,
+                `La prochaine fois, ouvre l'app avec ${label} au lieu du mot de passe.`,
+                [
+                  { text: 'Plus tard', style: 'cancel', onPress: () => resolve() },
+                  {
+                    text: 'Activer',
+                    onPress: async () => {
+                      await SecureStorage.set('biometric_enabled', '1');
+                      resolve();
+                    },
+                  },
+                ],
+                { cancelable: false },
+              );
+            });
+          }
+        }
+      } catch {
+        // Biometric setup is optional — never block login
+      }
+
       router.replace('/(livreur)');
     },
     onError: (e: unknown) => {

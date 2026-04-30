@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SecureStorage } from '../lib/secure-storage';
+import { Biometric } from '../lib/biometric';
 import type { AuthUser } from '../features/auth/api';
 
 interface AuthState {
@@ -26,13 +27,28 @@ export const useAuthStore = create<AuthState>()((set) => ({
   hydrate: async () => {
     const token = await SecureStorage.get('access_token');
     const userRaw = await AsyncStorage.getItem('user');
-    if (token && userRaw) {
-      try {
-        set({ user: JSON.parse(userRaw) as AuthUser, isHydrated: true });
-      } catch {
+    if (!token || !userRaw) {
+      set({ user: null, isHydrated: true });
+      return;
+    }
+
+    // Biometric gate (only if previously enabled by user). If the device
+    // no longer supports biometric (rare), we fall through and log the
+    // user in normally — never lock them out.
+    const bioEnabled = await SecureStorage.get('biometric_enabled');
+    if (bioEnabled === '1' && (await Biometric.isAvailable())) {
+      const ok = await Biometric.authenticate('Déverrouille Gestion Livraison');
+      if (!ok) {
+        // Don't wipe tokens — user may retry by reopening the app or
+        // by entering credentials again on the login screen.
         set({ user: null, isHydrated: true });
+        return;
       }
-    } else {
+    }
+
+    try {
+      set({ user: JSON.parse(userRaw) as AuthUser, isHydrated: true });
+    } catch {
       set({ user: null, isHydrated: true });
     }
   },
