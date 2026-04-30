@@ -1,4 +1,4 @@
-import { Linking, Platform } from 'react-native';
+import { Linking } from 'react-native';
 
 /**
  * Open the phone dialer prefilled with the given number.
@@ -13,17 +13,23 @@ export function callPhone(raw: string): void {
 }
 
 /**
- * Open the native maps app with directions to the given coordinates.
- * iOS uses the Apple Maps URL scheme (maps://?daddr=lat,lng); Android uses
- * google.navigation:q=lat,lng for turn-by-turn navigation.
+ * Open turn-by-turn driving directions to the given coordinates.
+ * Always uses Google Maps because Apple Maps' routing coverage in
+ * West Africa (Côte d'Ivoire in particular) is incomplete — POIs
+ * exist but the road network for routing returns 'Itinéraire non
+ * disponible'.
+ *
+ * The https://www.google.com/maps/dir/?api=1 universal URL:
+ *   • Opens the Google Maps app if installed (iOS + Android)
+ *   • Falls back to the Google Maps web app in the default browser
  */
-export function navigateTo(lat: number, lng: number, label?: string): void {
+export function navigateTo(lat: number, lng: number, _label?: string): void {
   if (Number.isNaN(lat) || Number.isNaN(lng)) return;
   const url =
-    Platform.OS === 'ios'
-      ? `maps://?daddr=${lat},${lng}&q=${encodeURIComponent(label ?? '')}`
-      : `google.navigation:q=${lat},${lng}`;
+    `https://www.google.com/maps/dir/?api=1` +
+    `&destination=${lat},${lng}` +
+    `&travelmode=driving`;
   Linking.openURL(url).catch(() => {
-    /* maps app not installed */
+    /* no browser & no maps app — extreme edge case */
   });
 }

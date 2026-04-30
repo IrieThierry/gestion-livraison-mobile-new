@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -7,21 +7,32 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { ClientPicker } from '../../../components/livreur/ClientPicker';
 import { ProduitPicker, type Ligne } from '../../../components/livreur/ProduitPicker';
 import { useCreerLivraison } from '../../../features/livraisons/hooks';
+import { useClientsByLivreur } from '../../../features/clients/hooks';
 import { useAuthStore } from '../../../stores/authStore';
 import { formatFCFA } from '../../../lib/format';
 import type { ClientResponse, CreerLivraisonRequest } from '../../../types/api';
 
 export default function NouvelleLivraison() {
   const user = useAuthStore((s) => s.user);
+  const { clientId: prefilledClientId } = useLocalSearchParams<{ clientId?: string }>();
+  const { data: clientsData = [] } = useClientsByLivreur(user?.id ?? '');
   const [client, setClient] = useState<ClientResponse | null>(null);
   const [lignes, setLignes] = useState<Ligne[]>([]);
   const total = lignes.reduce((acc, l) => acc + l.prix * l.qte, 0);
   const m = useCreerLivraison();
+
+  // Pre-select client if arriving from the client list with ?clientId=…
+  useEffect(() => {
+    if (prefilledClientId && clientsData.length > 0 && !client) {
+      const found = clientsData.find((c) => c.id === prefilledClientId);
+      if (found) setClient(found);
+    }
+  }, [prefilledClientId, clientsData, client]);
 
   const onSubmit = () => {
     if (!user) {
