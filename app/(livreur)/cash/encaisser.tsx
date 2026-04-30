@@ -81,13 +81,16 @@ export default function EncaisserLivraison() {
       );
       return;
     }
+    // Mode 'libre' : encaissement par solde-de-dette client, sans plage.
+    // Le back-end ajuste le snapshot detteApres = detteAvant - montantEncaisse,
+    // pas besoin de matcher des livraisons spécifiques.
     m.mutate(
       {
-        montantEncaisse: n,
         livreurId: user.id,
-        livraisonIds: [livraison.id],
         clientId: livraison.client.id,
-        commentaire: commentaire.trim(),
+        montantEncaisse: n,
+        commentaire: commentaire.trim() || undefined,
+        libre: true,
       },
       {
         onSuccess: () => {

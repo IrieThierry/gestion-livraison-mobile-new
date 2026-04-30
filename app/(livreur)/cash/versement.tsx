@@ -70,14 +70,16 @@ export default function Versement() {
       Alert.alert('Erreur', 'Montant invalide');
       return;
     }
+    // Mode 'libre' : on garde la plage des 7 derniers jours pour l'affichage
+    // de la situation, mais on soumet en mode libre pour que le back-end
+    // règle simplement la dette courante sans contrainte de chevauchement.
     m.mutate(
       {
         livreurId,
         fournisseurId,
-        dateDebut,
-        dateFin,
         montantVerse: n,
         commentaire: commentaire.trim() || undefined,
+        libre: true,
       },
       {
         onSuccess: () => {

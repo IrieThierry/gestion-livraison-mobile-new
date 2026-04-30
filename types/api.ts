@@ -199,13 +199,17 @@ export interface ModifierLivraisonRequest extends CreerLivraisonRequest {
   id: UUID
 }
 
-// ---------- Encaissements ----------
+// ---------- Encaissements (v2 — paiement libre sur plage avec dette cumulative) ----------
 export interface CreerEncaissementLivraisonRequest {
-  montantEncaisse: number
   livreurId: UUID
-  livraisonIds: UUID[]
   clientId: UUID
-  commentaire: string
+  dateDebut?: string         // YYYY-MM-DD — optionnel si libre=true
+  dateFin?: string           // YYYY-MM-DD — optionnel si libre=true
+  dateEncaissement?: string  // YYYY-MM-DD
+  montantEncaisse: number
+  commentaire?: string
+  /** Mode libre : solder la dette sans plage (valeurLivraisons=0). */
+  libre?: boolean
 }
 
 export interface EncaissementLivraisonResponse {
