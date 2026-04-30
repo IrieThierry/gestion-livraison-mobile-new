@@ -1,113 +1,73 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ScrollView,
   View,
   Text,
   TextInput,
   Pressable,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import { MapPin, Check } from 'lucide-react-native';
-import * as Location from 'expo-location';
-import { PageHeader } from '../../../components/shared/PageHeader';
-import { useEnregistrerClient } from '../../../features/clients/hooks';
-import { useQuartiers, useCategories } from '../../../features/lookups/hooks';
-import { useAuthStore } from '../../../stores/authStore';
-import { useNetworkStore } from '../../../stores/networkStore';
-import { formatFCFA } from '../../../lib/format';
-import type { CreerClientRequest } from '../../../types/api';
+import { ArrowRight } from 'lucide-react-native';
+import { PageHeader } from '../../../../components/shared/PageHeader';
+import { useQuartiers, useCategories } from '../../../../features/lookups/hooks';
+import { useClientDraftStore } from '../../../../stores/clientDraftStore';
+import { formatFCFA } from '../../../../lib/format';
 
-export default function NouveauClient() {
-  const user = useAuthStore((s) => s.user);
-  const isOnline = useNetworkStore((s) => s.isOnline);
+export default function NouveauClientStep1() {
+  const draft = useClientDraftStore((s) => s.draft);
+  const setDraft = useClientDraftStore((s) => s.setDraft);
   const { data: quartiers = [] } = useQuartiers();
   const { data: categories = [] } = useCategories();
-  const m = useEnregistrerClient();
 
-  const [prenom, setPrenom] = useState('');
-  const [nom, setNom] = useState('');
-  const [contact, setContact] = useState('');
-  const [email, setEmail] = useState('');
-  const [adresse, setAdresse] = useState('');
-  const [quartierId, setQuartierId] = useState<string | null>(null);
-  const [categorieId, setCategorieId] = useState<string | null>(null);
-  const [prixDeVenteParDefaut, setPrixDeVenteParDefaut] = useState('0');
-  const [avecRemise, setAvecRemise] = useState(false);
-  const [lat, setLat] = useState<number | null>(null);
-  const [lng, setLng] = useState<number | null>(null);
-  const [capturing, setCapturing] = useState(false);
+  const [prenom, setPrenom] = useState(draft.prenom);
+  const [nom, setNom] = useState(draft.nom);
+  const [contact, setContact] = useState(draft.contact);
+  const [email, setEmail] = useState(draft.email);
+  const [adresse, setAdresse] = useState(draft.adresse);
+  const [quartierId, setQuartierId] = useState<string | null>(draft.quartierId);
+  const [categorieId, setCategorieId] = useState<string | null>(draft.categorieId);
+  const [prixDeVenteParDefaut, setPrixDeVenteParDefaut] = useState(draft.prixDeVenteParDefaut);
+  const [avecRemise, setAvecRemise] = useState(draft.avecRemise);
 
-  const captureGeo = async () => {
-    setCapturing(true);
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission refusée', 'Active la localisation dans les Réglages iOS.');
-        return;
-      }
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      setLat(pos.coords.latitude);
-      setLng(pos.coords.longitude);
-    } catch {
-      Alert.alert('Erreur', 'Impossible de capturer la position');
-    } finally {
-      setCapturing(false);
-    }
-  };
+  // Re-hydrate when the user comes back from step 2 (back swipe)
+  useEffect(() => {
+    setPrenom(draft.prenom);
+    setNom(draft.nom);
+    setContact(draft.contact);
+    setEmail(draft.email);
+    setAdresse(draft.adresse);
+    setQuartierId(draft.quartierId);
+    setCategorieId(draft.categorieId);
+    setPrixDeVenteParDefaut(draft.prixDeVenteParDefaut);
+    setAvecRemise(draft.avecRemise);
+  }, [draft]);
 
-  const onSubmit = () => {
-    if (!user) {
-      Alert.alert('Erreur', 'Session expirée');
-      return;
-    }
-    // Mirror the web schema's required fields (clients/schemas.ts)
+  const onNext = () => {
     if (!prenom.trim()) return Alert.alert('Erreur', 'Prénom requis');
     if (!nom.trim()) return Alert.alert('Erreur', 'Nom requis');
     if (!contact.trim()) return Alert.alert('Erreur', 'Téléphone requis');
     if (!adresse.trim()) return Alert.alert('Erreur', 'Adresse requise');
-    if (lat == null || lng == null) {
-      return Alert.alert(
-        'Erreur',
-        'Capture la géolocalisation avant d’enregistrer (bouton « Capturer ma position »)',
-      );
-    }
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return Alert.alert('Erreur', 'Email invalide');
     }
     const prix = parseInt(prixDeVenteParDefaut, 10);
     if (Number.isNaN(prix) || prix < 0) {
-      return Alert.alert('Erreur', 'Le prix doit être un nombre positif');
+      return Alert.alert('Erreur', 'Le prix doit être un nombre positif ou zéro');
     }
 
-    // Match the web's CreerClientRequest payload exactly
-    const payload: CreerClientRequest = {
-      nom: nom.trim(),
+    setDraft({
       prenom: prenom.trim(),
+      nom: nom.trim(),
       contact: contact.trim(),
       email: email.trim(),
       adresse: adresse.trim(),
-      latitudeLongitude: `${lat.toFixed(6)},${lng.toFixed(6)}`,
-      quartierId: quartierId ?? '',
-      categorieId: categorieId ?? '',
-      livreurId: user.id,
-      prixDeVenteProduitParDefault: prix,
-      avecOuSansRemise: avecRemise,
-    };
-
-    m.mutate(payload, {
-      onSuccess: () => {
-        router.back();
-        Alert.alert('Succès', 'Client créé');
-      },
-      onError: (err: unknown) => {
-        const e = err as { response?: { data?: { message?: string } } };
-        Alert.alert('Erreur', e.response?.data?.message ?? 'Échec de la création');
-      },
+      quartierId,
+      categorieId,
+      prixDeVenteParDefaut: String(prix),
+      avecRemise,
     });
+    router.push('/(livreur)/clients/nouveau/localisation' as never);
   };
 
   const Pill = ({
@@ -139,7 +99,13 @@ export default function NouveauClient() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Nouveau client" />
+      <PageHeader title="Nouveau client" subtitle="Étape 1 / 2 — Informations" />
+
+      {/* Step indicator */}
+      <View className="px-4 pb-2 flex-row items-center gap-2">
+        <View className="flex-1 h-1.5 rounded-full bg-emerald-500" />
+        <View className="flex-1 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800" />
+      </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="px-4 gap-3">
@@ -182,39 +148,6 @@ export default function NouveauClient() {
             onChange={setAdresse}
             placeholder="Rue, immeuble, repère…"
           />
-
-          {/* Geoloc */}
-          <View>
-            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-              Géolocalisation *
-            </Text>
-            <Pressable
-              onPress={captureGeo}
-              disabled={capturing}
-              className={`rounded-md py-3 flex-row items-center justify-center gap-2 active:opacity-80 ${
-                lat != null ? 'bg-emerald-500' : 'bg-blue-500'
-              }`}
-            >
-              {capturing ? (
-                <ActivityIndicator color="#fff" />
-              ) : lat != null ? (
-                <>
-                  <Check color="#fff" size={18} />
-                  <Text className="text-white font-bold">Position capturée</Text>
-                </>
-              ) : (
-                <>
-                  <MapPin color="#fff" size={18} />
-                  <Text className="text-white font-bold">Capturer ma position</Text>
-                </>
-              )}
-            </Pressable>
-            {lat != null ? (
-              <Text className="text-[11px] text-slate-500 dark:text-slate-400 text-center mt-1">
-                {lat.toFixed(5)}, {lng?.toFixed(5)}
-              </Text>
-            ) : null}
-          </View>
 
           {/* Quartier */}
           {quartiers.length > 0 ? (
@@ -297,25 +230,17 @@ export default function NouveauClient() {
             </View>
           </Pressable>
 
-          {/* Submit */}
+          {/* Next */}
           <Pressable
-            onPress={onSubmit}
-            disabled={m.isPending || !isOnline}
-            className={`rounded-md py-3.5 mt-3 items-center ${
-              !isOnline ? 'bg-slate-200 dark:bg-slate-800' : 'bg-emerald-500 active:opacity-80'
-            }`}
+            onPress={onNext}
+            className="bg-emerald-500 rounded-md py-3.5 mt-3 flex-row items-center justify-center gap-2 active:opacity-80"
           >
-            {m.isPending ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text className={`font-bold text-base ${!isOnline ? 'text-slate-400' : 'text-white'}`}>
-                {!isOnline ? 'Hors ligne — réessaye en ligne' : 'Enregistrer'}
-              </Text>
-            )}
+            <Text className="text-white font-bold text-base">Suivant</Text>
+            <ArrowRight color="#fff" size={18} />
           </Pressable>
 
           <Text className="text-[10px] text-slate-400 text-center mt-1">
-            * Champs obligatoires. Le livreur est défini automatiquement (toi).
+            * Champs obligatoires. Étape suivante : géolocalisation et confirmation.
           </Text>
         </View>
       </ScrollView>
