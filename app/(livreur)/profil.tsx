@@ -1,6 +1,6 @@
 import { ScrollView, View, Text, Pressable, Alert, Linking } from 'react-native';
 import { router } from 'expo-router';
-import { LogOut, Moon, Sun, Smartphone, ExternalLink, Check } from 'lucide-react-native';
+import { LogOut, Moon, Sun, Smartphone, ExternalLink, Check, Users, ChevronRight } from 'lucide-react-native';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { useAuthStore } from '../../stores/authStore';
 import { useThemeStore, type Theme } from '../../stores/themeStore';
@@ -90,6 +90,26 @@ export default function Profil() {
                 </Pressable>
               );
             })}
+          </View>
+
+          {/* Données */}
+          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
+            Mes données
+          </Text>
+          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+            <Pressable
+              onPress={() => router.push('/(livreur)/clients' as never)}
+              className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
+            >
+              <View className="flex-row items-center gap-3">
+                <Users color="#10b981" size={20} />
+                <View>
+                  <Text className="font-extrabold text-slate-900 dark:text-white">Mes clients</Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400">Liste, recherche, création</Text>
+                </View>
+              </View>
+              <ChevronRight color="#94a3b8" size={18} />
+            </Pressable>
           </View>
 
           {/* Plus de fonctions */}

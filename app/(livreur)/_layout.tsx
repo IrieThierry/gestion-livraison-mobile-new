@@ -75,66 +75,72 @@ export default function LivreurLayout() {
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-slate-50 dark:bg-slate-950">
       <OfflineBanner />
-      <Tabs
-        initialRouteName="index"
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: '#10b981',
-          tabBarInactiveTintColor: '#94a3b8',
-          tabBarStyle: { borderTopWidth: 1, borderTopColor: '#e2e8f0', height: 60 },
-          tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: -2 },
-          tabBarItemStyle: { paddingVertical: 4 },
-        }}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: 'Tournée',
-            tabBarIcon: ({ color }) => <TrendingUp color={color} size={22} />,
+      <View className="flex-1">
+        <Tabs
+          initialRouteName="index"
+          screenOptions={{
+            headerShown: false,
+            tabBarActiveTintColor: '#10b981',
+            tabBarInactiveTintColor: '#94a3b8',
+            tabBarStyle: { borderTopWidth: 1, borderTopColor: '#e2e8f0', height: 60 },
+            tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: -2 },
+            tabBarItemStyle: { paddingVertical: 4 },
           }}
-        />
-        <Tabs.Screen
-          name="livraisons"
-          options={{
-            title: 'Livr.',
-            tabBarIcon: ({ color }) => <Truck color={color} size={22} />,
+        >
+          <Tabs.Screen
+            name="index"
+            options={{
+              title: 'Tournée',
+              tabBarIcon: ({ color }) => <TrendingUp color={color} size={22} />,
+            }}
+          />
+          <Tabs.Screen
+            name="livraisons"
+            options={{
+              title: 'Livraisons',
+              tabBarIcon: ({ color }) => <Truck color={color} size={22} />,
+            }}
+          />
+          <Tabs.Screen
+            name="stock"
+            options={{
+              title: 'Stock',
+              tabBarIcon: ({ color }) => <Package color={color} size={22} />,
+            }}
+          />
+          <Tabs.Screen
+            name="cash"
+            options={{
+              title: 'Cash',
+              tabBarIcon: ({ color }) => <Banknote color={color} size={22} />,
+            }}
+          />
+          <Tabs.Screen
+            name="profil"
+            options={{
+              title: 'Profil',
+              tabBarIcon: ({ color }) => <User color={color} size={22} />,
+            }}
+          />
+          <Tabs.Screen name="clients" options={{ href: null }} />
+        </Tabs>
+
+        {/* Floating FAB above the tab bar */}
+        <Pressable
+          onPress={() => setFabOpen(true)}
+          className="absolute right-5 bottom-20 w-14 h-14 rounded-full bg-emerald-500 items-center justify-center active:opacity-80"
+          style={{
+            shadowColor: '#10b981',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.35,
+            shadowRadius: 8,
+            elevation: 8,
           }}
-        />
-        <Tabs.Screen
-          name="fab"
-          options={{
-            title: '',
-            tabBarShowLabel: false,
-            tabBarIcon: () => (
-              <View className="bg-emerald-500 -mt-6 w-14 h-14 rounded-full items-center justify-center shadow-lg">
-                <Plus color="#fff" size={28} strokeWidth={2.5} />
-              </View>
-            ),
-          }}
-          listeners={{
-            tabPress: (e) => {
-              e.preventDefault();
-              setFabOpen(true);
-            },
-          }}
-        />
-        <Tabs.Screen
-          name="cash"
-          options={{
-            title: 'Cash',
-            tabBarIcon: ({ color }) => <Banknote color={color} size={22} />,
-          }}
-        />
-        <Tabs.Screen
-          name="profil"
-          options={{
-            title: 'Profil',
-            tabBarIcon: ({ color }) => <User color={color} size={22} />,
-          }}
-        />
-        <Tabs.Screen name="stock" options={{ href: null }} />
-        <Tabs.Screen name="clients" options={{ href: null }} />
-      </Tabs>
+          hitSlop={6}
+        >
+          <Plus color="#fff" size={28} strokeWidth={2.5} />
+        </Pressable>
+      </View>
       <FabSheet open={fabOpen} onClose={() => setFabOpen(false)} />
     </SafeAreaView>
   );
