@@ -45,16 +45,13 @@ export default function NouveauClientStep1() {
     setAvecRemise(draft.avecRemise);
   }, [draft]);
 
-  // Filtered quartiers for the dropdown — by selected zone if any
+  // Quartiers strictement filtrés par la zone choisie. Si pas de zone,
+  // la liste est vide — l'utilisateur doit d'abord choisir sa zone.
   const quartiersOptions = useMemo(() => {
-    const visible = zoneId
-      ? quartiers.filter((q) => q.zone?.id === zoneId)
-      : quartiers;
-    return visible.map((q) => ({
-      id: q.id,
-      label: q.libelle,
-      hint: q.zone?.libelle,
-    }));
+    if (!zoneId) return [];
+    return quartiers
+      .filter((q) => q.zone?.id === zoneId)
+      .map((q) => ({ id: q.id, label: q.libelle }));
   }, [quartiers, zoneId]);
 
   const zonesOptions = useMemo(
@@ -81,9 +78,13 @@ export default function NouveauClientStep1() {
   const onNext = () => {
     // Aligned with backend CreerClientUseCase.validateInput :
     //   required → prenom, contact, quartierId, categorieId, latitudeLongitude (step 2)
-    //   optional → nom, email, adresse, prixDeVenteProduitParDefault, avecOuSansRemise
+    //   optional côté back → nom, email, adresse
+    // Côté UX mobile, on impose en plus le choix d'une Zone (le quartier
+    // n'a pas vraiment de sens hors zone), même si le back-office l'extraira
+    // de la jointure quartier.zone.
     if (!prenom.trim()) return Alert.alert('Erreur', 'Prénom requis');
     if (!contact.trim()) return Alert.alert('Erreur', 'Téléphone requis');
+    if (!zoneId) return Alert.alert('Erreur', 'Zone requise');
     if (!quartierId) return Alert.alert('Erreur', 'Quartier requis');
     if (!categorieId) return Alert.alert('Erreur', 'Catégorie requise');
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -163,34 +164,33 @@ export default function NouveauClientStep1() {
             placeholder="Rue, immeuble, repère…"
           />
 
-          {/* Zone (filtre des quartiers) — optionnel UI-side */}
+          {/* Zone — obligatoire (filtre les quartiers) */}
           <SelectField
-            label="Zone"
+            label="Zone *"
             placeholder="Choisir une zone"
             value={zoneId}
             onChange={onChangeZone}
             options={zonesOptions}
             isLoading={zonesQ.isLoading}
             emptyMessage="Aucune zone configurée"
-            optional
           />
 
-          {/* Quartier — obligatoire */}
+          {/* Quartier — obligatoire, filtré par la zone choisie */}
           <SelectField
             label={
               zoneId
                 ? `Quartier · ${zones.find((z) => z.id === zoneId)?.libelle ?? ''} *`
                 : 'Quartier *'
             }
-            placeholder="Choisir un quartier"
+            placeholder={zoneId ? 'Choisir un quartier' : 'Choisis d’abord une zone'}
             value={quartierId}
             onChange={setQuartierId}
             options={quartiersOptions}
-            isLoading={quartiersQ.isLoading}
+            isLoading={zoneId ? quartiersQ.isLoading : false}
             emptyMessage={
-              zoneId
-                ? 'Aucun quartier dans cette zone'
-                : 'Aucun quartier configuré'
+              !zoneId
+                ? 'Choisis d’abord une zone'
+                : 'Aucun quartier dans cette zone'
             }
           />
 
