@@ -5,7 +5,6 @@ import { Tabs, router } from 'expo-router';
 import {
   TrendingUp,
   Truck,
-  Banknote,
   User,
   Plus,
   Package,
@@ -137,8 +136,8 @@ export default function LivreurLayout() {
           tabBarActiveTintColor: '#10b981',
           tabBarInactiveTintColor: '#94a3b8',
           tabBarStyle: { borderTopWidth: 1, borderTopColor: '#e2e8f0', height: 70 },
-          tabBarLabelStyle: { fontSize: 11, fontWeight: '700', marginTop: 0 },
-          tabBarItemStyle: { paddingVertical: 8 },
+          tabBarLabelStyle: { fontSize: 11, fontWeight: '700', marginTop: -3 },
+          tabBarItemStyle: { paddingVertical: 6 },
         }}
       >
         <Tabs.Screen
@@ -183,10 +182,10 @@ export default function LivreurLayout() {
           }}
         />
         <Tabs.Screen
-          name="cash"
+          name="livraisons"
           options={{
-            title: 'Cash',
-            tabBarIcon: ({ color }) => <Banknote color={color} size={23} strokeWidth={2.2} />,
+            title: 'Livraisons',
+            tabBarIcon: ({ color }) => <Truck color={color} size={23} strokeWidth={2.2} />,
           }}
         />
         <Tabs.Screen
@@ -196,8 +195,8 @@ export default function LivreurLayout() {
             tabBarIcon: ({ color }) => <User color={color} size={23} strokeWidth={2.2} />,
           }}
         />
-        {/* Hidden tabs — accessible via FAB sheet, stat cards, or programmatic push */}
-        <Tabs.Screen name="livraisons" options={{ href: null }} />
+        {/* Hidden routes — accessible via FAB sheet, stat cards, links, or programmatic push */}
+        <Tabs.Screen name="cash" options={{ href: null }} />
         <Tabs.Screen name="stock" options={{ href: null }} />
       </Tabs>
       <FabSheet open={fabOpen} onClose={() => setFabOpen(false)} />
