@@ -81,23 +81,23 @@ export default function LivreurLayout() {
           headerShown: false,
           tabBarActiveTintColor: '#10b981',
           tabBarInactiveTintColor: '#94a3b8',
-          tabBarStyle: { borderTopWidth: 1, borderTopColor: '#e2e8f0', height: 64 },
-          tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: -2 },
-          tabBarItemStyle: { paddingVertical: 6 },
+          tabBarStyle: { borderTopWidth: 1, borderTopColor: '#e2e8f0', height: 80 },
+          tabBarLabelStyle: { fontSize: 12, fontWeight: '700', marginTop: 2 },
+          tabBarItemStyle: { paddingVertical: 10 },
         }}
       >
         <Tabs.Screen
           name="index"
           options={{
             title: 'Tournée',
-            tabBarIcon: ({ color }) => <TrendingUp color={color} size={22} />,
+            tabBarIcon: ({ color }) => <TrendingUp color={color} size={26} strokeWidth={2.2} />,
           }}
         />
         <Tabs.Screen
           name="stock"
           options={{
             title: 'Stock',
-            tabBarIcon: ({ color }) => <Package color={color} size={22} />,
+            tabBarIcon: ({ color }) => <Package color={color} size={26} strokeWidth={2.2} />,
           }}
         />
         <Tabs.Screen
@@ -107,16 +107,16 @@ export default function LivreurLayout() {
             tabBarShowLabel: false,
             tabBarIcon: () => (
               <View
-                className="bg-emerald-500 -mt-6 w-14 h-14 rounded-full items-center justify-center"
+                className="bg-emerald-500 -mt-7 w-16 h-16 rounded-full items-center justify-center"
                 style={{
                   shadowColor: '#10b981',
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.4,
-                  shadowRadius: 8,
+                  shadowRadius: 10,
                   elevation: 10,
                 }}
               >
-                <Plus color="#fff" size={28} strokeWidth={2.5} />
+                <Plus color="#fff" size={32} strokeWidth={2.5} />
               </View>
             ),
           }}
@@ -131,14 +131,14 @@ export default function LivreurLayout() {
           name="cash"
           options={{
             title: 'Cash',
-            tabBarIcon: ({ color }) => <Banknote color={color} size={22} />,
+            tabBarIcon: ({ color }) => <Banknote color={color} size={26} strokeWidth={2.2} />,
           }}
         />
         <Tabs.Screen
           name="profil"
           options={{
             title: 'Moi',
-            tabBarIcon: ({ color }) => <User color={color} size={22} />,
+            tabBarIcon: ({ color }) => <User color={color} size={26} strokeWidth={2.2} />,
           }}
         />
         {/* Hidden tabs — accessible via direct push */}
