@@ -1,11 +1,26 @@
 import { ScrollView, View, Text, Pressable, Alert, Linking } from 'react-native';
 import { router } from 'expo-router';
-import { LogOut, Moon, Sun, Smartphone, ExternalLink, Check, Users, ChevronRight } from 'lucide-react-native';
-import { PageHeader } from '../../components/shared/PageHeader';
-import { useAuthStore } from '../../stores/authStore';
-import { useThemeStore, type Theme } from '../../stores/themeStore';
+import {
+  LogOut,
+  Moon,
+  Sun,
+  Smartphone,
+  ExternalLink,
+  Check,
+  ChevronRight,
+  Camera,
+  UserCog,
+  KeyRound,
+} from 'lucide-react-native';
+import { PageHeader } from '../../../components/shared/PageHeader';
+import { useAuthStore } from '../../../stores/authStore';
+import { useThemeStore, type Theme } from '../../../stores/themeStore';
 
-const THEMES: Array<{ key: Theme; label: string; icon: React.ComponentType<{ color: string; size: number }> }> = [
+const THEMES: Array<{
+  key: Theme;
+  label: string;
+  icon: React.ComponentType<{ color: string; size: number }>;
+}> = [
   { key: 'light', label: 'Clair', icon: Sun },
   { key: 'dark', label: 'Sombre', icon: Moon },
   { key: 'system', label: 'Système', icon: Smartphone },
@@ -33,6 +48,13 @@ export default function Profil() {
     ]);
   };
 
+  const onPhotoTap = () => {
+    Alert.alert(
+      'Photo de profil',
+      'La gestion de la photo arrivera bientôt — tu pourras choisir une photo depuis ton appareil.',
+    );
+  };
+
   const initials = `${user.prenom?.[0] ?? ''}${user.nom?.[0] ?? ''}`.toUpperCase();
 
   return (
@@ -43,11 +65,16 @@ export default function Profil() {
         <View className="px-4">
           {/* User card */}
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5 items-center">
-            <View className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
-              <Text className="text-emerald-700 dark:text-emerald-400 font-extrabold text-xl">
-                {initials || '?'}
-              </Text>
-            </View>
+            <Pressable onPress={onPhotoTap} hitSlop={6} className="active:opacity-70">
+              <View className="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
+                <Text className="text-emerald-700 dark:text-emerald-400 font-extrabold text-2xl">
+                  {initials || '?'}
+                </Text>
+              </View>
+              <View className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-emerald-500 items-center justify-center border-2 border-white dark:border-slate-900">
+                <Camera color="#fff" size={14} />
+              </View>
+            </Pressable>
             <Text className="font-extrabold text-slate-900 dark:text-white mt-3 text-base">
               {user.prenom} {user.nom}
             </Text>
@@ -60,6 +87,47 @@ export default function Profil() {
                 {user.contact}
               </Text>
             ) : null}
+          </View>
+
+          {/* Mon compte */}
+          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
+            Mon compte
+          </Text>
+          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+            <Pressable
+              onPress={() => router.push('/(livreur)/profil/infos' as never)}
+              className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
+            >
+              <View className="flex-row items-center gap-3">
+                <UserCog color="#10b981" size={20} />
+                <View>
+                  <Text className="font-extrabold text-slate-900 dark:text-white">
+                    Modifier mes infos
+                  </Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Nom, prénom, téléphone, email
+                  </Text>
+                </View>
+              </View>
+              <ChevronRight color="#94a3b8" size={18} />
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/(livreur)/profil/password' as never)}
+              className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
+            >
+              <View className="flex-row items-center gap-3">
+                <KeyRound color="#3b82f6" size={20} />
+                <View>
+                  <Text className="font-extrabold text-slate-900 dark:text-white">
+                    Changer le mot de passe
+                  </Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Sécurise ton compte
+                  </Text>
+                </View>
+              </View>
+              <ChevronRight color="#94a3b8" size={18} />
+            </Pressable>
           </View>
 
           {/* Apparence */}
@@ -90,26 +158,6 @@ export default function Profil() {
                 </Pressable>
               );
             })}
-          </View>
-
-          {/* Données */}
-          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
-            Mes données
-          </Text>
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
-            <Pressable
-              onPress={() => router.push('/(livreur)/clients' as never)}
-              className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
-            >
-              <View className="flex-row items-center gap-3">
-                <Users color="#10b981" size={20} />
-                <View>
-                  <Text className="font-extrabold text-slate-900 dark:text-white">Mes clients</Text>
-                  <Text className="text-[11px] text-slate-500 dark:text-slate-400">Liste, recherche, création</Text>
-                </View>
-              </View>
-              <ChevronRight color="#94a3b8" size={18} />
-            </Pressable>
           </View>
 
           {/* Plus de fonctions */}
