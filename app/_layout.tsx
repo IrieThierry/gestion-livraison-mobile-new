@@ -6,15 +6,31 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
+import Constants from 'expo-constants';
 import { queryClient, queryPersister } from '../lib/query-client';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 
-// Keep the native splash visible while we hydrate stores + run biometric.
-// Hidden inside AuthGate once isHydrated flips to true.
-SplashScreen.preventAutoHideAsync().catch(() => {
-  /* already hidden or not available — fail silent */
-});
+// Native splash control — only meaningful in custom dev clients / production
+// builds. Expo Go manages its own splash and rejects these calls with
+// "No native splash screen registered". Skip entirely when running in Expo Go
+// to avoid noisy uncaught-promise errors in the dev console.
+const IS_EXPO_GO = Constants.appOwnership === 'expo';
+
+if (!IS_EXPO_GO) {
+  // Keep the native splash visible while we hydrate stores + run biometric.
+  // Hidden inside AuthGate once isHydrated flips to true.
+  SplashScreen.preventAutoHideAsync().catch(() => {
+    /* already hidden or not available — fail silent */
+  });
+}
+
+function safeHideSplash() {
+  if (IS_EXPO_GO) return;
+  SplashScreen.hideAsync().catch(() => {
+    /* already hidden — fail silent */
+  });
+}
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
@@ -40,12 +56,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       router.replace('/(livreur)');
     }
 
-    // Give the navigation a frame to apply, then hide the splash.
-    const id = setTimeout(() => {
-      SplashScreen.hideAsync().catch(() => {
-        /* already hidden — fail silent */
-      });
-    }, 50);
+    // Give the navigation a frame to apply, then hide the splash (no-op in Expo Go).
+    const id = setTimeout(safeHideSplash, 50);
     return () => clearTimeout(id);
   }, [isHydrated, user, segments]);
 
