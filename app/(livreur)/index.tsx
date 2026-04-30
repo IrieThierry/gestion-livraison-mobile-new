@@ -6,6 +6,7 @@ import { useLivraisonsByLivreur } from '../../features/livraisons/hooks';
 import { useStockActuel } from '../../features/stock/hooks';
 import { useAuthStore } from '../../stores/authStore';
 import { EmptyState } from '../../components/shared/EmptyState';
+import { PendingValidationGate } from '../../components/shared/PendingValidationGate';
 import { LivraisonCard } from '../../components/livreur/LivraisonCard';
 import { formatFCFA } from '../../lib/format';
 
@@ -78,6 +79,7 @@ export default function Tournee() {
   };
 
   return (
+    <PendingValidationGate>
     <ScrollView
       className="flex-1 bg-slate-50 dark:bg-slate-950"
       contentContainerStyle={{ paddingBottom: 24 }}
@@ -258,6 +260,7 @@ export default function Tournee() {
         )}
       </View>
     </ScrollView>
+    </PendingValidationGate>
   );
 }
 
