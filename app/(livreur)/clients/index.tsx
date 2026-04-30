@@ -18,7 +18,7 @@ import { useEncaissementsByLivreur } from '../../../features/encaissements/hooks
 import { useAuthStore } from '../../../stores/authStore';
 import { callPhone, navigateTo } from '../../../lib/linking';
 import { formatFCFA } from '../../../lib/format';
-import { computeEncoursForClient, computeSoldeForClient } from '../../../lib/credit';
+import { computeSoldeForClient } from '../../../lib/credit';
 import type { ClientResponse } from '../../../types/api';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
@@ -158,17 +158,11 @@ export default function ClientsList() {
           const geo = parseLatLng(item.latitudeLongitude);
           const livraisons = qLiv.data ?? [];
           const encaissements = qEnc.data ?? [];
-          const pending = livraisons.filter(
-            (l) => l.client.id === item.id && l.statut !== 'ENCAISSEE',
-          );
-          const encours = computeEncoursForClient(livraisons, item.id);
           const solde = computeSoldeForClient(livraisons, encaissements, item.id);
           return (
             <ClientRow
               client={item}
               geo={geo}
-              pendingCount={pending.length}
-              encours={encours}
               solde={solde}
               onLivrer={() => onLivrer(item)}
               onEncaisser={() => onEncaisser(item)}
@@ -183,35 +177,22 @@ export default function ClientsList() {
 function ClientRow({
   client,
   geo,
-  pendingCount,
-  encours,
   solde,
   onLivrer,
   onEncaisser,
 }: {
   client: ClientResponse;
   geo: { lat: number; lng: number } | null;
-  pendingCount: number;
-  encours: number;
   solde: number;
   onLivrer: () => void;
   onEncaisser: () => void;
 }) {
   const initials = `${client.prenom[0] ?? ''}${client.nom[0] ?? ''}`.toUpperCase();
-  // border / amount color follow the SIGNED solde
   const debt = solde > 0;
   const credit = solde < 0;
 
   return (
-    <View
-      className={`bg-white dark:bg-slate-900 border rounded-lg p-3 mb-2 ${
-        debt
-          ? 'border-slate-200 dark:border-slate-800 border-l-4 border-l-red-500'
-          : credit
-            ? 'border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500'
-            : 'border-slate-200 dark:border-slate-800'
-      }`}
-    >
+    <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 mb-2">
       {/* Identity row */}
       <View className="flex-row items-center gap-3">
         <View className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
@@ -227,39 +208,20 @@ function ClientRow({
             {client.quartier?.libelle ?? '—'}
             {client.contact ? ` · ${client.contact}` : ''}
           </Text>
-          {encours > 0 ? (
-            <Text className="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5">
-              Encours · {formatFCFA(encours)} F · {pendingCount} livr.
+        </View>
+        {debt ? (
+          <View className="bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 rounded-full">
+            <Text className="text-[11px] font-bold text-amber-800 dark:text-amber-400">
+              {formatFCFA(solde)} F
             </Text>
-          ) : null}
-        </View>
-        <View className="items-end">
-          {debt ? (
-            <>
-              <Text className="text-[10px] uppercase font-bold text-red-600 dark:text-red-400 tracking-wider">
-                Solde dû
-              </Text>
-              <Text className="font-extrabold text-red-600 dark:text-red-400 text-sm">
-                {formatFCFA(solde)} F
-              </Text>
-            </>
-          ) : credit ? (
-            <>
-              <Text className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-400 tracking-wider">
-                Avoir
-              </Text>
-              <Text className="font-extrabold text-emerald-700 dark:text-emerald-400 text-sm">
-                {formatFCFA(Math.abs(solde))} F
-              </Text>
-            </>
-          ) : (
-            <View className="bg-emerald-100 dark:bg-emerald-500/15 px-2 py-0.5 rounded-full">
-              <Text className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
-                À jour
-              </Text>
-            </View>
-          )}
-        </View>
+          </View>
+        ) : credit ? (
+          <View className="bg-emerald-100 dark:bg-emerald-500/15 px-2 py-0.5 rounded-full">
+            <Text className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+              +{formatFCFA(Math.abs(solde))} F
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       {/* Action row */}
