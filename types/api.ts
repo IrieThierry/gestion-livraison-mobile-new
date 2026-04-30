@@ -368,3 +368,42 @@ export interface EncaissementCommandeResponse {
   commentaire: string
   date: ISODate
 }
+
+// ---------- Versements (Plan 20 / Versement v2) ----------
+// Mirror de gestion-livraison-front/src/types/api.ts.
+export interface VersementResponse {
+  id: UUID
+  livreur: LivreurResponse
+  fournisseur: FournisseurResponse
+  dateDebut: string
+  dateFin: string
+  dateVersement: string
+  valeurAchat: number
+  margeCumulee: number
+  montantVerse: number
+  detteAvant: number
+  detteApres: number
+  commentaire: string | null
+  statutContestation: 'NONE' | 'CONTESTE' | 'RESOLU'
+  motifContestation: string | null
+  contesteLe: string | null
+}
+
+export interface CreerVersementRequest {
+  livreurId: UUID
+  fournisseurId: UUID
+  dateDebut?: string
+  dateFin?: string
+  dateVersement?: string
+  montantVerse: number
+  commentaire?: string
+  /** Mode libre : solder la dette sans plage (valeurAchat=0). */
+  libre?: boolean
+}
+
+export interface SituationVersementResponse {
+  valeurAchat: number
+  margeCumulee: number
+  detteAvant: number
+  totalDu: number // = detteAvant + valeurAchat
+}
