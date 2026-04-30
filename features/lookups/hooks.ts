@@ -12,3 +12,14 @@ export function useFournisseurs() {
     staleTime: 5 * 60 * 1000,
   });
 }
+
+/**
+ * Liste plate des quartiers (référence). Même staleTime que les fournisseurs.
+ */
+export function useQuartiers() {
+  return useQuery({
+    queryKey: ['lookups', 'quartiers'],
+    queryFn: lookupsApi.quartiers,
+    staleTime: 5 * 60 * 1000,
+  });
+}
