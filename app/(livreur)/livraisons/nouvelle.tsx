@@ -48,6 +48,14 @@ export default function NouvelleLivraison() {
       Alert.alert('Erreur', 'Ajoute au moins une ligne avec une quantité > 0');
       return;
     }
+    // Sécurité côté UX : un prix à 0 signifie « prix non défini » (le client
+    // n'a pas de prixDeVenteProduitParDefault et le produit n'a pas de
+    // prixAchatParDefaut). Le back accepterait, mais la marge calculée
+    // serait fausse — on force le livreur à saisir un prix réel.
+    if (validLignes.some((l) => l.prix <= 0)) {
+      Alert.alert('Erreur', 'Définis un prix unitaire (> 0) pour chaque ligne');
+      return;
+    }
 
     // Payload conforme à `CreerLivraisonRequest` (cf. types/api.ts) — c'est
     // exactement ce que la page web `NouvelleLivraisonPage` envoie.
