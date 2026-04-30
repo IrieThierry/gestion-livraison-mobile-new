@@ -392,6 +392,150 @@ export interface EnregistrerStockRequest {
   lignes: LigneStockRequest[]
 }
 
+// ---------- Dépenses (Plan 24) ----------
+export type DepenseCategorie = 'CARBURANT' | 'ENTRETIEN' | 'ADMINISTRATIF' | 'AUTRE'
+
+export interface DepenseResponse {
+  id: UUID
+  libelle: string
+  categorie: string
+  montant: number
+  dateDepense: string  // YYYY-MM-DD
+  commentaire: string | null
+}
+
+export interface CreerDepenseRequest {
+  libelle: string
+  categorie: string
+  montant: number
+  dateDepense: string  // YYYY-MM-DD
+  commentaire?: string
+}
+
+export interface ModifierDepenseRequest {
+  libelle?: string
+  categorie?: string
+  montant?: number
+  dateDepense?: string
+  commentaire?: string
+}
+
+// ---------- Transferts stock (Plan 23) ----------
+export interface TransfertStockResponse {
+  id: UUID
+  source: LivreurResponse
+  destinataire: LivreurResponse
+  produit: ProduitResponse
+  qte: number
+  dateTransfert: ISODate
+  commentaire: string | null
+}
+
+export interface EffectuerTransfertRequest {
+  sourceId: UUID
+  destinataireId: UUID
+  produitId: UUID
+  qte: number
+  commentaire?: string
+}
+
+// ---------- Prévisions (Plan 22) ----------
+export interface PrevisionResponse {
+  id: UUID
+  livreur: LivreurResponse
+  client: ClientResponse
+  produit: ProduitResponse
+  qteEstimee: number
+  dateLivraison: string  // YYYY-MM-DD
+  commentaire: string | null
+}
+
+export interface CreerPrevisionRequest {
+  livreurId: UUID
+  clientId: UUID
+  produitId: UUID
+  qteEstimee: number
+  dateLivraison: string
+  commentaire?: string
+}
+
+export interface ModifierPrevisionRequest {
+  qteEstimee?: number
+  dateLivraison?: string
+  commentaire?: string
+}
+
+export interface CumulProduitResponse {
+  produit: ProduitResponse
+  qteCumulee: number
+}
+
+// ---------- Clôture journalière (Plan 13) ----------
+export interface ClotureJournaliereResponse {
+  id: UUID
+  livreur: LivreurResponse | null
+  dateCloture: ISODate
+  totalLivre: number
+  totalEncaisse: number
+  montantRemis: number
+  ecartEspeces: number
+  commentaire: string
+  dateEnregistrement: ISODate
+}
+
+export interface EnregistrerClotureRequest {
+  livreurId: UUID
+  dateCloture: ISODate
+  montantRemis: number
+  commentaire: string
+}
+
+// ---------- Reversements (Item A) ----------
+export type BeneficiaireType = 'CLIENT' | 'FOURNISSEUR'
+
+export interface ReversementRecord {
+  id: UUID
+  type: BeneficiaireType
+  beneficiaireId: UUID
+  montant: number
+  periodeMois: number
+  periodeAnnee: number
+  dateReversement: string
+  commentaire: string | null
+}
+
+export interface EnregistrerReversementRequest {
+  type: BeneficiaireType
+  beneficiaireId: UUID
+  montant: number
+  mois: number
+  annee: number
+  dateReversement?: string
+  commentaire?: string
+}
+
+export interface LigneFournisseurDuResponse {
+  fournisseurId: UUID
+  libelle: string
+  margeCumuleeMois: number
+  detteCourante: number
+  montantNetDu: number
+}
+
+export interface LigneClientDuResponse {
+  clientId: UUID
+  prenom: string
+  nom: string
+  margeDue: number
+}
+
+export interface ReversementsSyntheseLivreurResponse {
+  annee: number
+  mois: number
+  mesFournisseursMeDoivent: LigneFournisseurDuResponse[]
+  jeDoisAMesClients: LigneClientDuResponse[]
+}
+
 // ---------- Pricing livreur/client (Plan A) ----------
 export interface PrixLivreurProduitResponse {
   id: UUID

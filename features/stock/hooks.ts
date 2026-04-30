@@ -30,6 +30,18 @@ export function useStockCourant(dateDebut?: string, dateFin?: string) {
 }
 
 /**
+ * Stock embarqué de l'équipe (root + apprentis). Pour l'écran « Stock
+ * équipe » du livreur racine.
+ */
+export function useStockActuelParent(parentId: UUID) {
+  return useQuery({
+    queryKey: stockKeys.parentActuel(parentId),
+    queryFn: () => stockApi.actuelParent(parentId),
+    enabled: !!parentId,
+  });
+}
+
+/**
  * Déclare un achat (entrée de stock) chez un fournisseur. Sur succès, on
  * invalide tout le sous-arbre `['stock']` du cache pour que la page "Mon
  * stock" et les agrégats `courant` se rafraîchissent automatiquement.

@@ -12,6 +12,9 @@ import {
   Users,
   Wallet,
   X,
+  Receipt,
+  CalendarClock,
+  ClipboardCheck,
 } from 'lucide-react-native';
 import { OfflineBanner } from '../../components/shared/OfflineBanner';
 import { useNetworkStore } from '../../stores/networkStore';
@@ -103,6 +106,30 @@ function FabSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
               label="Retour client"
               hint="Réincrémente stock + déduit solde"
               onPress={() => go('/(livreur)/cash/retour-client')}
+            />
+            <FabAction
+              icon={Receipt}
+              iconBg="#fee2e2"
+              iconColor="#dc2626"
+              label="Nouvelle dépense"
+              hint="Carburant, entretien, autre"
+              onPress={() => go('/(livreur)/cash/depenses/nouvelle')}
+            />
+            <FabAction
+              icon={CalendarClock}
+              iconBg="#dbeafe"
+              iconColor="#3b82f6"
+              label="Planifier J+1"
+              hint="Prévisions multi-produits par client"
+              onPress={() => go('/(livreur)/previsions/nouvelle')}
+            />
+            <FabAction
+              icon={ClipboardCheck}
+              iconBg="#fef3c7"
+              iconColor="#d97706"
+              label="Clôturer la journée"
+              hint="Récap CA + écart de caisse"
+              onPress={() => go('/(livreur)/clotures/nouvelle')}
             />
           </ScrollView>
         </Pressable>
@@ -251,6 +278,8 @@ export default function LivreurLayout() {
         {/* Hidden routes — accessible via FAB sheet, stat cards, links, or programmatic push */}
         <Tabs.Screen name="cash" options={{ href: null }} />
         <Tabs.Screen name="stock" options={{ href: null }} />
+        <Tabs.Screen name="previsions" options={{ href: null }} />
+        <Tabs.Screen name="clotures" options={{ href: null }} />
       </Tabs>
       <FabSheet open={fabOpen} onClose={() => setFabOpen(false)} />
     </SafeAreaView>

@@ -13,6 +13,8 @@ import {
   KeyRound,
   DollarSign,
   UsersRound,
+  CalendarClock,
+  ClipboardCheck,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { useAuthStore } from '../../../stores/authStore';
@@ -171,6 +173,47 @@ export default function Profil() {
                 <ChevronRight color="#94a3b8" size={18} />
               </Pressable>
             ) : null}
+          </View>
+
+          {/* Activité — pages métier accessibles aussi via tournée */}
+          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
+            Activité
+          </Text>
+          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+            <Pressable
+              onPress={() => router.push('/(livreur)/previsions' as never)}
+              className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
+            >
+              <View className="flex-row items-center gap-3">
+                <CalendarClock color="#3b82f6" size={20} />
+                <View>
+                  <Text className="font-extrabold text-slate-900 dark:text-white">
+                    Prévisions
+                  </Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Planifier la tournée + cumul commande
+                  </Text>
+                </View>
+              </View>
+              <ChevronRight color="#94a3b8" size={18} />
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/(livreur)/clotures' as never)}
+              className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
+            >
+              <View className="flex-row items-center gap-3">
+                <ClipboardCheck color="#f59e0b" size={20} />
+                <View>
+                  <Text className="font-extrabold text-slate-900 dark:text-white">
+                    Clôtures journalières
+                  </Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Récap fin de journée + écart de caisse
+                  </Text>
+                </View>
+              </View>
+              <ChevronRight color="#94a3b8" size={18} />
+            </Pressable>
           </View>
 
           {/* Apparence */}

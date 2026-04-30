@@ -1,4 +1,6 @@
-import { ScrollView, View, Text, RefreshControl } from 'react-native';
+import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native';
+import { router } from 'expo-router';
+import { ArrowLeftRight, Users, ArrowRight } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { useStockCourant } from '../../../features/stock/hooks';
@@ -64,6 +66,46 @@ export default function StockCourant() {
               {totalRetours > 0 ? ` · ${totalRetours} retours sur période` : ''}
             </Text>
           </View>
+
+          {/* Submenu (root only) */}
+          {user.role === 'LIVREUR' && (user.parentId ?? null) === null ? (
+            <View className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+              <Pressable
+                onPress={() => router.push('/(livreur)/stock/transferts' as never)}
+                className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
+              >
+                <View className="flex-row items-center gap-3 flex-1">
+                  <ArrowLeftRight color="#3b82f6" size={20} />
+                  <View className="flex-1">
+                    <Text className="font-extrabold text-slate-900 dark:text-white">
+                      Transferts
+                    </Text>
+                    <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Vers / depuis tes apprentis
+                    </Text>
+                  </View>
+                </View>
+                <ArrowRight color="#94a3b8" size={16} />
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/(livreur)/stock/equipe' as never)}
+                className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
+              >
+                <View className="flex-row items-center gap-3 flex-1">
+                  <Users color="#8b5cf6" size={20} />
+                  <View className="flex-1">
+                    <Text className="font-extrabold text-slate-900 dark:text-white">
+                      Stock équipe
+                    </Text>
+                    <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Vue agrégée toi + apprentis
+                    </Text>
+                  </View>
+                </View>
+                <ArrowRight color="#94a3b8" size={16} />
+              </Pressable>
+            </View>
+          ) : null}
 
           {/* Liste */}
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">

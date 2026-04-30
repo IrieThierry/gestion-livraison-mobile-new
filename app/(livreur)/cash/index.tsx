@@ -1,7 +1,14 @@
 import { useMemo } from 'react';
 import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
-import { Banknote, TrendingDown } from 'lucide-react-native';
+import {
+  Banknote,
+  TrendingDown,
+  Receipt,
+  Coins,
+  TrendingUp,
+  ArrowRight,
+} from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { StatCard } from '../../../components/shared/StatCard';
 import { EmptyState } from '../../../components/shared/EmptyState';
@@ -92,6 +99,39 @@ export default function CashOverview() {
             </View>
           </Pressable>
 
+          {/* Cash submenu */}
+          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
+            Plus
+          </Text>
+          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+            <CashMenuRow
+              icon={Receipt}
+              color="#dc2626"
+              label="Mes dépenses"
+              hint="Carburant, entretien, divers"
+              onPress={() => router.push('/(livreur)/cash/depenses' as never)}
+            />
+            <CashMenuRow
+              icon={Coins}
+              color="#8b5cf6"
+              label="Reversements"
+              hint="Marges dues aux clients / fournisseurs"
+              onPress={() => router.push('/(livreur)/cash/reversements' as never)}
+              border
+            />
+            {/* Encours visible uniquement pour les livreurs racines */}
+            {user.role === 'LIVREUR' && (user.parentId ?? null) === null ? (
+              <CashMenuRow
+                icon={TrendingUp}
+                color="#f59e0b"
+                label="Encours clients"
+                hint="Synthèse des créances clients"
+                onPress={() => router.push('/(livreur)/cash/encours' as never)}
+                border
+              />
+            ) : null}
+          </View>
+
           {/* Recent list */}
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
             Encaissements récents
@@ -138,5 +178,43 @@ export default function CashOverview() {
         </View>
       </ScrollView>
     </View>
+  );
+}
+
+function CashMenuRow({
+  icon: Icon,
+  color,
+  label,
+  hint,
+  onPress,
+  border,
+}: {
+  icon: React.ComponentType<{ color: string; size: number }>;
+  color: string;
+  label: string;
+  hint: string;
+  onPress: () => void;
+  border?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`flex-row items-center justify-between px-4 py-3 active:opacity-70 ${
+        border ? 'border-t border-slate-100 dark:border-slate-800' : ''
+      }`}
+    >
+      <View className="flex-row items-center gap-3 flex-1">
+        <Icon color={color} size={20} />
+        <View className="flex-1">
+          <Text className="font-extrabold text-slate-900 dark:text-white">
+            {label}
+          </Text>
+          <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+            {hint}
+          </Text>
+        </View>
+      </View>
+      <ArrowRight color="#94a3b8" size={16} />
+    </Pressable>
   );
 }

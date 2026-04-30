@@ -26,6 +26,19 @@ export const stockApi = {
   },
 
   /**
+   * Stock embarqué de toute l'équipe d'un parent (root + apprentis).
+   * Renvoie les achats encore présents en stock pour chaque membre de
+   * l'équipe, ventilés par (livreur × produit × fournisseur). Utilisé
+   * par l'écran « Stock équipe » (root only).
+   */
+  actuelParent: async (parentId: UUID): Promise<StockLivreurResponse[]> => {
+    const { data } = await apiClient.get<StockLivreurResponse[]>(
+      `/stock-livreur/parent/${parentId}/actuel`,
+    );
+    return data;
+  },
+
+  /**
    * Stock courant agrégé par produit (somme des achats moins les livraisons
    * enregistrées). Utile pour un total simple "qte vendable maintenant"
    * sans détail fournisseur.
