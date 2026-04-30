@@ -3,13 +3,41 @@ import { useEffect } from 'react';
 import { Stack, router, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { focusManager, onlineManager } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, AppState, type AppStateStatus, Platform } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import Constants from 'expo-constants';
 import { queryClient, queryPersister } from '../lib/query-client';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
+import { useNetworkStore } from '../stores/networkStore';
+
+// ---- TanStack Query : focus + online managers branchés sur React Native ----
+// Sur le web, react-query écoute `window.focus` et `navigator.onLine`. En
+// React Native, ces APIs n'existent pas — il faut câbler manuellement :
+//   • `focusManager` ↔ `AppState` (foreground/background)
+//   • `onlineManager` ↔ `useNetworkStore` (qui poll déjà expo-network)
+// Sans ça les queries ne se rafraîchissent jamais quand l'utilisateur
+// ré-ouvre l'app après avoir créé un client sur le web — ce qui était
+// précisément le bug remonté.
+
+focusManager.setEventListener((handleFocus) => {
+  const sub = AppState.addEventListener('change', (status: AppStateStatus) => {
+    if (Platform.OS !== 'web') {
+      handleFocus(status === 'active');
+    }
+  });
+  return () => sub.remove();
+});
+
+onlineManager.setEventListener((setOnline) => {
+  // Le `networkStore` poll déjà expo-network toutes les 5s. On s'abonne
+  // à ses mises à jour ; quand `isOnline` passe de false à true,
+  // react-query déclenche `refetchOnReconnect` sur toutes les queries.
+  setOnline(useNetworkStore.getState().isOnline);
+  return useNetworkStore.subscribe((s) => setOnline(s.isOnline));
+});
 
 // Native splash control — only meaningful in custom dev clients / production
 // builds. Expo Go manages its own splash and rejects these calls with
