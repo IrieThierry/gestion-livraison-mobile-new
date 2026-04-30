@@ -34,3 +34,14 @@ export function useCategories() {
     staleTime: 5 * 60 * 1000,
   });
 }
+
+/**
+ * Liste plate des zones (parent des quartiers). Même staleTime.
+ */
+export function useZones() {
+  return useQuery({
+    queryKey: ['lookups', 'zones'],
+    queryFn: lookupsApi.zones,
+    staleTime: 5 * 60 * 1000,
+  });
+}

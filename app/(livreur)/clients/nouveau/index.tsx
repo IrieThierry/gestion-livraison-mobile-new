@@ -10,15 +10,17 @@ import {
 import { router } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
-import { useQuartiers, useCategories } from '../../../../features/lookups/hooks';
+import { useQuartiers, useCategories, useZones } from '../../../../features/lookups/hooks';
 import { useClientDraftStore } from '../../../../stores/clientDraftStore';
 import { formatFCFA } from '../../../../lib/format';
 
 export default function NouveauClientStep1() {
   const draft = useClientDraftStore((s) => s.draft);
   const setDraft = useClientDraftStore((s) => s.setDraft);
+  const zonesQ = useZones();
   const quartiersQ = useQuartiers();
   const categoriesQ = useCategories();
+  const zones = zonesQ.data ?? [];
   const quartiers = quartiersQ.data ?? [];
   const categories = categoriesQ.data ?? [];
 
@@ -29,6 +31,11 @@ export default function NouveauClientStep1() {
   const [adresse, setAdresse] = useState(draft.adresse);
   const [quartierId, setQuartierId] = useState<string | null>(draft.quartierId);
   const [categorieId, setCategorieId] = useState<string | null>(draft.categorieId);
+  // Zone is a UI helper to filter the quartier list — it isn't sent to
+  // the back-end (CreerClientRequest only takes quartierId).
+  const initialZoneId =
+    quartiers.find((q) => q.id === draft.quartierId)?.zone?.id ?? null;
+  const [zoneId, setZoneId] = useState<string | null>(initialZoneId);
   const [prixDeVenteParDefaut, setPrixDeVenteParDefaut] = useState(draft.prixDeVenteParDefaut);
   const [avecRemise, setAvecRemise] = useState(draft.avecRemise);
 
@@ -151,10 +158,52 @@ export default function NouveauClientStep1() {
             placeholder="Rue, immeuble, repère…"
           />
 
-          {/* Quartier */}
+          {/* Zone (parent du quartier) */}
+          <View>
+            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
+              Zone
+            </Text>
+            {zonesQ.isLoading ? (
+              <Text className="text-slate-400 text-sm">Chargement…</Text>
+            ) : zones.length === 0 ? (
+              <View className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3">
+                <Text className="text-[11px] text-amber-800 dark:text-amber-300">
+                  ⚠️ Aucune zone configurée. Demande à ton admin d'ajouter une
+                  zone dans Paramètres → Zones.
+                </Text>
+              </View>
+            ) : (
+              <View className="flex-row flex-wrap gap-2">
+                {zones.map((z) => (
+                  <Pill
+                    key={z.id}
+                    active={zoneId === z.id}
+                    label={z.libelle}
+                    onPress={() => {
+                      const next = z.id === zoneId ? null : z.id;
+                      setZoneId(next);
+                      // Reset quartier if the current selection isn't in the new zone
+                      if (
+                        next &&
+                        quartierId &&
+                        quartiers.find((q) => q.id === quartierId)?.zone?.id !== next
+                      ) {
+                        setQuartierId(null);
+                      }
+                    }}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Quartier (filtered by zone) */}
           <View>
             <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
               Quartier
+              {zoneId
+                ? ` · ${zones.find((z) => z.id === zoneId)?.libelle ?? ''}`
+                : ''}
             </Text>
             {quartiersQ.isLoading ? (
               <Text className="text-slate-400 text-sm">Chargement…</Text>
@@ -166,16 +215,30 @@ export default function NouveauClientStep1() {
                 </Text>
               </View>
             ) : (
-              <View className="flex-row flex-wrap gap-2">
-                {quartiers.map((q) => (
-                  <Pill
-                    key={q.id}
-                    active={quartierId === q.id}
-                    label={q.libelle}
-                    onPress={() => setQuartierId(q.id === quartierId ? null : q.id)}
-                  />
-                ))}
-              </View>
+              (() => {
+                const visible = zoneId
+                  ? quartiers.filter((q) => q.zone?.id === zoneId)
+                  : quartiers;
+                if (visible.length === 0) {
+                  return (
+                    <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Aucun quartier dans cette zone.
+                    </Text>
+                  );
+                }
+                return (
+                  <View className="flex-row flex-wrap gap-2">
+                    {visible.map((q) => (
+                      <Pill
+                        key={q.id}
+                        active={quartierId === q.id}
+                        label={q.libelle}
+                        onPress={() => setQuartierId(q.id === quartierId ? null : q.id)}
+                      />
+                    ))}
+                  </View>
+                );
+              })()
             )}
           </View>
 

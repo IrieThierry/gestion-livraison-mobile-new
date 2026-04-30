@@ -3,6 +3,7 @@ import type {
   CategorieResponse,
   FournisseurResponse,
   QuartierResponse,
+  ZoneResponse,
 } from '../../types/api';
 
 // Mirror minimal de `gestion-livraison-front/src/features/refdata/api.ts` :
@@ -21,6 +22,10 @@ export const lookupsApi = {
   },
   categories: async (): Promise<CategorieResponse[]> => {
     const { data } = await apiClient.get<CategorieResponse[]>('/categorie');
+    return data;
+  },
+  zones: async (): Promise<ZoneResponse[]> => {
+    const { data } = await apiClient.get<ZoneResponse[]>('/zone');
     return data;
   },
 };
