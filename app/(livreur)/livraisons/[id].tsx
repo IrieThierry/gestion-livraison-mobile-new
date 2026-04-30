@@ -1,4 +1,4 @@
-import { ScrollView, View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { ScrollView, View, Text, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Phone, MapPin, Banknote } from 'lucide-react-native';
 import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
@@ -66,7 +66,16 @@ export default function LivraisonDetail() {
         title={clientName}
         subtitle={`${formatDateShort(livraison.date)} · ${formatTime(livraison.date)}`}
       />
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={q.isFetching && !q.isLoading}
+            onRefresh={() => q.refetch()}
+            tintColor="#10b981"
+          />
+        }
+      >
         <View className="px-4">
           {/* Hero — montant + statut + actions */}
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4">
