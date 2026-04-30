@@ -1,18 +1,15 @@
-import { useState, useEffect } from 'react';
-import {
-  ScrollView,
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  Alert,
-} from 'react-native';
+import { useState, useEffect, useMemo } from 'react';
+import { ScrollView, View, Text, TextInput, Pressable, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
-import { useQuartiers, useCategories, useZones } from '../../../../features/lookups/hooks';
+import { SelectField } from '../../../../components/shared/SelectField';
+import {
+  useQuartiers,
+  useCategories,
+  useZones,
+} from '../../../../features/lookups/hooks';
 import { useClientDraftStore } from '../../../../stores/clientDraftStore';
-import { formatFCFA } from '../../../../lib/format';
 
 export default function NouveauClientStep1() {
   const draft = useClientDraftStore((s) => s.draft);
@@ -31,13 +28,10 @@ export default function NouveauClientStep1() {
   const [adresse, setAdresse] = useState(draft.adresse);
   const [quartierId, setQuartierId] = useState<string | null>(draft.quartierId);
   const [categorieId, setCategorieId] = useState<string | null>(draft.categorieId);
-  // Zone is a UI helper to filter the quartier list — it isn't sent to
-  // the back-end (CreerClientRequest only takes quartierId).
+  const [avecRemise, setAvecRemise] = useState(draft.avecRemise);
   const initialZoneId =
     quartiers.find((q) => q.id === draft.quartierId)?.zone?.id ?? null;
   const [zoneId, setZoneId] = useState<string | null>(initialZoneId);
-  const [prixDeVenteParDefaut, setPrixDeVenteParDefaut] = useState(draft.prixDeVenteParDefaut);
-  const [avecRemise, setAvecRemise] = useState(draft.avecRemise);
 
   // Re-hydrate when the user comes back from step 2 (back swipe)
   useEffect(() => {
@@ -48,21 +42,52 @@ export default function NouveauClientStep1() {
     setAdresse(draft.adresse);
     setQuartierId(draft.quartierId);
     setCategorieId(draft.categorieId);
-    setPrixDeVenteParDefaut(draft.prixDeVenteParDefaut);
     setAvecRemise(draft.avecRemise);
   }, [draft]);
 
+  // Filtered quartiers for the dropdown — by selected zone if any
+  const quartiersOptions = useMemo(() => {
+    const visible = zoneId
+      ? quartiers.filter((q) => q.zone?.id === zoneId)
+      : quartiers;
+    return visible.map((q) => ({
+      id: q.id,
+      label: q.libelle,
+      hint: q.zone?.libelle,
+    }));
+  }, [quartiers, zoneId]);
+
+  const zonesOptions = useMemo(
+    () => zones.map((z) => ({ id: z.id, label: z.libelle })),
+    [zones],
+  );
+  const categoriesOptions = useMemo(
+    () => categories.map((c) => ({ id: c.id, label: c.libelle })),
+    [categories],
+  );
+
+  const onChangeZone = (next: string | null) => {
+    setZoneId(next);
+    // Reset quartier if it's no longer in the new zone
+    if (
+      next &&
+      quartierId &&
+      quartiers.find((q) => q.id === quartierId)?.zone?.id !== next
+    ) {
+      setQuartierId(null);
+    }
+  };
+
   const onNext = () => {
+    // Aligned with backend CreerClientUseCase.validateInput :
+    //   required → prenom, contact, quartierId, categorieId, latitudeLongitude (step 2)
+    //   optional → nom, email, adresse, prixDeVenteProduitParDefault, avecOuSansRemise
     if (!prenom.trim()) return Alert.alert('Erreur', 'Prénom requis');
-    if (!nom.trim()) return Alert.alert('Erreur', 'Nom requis');
     if (!contact.trim()) return Alert.alert('Erreur', 'Téléphone requis');
-    if (!adresse.trim()) return Alert.alert('Erreur', 'Adresse requise');
+    if (!quartierId) return Alert.alert('Erreur', 'Quartier requis');
+    if (!categorieId) return Alert.alert('Erreur', 'Catégorie requise');
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return Alert.alert('Erreur', 'Email invalide');
-    }
-    const prix = parseInt(prixDeVenteParDefaut, 10);
-    if (Number.isNaN(prix) || prix < 0) {
-      return Alert.alert('Erreur', 'Le prix doit être un nombre positif ou zéro');
     }
 
     setDraft({
@@ -73,38 +98,13 @@ export default function NouveauClientStep1() {
       adresse: adresse.trim(),
       quartierId,
       categorieId,
-      prixDeVenteParDefaut: String(prix),
+      // Field removed from the form — keep at default 0 in the draft for
+      // backward compat with the store's existing shape.
+      prixDeVenteParDefaut: '0',
       avecRemise,
     });
     router.push('/(livreur)/clients/nouveau/localisation' as never);
   };
-
-  const Pill = ({
-    active,
-    label,
-    onPress,
-  }: {
-    active: boolean;
-    label: string;
-    onPress: () => void;
-  }) => (
-    <Pressable
-      onPress={onPress}
-      className={`px-3 py-2 rounded-md ${
-        active
-          ? 'bg-emerald-500'
-          : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
-      }`}
-    >
-      <Text
-        className={`text-sm font-bold ${
-          active ? 'text-white' : 'text-slate-700 dark:text-slate-300'
-        }`}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
@@ -124,7 +124,12 @@ export default function NouveauClientStep1() {
               <Field label="Prénom *" value={prenom} onChange={setPrenom} placeholder="Marc" />
             </View>
             <View className="flex-1">
-              <Field label="Nom *" value={nom} onChange={setNom} placeholder="Konan" />
+              <Field
+                label="Nom"
+                value={nom}
+                onChange={setNom}
+                placeholder="Konan"
+              />
             </View>
           </View>
 
@@ -150,146 +155,55 @@ export default function NouveauClientStep1() {
             </View>
           </View>
 
-          {/* Adresse */}
+          {/* Adresse — optionnel */}
           <Field
-            label="Adresse *"
+            label="Adresse"
             value={adresse}
             onChange={setAdresse}
             placeholder="Rue, immeuble, repère…"
           />
 
-          {/* Zone (parent du quartier) */}
-          <View>
-            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-              Zone
-            </Text>
-            {zonesQ.isLoading ? (
-              <Text className="text-slate-400 text-sm">Chargement…</Text>
-            ) : zones.length === 0 ? (
-              <View className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3">
-                <Text className="text-[11px] text-amber-800 dark:text-amber-300">
-                  ⚠️ Aucune zone configurée. Demande à ton admin d'ajouter une
-                  zone dans Paramètres → Zones.
-                </Text>
-              </View>
-            ) : (
-              <View className="flex-row flex-wrap gap-2">
-                {zones.map((z) => (
-                  <Pill
-                    key={z.id}
-                    active={zoneId === z.id}
-                    label={z.libelle}
-                    onPress={() => {
-                      const next = z.id === zoneId ? null : z.id;
-                      setZoneId(next);
-                      // Reset quartier if the current selection isn't in the new zone
-                      if (
-                        next &&
-                        quartierId &&
-                        quartiers.find((q) => q.id === quartierId)?.zone?.id !== next
-                      ) {
-                        setQuartierId(null);
-                      }
-                    }}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
+          {/* Zone (filtre des quartiers) — optionnel UI-side */}
+          <SelectField
+            label="Zone"
+            placeholder="Choisir une zone"
+            value={zoneId}
+            onChange={onChangeZone}
+            options={zonesOptions}
+            isLoading={zonesQ.isLoading}
+            emptyMessage="Aucune zone configurée"
+            optional
+          />
 
-          {/* Quartier (filtered by zone) */}
-          <View>
-            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-              Quartier
-              {zoneId
-                ? ` · ${zones.find((z) => z.id === zoneId)?.libelle ?? ''}`
-                : ''}
-            </Text>
-            {quartiersQ.isLoading ? (
-              <Text className="text-slate-400 text-sm">Chargement…</Text>
-            ) : quartiers.length === 0 ? (
-              <View className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3">
-                <Text className="text-[11px] text-amber-800 dark:text-amber-300">
-                  ⚠️ Aucun quartier configuré côté backend. Demande à ton admin
-                  d'ajouter au moins un quartier dans Paramètres → Quartiers.
-                </Text>
-              </View>
-            ) : (
-              (() => {
-                const visible = zoneId
-                  ? quartiers.filter((q) => q.zone?.id === zoneId)
-                  : quartiers;
-                if (visible.length === 0) {
-                  return (
-                    <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Aucun quartier dans cette zone.
-                    </Text>
-                  );
-                }
-                return (
-                  <View className="flex-row flex-wrap gap-2">
-                    {visible.map((q) => (
-                      <Pill
-                        key={q.id}
-                        active={quartierId === q.id}
-                        label={q.libelle}
-                        onPress={() => setQuartierId(q.id === quartierId ? null : q.id)}
-                      />
-                    ))}
-                  </View>
-                );
-              })()
-            )}
-          </View>
+          {/* Quartier — obligatoire */}
+          <SelectField
+            label={
+              zoneId
+                ? `Quartier · ${zones.find((z) => z.id === zoneId)?.libelle ?? ''} *`
+                : 'Quartier *'
+            }
+            placeholder="Choisir un quartier"
+            value={quartierId}
+            onChange={setQuartierId}
+            options={quartiersOptions}
+            isLoading={quartiersQ.isLoading}
+            emptyMessage={
+              zoneId
+                ? 'Aucun quartier dans cette zone'
+                : 'Aucun quartier configuré'
+            }
+          />
 
-          {/* Catégorie */}
-          <View>
-            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-              Catégorie
-            </Text>
-            {categoriesQ.isLoading ? (
-              <Text className="text-slate-400 text-sm">Chargement…</Text>
-            ) : categories.length === 0 ? (
-              <View className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3">
-                <Text className="text-[11px] text-amber-800 dark:text-amber-300">
-                  ⚠️ Aucune catégorie configurée côté backend. Demande à ton admin
-                  d'ajouter au moins une catégorie dans Paramètres → Catégories.
-                </Text>
-              </View>
-            ) : (
-              <View className="flex-row flex-wrap gap-2">
-                {categories.map((c) => (
-                  <Pill
-                    key={c.id}
-                    active={categorieId === c.id}
-                    label={c.libelle}
-                    onPress={() => setCategorieId(c.id === categorieId ? null : c.id)}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* Pricing */}
-          <View>
-            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-              Prix de vente par défaut (FCFA)
-            </Text>
-            <TextInput
-              value={prixDeVenteParDefaut}
-              onChangeText={setPrixDeVenteParDefaut}
-              keyboardType="number-pad"
-              placeholder="0"
-              placeholderTextColor="#94a3b8"
-              className="px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-base"
-            />
-            {parseInt(prixDeVenteParDefaut, 10) > 0 ? (
-              <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                Pré-rempli sur les nouvelles livraisons :{' '}
-                {formatFCFA(parseInt(prixDeVenteParDefaut, 10))} FCFA
-              </Text>
-            ) : null}
-          </View>
+          {/* Catégorie — obligatoire */}
+          <SelectField
+            label="Catégorie *"
+            placeholder="Choisir une catégorie"
+            value={categorieId}
+            onChange={setCategorieId}
+            options={categoriesOptions}
+            isLoading={categoriesQ.isLoading}
+            emptyMessage="Aucune catégorie configurée"
+          />
 
           {/* Avec remise — toggle */}
           <Pressable
@@ -297,7 +211,9 @@ export default function NouveauClientStep1() {
             className="flex-row items-center justify-between bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md px-4 py-3.5 active:opacity-70"
           >
             <View className="flex-1 pr-3">
-              <Text className="font-extrabold text-slate-900 dark:text-white">Avec remise</Text>
+              <Text className="font-extrabold text-slate-900 dark:text-white">
+                Avec remise
+              </Text>
               <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                 Ce client bénéficie de remises spéciales
               </Text>

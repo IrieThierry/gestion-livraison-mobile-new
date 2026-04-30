@@ -16,7 +16,6 @@ import {
   Phone,
   Mail,
   Tag,
-  Banknote,
   Percent,
 } from 'lucide-react-native';
 import * as Location from 'expo-location';
@@ -28,7 +27,6 @@ import { useClientDraftStore } from '../../../../stores/clientDraftStore';
 import { useAuthStore } from '../../../../stores/authStore';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { navigateTo } from '../../../../lib/linking';
-import { formatFCFA } from '../../../../lib/format';
 import type { CreerClientRequest } from '../../../../types/api';
 
 export default function NouveauClientStep2() {
@@ -101,7 +99,6 @@ export default function NouveauClientStep2() {
 
   const quartierLabel = quartiers.find((q) => q.id === draft.quartierId)?.libelle;
   const categorieLabel = categories.find((c) => c.id === draft.categorieId)?.libelle;
-  const prixNum = parseInt(draft.prixDeVenteParDefaut, 10) || 0;
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
@@ -222,14 +219,6 @@ export default function NouveauClientStep2() {
                   color="#ec4899"
                   label="Catégorie"
                   value={categorieLabel}
-                />
-              ) : null}
-              {prixNum > 0 ? (
-                <RecapRow
-                  icon={Banknote}
-                  color="#10b981"
-                  label="Prix par défaut"
-                  value={`${formatFCFA(prixNum)} FCFA`}
                 />
               ) : null}
               <RecapRow
