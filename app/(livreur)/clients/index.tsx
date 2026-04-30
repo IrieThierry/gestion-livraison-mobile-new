@@ -14,9 +14,11 @@ import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { useClientsByLivreur } from '../../../features/clients/hooks';
 import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
+import { useEncaissementsByLivreur } from '../../../features/encaissements/hooks';
 import { useAuthStore } from '../../../stores/authStore';
 import { callPhone, navigateTo } from '../../../lib/linking';
 import { formatFCFA } from '../../../lib/format';
+import { computeEncoursForClient, computeSoldeForClient } from '../../../lib/credit';
 import type { ClientResponse } from '../../../types/api';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
@@ -31,6 +33,7 @@ export default function ClientsList() {
   const livreurId = user?.id ?? '';
   const q = useClientsByLivreur(livreurId);
   const qLiv = useLivraisonsByLivreur(livreurId);
+  const qEnc = useEncaissementsByLivreur(livreurId);
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
@@ -154,15 +157,18 @@ export default function ClientsList() {
         renderItem={({ item }) => {
           const geo = parseLatLng(item.latitudeLongitude);
           const livraisons = qLiv.data ?? [];
+          const encaissements = qEnc.data ?? [];
           const pending = livraisons.filter(
             (l) => l.client.id === item.id && l.statut !== 'ENCAISSEE',
           );
-          const solde = pending.reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
+          const encours = computeEncoursForClient(livraisons, item.id);
+          const solde = computeSoldeForClient(livraisons, encaissements, item.id);
           return (
             <ClientRow
               client={item}
               geo={geo}
               pendingCount={pending.length}
+              encours={encours}
               solde={solde}
               onLivrer={() => onLivrer(item)}
               onEncaisser={() => onEncaisser(item)}
@@ -178,6 +184,7 @@ function ClientRow({
   client,
   geo,
   pendingCount,
+  encours,
   solde,
   onLivrer,
   onEncaisser,
@@ -185,18 +192,24 @@ function ClientRow({
   client: ClientResponse;
   geo: { lat: number; lng: number } | null;
   pendingCount: number;
+  encours: number;
   solde: number;
   onLivrer: () => void;
   onEncaisser: () => void;
 }) {
   const initials = `${client.prenom[0] ?? ''}${client.nom[0] ?? ''}`.toUpperCase();
+  // border / amount color follow the SIGNED solde
+  const debt = solde > 0;
+  const credit = solde < 0;
 
   return (
     <View
       className={`bg-white dark:bg-slate-900 border rounded-lg p-3 mb-2 ${
-        solde > 0
+        debt
           ? 'border-slate-200 dark:border-slate-800 border-l-4 border-l-red-500'
-          : 'border-slate-200 dark:border-slate-800'
+          : credit
+            ? 'border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500'
+            : 'border-slate-200 dark:border-slate-800'
       }`}
     >
       {/* Identity row */}
@@ -214,18 +227,29 @@ function ClientRow({
             {client.quartier?.libelle ?? '—'}
             {client.contact ? ` · ${client.contact}` : ''}
           </Text>
+          {encours > 0 ? (
+            <Text className="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5">
+              Encours · {formatFCFA(encours)} F · {pendingCount} livr.
+            </Text>
+          ) : null}
         </View>
         <View className="items-end">
-          {solde > 0 ? (
+          {debt ? (
             <>
               <Text className="text-[10px] uppercase font-bold text-red-600 dark:text-red-400 tracking-wider">
-                Solde
+                Solde dû
               </Text>
               <Text className="font-extrabold text-red-600 dark:text-red-400 text-sm">
                 {formatFCFA(solde)} F
               </Text>
-              <Text className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">
-                {pendingCount} livraison{pendingCount > 1 ? 's' : ''}
+            </>
+          ) : credit ? (
+            <>
+              <Text className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-400 tracking-wider">
+                Avoir
+              </Text>
+              <Text className="font-extrabold text-emerald-700 dark:text-emerald-400 text-sm">
+                {formatFCFA(Math.abs(solde))} F
               </Text>
             </>
           ) : (
