@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { formatFCFA, formatTime } from '../../lib/format';
 import type { LivraisonResponse } from '../../types/api';
 
-type DerivedStatus = 'ENCAISSEE' | 'LIVREE' | 'DOIT';
+type DerivedStatus = 'ENCAISSEE' | 'LIVREE' | 'IMPAYEE';
 
 const STATUS_STYLES: Record<DerivedStatus, { border: string; bg: string; text: string; label: string }> = {
   ENCAISSEE: {
@@ -18,16 +18,16 @@ const STATUS_STYLES: Record<DerivedStatus, { border: string; bg: string; text: s
     text: 'text-amber-800 dark:text-amber-400',
     label: 'Livrée',
   },
-  DOIT: {
+  IMPAYEE: {
     border: 'border-l-red-500',
     bg: 'bg-red-100 dark:bg-red-500/15',
     text: 'text-red-700 dark:text-red-400',
-    label: 'Doit',
+    label: 'Impayée',
   },
 };
 
 /**
- * 'Doit' is a derived state, not a backend statut: a LIVREE livraison
+ * 'IMPAYEE' is a derived state, not a backend statut: a LIVREE livraison
  * older than today is treated as outstanding debt for the customer.
  * Backend only exposes LIVREE | ENCAISSEE; this heuristic mirrors what
  * a livreur thinks of when looking at the page.
@@ -36,7 +36,7 @@ export function deriveStatus(livraison: LivraisonResponse): DerivedStatus {
   if (livraison.statut === 'ENCAISSEE') return 'ENCAISSEE';
   const today = new Date().toDateString();
   const livDate = new Date(livraison.date).toDateString();
-  return livDate === today ? 'LIVREE' : 'DOIT';
+  return livDate === today ? 'LIVREE' : 'IMPAYEE';
 }
 
 export function LivraisonCard({ livraison }: { livraison: LivraisonResponse }) {
@@ -68,12 +68,12 @@ export function LivraisonCard({ livraison }: { livraison: LivraisonResponse }) {
         {quartier} · {time} ·{' '}
         <Text
           className={
-            status === 'DOIT'
+            status === 'IMPAYEE'
               ? 'text-red-600 dark:text-red-400 font-bold'
               : 'font-bold text-slate-700 dark:text-slate-200'
           }
         >
-          {formatFCFA(montant)} {status === 'DOIT' ? 'dû' : 'FCFA'}
+          {formatFCFA(montant)} {status === 'IMPAYEE' ? 'impayé' : 'FCFA'}
         </Text>
       </Text>
       {lignesSummary ? (

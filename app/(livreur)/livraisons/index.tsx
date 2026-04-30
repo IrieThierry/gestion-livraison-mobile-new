@@ -60,7 +60,7 @@ export default function LivraisonsList() {
   const stats = useMemo(() => {
     let encaissees = 0;
     let livrees = 0;
-    let doit = 0;
+    let impayees = 0;
     let totalEncaisse = 0;
     let marge = 0;
     for (const l of filtered) {
@@ -77,10 +77,10 @@ export default function LivraisonsList() {
       } else if (ds === 'LIVREE') {
         livrees += 1;
       } else {
-        doit += 1;
+        impayees += 1;
       }
     }
-    return { encaissees, livrees, doit, totalEncaisse, marge };
+    return { encaissees, livrees, impayees, totalEncaisse, marge };
   }, [filtered]);
 
   if (!user) return null;
@@ -145,7 +145,7 @@ export default function LivraisonsList() {
           <View className="flex-row gap-2 mt-1">
             <StatCount label="Encaissée" value={stats.encaissees} accent="emerald" />
             <StatCount label="Livrée" value={stats.livrees} accent="amber" />
-            <StatCount label="Doit" value={stats.doit} accent="red" />
+            <StatCount label="Impayée" value={stats.impayees} accent="red" />
           </View>
 
           {/* Total encaissé + Marge banner */}

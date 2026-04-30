@@ -16,6 +16,7 @@ import { useClientsByLivreur } from '../../../features/clients/hooks';
 import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useAuthStore } from '../../../stores/authStore';
 import { callPhone, navigateTo } from '../../../lib/linking';
+import { formatFCFA } from '../../../lib/format';
 import type { ClientResponse } from '../../../types/api';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
@@ -153,14 +154,16 @@ export default function ClientsList() {
         renderItem={({ item }) => {
           const geo = parseLatLng(item.latitudeLongitude);
           const livraisons = qLiv.data ?? [];
-          const pendingCount = livraisons.filter(
+          const pending = livraisons.filter(
             (l) => l.client.id === item.id && l.statut !== 'ENCAISSEE',
-          ).length;
+          );
+          const solde = pending.reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
           return (
             <ClientRow
               client={item}
               geo={geo}
-              pendingCount={pendingCount}
+              pendingCount={pending.length}
+              solde={solde}
               onLivrer={() => onLivrer(item)}
               onEncaisser={() => onEncaisser(item)}
             />
@@ -175,19 +178,27 @@ function ClientRow({
   client,
   geo,
   pendingCount,
+  solde,
   onLivrer,
   onEncaisser,
 }: {
   client: ClientResponse;
   geo: { lat: number; lng: number } | null;
   pendingCount: number;
+  solde: number;
   onLivrer: () => void;
   onEncaisser: () => void;
 }) {
   const initials = `${client.prenom[0] ?? ''}${client.nom[0] ?? ''}`.toUpperCase();
 
   return (
-    <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 mb-2">
+    <View
+      className={`bg-white dark:bg-slate-900 border rounded-lg p-3 mb-2 ${
+        solde > 0
+          ? 'border-slate-200 dark:border-slate-800 border-l-4 border-l-red-500'
+          : 'border-slate-200 dark:border-slate-800'
+      }`}
+    >
       {/* Identity row */}
       <View className="flex-row items-center gap-3">
         <View className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
@@ -204,13 +215,27 @@ function ClientRow({
             {client.contact ? ` · ${client.contact}` : ''}
           </Text>
         </View>
-        {pendingCount > 0 ? (
-          <View className="bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 rounded-full">
-            <Text className="text-[10px] font-bold text-amber-800 dark:text-amber-400">
-              {pendingCount} dû
-            </Text>
-          </View>
-        ) : null}
+        <View className="items-end">
+          {solde > 0 ? (
+            <>
+              <Text className="text-[10px] uppercase font-bold text-red-600 dark:text-red-400 tracking-wider">
+                Solde
+              </Text>
+              <Text className="font-extrabold text-red-600 dark:text-red-400 text-sm">
+                {formatFCFA(solde)} F
+              </Text>
+              <Text className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">
+                {pendingCount} livraison{pendingCount > 1 ? 's' : ''}
+              </Text>
+            </>
+          ) : (
+            <View className="bg-emerald-100 dark:bg-emerald-500/15 px-2 py-0.5 rounded-full">
+              <Text className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                À jour
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Action row */}
