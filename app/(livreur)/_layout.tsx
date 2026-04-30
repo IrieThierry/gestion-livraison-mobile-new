@@ -76,11 +76,14 @@ export default function LivreurLayout() {
     <SafeAreaView edges={['top']} className="flex-1 bg-slate-50 dark:bg-slate-950">
       <OfflineBanner />
       <Tabs
+        initialRouteName="index"
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: '#10b981',
           tabBarInactiveTintColor: '#94a3b8',
-          tabBarStyle: { borderTopWidth: 1, borderTopColor: '#e2e8f0' },
+          tabBarStyle: { borderTopWidth: 1, borderTopColor: '#e2e8f0', height: 60 },
+          tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: -2 },
+          tabBarItemStyle: { paddingVertical: 4 },
         }}
       >
         <Tabs.Screen
@@ -93,7 +96,7 @@ export default function LivreurLayout() {
         <Tabs.Screen
           name="livraisons"
           options={{
-            title: 'Livraisons',
+            title: 'Livr.',
             tabBarIcon: ({ color }) => <Truck color={color} size={22} />,
           }}
         />
@@ -101,9 +104,10 @@ export default function LivreurLayout() {
           name="fab"
           options={{
             title: '',
+            tabBarShowLabel: false,
             tabBarIcon: () => (
-              <View className="bg-emerald-500 -mt-5 w-12 h-12 rounded-full items-center justify-center shadow-md">
-                <Plus color="#fff" size={24} strokeWidth={2.5} />
+              <View className="bg-emerald-500 -mt-6 w-14 h-14 rounded-full items-center justify-center shadow-lg">
+                <Plus color="#fff" size={28} strokeWidth={2.5} />
               </View>
             ),
           }}
