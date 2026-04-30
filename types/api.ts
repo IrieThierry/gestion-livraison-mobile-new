@@ -293,6 +293,41 @@ export interface CreerCommandeRequest {
   produitsCommandes: ProduitCommandeRequest[]
 }
 
+// ---------- Stock / Achats (Plan D — split achat / stock_courant_livreur) ----------
+
+/**
+ * Une ligne du stock courant agrégée par produit (sommée sur tous les achats
+ * du livreur, déduite des livraisons enregistrées).
+ * Source : `GET /stock-livreur/me/courant`.
+ */
+export interface StockCourantLigneResponse {
+  produit: ProduitResponse
+  qteVendable: number
+  qteRetourneeSurPeriode: number
+}
+
+/**
+ * Une ligne d'achat (= un événement d'approvisionnement chez un fournisseur).
+ * Source : `GET /stock-livreur/{livreurId}/actuel` renvoie la liste des
+ * achats encore présents en stock pour un livreur, ventilés par produit ET
+ * par fournisseur.
+ */
+export interface AchatResponse {
+  id: UUID
+  livreur: LivreurResponse
+  produit: ProduitResponse
+  qte: number
+  dateEnregistrement: ISODate
+  fournisseur: FournisseurResponse | null
+  prixVersement: number | null
+  prixVente: number | null
+  coutTotal: number
+  valeurVenteTotal: number | null
+}
+
+/** @deprecated Alias historique de `AchatResponse` — conservé par parité avec le web. */
+export type StockLivreurResponse = AchatResponse
+
 // ---------- Encaissements commandes ----------
 export interface CreerEncaissementCommandeRequest {
   montantEncaisse: number
