@@ -16,6 +16,31 @@ import {
 import { OfflineBanner } from '../../components/shared/OfflineBanner';
 import { useNetworkStore } from '../../stores/networkStore';
 
+/**
+ * Quand l'utilisateur tape un onglet déjà actif, par défaut Expo Router
+ * ne fait rien — on reste coincé sur la sous-route. On force ici le pop
+ * jusqu'à la racine de la pile interne en redirigeant explicitement vers
+ * la page racine de l'onglet.
+ */
+function popToTopOnReTap(path: string) {
+  return ({ navigation }: { navigation: { isFocused?: () => boolean } }) => ({
+    tabPress: (e: { preventDefault: () => void }) => {
+      if (!navigation.isFocused?.()) return;
+      e.preventDefault();
+      // Dismiss everything that was pushed on top of the tab root (sub-routes
+      // opened via router.push from the tab's index), then ensure we are on
+      // the root path. Belt-and-suspenders for cases where dismissAll doesn't
+      // know about the route (e.g. opened via FAB modal).
+      try {
+        router.dismissAll();
+      } catch {
+        /* nothing to dismiss — fine */
+      }
+      router.replace(path as never);
+    },
+  });
+}
+
 function FabSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const go = (path: string) => {
     onClose();
@@ -146,6 +171,7 @@ export default function LivreurLayout() {
             title: 'Tournée',
             tabBarIcon: ({ color }) => <TrendingUp color={color} size={23} strokeWidth={2.2} />,
           }}
+          listeners={popToTopOnReTap('/(livreur)')}
         />
         <Tabs.Screen
           name="clients"
@@ -153,6 +179,7 @@ export default function LivreurLayout() {
             title: 'Clients',
             tabBarIcon: ({ color }) => <Users color={color} size={23} strokeWidth={2.2} />,
           }}
+          listeners={popToTopOnReTap('/(livreur)/clients')}
         />
         <Tabs.Screen
           name="fab"
@@ -187,6 +214,7 @@ export default function LivreurLayout() {
             title: 'Livraisons',
             tabBarIcon: ({ color }) => <Truck color={color} size={23} strokeWidth={2.2} />,
           }}
+          listeners={popToTopOnReTap('/(livreur)/livraisons')}
         />
         <Tabs.Screen
           name="profil"
@@ -194,6 +222,7 @@ export default function LivreurLayout() {
             title: 'Moi',
             tabBarIcon: ({ color }) => <User color={color} size={23} strokeWidth={2.2} />,
           }}
+          listeners={popToTopOnReTap('/(livreur)/profil')}
         />
         {/* Hidden routes — accessible via FAB sheet, stat cards, links, or programmatic push */}
         <Tabs.Screen name="cash" options={{ href: null }} />

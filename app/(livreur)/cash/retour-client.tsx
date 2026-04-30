@@ -124,6 +124,8 @@ export default function RetourClient() {
       },
       {
         onSuccess: () => {
+          setLivraisonId(null);
+          setQtes({});
           router.back();
           Alert.alert(
             'Succès',

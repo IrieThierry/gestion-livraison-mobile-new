@@ -93,6 +93,14 @@ export default function Versement() {
       },
       {
         onSuccess: () => {
+          // Reset form before navigating
+          setFournisseurId(null);
+          setMontant('');
+          setCommentaire('');
+          setLibre(true);
+          setDateDebut(sevenAgoIso);
+          setDateFin(todayIso);
+          setDateVersement(todayIso);
           router.back();
           Alert.alert('Succès', 'Versement enregistré');
         },

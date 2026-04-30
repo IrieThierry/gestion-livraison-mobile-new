@@ -55,6 +55,8 @@ export default function DeclarerAchat() {
 
     m.mutate(payload, {
       onSuccess: () => {
+        setFournisseurId(null);
+        setLignes([]);
         router.back();
         Alert.alert('Succès', 'Achat enregistré, ton stock est mis à jour');
       },

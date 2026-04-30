@@ -112,6 +112,13 @@ export default function EncaisserLivraison() {
       },
       {
         onSuccess: () => {
+          // Reset form before navigating in case the screen stays mounted
+          setMontant('');
+          setCommentaire('');
+          setLibre(true);
+          setDateDebut(monthAgoIso);
+          setDateFin(todayIso);
+          setDateEncaissement(todayIso);
           router.back();
           Alert.alert('Succès', 'Encaissement enregistré');
         },

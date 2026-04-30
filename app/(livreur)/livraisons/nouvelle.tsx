@@ -65,6 +65,8 @@ export default function NouvelleLivraison() {
 
     m.mutate(payload, {
       onSuccess: () => {
+        setClient(null);
+        setLignes([]);
         router.back();
         Alert.alert('Succès', 'Livraison enregistrée');
       },
