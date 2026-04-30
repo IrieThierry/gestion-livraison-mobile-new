@@ -3,16 +3,26 @@ import { View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 /**
- * Interactive Leaflet map embedded in a WebView.
- * Uses CartoDB Voyager raster tiles (free, no API key, modern colorful
- * style) for a far more polished look than plain OSM. Pan + pinch-to-zoom
- * work natively. Renders in Expo Go via react-native-webview.
+ * Carte Leaflet embarquée dans une WebView.
  *
- * Why a WebView and not react-native-maps?
- *   • react-native-maps requires a custom dev build / EAS native module —
- *     incompatible with Expo Go testing. WebView ships with Expo Go.
- *   • Leaflet is mature, lightweight, and gives interactive UX out of the
- *     box (zoom controls, dragging, double-tap-to-zoom).
+ * Le rendu par défaut est en **vue satellite** (Esri World Imagery, libre,
+ * pas de clé API requise) car en Côte d'Ivoire — et particulièrement dans
+ * les zones informelles d'Abidjan — les bâtiments et toits sont des repères
+ * bien plus exploitables qu'un plan abstrait.
+ *
+ * Un overlay semi-transparent ajoute par-dessus la couche satellite les
+ * étiquettes de rues et de quartiers (Esri Reference / Boundaries) pour
+ * rester navigable.
+ *
+ * Un toggle Plan / Satellite est intégré directement dans la carte
+ * (contrôle natif Leaflet `L.control.layers`) afin que l'utilisateur
+ * puisse basculer en un tap sans qu'on ait à exposer un état React.
+ *
+ * Pourquoi WebView et non react-native-maps ?
+ *   • react-native-maps exige un build natif custom — incompatible avec
+ *     Expo Go. La WebView ship d'office.
+ *   • Leaflet est mature, gère le pinch/pan/zoom nativement et permet de
+ *     superposer plusieurs couches (satellite + labels) gratuitement.
  */
 export function MapPreview({
   lat,
@@ -32,15 +42,21 @@ export function MapPreview({
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; background: #e2e8f0; }
+    html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; background: #0f172a; }
     .leaflet-control-attribution { font-size: 9px; }
+    .leaflet-control-layers { border-radius: 10px !important; }
+    .leaflet-control-layers-toggle {
+      width: 36px !important;
+      height: 36px !important;
+      background-size: 22px 22px !important;
+    }
     .pin {
       width: 36px; height: 36px;
       background: linear-gradient(180deg, #ef4444, #b91c1c);
       border-radius: 50% 50% 50% 0;
       transform: rotate(-45deg);
       border: 3px solid #fff;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.45);
       position: relative;
     }
     .pin::after {
@@ -58,22 +74,53 @@ export function MapPreview({
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    var map = L.map('map', {
-      center: [${lat}, ${lng}],
-      zoom: 16,
-      zoomControl: true,
-      attributionControl: true,
-      // friendlier mobile UX
-      tap: true,
-      tapTolerance: 15
-    });
+    // ===== Couches de base =====
+    // Vue satellite haute résolution Esri (libre d'usage, attribution requise)
+    var satellite = L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      {
+        maxZoom: 19,
+        attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+      }
+    );
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    // Plan classique (CartoDB Voyager) pour les utilisateurs qui préfèrent
+    var plan = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       maxZoom: 19,
       subdomains: 'abcd',
       attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> · © <a href="https://carto.com">CARTO</a>'
-    }).addTo(map);
+    });
 
+    // ===== Overlays =====
+    // Étiquettes (rues, quartiers, communes) à superposer sur la satellite
+    var labels = L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+      {
+        maxZoom: 19,
+        opacity: 0.9,
+        attribution: 'Labels © Esri'
+      }
+    );
+
+    // ===== Carte =====
+    var map = L.map('map', {
+      center: [${lat}, ${lng}],
+      zoom: 17,
+      zoomControl: true,
+      attributionControl: true,
+      tap: true,
+      tapTolerance: 15,
+      // Démarre en vue satellite + labels par défaut
+      layers: [satellite, labels]
+    });
+
+    L.control.layers(
+      { 'Satellite': satellite, 'Plan': plan },
+      { 'Étiquettes': labels },
+      { position: 'topright', collapsed: true }
+    ).addTo(map);
+
+    // ===== Marker =====
     var icon = L.divIcon({
       className: '',
       html: '<div class="pin"></div>',
@@ -82,7 +129,7 @@ export function MapPreview({
     });
     L.marker([${lat}, ${lng}], { icon: icon }).addTo(map);
 
-    // Avoid the page itself scrolling — keep the map gestures inside
+    // Empêche le scroll de la page de capter les gestes — tout reste pour la carte
     document.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
   </script>
 </body>
@@ -107,13 +154,17 @@ export function MapPreview({
       <WebView
         originWhitelist={['*']}
         source={{ html }}
-        style={{ flex: 1, backgroundColor: '#e2e8f0' }}
+        style={{ flex: 1, backgroundColor: '#0f172a' }}
         scrollEnabled={false}
         bounces={false}
-        // Allow pinch-zoom on iOS
         scalesPageToFit
-        // Don't load external nav links inside the webview
-        onShouldStartLoadWithRequest={(req) => req.url.startsWith('about:') || req.url.startsWith('data:') || req.url.startsWith('https://unpkg.com') || req.url.startsWith('https://')}
+        onShouldStartLoadWithRequest={(req) =>
+          req.url.startsWith('about:') ||
+          req.url.startsWith('data:') ||
+          req.url.startsWith('https://unpkg.com') ||
+          req.url.startsWith('https://server.arcgisonline.com') ||
+          req.url.startsWith('https://') // les tuiles Esri/Carto sont en HTTPS
+        }
       />
     </View>
   );
