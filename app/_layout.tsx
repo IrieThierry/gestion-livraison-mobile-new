@@ -4,7 +4,7 @@ import { Stack, router, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import Constants from 'expo-constants';
 import { queryClient, queryPersister } from '../lib/query-client';
@@ -62,12 +62,47 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   }, [isHydrated, user, segments]);
 
   if (!isHydrated) {
-    // The native splash is still visible; render an empty matching-color
-    // background so the brief moment between native splash hide and our
-    // first real screen doesn't flash white.
-    return <View className="flex-1 bg-emerald-500" />;
+    // Branded splash shown during the JS hydration window. In Expo Go this
+    // is the FIRST thing the user sees after Expo Go's own bundle-loader
+    // splash hides. In a custom dev / production build, this fills the
+    // brief moment between the native splash hide and the first real
+    // screen so the transition stays branded instead of flashing white.
+    return <BrandedSplash />;
   }
   return <>{children}</>;
+}
+
+function BrandedSplash() {
+  return (
+    <View className="flex-1 bg-emerald-500 items-center justify-center px-8">
+      {/* Logo badge — matches the splash-icon.png + login screen */}
+      <View
+        className="w-24 h-24 rounded-3xl bg-white items-center justify-center mb-6"
+        style={{
+          shadowColor: '#000',
+          shadowOpacity: 0.18,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 6 },
+          elevation: 8,
+        }}
+      >
+        <Text className="text-emerald-600 font-black text-3xl tracking-tight">
+          GL
+        </Text>
+      </View>
+
+      {/* Wordmark */}
+      <Text className="text-white font-extrabold text-2xl tracking-tight">
+        Gestion Livraison
+      </Text>
+      <Text className="text-emerald-50/90 text-[12px] mt-1 tracking-wide uppercase">
+        Tournée · Stock · Cash
+      </Text>
+
+      {/* Loader */}
+      <ActivityIndicator color="#ffffff" className="mt-8" />
+    </View>
+  );
 }
 
 export default function RootLayout() {
