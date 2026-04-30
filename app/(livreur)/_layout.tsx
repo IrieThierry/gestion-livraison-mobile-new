@@ -16,6 +16,7 @@ import {
 import { OfflineBanner } from '../../components/shared/OfflineBanner';
 import { useNetworkStore } from '../../stores/networkStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useThemeStore } from '../../stores/themeStore';
 
 /**
  * Quand l'utilisateur tape un onglet déjà actif, par défaut Expo Router
@@ -148,6 +149,8 @@ export default function LivreurLayout() {
   const [fabOpen, setFabOpen] = useState(false);
   const startWatching = useNetworkStore((s) => s.startWatching);
   const user = useAuthStore((s) => s.user);
+  const effective = useThemeStore((s) => s.effective);
+  const isDark = effective === 'dark';
 
   useEffect(() => {
     startWatching();
@@ -168,8 +171,16 @@ export default function LivreurLayout() {
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: '#10b981',
-          tabBarInactiveTintColor: '#94a3b8',
-          tabBarStyle: { borderTopWidth: 1, borderTopColor: '#e2e8f0', height: 70 },
+          // Slate-400 light / Slate-500 dark (légèrement plus contrasté sur fond sombre)
+          tabBarInactiveTintColor: isDark ? '#64748b' : '#94a3b8',
+          tabBarStyle: {
+            borderTopWidth: 1,
+            // Slate-200 light / Slate-800 dark
+            borderTopColor: isDark ? '#1e293b' : '#e2e8f0',
+            // Bg : blanc light / Slate-900 dark, comme les cards de l'app
+            backgroundColor: isDark ? '#0f172a' : '#ffffff',
+            height: 70,
+          },
           tabBarLabelStyle: { fontSize: 11, fontWeight: '700', marginTop: -3 },
           tabBarItemStyle: { paddingVertical: 6 },
         }}
