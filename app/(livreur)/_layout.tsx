@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Pressable, Text, Modal, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Tabs, router } from 'expo-router';
+import { Tabs, router, useSegments } from 'expo-router';
 import {
   TrendingUp,
   Truck,
@@ -14,7 +14,13 @@ import {
   X,
 } from 'lucide-react-native';
 import { OfflineBanner } from '../../components/shared/OfflineBanner';
+import { PendingValidationScreen } from '../../components/shared/PendingValidationScreen';
 import { useNetworkStore } from '../../stores/networkStore';
+import { useAuthStore } from '../../stores/authStore';
+
+// Hauteur de la barre d'onglets, fixée plus bas dans `screenOptions.tabBarStyle`.
+// Réutilisée pour positionner correctement l'overlay « compte en attente ».
+const TAB_BAR_HEIGHT = 70;
 
 /**
  * Quand l'utilisateur tape un onglet déjà actif, par défaut Expo Router
@@ -146,14 +152,25 @@ function FabAction({
 export default function LivreurLayout() {
   const [fabOpen, setFabOpen] = useState(false);
   const startWatching = useNetworkStore((s) => s.startWatching);
+  const user = useAuthStore((s) => s.user);
+  const segments = useSegments();
 
   useEffect(() => {
     startWatching();
   }, []);
 
+  // Compte en attente de validation : on affiche l'écran d'attente sur tous
+  // les onglets métier, sauf « Moi » (profil) où on laisse passer pour
+  // permettre le changement de mot de passe — exactement comme le
+  // `PendingValidationGuard` du portail web.
+  const isPending = user?.statut === 'EN_ATTENTE_VALIDATION';
+  const isOnProfile = segments.some((s) => s === 'profil');
+  const showPendingOverlay = isPending && !isOnProfile;
+
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-slate-50 dark:bg-slate-950">
       <OfflineBanner />
+      <View className="flex-1 relative">
       <Tabs
         initialRouteName="index"
         screenOptions={{
@@ -204,6 +221,9 @@ export default function LivreurLayout() {
           listeners={{
             tabPress: (e) => {
               e.preventDefault();
+              // Le compte n'est pas encore validé : on neutralise le FAB.
+              // L'écran d'attente affiché en overlay communique déjà la raison.
+              if (isPending) return;
               setFabOpen(true);
             },
           }}
@@ -228,6 +248,21 @@ export default function LivreurLayout() {
         <Tabs.Screen name="cash" options={{ href: null }} />
         <Tabs.Screen name="stock" options={{ href: null }} />
       </Tabs>
+
+      {/* Overlay « compte en attente » : couvre la zone de contenu mais
+          laisse la barre d'onglets visible pour que le livreur puisse
+          aller sur « Moi » et changer son mot de passe. Désactivé sur
+          l'onglet profil et lorsque le compte est validé. */}
+      {showPendingOverlay ? (
+        <View
+          pointerEvents="auto"
+          className="absolute top-0 left-0 right-0 z-10"
+          style={{ bottom: TAB_BAR_HEIGHT }}
+        >
+          <PendingValidationScreen />
+        </View>
+      ) : null}
+      </View>
       <FabSheet open={fabOpen} onClose={() => setFabOpen(false)} />
     </SafeAreaView>
   );

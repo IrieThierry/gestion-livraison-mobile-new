@@ -9,6 +9,11 @@ export interface LoginRequest {
   password: string
 }
 
+// Statut métier du compte. `EN_ATTENTE_VALIDATION` = login OK mais toutes
+// les actions métier sont bloquées tant qu'un admin n'a pas validé. Le seul
+// écran accessible reste le profil (pour changer son mot de passe).
+export type StatutCompte = 'VALIDE' | 'EN_ATTENTE_VALIDATION'
+
 export interface AuthResponse {
   token: string
   id: UUID
@@ -18,6 +23,9 @@ export interface AuthResponse {
   role: 'ADMIN' | 'LIVREUR'
   email: string
   contact: string
+  // Optionnel pour rester compatible avec les anciennes sessions persistées
+  // dans AsyncStorage (avant l'ajout du champ côté back).
+  statut?: StatutCompte
 }
 
 // ---------- Lookups ----------
