@@ -26,6 +26,29 @@ export interface AuthResponse {
   // Optionnel pour rester compatible avec les anciennes sessions persistées
   // dans AsyncStorage (avant l'ajout du champ côté back).
   statut?: StatutCompte
+  // `null` = livreur racine (peut avoir des apprentis). UUID = apprenti
+  // rattaché à ce parent. Optionnel pour rester compatible avec les
+  // sessions persistées avant l'exposition de la feature apprenti.
+  parentId?: UUID | null
+  // `false` = compte désactivé par admin / parent (login refusé). Optionnel
+  // pour back-compat.
+  actif?: boolean
+}
+
+/**
+ * Payload de création d'un apprenti (= livreur rattaché à un parent root).
+ * Mirror de `CreerApprentiPayload` côté web. Le back accepte `parentId`
+ * directement (en plus de `parent: { id }` via `CreerLivreurRequest`).
+ */
+export interface CreerApprentiRequest {
+  nom: string
+  prenom: string
+  contact: string
+  email: string
+  username: string
+  password: string
+  role: 'LIVREUR'
+  parentId: UUID
 }
 
 // ---------- Lookups ----------
@@ -83,6 +106,11 @@ export interface LivreurResponse {
   username: string
   role: 'ADMIN' | 'LIVREUR'
   parent: LivreurResponse | null
+  // Optional pour back-compat avec les payloads pré-existants. Le back
+  // renvoie ces champs sur les endpoints `/livreur/parent/{id}` et
+  // similaires (cf. `User` type côté web).
+  actif?: boolean
+  statut?: StatutCompte
 }
 
 export interface CreerLivreurRequest {

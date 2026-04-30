@@ -12,6 +12,7 @@ import {
   UserCog,
   KeyRound,
   DollarSign,
+  UsersRound,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { useAuthStore } from '../../../stores/authStore';
@@ -146,6 +147,30 @@ export default function Profil() {
               </View>
               <ChevronRight color="#94a3b8" size={18} />
             </Pressable>
+            {/* Mes apprentis — visible uniquement pour les livreurs racines.
+                Un apprenti (parentId défini) ne peut pas avoir lui-même
+                des sous-apprentis dans la hiérarchie actuelle. */}
+            {user.role === 'LIVREUR' && (user.parentId ?? null) === null ? (
+              <Pressable
+                onPress={() =>
+                  router.push('/(livreur)/profil/apprentis' as never)
+                }
+                className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
+              >
+                <View className="flex-row items-center gap-3">
+                  <UsersRound color="#8b5cf6" size={20} />
+                  <View>
+                    <Text className="font-extrabold text-slate-900 dark:text-white">
+                      Mes apprentis
+                    </Text>
+                    <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Crée et gère les comptes de tes apprentis livreurs
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight color="#94a3b8" size={18} />
+              </Pressable>
+            ) : null}
           </View>
 
           {/* Apparence */}
