@@ -174,6 +174,8 @@ export interface ProduitLivraisonResponse {
   qteLivre: number
   qteRetourne: number
   prixDeVente: number
+  /** Marge cristallisée à la livraison (Plan D) — preferred for marge calculations. */
+  margeUnitaire: number
 }
 
 export interface LivraisonResponse {

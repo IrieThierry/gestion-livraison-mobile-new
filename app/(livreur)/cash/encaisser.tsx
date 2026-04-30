@@ -17,6 +17,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
+import { DatePickerField } from '../../../components/shared/DatePickerField';
 import { formatFCFA } from '../../../lib/format';
 
 // Cible du bouton "Encaisser" du détail livraison. Récupère la livraison
@@ -39,6 +40,14 @@ export default function EncaisserLivraison() {
 
   const [montant, setMontant] = useState('');
   const [commentaire, setCommentaire] = useState('');
+  const [libre, setLibre] = useState(true);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const monthAgoIso = new Date(Date.now() - 30 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const [dateDebut, setDateDebut] = useState<string | null>(monthAgoIso);
+  const [dateFin, setDateFin] = useState<string | null>(todayIso);
+  const [dateEncaissement, setDateEncaissement] = useState<string | null>(todayIso);
 
   if (!user) return null;
   if (q.isLoading) {
@@ -81,16 +90,25 @@ export default function EncaisserLivraison() {
       );
       return;
     }
-    // Mode 'libre' : encaissement par solde-de-dette client, sans plage.
-    // Le back-end ajuste le snapshot detteApres = detteAvant - montantEncaisse,
-    // pas besoin de matcher des livraisons spécifiques.
+    if (!libre && (!dateDebut || !dateFin)) {
+      Alert.alert('Erreur', 'Date début et date fin requises en mode période');
+      return;
+    }
+    if (!libre && dateDebut && dateFin && dateDebut > dateFin) {
+      Alert.alert('Erreur', 'La date de début doit être avant la date de fin');
+      return;
+    }
+
     m.mutate(
       {
         livreurId: user.id,
         clientId: livraison.client.id,
         montantEncaisse: n,
         commentaire: commentaire.trim() || undefined,
-        libre: true,
+        dateDebut: libre ? undefined : (dateDebut ?? undefined),
+        dateFin: libre ? undefined : (dateFin ?? undefined),
+        dateEncaissement: dateEncaissement ?? undefined,
+        libre: libre || undefined,
       },
       {
         onSuccess: () => {
@@ -169,6 +187,75 @@ export default function EncaisserLivraison() {
                 Tout ({formatFCFA(reste)})
               </Text>
             </Pressable>
+          </View>
+
+          {/* Mode toggle */}
+          <Text className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
+            Mode d'encaissement
+          </Text>
+          <View className="flex-row gap-2">
+            <Pressable
+              onPress={() => setLibre(true)}
+              className={`flex-1 py-2.5 rounded-md items-center ${
+                libre
+                  ? 'bg-emerald-500'
+                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
+              }`}
+            >
+              <Text
+                className={`font-bold text-[13px] ${
+                  libre ? 'text-white' : 'text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                Solde libre
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setLibre(false)}
+              className={`flex-1 py-2.5 rounded-md items-center ${
+                !libre
+                  ? 'bg-emerald-500'
+                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
+              }`}
+            >
+              <Text
+                className={`font-bold text-[13px] ${
+                  !libre ? 'text-white' : 'text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                Sur une période
+              </Text>
+            </Pressable>
+          </View>
+          <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
+            {libre
+              ? 'Solde la dette du client sans contrainte de plage.'
+              : 'Encaisse les livraisons de la plage choisie (vérifie les chevauchements).'}
+          </Text>
+
+          {/* Date pickers */}
+          {!libre ? (
+            <View className="mt-4 gap-3">
+              <DatePickerField
+                label="Date début"
+                value={dateDebut}
+                onChange={setDateDebut}
+              />
+              <DatePickerField
+                label="Date fin"
+                value={dateFin}
+                onChange={setDateFin}
+              />
+            </View>
+          ) : null}
+
+          <View className="mt-4">
+            <DatePickerField
+              label="Date encaissement"
+              value={dateEncaissement}
+              onChange={setDateEncaissement}
+              optional
+            />
           </View>
 
           {/* Commentaire */}

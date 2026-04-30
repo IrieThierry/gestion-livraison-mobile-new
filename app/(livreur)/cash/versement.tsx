@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   ScrollView,
   View,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { PageHeader } from '../../../components/shared/PageHeader';
+import { DatePickerField } from '../../../components/shared/DatePickerField';
 import { useFournisseurs } from '../../../features/lookups/hooks';
 import {
   useVersementSituation,
@@ -40,20 +41,20 @@ export default function Versement() {
   const [fournisseurId, setFournisseurId] = useState<string | null>(null);
   const [montant, setMontant] = useState('');
   const [commentaire, setCommentaire] = useState('');
-
-  // Plage figée : 7 derniers jours
-  const { dateDebut, dateFin } = useMemo(() => {
-    const today = new Date();
-    const sevenAgo = new Date(today.getTime() - 7 * 86400000);
-    const fmt = (d: Date) => d.toISOString().slice(0, 10); // YYYY-MM-DD
-    return { dateDebut: fmt(sevenAgo), dateFin: fmt(today) };
-  }, []);
+  const [libre, setLibre] = useState(true);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const sevenAgoIso = new Date(Date.now() - 7 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const [dateDebut, setDateDebut] = useState<string | null>(sevenAgoIso);
+  const [dateFin, setDateFin] = useState<string | null>(todayIso);
+  const [dateVersement, setDateVersement] = useState<string | null>(todayIso);
 
   const sit = useVersementSituation({
     livreurId,
     fournisseurId: fournisseurId ?? '',
-    dateDebut,
-    dateFin,
+    dateDebut: dateDebut ?? sevenAgoIso,
+    dateFin: dateFin ?? todayIso,
   });
 
   const m = useEnregistrerVersement();
@@ -70,16 +71,25 @@ export default function Versement() {
       Alert.alert('Erreur', 'Montant invalide');
       return;
     }
-    // Mode 'libre' : on garde la plage des 7 derniers jours pour l'affichage
-    // de la situation, mais on soumet en mode libre pour que le back-end
-    // règle simplement la dette courante sans contrainte de chevauchement.
+    if (!libre && (!dateDebut || !dateFin)) {
+      Alert.alert('Erreur', 'Date début et date fin requises en mode période');
+      return;
+    }
+    if (!libre && dateDebut && dateFin && dateDebut > dateFin) {
+      Alert.alert('Erreur', 'La date de début doit être avant la date de fin');
+      return;
+    }
+
     m.mutate(
       {
         livreurId,
         fournisseurId,
         montantVerse: n,
         commentaire: commentaire.trim() || undefined,
-        libre: true,
+        dateDebut: libre ? undefined : (dateDebut ?? undefined),
+        dateFin: libre ? undefined : (dateFin ?? undefined),
+        dateVersement: dateVersement ?? undefined,
+        libre: libre || undefined,
       },
       {
         onSuccess: () => {
@@ -101,10 +111,7 @@ export default function Versement() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader
-        title="Faire un versement"
-        subtitle="Période : 7 derniers jours"
-      />
+      <PageHeader title="Faire un versement" />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="px-4">
@@ -205,6 +212,69 @@ export default function Versement() {
               </Text>
             </Pressable>
           ) : null}
+
+          {/* Mode toggle */}
+          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
+            Mode du versement
+          </Text>
+          <View className="flex-row gap-2">
+            <Pressable
+              onPress={() => setLibre(true)}
+              className={`flex-1 py-2.5 rounded-md items-center ${
+                libre
+                  ? 'bg-emerald-500'
+                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
+              }`}
+            >
+              <Text
+                className={`font-bold text-[13px] ${
+                  libre ? 'text-white' : 'text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                Solde libre
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setLibre(false)}
+              className={`flex-1 py-2.5 rounded-md items-center ${
+                !libre
+                  ? 'bg-emerald-500'
+                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
+              }`}
+            >
+              <Text
+                className={`font-bold text-[13px] ${
+                  !libre ? 'text-white' : 'text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                Sur une période
+              </Text>
+            </Pressable>
+          </View>
+
+          {!libre ? (
+            <View className="mt-3 gap-3">
+              <DatePickerField
+                label="Date début"
+                value={dateDebut}
+                onChange={setDateDebut}
+              />
+              <DatePickerField
+                label="Date fin"
+                value={dateFin}
+                onChange={setDateFin}
+              />
+            </View>
+          ) : null}
+
+          <View className="mt-4">
+            <DatePickerField
+              label="Date du versement"
+              value={dateVersement}
+              onChange={setDateVersement}
+              optional
+            />
+          </View>
 
           {/* Commentaire */}
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">

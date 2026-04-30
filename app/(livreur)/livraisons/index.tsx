@@ -68,16 +68,16 @@ export default function LivraisonsList() {
       if (ds === 'ENCAISSEE') {
         encaissees += 1;
         totalEncaisse += l.montantLivre ?? 0;
-        for (const p of l.produitsLivraison ?? []) {
-          const ach = p.produit?.prixAchatParDefaut ?? 0;
-          const vte = p.prixDeVente ?? 0;
-          const qte = (p.qteLivre ?? 0) - (p.qteRetourne ?? 0);
-          marge += (vte - ach) * qte;
-        }
       } else if (ds === 'LIVREE') {
         livrees += 1;
       } else {
         impayees += 1;
+      }
+      // Plan D — marge cristallisée par ligne : Σ qte × margeUnitaire (toutes
+      // livraisons, car la marge est acquise dès la livraison).
+      for (const p of l.produitsLivraison ?? []) {
+        const qte = (p.qteLivre ?? 0) - (p.qteRetourne ?? 0);
+        marge += (Number(p.margeUnitaire) || 0) * qte;
       }
     }
     return { encaissees, livrees, impayees, totalEncaisse, marge };

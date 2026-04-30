@@ -41,20 +41,16 @@ export default function Tournee() {
       varPct = Math.round(((totalEncaisseAujourd - totalEncaisseHier) / totalEncaisseHier) * 100);
     }
 
-    // Marge approximation derived from the response: sum (prixDeVente - prixAchatParDefaut) × (qteLivre - qteRetourne).
-    // TODO: backend should expose margeJour directly; this is the closest approximation today.
-    const margeApprox = duJour
-      .filter((l) => l.statut === 'ENCAISSEE')
-      .reduce((acc, l) => {
-        const ligneMarge = (l.produitsLivraison ?? []).reduce((s, p) => {
-          const ach = p.produit?.prixAchatParDefaut ?? 0;
-          const vte = p.prixDeVente ?? 0;
-          const qte = p.qteLivre ?? 0;
-          const ret = p.qteRetourne ?? 0;
-          return s + (vte - ach) * (qte - ret);
-        }, 0);
-        return acc + ligneMarge;
+    // Marge cristallisée Plan D : Σ qteLivree × margeUnitaire (sur les lignes)
+    // de toutes les livraisons du jour (encaissées ou non — la marge est
+    // gagnée à la livraison, indépendamment de l'encaissement).
+    const margeApprox = duJour.reduce((acc, l) => {
+      const ligneMarge = (l.produitsLivraison ?? []).reduce((s, p) => {
+        const qte = (p.qteLivre ?? 0) - (p.qteRetourne ?? 0);
+        return s + (Number(p.margeUnitaire) || 0) * qte;
       }, 0);
+      return acc + ligneMarge;
+    }, 0);
 
     return {
       duJour,

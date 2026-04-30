@@ -17,8 +17,10 @@ import { formatFCFA } from '../../../../lib/format';
 export default function NouveauClientStep1() {
   const draft = useClientDraftStore((s) => s.draft);
   const setDraft = useClientDraftStore((s) => s.setDraft);
-  const { data: quartiers = [] } = useQuartiers();
-  const { data: categories = [] } = useCategories();
+  const quartiersQ = useQuartiers();
+  const categoriesQ = useCategories();
+  const quartiers = quartiersQ.data ?? [];
+  const categories = categoriesQ.data ?? [];
 
   const [prenom, setPrenom] = useState(draft.prenom);
   const [nom, setNom] = useState(draft.nom);
@@ -150,11 +152,20 @@ export default function NouveauClientStep1() {
           />
 
           {/* Quartier */}
-          {quartiers.length > 0 ? (
-            <View>
-              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-                Quartier
-              </Text>
+          <View>
+            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
+              Quartier
+            </Text>
+            {quartiersQ.isLoading ? (
+              <Text className="text-slate-400 text-sm">Chargement…</Text>
+            ) : quartiers.length === 0 ? (
+              <View className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3">
+                <Text className="text-[11px] text-amber-800 dark:text-amber-300">
+                  ⚠️ Aucun quartier configuré côté backend. Demande à ton admin
+                  d'ajouter au moins un quartier dans Paramètres → Quartiers.
+                </Text>
+              </View>
+            ) : (
               <View className="flex-row flex-wrap gap-2">
                 {quartiers.map((q) => (
                   <Pill
@@ -165,15 +176,24 @@ export default function NouveauClientStep1() {
                   />
                 ))}
               </View>
-            </View>
-          ) : null}
+            )}
+          </View>
 
           {/* Catégorie */}
-          {categories.length > 0 ? (
-            <View>
-              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-                Catégorie
-              </Text>
+          <View>
+            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
+              Catégorie
+            </Text>
+            {categoriesQ.isLoading ? (
+              <Text className="text-slate-400 text-sm">Chargement…</Text>
+            ) : categories.length === 0 ? (
+              <View className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3">
+                <Text className="text-[11px] text-amber-800 dark:text-amber-300">
+                  ⚠️ Aucune catégorie configurée côté backend. Demande à ton admin
+                  d'ajouter au moins une catégorie dans Paramètres → Catégories.
+                </Text>
+              </View>
+            ) : (
               <View className="flex-row flex-wrap gap-2">
                 {categories.map((c) => (
                   <Pill
@@ -184,8 +204,8 @@ export default function NouveauClientStep1() {
                   />
                 ))}
               </View>
-            </View>
-          ) : null}
+            )}
+          </View>
 
           {/* Pricing */}
           <View>
