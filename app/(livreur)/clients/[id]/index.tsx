@@ -23,6 +23,7 @@ import {
   ChevronUp,
   Info as InfoIcon,
   ListFilter,
+  Pencil,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
@@ -202,7 +203,26 @@ export default function ClientDetail() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title={fullName} subtitle={client.quartier?.libelle ?? '—'} />
+      <PageHeader
+        title={fullName}
+        subtitle={client.quartier?.libelle ?? '—'}
+        right={
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/(livreur)/clients/[id]/modifier' as never,
+                params: { id: client.id },
+              } as never)
+            }
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-70"
+          >
+            <Pencil color="#64748b" size={13} />
+            <Text className="text-slate-700 dark:text-slate-300 text-xs font-bold">
+              Modifier
+            </Text>
+          </Pressable>
+        }
+      />
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: 32 }}
