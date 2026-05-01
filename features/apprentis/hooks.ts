@@ -7,16 +7,16 @@ import type { CreerApprentiRequest, UUID } from '../../types/api';
 /**
  * Liste des apprentis du livreur connecté.
  *
- * Le hook s'auto-désactive si l'utilisateur n'est pas un livreur racine
- * (i.e. `role === 'LIVREUR' && parentId == null`). Les apprentis (qui
- * sont eux-mêmes role=LIVREUR mais avec parentId défini) ne peuvent pas
- * avoir leurs propres sous-apprentis dans la hiérarchie actuelle.
+ * Le hook s'auto-désactive si l'utilisateur n'est pas un livreur racine.
+ * On relâche la condition à `!user.parentId` (au lieu de
+ * `role === 'LIVREUR' && parentId == null`) pour gérer les sessions
+ * legacy où `role` n'est pas renvoyé par le back — alignée avec la
+ * gate du menu Profil et de la page apprentis.
  */
 export function useApprentis() {
   const user = useAuthStore((s) => s.user);
   const userId = user?.id ?? '';
-  const isRoot =
-    !!user && user.role === 'LIVREUR' && (user.parentId ?? null) === null;
+  const isRoot = !!user && !user.parentId;
 
   return useQuery({
     queryKey: apprentiKeys.list(userId),

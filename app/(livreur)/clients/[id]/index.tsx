@@ -19,7 +19,6 @@ import {
   Percent,
   ArrowRight,
   DollarSign,
-  Info,
   ListFilter,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
@@ -53,10 +52,24 @@ const PERIODES: Array<{ key: Periode; label: string; days: number | null }> = [
 ];
 
 /**
- * Fiche client — 3 onglets :
- *   • Info — coordonnées, GPS, synthèse, infos perso
- *   • Livraisons — filtre période + statut, list
- *   • Encaissements — filtre période, list
+ * Fiche client — design en sections empilées (sans onglets).
+ *
+ * On a essayé une version à onglets mais elle déclenchait un
+ * `Couldn't find a navigation context` au switch (probablement à cause
+ * du conditionnel mount/unmount qui interagit mal avec le navigation
+ * tree d'Expo Router). Le design plat scroll-everything est plus
+ * robuste et plus naturel sur mobile (pas de tabs imbriqués dans
+ * d'autres tabs).
+ *
+ * Sections, dans l'ordre :
+ *   1) Hero (avatar + nom + solde)
+ *   2) CTAs (Appeler / Y aller / Livrer / Encaisser)
+ *   3) Carte « Prix personnalisés » (vers /prix)
+ *   4) Carte GPS
+ *   5) Synthèse chiffrée
+ *   6) Section « Livraisons » avec filtres period + statut + liste
+ *   7) Section « Encaissements » avec filtre period + liste
+ *   8) Infos perso (email, adresse, quartier, catégorie, remise)
  */
 export default function ClientDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -67,7 +80,6 @@ export default function ClientDetail() {
   const qE = useEncaissementsByLivreur(livreurId);
   const qPrix = usePrixClient(id);
 
-  const [tab, setTab] = useState<'info' | 'livraisons' | 'encaissements'>('info');
   const [periodeLiv, setPeriodeLiv] = useState<Periode>('30j');
   const [periodeEnc, setPeriodeEnc] = useState<Periode>('30j');
   const [statutLiv, setStatutLiv] = useState<LivraisonStatut>('all');
@@ -107,7 +119,6 @@ export default function ClientDetail() {
     [qL.data, id],
   );
 
-  // Livraisons filtrées (période + statut)
   const livFiltrees = useMemo(() => {
     const now = Date.now();
     const days = PERIODES.find((p) => p.key === periodeLiv)?.days ?? null;
@@ -122,7 +133,6 @@ export default function ClientDetail() {
     });
   }, [livraisonsClient, periodeLiv, statutLiv]);
 
-  // Encaissements filtrés (période seule)
   const encFiltres = useMemo(() => {
     const now = Date.now();
     const days = PERIODES.find((p) => p.key === periodeEnc)?.days ?? null;
@@ -180,13 +190,12 @@ export default function ClientDetail() {
 
   const hasPendingLivraisons = livraisonsClient.some((l) => l.statut !== 'ENCAISSEE');
 
-  // Total des encaissements filtrés (pour la card en haut de l'onglet)
-  const totalEncFiltres = encFiltres.reduce(
-    (acc, e) => acc + (e.montantEncaisse ?? 0),
-    0,
-  );
   const totalLivFiltrees = livFiltrees.reduce(
     (acc, l) => acc + (l.montantLivre ?? 0),
+    0,
+  );
+  const totalEncFiltres = encFiltres.reduce(
+    (acc, e) => acc + (e.montantEncaisse ?? 0),
     0,
   );
 
@@ -194,74 +203,6 @@ export default function ClientDetail() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader title={fullName} subtitle={client.quartier?.libelle ?? '—'} />
 
-      {/* Hero — toujours visible au-dessus des onglets */}
-      <View className="px-4 pt-3 bg-slate-50 dark:bg-slate-950">
-        <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-3">
-          <View className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
-            <Text className="text-emerald-700 dark:text-emerald-400 font-extrabold text-sm">
-              {initials || '?'}
-            </Text>
-          </View>
-          <View className="flex-1">
-            <Text className="font-extrabold text-slate-900 dark:text-white">
-              {fullName}
-            </Text>
-            {client.contact ? (
-              <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                {client.contact}
-              </Text>
-            ) : null}
-          </View>
-          {debt ? (
-            <View className="items-end">
-              <View className="bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 rounded-full">
-                <Text className="text-[11px] font-extrabold text-amber-800 dark:text-amber-400">
-                  {formatFCFA(solde)} F
-                </Text>
-              </View>
-              <Text className="text-[8px] text-slate-400 mt-0.5">SOLDE DÛ</Text>
-            </View>
-          ) : credit ? (
-            <View className="items-end">
-              <View className="bg-emerald-100 dark:bg-emerald-500/15 px-2 py-0.5 rounded-full">
-                <Text className="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400">
-                  +{formatFCFA(Math.abs(solde))} F
-                </Text>
-              </View>
-              <Text className="text-[8px] text-slate-400 mt-0.5">CRÉDIT</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {/* Tabs */}
-        <View className="flex-row mt-3 bg-slate-100 dark:bg-slate-900 rounded-lg p-1">
-          <TabButton
-            active={tab === 'info'}
-            label="Info"
-            icon={Info}
-            onPress={() => setTab('info')}
-          />
-          <TabButton
-            active={tab === 'livraisons'}
-            label={`Livraisons${livraisonsClient.length ? ` (${livraisonsClient.length})` : ''}`}
-            icon={Truck}
-            onPress={() => setTab('livraisons')}
-          />
-          <TabButton
-            active={tab === 'encaissements'}
-            label={`Encaissé${encaissementsClient.length ? ` (${encaissementsClient.length})` : ''}`}
-            icon={Banknote}
-            onPress={() => setTab('encaissements')}
-          />
-        </View>
-      </View>
-
-      {/* Tab content — UN SEUL ScrollView monté en permanence avec un
-          refreshControl STABLE (props identiques à chaque render). Si on
-          fait dépendre `refreshing` ou `onRefresh` du `tab` actif, le
-          natif re-instantie le RefreshControl ce qui déclenche un cycle
-          de mount/unmount et casse le navigation context au moment du
-          switch d'onglet. */}
       <ScrollView
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={
@@ -280,281 +221,284 @@ export default function ClientDetail() {
           />
         }
       >
-        {tab === 'info' ? (
-          <View className="px-4 pt-3">
-            {/* CTA row */}
-            <View className="flex-row gap-2">
-              <ActionBtn
-                label="Appeler"
-                icon={Phone}
-                color="#10b981"
-                disabled={!client.contact}
-                onPress={() => client.contact && callPhone(client.contact)}
-              />
-              <ActionBtn
-                label="Y aller"
-                icon={MapPin}
-                color="#3b82f6"
-                disabled={!geo}
-                onPress={() => geo && navigateTo(geo.lat, geo.lng, fullName)}
-              />
-              <ActionBtn
-                label="Livrer"
-                icon={Truck}
-                color="#10b981"
-                onPress={onLivrer}
-              />
-              <ActionBtn
-                label="Encaisser"
-                icon={Banknote}
-                color="#f59e0b"
-                disabled={!hasPendingLivraisons}
-                onPress={onEncaisser}
-              />
+        <View className="px-4 pt-3">
+          {/* Hero */}
+          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-3">
+            <View className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
+              <Text className="text-emerald-700 dark:text-emerald-400 font-extrabold text-sm">
+                {initials || '?'}
+              </Text>
             </View>
-
-            {/* Carte « Prix personnalisés » */}
-            <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: '/(livreur)/clients/[id]/prix' as never,
-                  params: { id: client.id },
-                } as never)
-              }
-              className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-3 active:opacity-70"
-            >
-              <View className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
-                <DollarSign color="#059669" size={18} />
-              </View>
-              <View className="flex-1">
-                <Text className="font-extrabold text-slate-900 dark:text-white">
-                  Prix personnalisés
-                </Text>
+            <View className="flex-1">
+              <Text className="font-extrabold text-slate-900 dark:text-white">
+                {fullName}
+              </Text>
+              {client.contact ? (
                 <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {qPrix.isLoading
-                    ? 'Chargement…'
-                    : (qPrix.data?.length ?? 0) === 0
-                    ? 'Aucun prix custom — paiera les prix par défaut'
-                    : `${qPrix.data?.length} produit${(qPrix.data?.length ?? 0) > 1 ? 's' : ''} avec un prix négocié`}
+                  {client.contact}
                 </Text>
-              </View>
-              <ArrowRight color="#94a3b8" size={16} />
-            </Pressable>
-
-            {/* Map */}
-            {geo ? (
-              <View className="mt-4">
-                <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-                  Localisation
-                </Text>
-                <MapPreview lat={geo.lat} lng={geo.lng} height={180} />
-                <Text className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-2 font-mono">
-                  {geo.lat.toFixed(6)}, {geo.lng.toFixed(6)}
-                </Text>
-              </View>
-            ) : (
-              <View className="mt-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3">
-                <Text className="text-[12px] text-amber-700 dark:text-amber-400">
-                  Pas de coordonnées GPS enregistrées pour ce client.
-                </Text>
-              </View>
-            )}
-
-            {/* Synthèse */}
-            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
-              Synthèse
-            </Text>
-            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 gap-2">
-              <Row label="Encours (livré non encaissé)" value={`${formatFCFA(encours)} FCFA`} />
-              <Row label="Livraisons" value={`${livraisonsClient.length}`} />
-              <Row label="Encaissements" value={`${encaissementsClient.length}`} />
+              ) : null}
             </View>
-
-            {/* Infos client */}
-            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
-              Informations
-            </Text>
-            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 gap-3">
-              {client.email ? <InfoRow icon={Mail} label="Email" value={client.email} /> : null}
-              {client.adresse ? <InfoRow icon={MapPin} label="Adresse" value={client.adresse} /> : null}
-              <InfoRow
-                icon={Layers}
-                label="Quartier"
-                value={
-                  client.quartier?.libelle
-                    ? `${client.quartier.libelle}${client.quartier.zone?.libelle ? ` · ${client.quartier.zone.libelle}` : ''}`
-                    : '—'
-                }
-              />
-              <InfoRow icon={Tag} label="Catégorie" value={client.categorie?.libelle ?? '—'} />
-              <InfoRow icon={Percent} label="Avec remise" value={client.avecOuSansRemise ? 'Oui' : 'Non'} />
-            </View>
+            {debt ? (
+              <View className="items-end">
+                <View className="bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 rounded-full">
+                  <Text className="text-[11px] font-extrabold text-amber-800 dark:text-amber-400">
+                    {formatFCFA(solde)} F
+                  </Text>
+                </View>
+                <Text className="text-[8px] text-slate-400 mt-0.5">SOLDE DÛ</Text>
+              </View>
+            ) : credit ? (
+              <View className="items-end">
+                <View className="bg-emerald-100 dark:bg-emerald-500/15 px-2 py-0.5 rounded-full">
+                  <Text className="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400">
+                    +{formatFCFA(Math.abs(solde))} F
+                  </Text>
+                </View>
+                <Text className="text-[8px] text-slate-400 mt-0.5">CRÉDIT</Text>
+              </View>
+            ) : null}
           </View>
-        ) : tab === 'livraisons' ? (
-          <View className="px-4 pt-3">
-            {/* Filtres période */}
-            <View className="flex-row items-center gap-1.5 mb-2">
-              <ListFilter color="#64748b" size={12} />
-              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
-                Période
+
+          {/* CTAs */}
+          <View className="flex-row gap-2 mt-3">
+            <ActionBtn
+              label="Appeler"
+              icon={Phone}
+              color="#10b981"
+              disabled={!client.contact}
+              onPress={() => client.contact && callPhone(client.contact)}
+            />
+            <ActionBtn
+              label="Y aller"
+              icon={MapPin}
+              color="#3b82f6"
+              disabled={!geo}
+              onPress={() => geo && navigateTo(geo.lat, geo.lng, fullName)}
+            />
+            <ActionBtn
+              label="Livrer"
+              icon={Truck}
+              color="#10b981"
+              onPress={onLivrer}
+            />
+            <ActionBtn
+              label="Encaisser"
+              icon={Banknote}
+              color="#f59e0b"
+              disabled={!hasPendingLivraisons}
+              onPress={onEncaisser}
+            />
+          </View>
+
+          {/* Prix custom */}
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/(livreur)/clients/[id]/prix' as never,
+                params: { id: client.id },
+              } as never)
+            }
+            className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-3 active:opacity-70"
+          >
+            <View className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
+              <DollarSign color="#059669" size={18} />
+            </View>
+            <View className="flex-1">
+              <Text className="font-extrabold text-slate-900 dark:text-white">
+                Prix personnalisés
+              </Text>
+              <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                {qPrix.isLoading
+                  ? 'Chargement…'
+                  : (qPrix.data?.length ?? 0) === 0
+                  ? 'Aucun prix custom — paiera les prix par défaut'
+                  : `${qPrix.data?.length} produit${(qPrix.data?.length ?? 0) > 1 ? 's' : ''} avec un prix négocié`}
               </Text>
             </View>
-            <View className="flex-row gap-2 mb-3">
-              {PERIODES.map((p) => (
-                <FilterChip
-                  key={p.key}
-                  active={periodeLiv === p.key}
-                  label={p.label}
-                  onPress={() => setPeriodeLiv(p.key)}
-                />
+            <ArrowRight color="#94a3b8" size={16} />
+          </Pressable>
+
+          {/* Map */}
+          {geo ? (
+            <View className="mt-4">
+              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                Localisation
+              </Text>
+              <MapPreview lat={geo.lat} lng={geo.lng} height={180} />
+              <Text className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-2 font-mono">
+                {geo.lat.toFixed(6)}, {geo.lng.toFixed(6)}
+              </Text>
+            </View>
+          ) : (
+            <View className="mt-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3">
+              <Text className="text-[12px] text-amber-700 dark:text-amber-400">
+                Pas de coordonnées GPS enregistrées pour ce client.
+              </Text>
+            </View>
+          )}
+
+          {/* Synthèse */}
+          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
+            Synthèse
+          </Text>
+          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 gap-2">
+            <Row label="Encours (livré non encaissé)" value={`${formatFCFA(encours)} FCFA`} />
+            <Row label="Livraisons" value={`${livraisonsClient.length}`} />
+            <Row label="Encaissements" value={`${encaissementsClient.length}`} />
+          </View>
+
+          {/* Section Livraisons */}
+          <View className="flex-row items-center justify-between mt-5 mb-2">
+            <View className="flex-row items-center gap-1.5">
+              <Truck color="#10b981" size={14} />
+              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
+                Livraisons ({livraisonsClient.length})
+              </Text>
+            </View>
+            <ListFilter color="#94a3b8" size={12} />
+          </View>
+
+          {/* Filtres période */}
+          <View className="flex-row gap-2 mb-2">
+            {PERIODES.map((p) => (
+              <FilterChip
+                key={`L_${p.key}`}
+                active={periodeLiv === p.key}
+                label={p.label}
+                onPress={() => setPeriodeLiv(p.key)}
+              />
+            ))}
+          </View>
+
+          {/* Filtres statut */}
+          <View className="flex-row gap-2 mb-3">
+            <FilterChip
+              active={statutLiv === 'all'}
+              label="Toutes"
+              onPress={() => setStatutLiv('all')}
+            />
+            <FilterChip
+              active={statutLiv === 'LIVREE'}
+              label="Non encaissée"
+              onPress={() => setStatutLiv('LIVREE')}
+            />
+            <FilterChip
+              active={statutLiv === 'ENCAISSEE'}
+              label="Encaissée"
+              onPress={() => setStatutLiv('ENCAISSEE')}
+            />
+          </View>
+
+          {/* Récap card */}
+          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 mb-3 flex-row justify-between items-center">
+            <Text className="text-[12px] text-slate-500 dark:text-slate-400">
+              {livFiltrees.length} livraison{livFiltrees.length > 1 ? 's' : ''} filtrée{livFiltrees.length > 1 ? 's' : ''}
+            </Text>
+            <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
+              {formatFCFA(totalLivFiltrees)} F
+            </Text>
+          </View>
+
+          {/* Liste livraisons */}
+          {livFiltrees.length === 0 ? (
+            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-6 items-center">
+              <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center">
+                Aucune livraison ne correspond aux filtres.
+              </Text>
+            </View>
+          ) : (
+            <View className="gap-2">
+              {livFiltrees.map((l) => (
+                <LivraisonCard key={l.id} livraison={l} />
               ))}
             </View>
+          )}
 
-            {/* Filtres statut */}
-            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-              Statut
-            </Text>
-            <View className="flex-row gap-2 mb-3">
-              <FilterChip
-                active={statutLiv === 'all'}
-                label="Toutes"
-                onPress={() => setStatutLiv('all')}
-              />
-              <FilterChip
-                active={statutLiv === 'LIVREE'}
-                label="Non encaissée"
-                onPress={() => setStatutLiv('LIVREE')}
-              />
-              <FilterChip
-                active={statutLiv === 'ENCAISSEE'}
-                label="Encaissée"
-                onPress={() => setStatutLiv('ENCAISSEE')}
-              />
-            </View>
-
-            {/* Récap card */}
-            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 mb-3 flex-row justify-between items-center">
-              <Text className="text-[12px] text-slate-500 dark:text-slate-400">
-                {livFiltrees.length} livraison{livFiltrees.length > 1 ? 's' : ''}
-              </Text>
-              <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
-                {formatFCFA(totalLivFiltrees)} FCFA
-              </Text>
-            </View>
-
-            {/* Liste */}
-            {livFiltrees.length === 0 ? (
-              <EmptyState
-                title="Aucune livraison"
-                message="Aucune livraison ne correspond aux filtres."
-              />
-            ) : (
-              <View className="gap-2">
-                {livFiltrees.map((l) => (
-                  <LivraisonCard key={l.id} livraison={l} />
-                ))}
-              </View>
-            )}
-          </View>
-        ) : (
-          <View className="px-4 pt-3">
-            {/* Filtre période */}
-            <View className="flex-row items-center gap-1.5 mb-2">
-              <ListFilter color="#64748b" size={12} />
+          {/* Section Encaissements */}
+          <View className="flex-row items-center justify-between mt-5 mb-2">
+            <View className="flex-row items-center gap-1.5">
+              <Banknote color="#f59e0b" size={14} />
               <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
-                Période
+                Encaissements ({encaissementsClient.length})
               </Text>
             </View>
-            <View className="flex-row gap-2 mb-3">
-              {PERIODES.map((p) => (
-                <FilterChip
-                  key={p.key}
-                  active={periodeEnc === p.key}
-                  label={p.label}
-                  onPress={() => setPeriodeEnc(p.key)}
-                />
-              ))}
-            </View>
+            <ListFilter color="#94a3b8" size={12} />
+          </View>
 
-            {/* Récap card */}
-            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 mb-3 flex-row justify-between items-center">
-              <Text className="text-[12px] text-slate-500 dark:text-slate-400">
-                {encFiltres.length} encaissement{encFiltres.length > 1 ? 's' : ''}
-              </Text>
-              <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
-                {formatFCFA(totalEncFiltres)} FCFA
-              </Text>
-            </View>
-
-            {/* Liste */}
-            {encFiltres.length === 0 ? (
-              <EmptyState
-                title="Aucun encaissement"
-                message="Aucun encaissement ne correspond à la période choisie."
+          <View className="flex-row gap-2 mb-3">
+            {PERIODES.map((p) => (
+              <FilterChip
+                key={`E_${p.key}`}
+                active={periodeEnc === p.key}
+                label={p.label}
+                onPress={() => setPeriodeEnc(p.key)}
               />
-            ) : (
-              <View className="gap-2">
-                {encFiltres.map((e) => (
-                  <View
-                    key={e.reference}
-                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 rounded-md p-3 flex-row items-center justify-between"
-                  >
-                    <View className="flex-1 pr-2">
-                      <Text className="text-[12px] text-slate-700 dark:text-slate-300 font-bold">
-                        {e.date ? formatDateShort(e.date) : '—'}
-                      </Text>
-                      {e.commentaire ? (
-                        <Text className="text-[10px] text-slate-400 mt-0.5">
-                          {e.commentaire}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
-                      +{formatFCFA(e.montantEncaisse)} F
+            ))}
+          </View>
+
+          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 mb-3 flex-row justify-between items-center">
+            <Text className="text-[12px] text-slate-500 dark:text-slate-400">
+              {encFiltres.length} encaissement{encFiltres.length > 1 ? 's' : ''} filtré{encFiltres.length > 1 ? 's' : ''}
+            </Text>
+            <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
+              {formatFCFA(totalEncFiltres)} F
+            </Text>
+          </View>
+
+          {encFiltres.length === 0 ? (
+            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-6 items-center">
+              <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center">
+                Aucun encaissement ne correspond à la période choisie.
+              </Text>
+            </View>
+          ) : (
+            <View className="gap-2">
+              {encFiltres.map((e) => (
+                <View
+                  key={e.reference}
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 rounded-md p-3 flex-row items-center justify-between"
+                >
+                  <View className="flex-1 pr-2">
+                    <Text className="text-[12px] text-slate-700 dark:text-slate-300 font-bold">
+                      {e.date ? formatDateShort(e.date) : '—'}
                     </Text>
+                    {e.commentaire ? (
+                      <Text className="text-[10px] text-slate-400 mt-0.5">
+                        {e.commentaire}
+                      </Text>
+                    ) : null}
                   </View>
-                ))}
-              </View>
-            )}
+                  <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                    +{formatFCFA(e.montantEncaisse)} F
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Infos perso */}
+          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
+            Informations
+          </Text>
+          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 gap-3">
+            {client.email ? <InfoRow icon={Mail} label="Email" value={client.email} /> : null}
+            {client.adresse ? <InfoRow icon={MapPin} label="Adresse" value={client.adresse} /> : null}
+            <InfoRow
+              icon={Layers}
+              label="Quartier"
+              value={
+                client.quartier?.libelle
+                  ? `${client.quartier.libelle}${client.quartier.zone?.libelle ? ` · ${client.quartier.zone.libelle}` : ''}`
+                  : '—'
+              }
+            />
+            <InfoRow icon={Tag} label="Catégorie" value={client.categorie?.libelle ?? '—'} />
+            <InfoRow icon={Percent} label="Avec remise" value={client.avecOuSansRemise ? 'Oui' : 'Non'} />
           </View>
-        )}
+        </View>
       </ScrollView>
     </View>
-  );
-}
-
-function TabButton({
-  active,
-  label,
-  icon: Icon,
-  onPress,
-}: {
-  active: boolean;
-  label: string;
-  icon: React.ComponentType<{ color: string; size: number }>;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      className={`flex-1 flex-row items-center justify-center gap-1 py-2 rounded-md ${
-        active
-          ? 'bg-white dark:bg-slate-700 shadow-sm'
-          : 'active:opacity-70'
-      }`}
-    >
-      <Icon color={active ? '#10b981' : '#64748b'} size={14} />
-      <Text
-        className={`text-[12px] font-bold ${
-          active
-            ? 'text-emerald-700 dark:text-emerald-300'
-            : 'text-slate-500 dark:text-slate-400'
-        }`}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
-    </Pressable>
   );
 }
 
