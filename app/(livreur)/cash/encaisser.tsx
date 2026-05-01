@@ -24,6 +24,7 @@ import {
   computeSoldeForClient,
   computeEncoursForClient,
 } from '../../../lib/credit';
+import { isAEncaisser } from '../../../lib/livraison-status';
 import { formatFCFA, formatDateShort } from '../../../lib/format';
 import type { LivraisonResponse } from '../../../types/api';
 
@@ -98,7 +99,7 @@ export default function EncaisserPage() {
   const livraisonsNonEncaissees = useMemo<LivraisonResponse[]>(() => {
     if (!clientId) return [];
     return (qLiv.data ?? [])
-      .filter((l) => l.client.id === clientId && l.statut !== 'ENCAISSEE')
+      .filter((l) => l.client.id === clientId && isAEncaisser(l))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [qLiv.data, clientId]);
 

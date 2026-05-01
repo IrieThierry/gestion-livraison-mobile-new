@@ -1,4 +1,5 @@
 import type { EncaissementLivraisonResponse, LivraisonResponse, UUID } from '../types/api';
+import { isAEncaisser } from './livraison-status';
 
 /**
  * Mirror exact de gestion-livraison-front/src/lib/credit.ts
@@ -7,16 +8,23 @@ import type { EncaissementLivraisonResponse, LivraisonResponse, UUID } from '../
  */
 
 /**
- * Encours d'un client = somme `montantLivre` des livraisons encore au
- * statut LIVREE (non encore marquées ENCAISSEE par le back).
- * Représente la 'créance flottante' avant tout encaissement.
+ * Encours d'un client = somme `montantLivre` des livraisons NON encore
+ * encaissées (totalement OU partiellement). On utilise `isAEncaisser`
+ * qui s'appuie sur `statutEncaissement` (calculé par le back), avec
+ * fallback sur `statut` métier.
+ *
+ * Important : le filtre direct `statut === 'LIVREE'` incluait à tort
+ * toutes les livraisons du client puisque le back ne transite jamais
+ * `statut` vers ENCAISSEE — l'encours gonflait avec le temps. Le
+ * vrai indicateur d'encaissement est `statutEncaissement` (calculé
+ * à la volée).
  */
 export function computeEncoursForClient(
   livraisons: LivraisonResponse[],
   clientId: UUID,
 ): number {
   return livraisons
-    .filter((l) => l.client?.id === clientId && l.statut === 'LIVREE')
+    .filter((l) => l.client?.id === clientId && isAEncaisser(l))
     .reduce((sum, l) => sum + (Number(l.montantLivre) || 0), 0);
 }
 

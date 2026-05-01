@@ -9,6 +9,7 @@ import { StatusBadge } from '../../../components/shared/StatusBadge';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { callPhone, navigateTo } from '../../../lib/linking';
 import { formatFCFA, formatDateShort, formatTime } from '../../../lib/format';
+import { isAEncaisser } from '../../../lib/livraison-status';
 
 /**
  * The backend stores client coords as a single string "lat,lng".
@@ -91,7 +92,9 @@ export default function LivraisonDetail() {
                   {c.quartier?.libelle ?? 'Quartier inconnu'}
                 </Text>
               </View>
-              <StatusBadge statut={livraison.statut} />
+              <StatusBadge
+                statut={livraison.statutEncaissement ?? livraison.statut}
+              />
             </View>
 
             <View className="flex-row gap-2 mt-4">
@@ -152,7 +155,7 @@ export default function LivraisonDetail() {
           </View>
 
           {/* Encaisser button — only if not already encaissée */}
-          {livraison.statut !== 'ENCAISSEE' ? (
+          {isAEncaisser(livraison) ? (
             <Pressable
               disabled={!isOnline}
               onPress={() =>

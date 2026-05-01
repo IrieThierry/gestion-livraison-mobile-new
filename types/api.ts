@@ -202,7 +202,24 @@ export interface ProduitClientResponse {
 }
 
 // ---------- Livraisons ----------
+/**
+ * Statut métier de la livraison (DB column). En pratique, le back ne le
+ * fait jamais transiter de LIVREE → ENCAISSEE — il reste figé à LIVREE
+ * dès la création. Le vrai indicateur d'encaissement est calculé à la
+ * volée et exposé via `statutEncaissement` ci-dessous.
+ */
 export type StatutLivraison = 'LIVREE' | 'ENCAISSEE'
+
+/**
+ * Statut d'encaissement calculé à la volée par le back :
+ *   - `ENCAISSEE`             — un encaissement couvre la livraison avec
+ *                                montant >= valeur livraison
+ *   - `PARTIELLEMENT_ENCAISSEE` — encaissement couvre mais montant insuffisant
+ *   - `NON_ENCAISSEE`         — aucun encaissement ne couvre cette livraison
+ *
+ * **C'est ce champ qu'il faut afficher au livreur**, pas `statut`.
+ */
+export type StatutEncaissement = 'ENCAISSEE' | 'PARTIELLEMENT_ENCAISSEE' | 'NON_ENCAISSEE'
 
 export interface ProduitLivraisonRequest {
   produitId: UUID
@@ -228,7 +245,14 @@ export interface LivraisonResponse {
   livreur: LivreurResponse
   date: ISODate
   produitsLivraison: ProduitLivraisonResponse[]
+  /** Statut métier figé en base (toujours `LIVREE` en pratique). */
   statut: StatutLivraison
+  /**
+   * Statut d'encaissement calculé à la volée par le back. Optionnel pour
+   * back-compat (les sessions/responses pré-Plan-D peuvent ne pas le
+   * renvoyer) — fallback à `NON_ENCAISSEE` côté front.
+   */
+  statutEncaissement?: StatutEncaissement
   montantLivre: number
   avecRemise: boolean
 }

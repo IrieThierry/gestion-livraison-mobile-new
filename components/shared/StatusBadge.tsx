@@ -6,6 +6,16 @@ const styles: Record<string, { bg: string; text: string; label: string }> = {
     text: 'text-emerald-700 dark:text-emerald-400',
     label: 'Encaissée',
   },
+  PARTIELLEMENT_ENCAISSEE: {
+    bg: 'bg-blue-100 dark:bg-blue-500/15',
+    text: 'text-blue-700 dark:text-blue-400',
+    label: 'Partielle',
+  },
+  NON_ENCAISSEE: {
+    bg: 'bg-amber-100 dark:bg-amber-500/15',
+    text: 'text-amber-800 dark:text-amber-400',
+    label: 'Non encaissée',
+  },
   LIVREE: {
     bg: 'bg-amber-100 dark:bg-amber-500/15',
     text: 'text-amber-800 dark:text-amber-400',

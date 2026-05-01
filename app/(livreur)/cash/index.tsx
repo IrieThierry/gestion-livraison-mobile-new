@@ -15,6 +15,7 @@ import { EmptyState } from '../../../components/shared/EmptyState';
 import { useEncaissementsByLivreur } from '../../../features/encaissements/hooks';
 import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useAuthStore } from '../../../stores/authStore';
+import { isAEncaisser } from '../../../lib/livraison-status';
 import { formatFCFA, formatDateShort } from '../../../lib/format';
 
 // Onglet "Cash" du livreur (root de la stack /cash) :
@@ -43,7 +44,7 @@ export default function CashOverview() {
       .reduce((acc, e) => acc + (e.montantEncaisse ?? 0), 0);
     const livraisons = qL.data ?? [];
     const aEncaisser = livraisons
-      .filter((l) => l.statut !== 'ENCAISSEE')
+      .filter(isAEncaisser)
       .reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
     return { totalJour, aEncaisser };
   }, [qE.data, qL.data]);

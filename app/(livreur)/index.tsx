@@ -9,6 +9,7 @@ import { EmptyState } from '../../components/shared/EmptyState';
 import { PendingValidationGate } from '../../components/shared/PendingValidationGate';
 import { LivraisonCard } from '../../components/livreur/LivraisonCard';
 import { formatFCFA } from '../../lib/format';
+import { isEncaissee, isAEncaisser } from '../../lib/livraison-status';
 
 export default function Tournee() {
   const user = useAuthStore((s) => s.user);
@@ -30,16 +31,16 @@ export default function Tournee() {
     const dHier = all.filter((l) => new Date(l.date).toDateString() === yesterday);
 
     const totalEncaisseAujourd = duJour
-      .filter((l) => l.statut === 'ENCAISSEE')
+      .filter(isEncaissee)
       .reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
     const totalEncaisseHier = dHier
-      .filter((l) => l.statut === 'ENCAISSEE')
+      .filter(isEncaissee)
       .reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
     const aEncaisser = duJour
-      .filter((l) => l.statut !== 'ENCAISSEE')
+      .filter(isAEncaisser)
       .reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
     const clientsAEncaisser = new Set(
-      duJour.filter((l) => l.statut !== 'ENCAISSEE').map((l) => l.client.id),
+      duJour.filter(isAEncaisser).map((l) => l.client.id),
     ).size;
 
     let varPct: number | null = null;

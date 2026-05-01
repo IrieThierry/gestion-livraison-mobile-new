@@ -36,6 +36,7 @@ import { useAuthStore } from '../../../../stores/authStore';
 import { callPhone, navigateTo } from '../../../../lib/linking';
 import { formatFCFA, formatDateShort } from '../../../../lib/format';
 import { computeSoldeForClient, computeEncoursForClient } from '../../../../lib/credit';
+import { isEncaissee, isAEncaisser } from '../../../../lib/livraison-status';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
   if (!s) return null;
@@ -129,8 +130,8 @@ export default function ClientDetail() {
         return false;
       }
       if (statutLiv === 'all') return true;
-      if (statutLiv === 'ENCAISSEE') return l.statut === 'ENCAISSEE';
-      if (statutLiv === 'LIVREE') return l.statut !== 'ENCAISSEE';
+      if (statutLiv === 'ENCAISSEE') return isEncaissee(l);
+      if (statutLiv === 'LIVREE') return isAEncaisser(l);
       return true;
     });
   }, [livraisonsClient, periodeLiv, statutLiv]);
@@ -189,7 +190,7 @@ export default function ClientDetail() {
     } as never);
   };
 
-  const hasPendingLivraisons = livraisonsClient.some((l) => l.statut !== 'ENCAISSEE');
+  const hasPendingLivraisons = livraisonsClient.some(isAEncaisser);
   const totalLivFiltrees = livFiltrees.reduce(
     (acc, l) => acc + (l.montantLivre ?? 0),
     0,

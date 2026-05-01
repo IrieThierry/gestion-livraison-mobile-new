@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { formatFCFA, formatTime } from '../../lib/format';
 import type { LivraisonResponse } from '../../types/api';
 
-type DerivedStatus = 'ENCAISSEE' | 'LIVREE' | 'IMPAYEE';
+type DerivedStatus = 'ENCAISSEE' | 'PARTIEL' | 'LIVREE' | 'IMPAYEE';
 
 const STATUS_STYLES: Record<DerivedStatus, { border: string; bg: string; text: string; label: string }> = {
   ENCAISSEE: {
@@ -11,6 +11,12 @@ const STATUS_STYLES: Record<DerivedStatus, { border: string; bg: string; text: s
     bg: 'bg-emerald-100 dark:bg-emerald-500/15',
     text: 'text-emerald-700 dark:text-emerald-400',
     label: 'Encaissée',
+  },
+  PARTIEL: {
+    border: 'border-l-blue-500',
+    bg: 'bg-blue-100 dark:bg-blue-500/15',
+    text: 'text-blue-700 dark:text-blue-400',
+    label: 'Partielle',
   },
   LIVREE: {
     border: 'border-l-amber-500',
@@ -27,13 +33,28 @@ const STATUS_STYLES: Record<DerivedStatus, { border: string; bg: string; text: s
 };
 
 /**
- * 'IMPAYEE' is a derived state, not a backend statut: a LIVREE livraison
- * older than today is treated as outstanding debt for the customer.
- * Backend only exposes LIVREE | ENCAISSEE; this heuristic mirrors what
- * a livreur thinks of when looking at the page.
+ * Calcule le statut affiché à partir de `statutEncaissement` (calculé à
+ * la volée par le back, équivalent au flux web) avec un fallback sur
+ * `statut` pour rétro-compatibilité avec les anciens caches qui n'avaient
+ * pas le champ.
+ *
+ * Mapping :
+ *   - `statutEncaissement === 'ENCAISSEE'`             → ENCAISSEE
+ *   - `statutEncaissement === 'PARTIELLEMENT_ENCAISSEE'` → PARTIEL
+ *   - `statutEncaissement === 'NON_ENCAISSEE'` :
+ *       • date du jour → LIVREE
+ *       • date passée  → IMPAYEE (créance dépassant la journée)
+ *
+ * `IMPAYEE` n'existe pas côté back — c'est une heuristique mobile pour
+ * mettre en évidence visuellement les livraisons en retard.
  */
 export function deriveStatus(livraison: LivraisonResponse): DerivedStatus {
+  // Préférer statutEncaissement (calculé back) au statut métier figé
+  if (livraison.statutEncaissement === 'ENCAISSEE') return 'ENCAISSEE';
+  if (livraison.statutEncaissement === 'PARTIELLEMENT_ENCAISSEE') return 'PARTIEL';
+  // Fallback : ancien comportement (statut métier == ENCAISSEE — rare)
   if (livraison.statut === 'ENCAISSEE') return 'ENCAISSEE';
+
   const today = new Date().toDateString();
   const livDate = new Date(livraison.date).toDateString();
   return livDate === today ? 'LIVREE' : 'IMPAYEE';

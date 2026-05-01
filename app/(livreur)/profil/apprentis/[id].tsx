@@ -32,6 +32,7 @@ import { useClientsByLivreur } from '../../../../features/clients/hooks';
 import { useStockActuel } from '../../../../features/stock/hooks';
 import { callPhone } from '../../../../lib/linking';
 import { formatFCFA } from '../../../../lib/format';
+import { isAEncaisser } from '../../../../lib/livraison-status';
 
 /**
  * Fiche apprenti — affiche un récap chiffré (livraisons / encaissements /
@@ -78,7 +79,7 @@ export default function ApprentiDetail() {
     );
     const totalCAMois = livMois.reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
     const aEncaisser = livraisons
-      .filter((l) => l.statut !== 'ENCAISSEE')
+      .filter(isAEncaisser)
       .reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
 
     const encMois = encaissements.filter((e) =>
