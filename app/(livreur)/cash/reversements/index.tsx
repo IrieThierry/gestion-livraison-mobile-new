@@ -62,12 +62,10 @@ export default function ReversementsSynthese() {
         right={
           <Pressable
             onPress={() => router.push('/(livreur)/cash/reversements/historique' as never)}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-70"
+            className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
-            <History color="#64748b" size={14} />
-            <Text className="text-slate-700 dark:text-slate-300 text-xs font-bold">
-              Historique
-            </Text>
+            <History color="#fff" size={14} />
+            <Text className="text-white text-xs font-bold">Historique</Text>
           </Pressable>
         }
       />
@@ -102,6 +100,25 @@ export default function ReversementsSynthese() {
         </View>
 
         <View className="px-4">
+          {/* Raccourci visible vers l'historique des reversements faits */}
+          <Pressable
+            onPress={() => router.push('/(livreur)/cash/reversements/historique' as never)}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 mt-2 mb-3 flex-row items-center gap-3 active:opacity-70"
+          >
+            <View className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
+              <History color="#059669" size={18} />
+            </View>
+            <View className="flex-1">
+              <Text className="font-extrabold text-slate-900 dark:text-white">
+                Mes reversements
+              </Text>
+              <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                Historique de tous les reversements que tu as faits
+              </Text>
+            </View>
+            <ArrowRight color="#94a3b8" size={16} />
+          </Pressable>
+
           {q.isLoading ? (
             <View className="items-center py-12">
               <ActivityIndicator color="#10b981" />
