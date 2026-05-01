@@ -23,6 +23,7 @@ import {
 } from 'lucide-react-native';
 import { authApi } from '../../features/auth/api';
 import { signupSchema } from '../../features/auth/schemas';
+import { extractApiErrorMessage } from '../../lib/api-error';
 
 /**
  * Auto-inscription d'un livreur ou fournisseur. Le back crée le compte avec
@@ -53,8 +54,7 @@ export default function Signup() {
       );
     },
     onError: (err: unknown) => {
-      const e = err as { response?: { data?: { message?: string } } };
-      Alert.alert('Erreur', e.response?.data?.message ?? 'Création impossible');
+      Alert.alert('Erreur', extractApiErrorMessage(err, 'Création impossible'));
     },
   });
 

@@ -256,31 +256,25 @@ export default function ClientDetail() {
         </View>
       </View>
 
-      {/* Tab content — UN SEUL ScrollView monté en permanence pour éviter
-          que la conditionnelle de monter/démonter rende le navigation
-          context instable au moment du switch. Le contenu interne change
-          via la conditionnelle ternaire. */}
+      {/* Tab content — UN SEUL ScrollView monté en permanence avec un
+          refreshControl STABLE (props identiques à chaque render). Si on
+          fait dépendre `refreshing` ou `onRefresh` du `tab` actif, le
+          natif re-instantie le RefreshControl ce qui déclenche un cycle
+          de mount/unmount et casse le navigation context au moment du
+          switch d'onglet. */}
       <ScrollView
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={
           <RefreshControl
             refreshing={
-              tab === 'info'
-                ? qC.isFetching && !qC.isLoading
-                : tab === 'livraisons'
-                ? qL.isFetching && !qL.isLoading
-                : qE.isFetching && !qE.isLoading
+              (qC.isFetching && !qC.isLoading) ||
+              (qL.isFetching && !qL.isLoading) ||
+              (qE.isFetching && !qE.isLoading)
             }
             onRefresh={() => {
-              if (tab === 'info') {
-                qC.refetch();
-                qL.refetch();
-                qE.refetch();
-              } else if (tab === 'livraisons') {
-                qL.refetch();
-              } else {
-                qE.refetch();
-              }
+              qC.refetch();
+              qL.refetch();
+              qE.refetch();
             }}
             tintColor="#10b981"
           />

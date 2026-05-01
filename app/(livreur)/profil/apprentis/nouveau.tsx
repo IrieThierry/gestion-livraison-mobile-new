@@ -12,6 +12,7 @@ import { router } from 'expo-router';
 import { Eye, EyeOff, UserPlus } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { useCreerApprenti } from '../../../../features/apprentis/hooks';
+import { extractApiErrorMessage } from '../../../../lib/api-error';
 
 /**
  * Formulaire de création d'un apprenti. Mirror simplifié de
@@ -74,10 +75,9 @@ export default function NouveauApprenti() {
           router.back();
         },
         onError: (err: unknown) => {
-          const e = err as { response?: { data?: { message?: string } } };
           Alert.alert(
             'Erreur',
-            e.response?.data?.message ?? 'Création impossible',
+            extractApiErrorMessage(err, 'Création impossible'),
           );
         },
       },

@@ -23,34 +23,33 @@ import { useThemeStore } from '../../stores/themeStore';
 
 /**
  * Quand l'utilisateur tape un onglet déjà actif, par défaut Expo Router
- * ne fait rien — on reste coincé sur la sous-route. On force ici le pop
- * jusqu'à la racine de la pile interne en redirigeant explicitement vers
- * la page racine de l'onglet.
+ * ne fait rien — on reste coincé sur la sous-route. On dispatche ici
+ * `POP_TO_TOP` sur la **pile interne** de l'onglet (qui gère cette
+ * action), pas sur le Tabs navigator (qui ne la gère pas et déclenche
+ * un warning).
  *
- * NB : on n'appelle plus `router.dismissAll()` à l'aveugle car ça
- * dispatche `POP_TO_TOP` au niveau du Tabs navigator (qui ne le gère
- * pas) et déclenche un warning dev "POP_TO_TOP was not handled by any
- * navigator". On utilise `canDismiss()` comme garde — qui n'existe que
- * dans Expo Router ≥ 4 — et on tombe en silence si l'API n'est pas
- * dispo.
+ * On ne fait RIEN si l'onglet n'a pas de sous-route empilée (pour ne
+ * pas déclencher le warning). On évite aussi `router.replace(path)` qui
+ * peut casser le navigation context pendant l'unmount d'un écran enfant.
  */
-function popToTopOnReTap(path: string) {
-  return ({ navigation }: { navigation: { isFocused?: () => boolean } }) => ({
+function popToTopOnReTap() {
+  return ({ navigation }: { navigation: any }) => ({
     tabPress: (e: { preventDefault: () => void }) => {
-      if (!navigation.isFocused?.()) return;
-      e.preventDefault();
-      try {
-        const r = router as unknown as {
-          canDismiss?: () => boolean;
-          dismissAll?: () => void;
-        };
-        if (r.canDismiss?.()) {
-          r.dismissAll?.();
-        }
-      } catch {
-        /* fail silently — `replace` ci-dessous prend le relais */
+      if (!navigation?.isFocused?.()) return;
+      const state = navigation.getState?.();
+      if (!state) return;
+      const tabRoute = state.routes?.[state.index];
+      const innerRoutes = tabRoute?.state?.routes ?? [];
+      // S'il y a > 1 routes dans la pile de l'onglet courant, on a une
+      // sous-route empilée → on pop. Sinon on laisse le comportement par
+      // défaut (no-op pour un re-tap au root).
+      if (innerRoutes.length > 1) {
+        e.preventDefault();
+        navigation.dispatch?.({
+          type: 'POP_TO_TOP',
+          target: tabRoute.state.key,
+        });
       }
-      router.replace(path as never);
     },
   });
 }
@@ -227,7 +226,7 @@ export default function LivreurLayout() {
             title: 'Tournée',
             tabBarIcon: ({ color }) => <TrendingUp color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={popToTopOnReTap('/(livreur)')}
+          listeners={popToTopOnReTap()}
         />
         <Tabs.Screen
           name="clients"
@@ -235,7 +234,7 @@ export default function LivreurLayout() {
             title: 'Clients',
             tabBarIcon: ({ color }) => <Users color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={popToTopOnReTap('/(livreur)/clients')}
+          listeners={popToTopOnReTap()}
         />
         <Tabs.Screen
           name="fab"
@@ -274,7 +273,7 @@ export default function LivreurLayout() {
             title: 'Livraisons',
             tabBarIcon: ({ color }) => <Truck color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={popToTopOnReTap('/(livreur)/livraisons')}
+          listeners={popToTopOnReTap()}
         />
         <Tabs.Screen
           name="profil"
@@ -282,7 +281,7 @@ export default function LivreurLayout() {
             title: 'Moi',
             tabBarIcon: ({ color }) => <User color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={popToTopOnReTap('/(livreur)/profil')}
+          listeners={popToTopOnReTap()}
         />
         {/* Hidden routes — accessible via FAB sheet, stat cards, links, or programmatic push */}
         <Tabs.Screen name="cash" options={{ href: null }} />
