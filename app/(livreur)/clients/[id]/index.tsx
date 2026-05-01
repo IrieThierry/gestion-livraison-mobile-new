@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   ScrollView,
   View,
@@ -19,7 +19,6 @@ import {
   Percent,
   ArrowRight,
   DollarSign,
-  ListFilter,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
@@ -41,35 +40,28 @@ function parseLatLng(s: string | null | undefined): { lat: number; lng: number }
   return null;
 }
 
-type Periode = '7j' | '30j' | '90j' | 'all';
-type LivraisonStatut = 'all' | 'LIVREE' | 'ENCAISSEE';
-
-const PERIODES: Array<{ key: Periode; label: string; days: number | null }> = [
-  { key: '7j', label: '7 jours', days: 7 },
-  { key: '30j', label: '30 jours', days: 30 },
-  { key: '90j', label: '90 jours', days: 90 },
-  { key: 'all', label: 'Tout', days: null },
-];
+const PREVIEW_LIMIT = 3;
 
 /**
- * Fiche client — design en sections empilées (sans onglets).
+ * Fiche client — version compacte (sans onglets, sans listes longues).
  *
- * On a essayé une version à onglets mais elle déclenchait un
- * `Couldn't find a navigation context` au switch (probablement à cause
- * du conditionnel mount/unmount qui interagit mal avec le navigation
- * tree d'Expo Router). Le design plat scroll-everything est plus
- * robuste et plus naturel sur mobile (pas de tabs imbriqués dans
- * d'autres tabs).
+ * On a essayé deux versions précédentes :
+ *   1) Onglets — déclenchait un crash navigation context au switch
+ *   2) Sections empilées avec listes complètes — beaucoup trop d'info
+ *      sur un seul écran (le user a remonté ce point)
  *
- * Sections, dans l'ordre :
- *   1) Hero (avatar + nom + solde)
- *   2) CTAs (Appeler / Y aller / Livrer / Encaisser)
- *   3) Carte « Prix personnalisés » (vers /prix)
- *   4) Carte GPS
- *   5) Synthèse chiffrée
- *   6) Section « Livraisons » avec filtres period + statut + liste
- *   7) Section « Encaissements » avec filtre period + liste
- *   8) Infos perso (email, adresse, quartier, catégorie, remise)
+ * Cette version garde la fiche LÉGÈRE :
+ *   - Hero + CTAs
+ *   - 4 KPIs compacts (encours / solde / nb livraisons / nb encaissements)
+ *   - Carte « Prix personnalisés »
+ *   - Carte GPS + récap
+ *   - Aperçu des 3 dernières livraisons + bouton « Voir toutes »
+ *   - Aperçu des 3 derniers encaissements + bouton « Voir tous »
+ *   - Infos perso
+ *
+ * Les listes complètes vivent dans des sous-pages dédiées :
+ *   - /clients/[id]/livraisons    (filtres période + statut)
+ *   - /clients/[id]/encaissements (filtre période)
  */
 export default function ClientDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -79,10 +71,6 @@ export default function ClientDetail() {
   const qL = useLivraisonsByLivreur(livreurId);
   const qE = useEncaissementsByLivreur(livreurId);
   const qPrix = usePrixClient(id);
-
-  const [periodeLiv, setPeriodeLiv] = useState<Periode>('30j');
-  const [periodeEnc, setPeriodeEnc] = useState<Periode>('30j');
-  const [statutLiv, setStatutLiv] = useState<LivraisonStatut>('all');
 
   const client = useMemo(
     () => (qC.data ?? []).find((c) => c.id === id),
@@ -118,31 +106,6 @@ export default function ClientDetail() {
     () => computeEncoursForClient(qL.data ?? [], id ?? ''),
     [qL.data, id],
   );
-
-  const livFiltrees = useMemo(() => {
-    const now = Date.now();
-    const days = PERIODES.find((p) => p.key === periodeLiv)?.days ?? null;
-    return livraisonsClient.filter((l) => {
-      if (days !== null && now - new Date(l.date).getTime() > days * 86_400_000) {
-        return false;
-      }
-      if (statutLiv === 'all') return true;
-      if (statutLiv === 'ENCAISSEE') return l.statut === 'ENCAISSEE';
-      if (statutLiv === 'LIVREE') return l.statut !== 'ENCAISSEE';
-      return true;
-    });
-  }, [livraisonsClient, periodeLiv, statutLiv]);
-
-  const encFiltres = useMemo(() => {
-    const now = Date.now();
-    const days = PERIODES.find((p) => p.key === periodeEnc)?.days ?? null;
-    return encaissementsClient.filter((e) => {
-      if (days !== null && e.date) {
-        return now - new Date(e.date).getTime() <= days * 86_400_000;
-      }
-      return true;
-    });
-  }, [encaissementsClient, periodeEnc]);
 
   if (!user) return null;
 
@@ -189,15 +152,8 @@ export default function ClientDetail() {
   };
 
   const hasPendingLivraisons = livraisonsClient.some((l) => l.statut !== 'ENCAISSEE');
-
-  const totalLivFiltrees = livFiltrees.reduce(
-    (acc, l) => acc + (l.montantLivre ?? 0),
-    0,
-  );
-  const totalEncFiltres = encFiltres.reduce(
-    (acc, e) => acc + (e.montantEncaisse ?? 0),
-    0,
-  );
+  const hasMoreLivraisons = livraisonsClient.length > PREVIEW_LIMIT;
+  const hasMoreEncaissements = encaissementsClient.length > PREVIEW_LIMIT;
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
@@ -291,6 +247,20 @@ export default function ClientDetail() {
             />
           </View>
 
+          {/* KPI grid 2x2 — chiffres clés en un coup d'œil */}
+          <View className="flex-row gap-2 mt-3">
+            <KpiCard label="Encours" value={`${formatFCFA(encours)} F`} highlight={encours > 0} />
+            <KpiCard label="Livraisons" value={`${livraisonsClient.length}`} />
+          </View>
+          <View className="flex-row gap-2 mt-2">
+            <KpiCard
+              label="Solde"
+              value={`${debt ? '' : credit ? '+' : ''}${formatFCFA(Math.abs(solde))} F`}
+              tone={debt ? 'amber' : credit ? 'emerald' : undefined}
+            />
+            <KpiCard label="Encaissements" value={`${encaissementsClient.length}`} />
+          </View>
+
           {/* Prix custom */}
           <Pressable
             onPress={() =>
@@ -326,9 +296,6 @@ export default function ClientDetail() {
                 Localisation
               </Text>
               <MapPreview lat={geo.lat} lng={geo.lng} height={180} />
-              <Text className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-2 font-mono">
-                {geo.lat.toFixed(6)}, {geo.lng.toFixed(6)}
-              </Text>
             </View>
           ) : (
             <View className="mt-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3">
@@ -338,123 +305,81 @@ export default function ClientDetail() {
             </View>
           )}
 
-          {/* Synthèse */}
-          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
-            Synthèse
-          </Text>
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 gap-2">
-            <Row label="Encours (livré non encaissé)" value={`${formatFCFA(encours)} FCFA`} />
-            <Row label="Livraisons" value={`${livraisonsClient.length}`} />
-            <Row label="Encaissements" value={`${encaissementsClient.length}`} />
-          </View>
-
-          {/* Section Livraisons */}
+          {/* Aperçu Livraisons (3 dernières) */}
           <View className="flex-row items-center justify-between mt-5 mb-2">
             <View className="flex-row items-center gap-1.5">
               <Truck color="#10b981" size={14} />
               <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
-                Livraisons ({livraisonsClient.length})
+                Dernières livraisons
               </Text>
             </View>
-            <ListFilter color="#94a3b8" size={12} />
+            {hasMoreLivraisons ? (
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: '/(livreur)/clients/[id]/livraisons' as never,
+                    params: { id: client.id },
+                  } as never)
+                }
+                hitSlop={8}
+                className="active:opacity-60"
+              >
+                <Text className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                  Voir tout ({livraisonsClient.length}) →
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
 
-          {/* Filtres période */}
-          <View className="flex-row gap-2 mb-2">
-            {PERIODES.map((p) => (
-              <FilterChip
-                key={`L_${p.key}`}
-                active={periodeLiv === p.key}
-                label={p.label}
-                onPress={() => setPeriodeLiv(p.key)}
-              />
-            ))}
-          </View>
-
-          {/* Filtres statut */}
-          <View className="flex-row gap-2 mb-3">
-            <FilterChip
-              active={statutLiv === 'all'}
-              label="Toutes"
-              onPress={() => setStatutLiv('all')}
-            />
-            <FilterChip
-              active={statutLiv === 'LIVREE'}
-              label="Non encaissée"
-              onPress={() => setStatutLiv('LIVREE')}
-            />
-            <FilterChip
-              active={statutLiv === 'ENCAISSEE'}
-              label="Encaissée"
-              onPress={() => setStatutLiv('ENCAISSEE')}
-            />
-          </View>
-
-          {/* Récap card */}
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 mb-3 flex-row justify-between items-center">
-            <Text className="text-[12px] text-slate-500 dark:text-slate-400">
-              {livFiltrees.length} livraison{livFiltrees.length > 1 ? 's' : ''} filtrée{livFiltrees.length > 1 ? 's' : ''}
-            </Text>
-            <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
-              {formatFCFA(totalLivFiltrees)} F
-            </Text>
-          </View>
-
-          {/* Liste livraisons */}
-          {livFiltrees.length === 0 ? (
-            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-6 items-center">
+          {livraisonsClient.length === 0 ? (
+            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-4 items-center">
               <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center">
-                Aucune livraison ne correspond aux filtres.
+                Aucune livraison pour ce client.
               </Text>
             </View>
           ) : (
             <View className="gap-2">
-              {livFiltrees.map((l) => (
+              {livraisonsClient.slice(0, PREVIEW_LIMIT).map((l) => (
                 <LivraisonCard key={l.id} livraison={l} />
               ))}
             </View>
           )}
 
-          {/* Section Encaissements */}
+          {/* Aperçu Encaissements (3 derniers) */}
           <View className="flex-row items-center justify-between mt-5 mb-2">
             <View className="flex-row items-center gap-1.5">
               <Banknote color="#f59e0b" size={14} />
               <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
-                Encaissements ({encaissementsClient.length})
+                Derniers encaissements
               </Text>
             </View>
-            <ListFilter color="#94a3b8" size={12} />
+            {hasMoreEncaissements ? (
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: '/(livreur)/clients/[id]/encaissements' as never,
+                    params: { id: client.id },
+                  } as never)
+                }
+                hitSlop={8}
+                className="active:opacity-60"
+              >
+                <Text className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                  Voir tout ({encaissementsClient.length}) →
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
 
-          <View className="flex-row gap-2 mb-3">
-            {PERIODES.map((p) => (
-              <FilterChip
-                key={`E_${p.key}`}
-                active={periodeEnc === p.key}
-                label={p.label}
-                onPress={() => setPeriodeEnc(p.key)}
-              />
-            ))}
-          </View>
-
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 mb-3 flex-row justify-between items-center">
-            <Text className="text-[12px] text-slate-500 dark:text-slate-400">
-              {encFiltres.length} encaissement{encFiltres.length > 1 ? 's' : ''} filtré{encFiltres.length > 1 ? 's' : ''}
-            </Text>
-            <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
-              {formatFCFA(totalEncFiltres)} F
-            </Text>
-          </View>
-
-          {encFiltres.length === 0 ? (
-            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-6 items-center">
+          {encaissementsClient.length === 0 ? (
+            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-4 items-center">
               <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center">
-                Aucun encaissement ne correspond à la période choisie.
+                Aucun encaissement pour ce client.
               </Text>
             </View>
           ) : (
             <View className="gap-2">
-              {encFiltres.map((e) => (
+              {encaissementsClient.slice(0, PREVIEW_LIMIT).map((e) => (
                 <View
                   key={e.reference}
                   className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 rounded-md p-3 flex-row items-center justify-between"
@@ -502,32 +427,32 @@ export default function ClientDetail() {
   );
 }
 
-function FilterChip({
-  active,
+function KpiCard({
   label,
-  onPress,
+  value,
+  highlight,
+  tone,
 }: {
-  active: boolean;
   label: string;
-  onPress: () => void;
+  value: string;
+  highlight?: boolean;
+  tone?: 'amber' | 'emerald';
 }) {
+  const valueClass =
+    tone === 'amber'
+      ? 'text-amber-700 dark:text-amber-400'
+      : tone === 'emerald'
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : highlight
+      ? 'text-slate-900 dark:text-white'
+      : 'text-slate-700 dark:text-slate-300';
   return (
-    <Pressable
-      onPress={onPress}
-      className={`px-3 py-1.5 rounded-md border ${
-        active
-          ? 'bg-emerald-500 border-emerald-500'
-          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-      }`}
-    >
-      <Text
-        className={`text-[12px] font-bold ${
-          active ? 'text-white' : 'text-slate-700 dark:text-slate-300'
-        }`}
-      >
+    <View className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3">
+      <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
         {label}
       </Text>
-    </Pressable>
+      <Text className={`font-extrabold text-base mt-1 ${valueClass}`}>{value}</Text>
+    </View>
   );
 }
 
@@ -565,19 +490,6 @@ function ActionBtn({
         {label}
       </Text>
     </Pressable>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-row justify-between items-center">
-      <Text className="text-[12px] text-slate-500 dark:text-slate-400">
-        {label}
-      </Text>
-      <Text className="text-[13px] font-bold text-slate-700 dark:text-slate-300">
-        {value}
-      </Text>
-    </View>
   );
 }
 
