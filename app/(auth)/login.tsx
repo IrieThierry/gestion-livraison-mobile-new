@@ -151,12 +151,7 @@ export default function Login() {
 
             {/* Signup link */}
             <Pressable
-              onPress={() =>
-                Alert.alert(
-                  'Inscription',
-                  'Pour créer un compte livreur, contacte ton administrateur ou rends-toi sur le portail web.',
-                )
-              }
+              onPress={() => router.push('/(auth)/signup' as never)}
               className="mt-6 items-center"
             >
               <Text className="text-base text-slate-500 dark:text-slate-400">
