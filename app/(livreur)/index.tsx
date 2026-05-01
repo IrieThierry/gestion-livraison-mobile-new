@@ -3,7 +3,7 @@ import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native'
 import { router } from 'expo-router';
 import { Bell, Package, Truck, Banknote, RotateCcw } from 'lucide-react-native';
 import { useLivraisonsByLivreur } from '../../features/livraisons/hooks';
-import { useStockActuel } from '../../features/stock/hooks';
+import { useStockCourant } from '../../features/stock/hooks';
 import { useAuthStore } from '../../stores/authStore';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { PendingValidationGate } from '../../components/shared/PendingValidationGate';
@@ -14,7 +14,12 @@ export default function Tournee() {
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
   const qLiv = useLivraisonsByLivreur(livreurId);
-  const qStock = useStockActuel(livreurId);
+  // Stock courant (Plan D) — somme des `qteVendable` (= achats − livraisons
+  // + retours sur la période). C'est ce que l'écran Stock affiche aussi.
+  // L'ancien `useStockActuel` retournait des `AchatResponse[]` dont la `qte`
+  // est la quantité d'achat initiale, ce qui donnait un cumul gonflé sur
+  // l'accueil — on n'en veut plus.
+  const qStock = useStockCourant();
 
   const computed = useMemo(() => {
     const today = new Date().toDateString();
@@ -64,7 +69,7 @@ export default function Tournee() {
   }, [qLiv.data]);
 
   const totalStock = useMemo(
-    () => (qStock.data ?? []).reduce((acc, s) => acc + (s.qte ?? 0), 0),
+    () => (qStock.data ?? []).reduce((acc, s) => acc + (s.qteVendable ?? 0), 0),
     [qStock.data],
   );
 
