@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Plus, Phone, MapPin, Truck, Banknote } from 'lucide-react-native';
+import { Plus, Phone, MapPin, Truck, Banknote, Map } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { useClientsByLivreur } from '../../../features/clients/hooks';
@@ -79,13 +79,24 @@ export default function ClientsList() {
         subtitle={`${filtered.length} résultat${filtered.length > 1 ? 's' : ''}`}
         showBack={false}
         right={
-          <Pressable
-            onPress={() => router.push('/(livreur)/clients/nouveau' as never)}
-            className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
-          >
-            <Plus color="#fff" size={14} />
-            <Text className="text-white text-xs font-bold">Nouveau</Text>
-          </Pressable>
+          <View className="flex-row gap-2">
+            <Pressable
+              onPress={() => router.push('/(livreur)/clients/map' as never)}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-70"
+            >
+              <Map color="#3b82f6" size={14} />
+              <Text className="text-slate-700 dark:text-slate-300 text-xs font-bold">
+                Carte
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/(livreur)/clients/nouveau' as never)}
+              className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
+            >
+              <Plus color="#fff" size={14} />
+              <Text className="text-white text-xs font-bold">Nouveau</Text>
+            </Pressable>
+          </View>
         }
       />
 
