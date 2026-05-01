@@ -181,12 +181,11 @@ export default function ClientDetail() {
     } as never);
 
   const onEncaisser = () => {
-    const pending = livraisonsClient.filter((l) => l.statut !== 'ENCAISSEE');
-    if (pending.length === 0) return;
-    const target = pending[0];
+    // Mode CLIENT — la page agrège les non-encaissées + montre le solde
+    // et pré-remplit le montant. Évite de choisir une livraison précise.
     router.push({
       pathname: '/(livreur)/cash/encaisser' as never,
-      params: { livraisonId: target.id },
+      params: { clientId: client.id },
     } as never);
   };
 

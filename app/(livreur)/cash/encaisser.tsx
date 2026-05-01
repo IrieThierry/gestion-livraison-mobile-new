@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -13,29 +13,52 @@ import {
   useLivraisonsByLivreur,
   useEncaisserLivraison,
 } from '../../../features/livraisons/hooks';
+import { useClientsByLivreur } from '../../../features/clients/hooks';
+import { useEncaissementsByLivreur } from '../../../features/encaissements/hooks';
 import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { DatePickerField } from '../../../components/shared/DatePickerField';
-import { formatFCFA } from '../../../lib/format';
+import {
+  computeSoldeForClient,
+  computeEncoursForClient,
+} from '../../../lib/credit';
+import { formatFCFA, formatDateShort } from '../../../lib/format';
+import type { LivraisonResponse } from '../../../types/api';
 
-// Cible du bouton "Encaisser" du détail livraison. Récupère la livraison
-// dans le cache `byLivreur` (pas d'endpoint by-id côté back), affiche un
-// récap (total livré / déjà encaissé / reste) puis poste vers
-// POST /encaissement/livraison via `useEncaisserLivraison`.
-//
-// Note typage : `LivraisonResponse` n'expose pas `montantEncaisse` côté
-// front (le backend ne renvoie pas le cumul payé). On laisse donc le
-// "déjà encaissé" à 0 — le reste à encaisser vaut le montant livré tant
-// que le statut n'est pas ENCAISSEE. Si un jour le back ajoute le champ,
-// remplacer le fallback ci-dessous.
-export default function EncaisserLivraison() {
-  const { livraisonId } = useLocalSearchParams<{ livraisonId: string }>();
+/**
+ * Page d'encaissement.
+ *
+ * Deux modes selon les query params :
+ *
+ *   • `livraisonId` (mode livraison)  — cible une livraison précise. Le
+ *     récap montre total livré / déjà encaissé / reste à encaisser pour
+ *     CETTE livraison uniquement. Cible historique : bouton Encaisser
+ *     du détail livraison.
+ *
+ *   • `clientId` (mode client) — cible un client. On agrège toutes ses
+ *     livraisons non encaissées, on affiche la liste, le total à
+ *     encaisser et le solde calculé. Le montant est pré-rempli avec le
+ *     reste dû (= solde positif). Cible : bouton Encaisser de la fiche
+ *     client et de la liste clients.
+ *
+ * Le payload backend est le même dans les deux cas : `clientId`,
+ * `montantEncaisse`, optional `dateDebut`/`dateFin`/`libre`. Le back
+ * applique l'encaissement sur les livraisons en cours côté serveur.
+ */
+export default function EncaisserPage() {
+  const params = useLocalSearchParams<{
+    livraisonId?: string;
+    clientId?: string;
+  }>();
   const user = useAuthStore((s) => s.user);
   const isOnline = useNetworkStore((s) => s.isOnline);
   const livreurId = user?.id ?? '';
-  const q = useLivraisonsByLivreur(livreurId);
+
+  const qLiv = useLivraisonsByLivreur(livreurId);
+  const qEnc = useEncaissementsByLivreur(livreurId);
+  const qCli = useClientsByLivreur(livreurId);
   const m = useEncaisserLivraison();
 
   const [montant, setMontant] = useState('');
@@ -49,8 +72,57 @@ export default function EncaisserLivraison() {
   const [dateFin, setDateFin] = useState<string | null>(todayIso);
   const [dateEncaissement, setDateEncaissement] = useState<string | null>(todayIso);
 
+  // Mode = livraison si livraisonId présent, sinon client
+  const mode: 'livraison' | 'client' = params.livraisonId ? 'livraison' : 'client';
+
+  // === Mode livraison : recherche de la livraison ciblée ===
+  const livraisonCiblee = useMemo(
+    () =>
+      mode === 'livraison'
+        ? (qLiv.data ?? []).find((l) => l.id === params.livraisonId)
+        : undefined,
+    [mode, qLiv.data, params.livraisonId],
+  );
+
+  // === Mode client : agrégation des livraisons non encaissées + solde ===
+  const clientId =
+    mode === 'client'
+      ? params.clientId ?? null
+      : livraisonCiblee?.client.id ?? null;
+
+  const client = useMemo(
+    () => (qCli.data ?? []).find((c) => c.id === clientId),
+    [qCli.data, clientId],
+  );
+
+  const livraisonsNonEncaissees = useMemo<LivraisonResponse[]>(() => {
+    if (!clientId) return [];
+    return (qLiv.data ?? [])
+      .filter((l) => l.client.id === clientId && l.statut !== 'ENCAISSEE')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [qLiv.data, clientId]);
+
+  const totalNonEncaisse = useMemo(
+    () => livraisonsNonEncaissees.reduce((acc, l) => acc + (l.montantLivre ?? 0), 0),
+    [livraisonsNonEncaissees],
+  );
+
+  const soldeClient = useMemo(
+    () =>
+      clientId
+        ? computeSoldeForClient(qLiv.data ?? [], qEnc.data ?? [], clientId)
+        : 0,
+    [qLiv.data, qEnc.data, clientId],
+  );
+
+  const encoursClient = useMemo(
+    () => (clientId ? computeEncoursForClient(qLiv.data ?? [], clientId) : 0),
+    [qLiv.data, clientId],
+  );
+
   if (!user) return null;
-  if (q.isLoading) {
+
+  if (qLiv.isLoading || qCli.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
         <ActivityIndicator color="#10b981" />
@@ -58,8 +130,8 @@ export default function EncaisserLivraison() {
     );
   }
 
-  const livraison = (q.data ?? []).find((l) => l.id === livraisonId);
-  if (!livraison) {
+  // Aucune cible n'est trouvée — message d'erreur clair
+  if (mode === 'livraison' && !livraisonCiblee) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
         <PageHeader title="Encaisser" />
@@ -70,23 +142,50 @@ export default function EncaisserLivraison() {
       </View>
     );
   }
+  if (mode === 'client' && !client) {
+    return (
+      <View className="flex-1 bg-slate-50 dark:bg-slate-950">
+        <PageHeader title="Encaisser" />
+        <EmptyState
+          title="Client introuvable"
+          message="Ce client n'est plus dans ta liste."
+        />
+      </View>
+    );
+  }
 
-  const total = livraison.montantLivre ?? 0;
-  // `LivraisonResponse` ne porte pas le cumul encaissé — fallback à 0.
-  const dejaEncaisse =
-    (livraison as { montantEncaisse?: number }).montantEncaisse ?? 0;
-  const reste = Math.max(0, total - dejaEncaisse);
+  // === Calculs des montants à encaisser selon le mode ===
+  const totalCible = mode === 'livraison'
+    ? livraisonCiblee?.montantLivre ?? 0
+    : totalNonEncaisse;
+  // Reste à payer = solde dû (positif), borné par totalCible (cas crédit ou
+  // sur-encaissement précédent).
+  const resteAPayer = Math.max(0, Math.min(soldeClient, totalCible));
+  // Pré-remplir le montant la première fois (uniquement si vide)
+  if (montant === '' && resteAPayer > 0) {
+    setMontant(String(resteAPayer));
+  }
+
+  const clientName = client
+    ? `${client.prenom} ${client.nom}`.trim()
+    : livraisonCiblee
+    ? `${livraisonCiblee.client.prenom} ${livraisonCiblee.client.nom}`
+    : 'Client';
 
   const onSubmit = () => {
+    if (!clientId) {
+      Alert.alert('Erreur', 'Client invalide');
+      return;
+    }
     const n = parseInt(montant, 10);
     if (!n || n <= 0) {
       Alert.alert('Erreur', 'Montant invalide');
       return;
     }
-    if (n > reste) {
+    if (totalCible > 0 && n > totalCible) {
       Alert.alert(
         'Erreur',
-        `Le montant dépasse le reste à encaisser (${formatFCFA(reste)} FCFA)`,
+        `Le montant dépasse le total à encaisser (${formatFCFA(totalCible)} FCFA)`,
       );
       return;
     }
@@ -102,7 +201,7 @@ export default function EncaisserLivraison() {
     m.mutate(
       {
         livreurId: user.id,
-        clientId: livraison.client.id,
+        clientId,
         montantEncaisse: n,
         commentaire: commentaire.trim() || undefined,
         dateDebut: libre ? undefined : (dateDebut ?? undefined),
@@ -112,7 +211,6 @@ export default function EncaisserLivraison() {
       },
       {
         onSuccess: () => {
-          // Reset form before navigating in case the screen stays mounted
           setMontant('');
           setCommentaire('');
           setLibre(true);
@@ -133,67 +231,141 @@ export default function EncaisserLivraison() {
     );
   };
 
-  const clientName = `${livraison.client.prenom} ${livraison.client.nom}`;
   const montantInt = parseInt(montant, 10) || 0;
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader title="Encaisser" subtitle={clientName} />
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
-        <View className="px-4">
-          {/* Récap */}
+        <View className="px-4 pt-3">
+          {/* Récap principal — 4 chiffres clés */}
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-4">
-            <View className="flex-row justify-between">
+            <View className="flex-row justify-between mb-2">
               <Text className="text-slate-500 dark:text-slate-400 text-[12px]">
-                Total livré
+                {mode === 'livraison'
+                  ? 'Total livré (cette livraison)'
+                  : 'Total non encaissé'}
               </Text>
               <Text className="font-bold text-slate-700 dark:text-slate-300">
-                {formatFCFA(total)} FCFA
+                {formatFCFA(totalCible)} F
               </Text>
             </View>
-            {dejaEncaisse > 0 ? (
-              <View className="flex-row justify-between mt-1">
+            {mode === 'client' ? (
+              <View className="flex-row justify-between mb-2">
                 <Text className="text-slate-500 dark:text-slate-400 text-[12px]">
-                  Déjà encaissé
+                  Encours (livré non encaissé)
                 </Text>
-                <Text className="font-bold text-emerald-700 dark:text-emerald-400">
-                  {formatFCFA(dejaEncaisse)} FCFA
+                <Text className="font-bold text-slate-700 dark:text-slate-300">
+                  {formatFCFA(encoursClient)} F
                 </Text>
               </View>
             ) : null}
-            <View className="border-t border-slate-100 dark:border-slate-800 mt-3 pt-3 flex-row justify-between">
+            <View className="flex-row justify-between mb-2">
+              <Text className="text-slate-500 dark:text-slate-400 text-[12px]">
+                Solde du client
+              </Text>
+              <Text
+                className={`font-bold ${
+                  soldeClient > 0
+                    ? 'text-amber-700 dark:text-amber-400'
+                    : soldeClient < 0
+                    ? 'text-emerald-700 dark:text-emerald-400'
+                    : 'text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                {soldeClient < 0 ? '+' : ''}
+                {formatFCFA(Math.abs(soldeClient))} F
+                {soldeClient < 0 ? ' (crédit)' : soldeClient > 0 ? ' (dû)' : ''}
+              </Text>
+            </View>
+            <View className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-3 flex-row justify-between">
               <Text className="text-slate-700 dark:text-slate-300 font-bold">
                 Reste à encaisser
               </Text>
               <Text className="font-extrabold text-amber-600 dark:text-amber-400 text-base">
-                {formatFCFA(reste)} FCFA
+                {formatFCFA(resteAPayer)} FCFA
               </Text>
             </View>
           </View>
 
+          {/* Liste des livraisons non encaissées (mode client uniquement) */}
+          {mode === 'client' && livraisonsNonEncaissees.length > 0 ? (
+            <View className="mt-3">
+              <Text className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                Livraisons non encaissées ({livraisonsNonEncaissees.length})
+              </Text>
+              <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 gap-2">
+                {livraisonsNonEncaissees.map((l) => (
+                  <View
+                    key={l.id}
+                    className="flex-row justify-between items-center"
+                  >
+                    <View className="flex-1 pr-2">
+                      <Text className="text-[12px] font-bold text-slate-700 dark:text-slate-300">
+                        {formatDateShort(l.date)}
+                      </Text>
+                      <Text className="text-[10px] text-slate-400 dark:text-slate-500">
+                        {(l.produitsLivraison ?? [])
+                          .map((p) => `${p.qteLivre} ${p.produit.designation}`)
+                          .join(' · ') || '—'}
+                      </Text>
+                    </View>
+                    <Text className="font-extrabold text-slate-700 dark:text-slate-300">
+                      {formatFCFA(l.montantLivre)} F
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          {mode === 'client' && livraisonsNonEncaissees.length === 0 ? (
+            <View className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-md p-3 mt-3">
+              <Text className="text-[12px] text-emerald-700 dark:text-emerald-400 text-center">
+                Toutes les livraisons sont déjà encaissées.
+                {soldeClient > 0
+                  ? ' Le solde restant correspond à une dette antérieure.'
+                  : ''}
+              </Text>
+            </View>
+          ) : null}
+
           {/* Montant */}
           <Text className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
-            Montant reçu
+            Montant reçu (FCFA)
           </Text>
           <TextInput
             value={montant}
             onChangeText={setMontant}
             keyboardType="number-pad"
+            selectTextOnFocus
             placeholder="0"
             placeholderTextColor="#94a3b8"
             className="px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-2xl font-extrabold"
           />
 
-          {/* Quick fill */}
-          <View className="flex-row gap-2 mt-2">
-            <Pressable
-              onPress={() => setMontant(String(reste))}
-              className="bg-emerald-100 dark:bg-emerald-500/15 px-3 py-1.5 rounded-md active:opacity-70"
-            >
-              <Text className="text-emerald-700 dark:text-emerald-400 text-[11px] font-bold">
-                Tout ({formatFCFA(reste)})
-              </Text>
-            </Pressable>
+          {/* Quick fills */}
+          <View className="flex-row gap-2 mt-2 flex-wrap">
+            {resteAPayer > 0 ? (
+              <Pressable
+                onPress={() => setMontant(String(resteAPayer))}
+                className="bg-emerald-100 dark:bg-emerald-500/15 px-3 py-1.5 rounded-md active:opacity-70"
+              >
+                <Text className="text-emerald-700 dark:text-emerald-400 text-[11px] font-bold">
+                  Tout solder ({formatFCFA(resteAPayer)})
+                </Text>
+              </Pressable>
+            ) : null}
+            {totalCible > 0 && totalCible !== resteAPayer ? (
+              <Pressable
+                onPress={() => setMontant(String(totalCible))}
+                className="bg-blue-100 dark:bg-blue-500/15 px-3 py-1.5 rounded-md active:opacity-70"
+              >
+                <Text className="text-blue-700 dark:text-blue-400 text-[11px] font-bold">
+                  Total ({formatFCFA(totalCible)})
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
 
           {/* Mode toggle */}
@@ -240,19 +412,10 @@ export default function EncaisserLivraison() {
               : 'Encaisse les livraisons de la plage choisie (vérifie les chevauchements).'}
           </Text>
 
-          {/* Date pickers */}
           {!libre ? (
             <View className="mt-4 gap-3">
-              <DatePickerField
-                label="Date début"
-                value={dateDebut}
-                onChange={setDateDebut}
-              />
-              <DatePickerField
-                label="Date fin"
-                value={dateFin}
-                onChange={setDateFin}
-              />
+              <DatePickerField label="Date début" value={dateDebut} onChange={setDateDebut} />
+              <DatePickerField label="Date fin" value={dateFin} onChange={setDateFin} />
             </View>
           ) : null}
 
@@ -281,9 +444,9 @@ export default function EncaisserLivraison() {
           {/* Submit */}
           <Pressable
             onPress={onSubmit}
-            disabled={m.isPending || !isOnline}
+            disabled={m.isPending || !isOnline || montantInt <= 0}
             className={`rounded-md py-3.5 mt-6 items-center ${
-              !isOnline
+              !isOnline || montantInt <= 0
                 ? 'bg-slate-200 dark:bg-slate-800'
                 : 'bg-emerald-500 active:opacity-80'
             }`}
@@ -293,11 +456,13 @@ export default function EncaisserLivraison() {
             ) : (
               <Text
                 className={`font-bold text-base ${
-                  !isOnline ? 'text-slate-400' : 'text-white'
+                  !isOnline || montantInt <= 0 ? 'text-slate-400' : 'text-white'
                 }`}
               >
                 {!isOnline
                   ? 'Hors ligne — réessaye en ligne'
+                  : montantInt <= 0
+                  ? 'Saisis un montant'
                   : `Encaisser ${formatFCFA(montantInt)} FCFA`}
               </Text>
             )}

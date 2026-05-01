@@ -13,9 +13,13 @@ import type {
  * on indique combien d'unités le client rapporte.
  *
  * Côté back : la quantité est ajoutée à `qteRetournee` du
- * ProduitLivraison correspondant ; le stock courant du livreur est
- * ré-incrémenté et le solde du client est déduit (
- * `ModifierLivraisonUseCase` orchestre le tout dans une transaction).
+ * ProduitLivraison correspondant ; le solde du client est déduit
+ * du montant retourné. Le stock courant n'est PAS ré-incrémenté
+ * (le delta du back est calculé sur `qteLivree` uniquement, qui
+ * reste inchangée lors d'un retour — les unités retournées sont
+ * considérées comme perdues côté stock, ce qui correspond au
+ * métier boulangerie).
+ * `ModifierLivraisonUseCase` orchestre le tout dans une transaction.
  */
 export interface LigneRetour {
   produitLivraisonId: UUID;

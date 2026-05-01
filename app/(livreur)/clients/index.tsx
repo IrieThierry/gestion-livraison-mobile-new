@@ -62,47 +62,14 @@ export default function ClientsList() {
   };
 
   const onEncaisser = (client: ClientResponse) => {
-    const livraisons = qLiv.data ?? [];
-    const pending = livraisons.filter(
-      (l) => l.client.id === client.id && l.statut !== 'ENCAISSEE',
-    );
-    if (pending.length === 0) {
-      Alert.alert(
-        'Rien à encaisser',
-        `Aucune livraison en attente pour ${client.prenom} ${client.nom}.`,
-      );
-      return;
-    }
-    if (pending.length === 1) {
-      router.push({
-        pathname: '/(livreur)/cash/encaisser' as never,
-        params: { livraisonId: pending[0].id },
-      } as never);
-      return;
-    }
-    // Multiple pending: choose latest, or open the full list filtered.
-    const sorted = [...pending].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-    );
-    Alert.alert(
-      `${pending.length} livraisons à encaisser`,
-      `${client.prenom} ${client.nom} a ${pending.length} livraisons en attente. Encaisser la plus récente ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Voir toutes',
-          onPress: () => router.push('/(livreur)/livraisons' as never),
-        },
-        {
-          text: 'Plus récente',
-          onPress: () =>
-            router.push({
-              pathname: '/(livreur)/cash/encaisser' as never,
-              params: { livraisonId: sorted[0].id },
-            } as never),
-        },
-      ],
-    );
+    // On ouvre directement la page d'encaissement en MODE CLIENT — la page
+    // agrège elle-même les livraisons non encaissées, calcule le total
+    // dû et le solde, et pré-remplit le montant à encaisser. Plus besoin
+    // de choisir une livraison spécifique.
+    router.push({
+      pathname: '/(livreur)/cash/encaisser' as never,
+      params: { clientId: client.id },
+    } as never);
   };
 
   return (
