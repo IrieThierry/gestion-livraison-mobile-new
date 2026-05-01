@@ -8,6 +8,7 @@ import {
   Coins,
   TrendingUp,
   ArrowRight,
+  RotateCcw,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { StatCard } from '../../../components/shared/StatCard';
@@ -118,6 +119,14 @@ export default function CashOverview() {
               label="Reversements"
               hint="Marges dues aux clients / fournisseurs"
               onPress={() => router.push('/(livreur)/cash/reversements' as never)}
+              border
+            />
+            <CashMenuRow
+              icon={RotateCcw}
+              color="#f59e0b"
+              label="Retours"
+              hint="Liste des retours par client + filtres"
+              onPress={() => router.push('/(livreur)/cash/retours' as never)}
               border
             />
             {/* Encours visible pour les livreurs racines (pas pour les apprentis) */}

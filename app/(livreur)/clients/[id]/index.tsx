@@ -24,6 +24,7 @@ import {
   Info as InfoIcon,
   ListFilter,
   Pencil,
+  RotateCcw,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
@@ -353,6 +354,55 @@ export default function ClientDetail() {
             </View>
             <ArrowRight color="#94a3b8" size={16} />
           </Pressable>
+
+          {/* Retours du client — raccourci vers la liste filtrée */}
+          {(() => {
+            const nbRetours = livraisonsClient.reduce(
+              (acc, l) =>
+                acc +
+                (l.produitsLivraison ?? []).reduce(
+                  (s, p) => s + ((p.qteRetourne ?? 0) > 0 ? 1 : 0),
+                  0,
+                ),
+              0,
+            );
+            const totalRetours = livraisonsClient.reduce(
+              (acc, l) =>
+                acc +
+                (l.produitsLivraison ?? []).reduce(
+                  (s, p) =>
+                    s + (p.qteRetourne ?? 0) * (Number(p.prixDeVente) || 0),
+                  0,
+                ),
+              0,
+            );
+            return (
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: '/(livreur)/cash/retours' as never,
+                    params: { clientId: client.id },
+                  } as never)
+                }
+                className="mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-3 active:opacity-70"
+              >
+                <View className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-500/15 items-center justify-center">
+                  <RotateCcw color="#d97706" size={18} />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-extrabold text-slate-900 dark:text-white">
+                    Retours
+                  </Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {nbRetours === 0
+                      ? 'Aucun retour enregistré'
+                      : `${nbRetours} ligne${nbRetours > 1 ? 's' : ''} · ${formatFCFA(totalRetours)} F`}
+                  </Text>
+                </View>
+                <ArrowRight color="#94a3b8" size={16} />
+              </Pressable>
+            );
+          })()}
 
           {/* ===== Section pliable : Info ===== */}
           <Section
