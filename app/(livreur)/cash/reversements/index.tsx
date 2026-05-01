@@ -8,7 +8,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Building2, Users, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Building2, Users, ArrowRight, ChevronLeft, ChevronRight, History } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import { useReversementsSyntheseLivreur } from '../../../../features/reversements/hooks';
@@ -56,7 +56,21 @@ export default function ReversementsSynthese() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Reversements" subtitle={moisLabel} />
+      <PageHeader
+        title="Reversements"
+        subtitle={moisLabel}
+        right={
+          <Pressable
+            onPress={() => router.push('/(livreur)/cash/reversements/historique' as never)}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-70"
+          >
+            <History color="#64748b" size={14} />
+            <Text className="text-slate-700 dark:text-slate-300 text-xs font-bold">
+              Historique
+            </Text>
+          </Pressable>
+        }
+      />
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: 32 }}
