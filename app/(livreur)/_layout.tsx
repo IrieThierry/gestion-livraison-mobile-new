@@ -26,20 +26,29 @@ import { useThemeStore } from '../../stores/themeStore';
  * ne fait rien — on reste coincé sur la sous-route. On force ici le pop
  * jusqu'à la racine de la pile interne en redirigeant explicitement vers
  * la page racine de l'onglet.
+ *
+ * NB : on n'appelle plus `router.dismissAll()` à l'aveugle car ça
+ * dispatche `POP_TO_TOP` au niveau du Tabs navigator (qui ne le gère
+ * pas) et déclenche un warning dev "POP_TO_TOP was not handled by any
+ * navigator". On utilise `canDismiss()` comme garde — qui n'existe que
+ * dans Expo Router ≥ 4 — et on tombe en silence si l'API n'est pas
+ * dispo.
  */
 function popToTopOnReTap(path: string) {
   return ({ navigation }: { navigation: { isFocused?: () => boolean } }) => ({
     tabPress: (e: { preventDefault: () => void }) => {
       if (!navigation.isFocused?.()) return;
       e.preventDefault();
-      // Dismiss everything that was pushed on top of the tab root (sub-routes
-      // opened via router.push from the tab's index), then ensure we are on
-      // the root path. Belt-and-suspenders for cases where dismissAll doesn't
-      // know about the route (e.g. opened via FAB modal).
       try {
-        router.dismissAll();
+        const r = router as unknown as {
+          canDismiss?: () => boolean;
+          dismissAll?: () => void;
+        };
+        if (r.canDismiss?.()) {
+          r.dismissAll?.();
+        }
       } catch {
-        /* nothing to dismiss — fine */
+        /* fail silently — `replace` ci-dessous prend le relais */
       }
       router.replace(path as never);
     },

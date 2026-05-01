@@ -1,4 +1,4 @@
-import { ScrollView, View, Text, Pressable, Alert, Linking } from 'react-native';
+import { ScrollView, View, Text, Pressable, Alert, Linking, Image } from 'react-native';
 import { router } from 'expo-router';
 import {
   LogOut,
@@ -52,14 +52,12 @@ export default function Profil() {
     ]);
   };
 
-  const onPhotoTap = () => {
-    Alert.alert(
-      'Photo de profil',
-      'La gestion de la photo arrivera bientôt — tu pourras choisir une photo depuis ton appareil.',
-    );
-  };
+  // Tap sur l'avatar → ouvre la page de modification d'infos où la photo
+  // est gérée (upload + delete via expo-image-picker + photosApi).
+  const onPhotoTap = () => router.push('/(livreur)/profil/infos' as never);
 
   const initials = `${user.prenom?.[0] ?? ''}${user.nom?.[0] ?? ''}`.toUpperCase();
+  const hasPhoto = !!user.photoUrl;
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
@@ -70,10 +68,21 @@ export default function Profil() {
           {/* User card */}
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5 items-center">
             <Pressable onPress={onPhotoTap} hitSlop={6} className="active:opacity-70">
-              <View className="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
-                <Text className="text-emerald-700 dark:text-emerald-400 font-extrabold text-2xl">
-                  {initials || '?'}
-                </Text>
+              <View
+                className="w-20 h-20 rounded-full overflow-hidden items-center justify-center"
+                style={{ backgroundColor: hasPhoto ? '#f1f5f9' : '#d1fae5' }}
+              >
+                {hasPhoto ? (
+                  <Image
+                    source={{ uri: user.photoUrl ?? undefined }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text className="text-emerald-700 dark:text-emerald-400 font-extrabold text-2xl">
+                    {initials || '?'}
+                  </Text>
+                )}
               </View>
               <View className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-emerald-500 items-center justify-center border-2 border-white dark:border-slate-900">
                 <Camera color="#fff" size={14} />

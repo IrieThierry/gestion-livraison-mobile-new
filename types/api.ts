@@ -33,6 +33,13 @@ export interface AuthResponse {
   // `false` = compte désactivé par admin / parent (login refusé). Optionnel
   // pour back-compat.
   actif?: boolean
+  // URL absolue ou relative de la photo de profil. `null` ou `undefined`
+  // signifie qu'aucune photo n'est définie (fallback initiales).
+  photoUrl?: string | null
+}
+
+export interface PhotoUploadResponse {
+  photoUrl: string
 }
 
 /**

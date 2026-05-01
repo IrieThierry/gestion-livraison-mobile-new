@@ -7,14 +7,20 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
-import { Save } from 'lucide-react-native';
+import { Save, Camera, Trash2 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { authApi } from '../../../features/auth/api';
 import { updateProfileSchema } from '../../../features/auth/schemas';
+import {
+  useUploadMaPhoto,
+  useSupprimerMaPhoto,
+} from '../../../features/photos/hooks';
 import { useAuthStore } from '../../../stores/authStore';
+import { pickImage } from '../../../lib/image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
@@ -53,7 +59,41 @@ export default function ModifierInfos() {
     },
   });
 
+  // Photo : upload + delete via les hooks dédiés. On ne touche PAS au form
+  // info — l'upload met à jour user.photoUrl à la volée et persiste dans
+  // AsyncStorage (cf. useUploadMaPhoto.onSuccess).
+  const uploadPhoto = useUploadMaPhoto();
+  const deletePhoto = useSupprimerMaPhoto();
+
+  const onPickPhoto = async () => {
+    const picked = await pickImage({ aspect: [1, 1] });
+    if (!picked) return;
+    uploadPhoto.mutate(
+      { uri: picked.uri, name: picked.name },
+      {
+        onError: (err: unknown) => {
+          const e = err as { response?: { data?: { message?: string } } };
+          Alert.alert('Erreur', e.response?.data?.message ?? 'Upload échoué');
+        },
+      },
+    );
+  };
+
+  const onDeletePhoto = () => {
+    Alert.alert('Supprimer la photo ?', 'Tu retomberas sur tes initiales.', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: () => deletePhoto.mutate(),
+      },
+    ]);
+  };
+
   if (!user) return null;
+
+  const initials = `${user.prenom?.[0] ?? ''}${user.nom?.[0] ?? ''}`.toUpperCase();
+  const hasPhoto = !!user.photoUrl;
 
   const onSubmit = () => {
     const parsed = updateProfileSchema.safeParse({ prenom, nom, contact, email });
@@ -77,6 +117,63 @@ export default function ModifierInfos() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="px-4 gap-3 pt-3">
+          {/* Photo de profil */}
+          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 items-center">
+            <Pressable
+              onPress={onPickPhoto}
+              disabled={uploadPhoto.isPending}
+              className="active:opacity-70"
+            >
+              <View
+                className="w-24 h-24 rounded-full overflow-hidden items-center justify-center"
+                style={{ backgroundColor: hasPhoto ? '#f1f5f9' : '#d1fae5' }}
+              >
+                {hasPhoto ? (
+                  <Image
+                    source={{ uri: user.photoUrl ?? undefined }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text className="text-emerald-700 text-3xl font-extrabold">
+                    {initials || '?'}
+                  </Text>
+                )}
+                {uploadPhoto.isPending ? (
+                  <View className="absolute inset-0 bg-black/50 items-center justify-center">
+                    <ActivityIndicator color="#fff" />
+                  </View>
+                ) : null}
+              </View>
+              <View className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-emerald-500 items-center justify-center border-2 border-white dark:border-slate-900">
+                <Camera color="#fff" size={14} />
+              </View>
+            </Pressable>
+
+            <Text className="text-[12px] text-slate-500 dark:text-slate-400 mt-3 text-center">
+              {hasPhoto
+                ? 'Tape la photo pour la remplacer'
+                : 'Tape pour ajouter une photo'}
+            </Text>
+
+            {hasPhoto ? (
+              <Pressable
+                onPress={onDeletePhoto}
+                disabled={deletePhoto.isPending}
+                className="flex-row items-center gap-1.5 mt-3 px-3 py-1.5 rounded-md bg-red-50 dark:bg-red-500/10 active:opacity-70"
+              >
+                {deletePhoto.isPending ? (
+                  <ActivityIndicator color="#dc2626" size="small" />
+                ) : (
+                  <Trash2 color="#dc2626" size={12} />
+                )}
+                <Text className="text-[11px] font-bold text-red-600 dark:text-red-400">
+                  Supprimer la photo
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+
           <Field
             label="Prénom *"
             value={prenom}
