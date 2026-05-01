@@ -256,22 +256,37 @@ export default function ClientDetail() {
         </View>
       </View>
 
-      {/* Tab content */}
-      {tab === 'info' ? (
-        <ScrollView
-          contentContainerStyle={{ paddingBottom: 32 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={qC.isFetching && !qC.isLoading}
-              onRefresh={() => {
+      {/* Tab content — UN SEUL ScrollView monté en permanence pour éviter
+          que la conditionnelle de monter/démonter rende le navigation
+          context instable au moment du switch. Le contenu interne change
+          via la conditionnelle ternaire. */}
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={
+              tab === 'info'
+                ? qC.isFetching && !qC.isLoading
+                : tab === 'livraisons'
+                ? qL.isFetching && !qL.isLoading
+                : qE.isFetching && !qE.isLoading
+            }
+            onRefresh={() => {
+              if (tab === 'info') {
                 qC.refetch();
                 qL.refetch();
                 qE.refetch();
-              }}
-              tintColor="#10b981"
-            />
-          }
-        >
+              } else if (tab === 'livraisons') {
+                qL.refetch();
+              } else {
+                qE.refetch();
+              }
+            }}
+            tintColor="#10b981"
+          />
+        }
+      >
+        {tab === 'info' ? (
           <View className="px-4 pt-3">
             {/* CTA row */}
             <View className="flex-row gap-2">
@@ -381,18 +396,7 @@ export default function ClientDetail() {
               <InfoRow icon={Percent} label="Avec remise" value={client.avecOuSansRemise ? 'Oui' : 'Non'} />
             </View>
           </View>
-        </ScrollView>
-      ) : tab === 'livraisons' ? (
-        <ScrollView
-          contentContainerStyle={{ paddingBottom: 32 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={qL.isFetching && !qL.isLoading}
-              onRefresh={() => qL.refetch()}
-              tintColor="#10b981"
-            />
-          }
-        >
+        ) : tab === 'livraisons' ? (
           <View className="px-4 pt-3">
             {/* Filtres période */}
             <View className="flex-row items-center gap-1.5 mb-2">
@@ -458,18 +462,7 @@ export default function ClientDetail() {
               </View>
             )}
           </View>
-        </ScrollView>
-      ) : (
-        <ScrollView
-          contentContainerStyle={{ paddingBottom: 32 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={qE.isFetching && !qE.isLoading}
-              onRefresh={() => qE.refetch()}
-              tintColor="#10b981"
-            />
-          }
-        >
+        ) : (
           <View className="px-4 pt-3">
             {/* Filtre période */}
             <View className="flex-row items-center gap-1.5 mb-2">
@@ -530,8 +523,8 @@ export default function ClientDetail() {
               </View>
             )}
           </View>
-        </ScrollView>
-      )}
+        )}
+      </ScrollView>
     </View>
   );
 }

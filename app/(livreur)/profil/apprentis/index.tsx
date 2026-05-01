@@ -34,8 +34,10 @@ export default function ApprentisList() {
   const toggleMut = useToggleApprentiActif();
   const [search, setSearch] = useState('');
 
-  const isRoot =
-    !!user && user.role === 'LIVREUR' && (user.parentId ?? null) === null;
+  // Tu es root si tu n'as pas de parentId. On relaxe la condition par
+  // rapport à `role === 'LIVREUR'` car certaines sessions legacy n'ont
+  // pas le champ `role` — alignée avec la gate du menu Profil.
+  const isRoot = !!user && !user.parentId;
 
   const filtered = useMemo(() => {
     // Tri stable alphabétique par prénom puis nom
