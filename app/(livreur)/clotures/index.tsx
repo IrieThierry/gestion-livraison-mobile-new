@@ -36,7 +36,11 @@ export default function CloturesList() {
       />
 
       <FlatList
-        data={q.data ?? []}
+        data={[...(q.data ?? [])].sort(
+          (a, b) =>
+            new Date(b.dateCloture).getTime() -
+            new Date(a.dateCloture).getTime(),
+        )}
         keyExtractor={(c) => c.id}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}
         refreshControl={

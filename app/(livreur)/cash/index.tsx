@@ -119,8 +119,8 @@ export default function CashOverview() {
               onPress={() => router.push('/(livreur)/cash/reversements' as never)}
               border
             />
-            {/* Encours visible uniquement pour les livreurs racines */}
-            {user.role === 'LIVREUR' && (user.parentId ?? null) === null ? (
+            {/* Encours visible pour les livreurs racines (pas pour les apprentis) */}
+            {!user.parentId ? (
               <CashMenuRow
                 icon={TrendingUp}
                 color="#f59e0b"

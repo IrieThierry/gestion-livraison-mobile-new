@@ -22,7 +22,13 @@ import { useAuthStore } from '../../../stores/authStore';
 export default function StockCourant() {
   const user = useAuthStore((s) => s.user);
   const q = useStockCourant();
-  const items = q.data ?? [];
+  // Tri stable alphabétique par désignation produit
+  const items = [...(q.data ?? [])].sort((a, b) =>
+    (a.produit?.designation ?? '').localeCompare(
+      b.produit?.designation ?? '',
+      'fr',
+    ),
+  );
 
   if (!user) return null;
 
@@ -67,8 +73,8 @@ export default function StockCourant() {
             </Text>
           </View>
 
-          {/* Submenu (root only) */}
-          {user.role === 'LIVREUR' && (user.parentId ?? null) === null ? (
+          {/* Submenu (root only — pas pour les apprentis) */}
+          {!user.parentId ? (
             <View className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
               <Pressable
                 onPress={() => router.push('/(livreur)/stock/transferts' as never)}

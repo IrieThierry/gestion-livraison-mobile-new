@@ -54,7 +54,10 @@ export default function LivraisonsList() {
           (l.client.quartier?.libelle ?? '').toLowerCase().includes(needle),
       );
     }
-    return list;
+    // Tri stable : plus récent en premier (date desc)
+    return [...list].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
   }, [q.data, period, search]);
 
   const stats = useMemo(() => {

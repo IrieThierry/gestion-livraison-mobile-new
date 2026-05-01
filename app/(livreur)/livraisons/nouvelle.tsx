@@ -30,7 +30,13 @@ export default function NouvelleLivraison() {
   const [lignes, setLignes] = useState<Ligne[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [insufficientCount, setInsufficientCount] = useState(0);
-  const total = lignes.reduce((acc, l) => acc + l.prix * l.qte, 0);
+  // Total = somme des `prix × (qte livrée − qte retournée)` sur chaque ligne.
+  // Une qté retournée saisie au moment de la livraison réduit d'autant le
+  // total, comme côté web (`(qteLivree - qteRetournee) * prixDeVente`).
+  const total = lignes.reduce(
+    (acc, l) => acc + l.prix * Math.max(0, l.qte - (l.qteRet ?? 0)),
+    0,
+  );
   const m = useCreerLivraison();
   const qc = useQueryClient();
 
@@ -90,8 +96,20 @@ export default function NouvelleLivraison() {
       return;
     }
 
+    // Bloque les retours invalides (qteRet > qte) — l'erreur côté UI
+    // est déjà visible mais on rajoute une garde finale.
+    if (validLignes.some((l) => (l.qteRet ?? 0) > l.qte)) {
+      Alert.alert(
+        'Erreur',
+        'Une ligne a un retour supérieur à la quantité livrée',
+      );
+      return;
+    }
+
     // Payload conforme à `CreerLivraisonRequest` (cf. types/api.ts) — c'est
-    // exactement ce que la page web `NouvelleLivraisonPage` envoie.
+    // exactement ce que la page web `NouvelleLivraisonPage` envoie. La
+    // `qteRetournee` peut être > 0 si le client a refusé une partie au
+    // moment de la livraison (le back ré-incrémente le stock côté serveur).
     const payload: CreerLivraisonRequest = {
       livreurId: user.id,
       clientId: client.id,
@@ -99,7 +117,7 @@ export default function NouvelleLivraison() {
       produitsLivraison: validLignes.map((l) => ({
         produitId: l.produitId,
         qteLivree: l.qte,
-        qteRetournee: 0,
+        qteRetournee: l.qteRet ?? 0,
         prixDeVente: l.prix,
       })),
     };
@@ -148,6 +166,7 @@ export default function NouvelleLivraison() {
               prixDeVenteParDefaut={client?.prixDeVenteProduitParDefault}
               clientId={client?.id}
               enforceStock
+              allowReturns
               onValidityChange={setInsufficientCount}
             />
           </View>

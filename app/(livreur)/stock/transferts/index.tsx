@@ -37,7 +37,11 @@ export default function TransfertsList() {
       />
 
       <FlatList
-        data={q.data ?? []}
+        data={[...(q.data ?? [])].sort(
+          (a, b) =>
+            new Date(b.dateTransfert).getTime() -
+            new Date(a.dateTransfert).getTime(),
+        )}
         keyExtractor={(t) => t.id}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}
         refreshControl={

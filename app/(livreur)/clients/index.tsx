@@ -37,10 +37,14 @@ export default function ClientsList() {
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
-    const data = q.data ?? [];
-    if (!search.trim()) return data;
+    // Tri stable alphabétique par prénom puis nom — l'ordre est figé peu
+    // importe ce que renvoie le back (qui peut varier).
+    const sorted = [...(q.data ?? [])].sort((a, b) =>
+      `${a.prenom} ${a.nom}`.localeCompare(`${b.prenom} ${b.nom}`, 'fr'),
+    );
+    if (!search.trim()) return sorted;
     const needle = search.toLowerCase();
-    return data.filter(
+    return sorted.filter(
       (c) =>
         `${c.prenom} ${c.nom}`.toLowerCase().includes(needle) ||
         (c.quartier?.libelle ?? '').toLowerCase().includes(needle) ||

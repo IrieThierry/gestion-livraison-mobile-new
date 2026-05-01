@@ -158,10 +158,13 @@ export default function Profil() {
               </View>
               <ChevronRight color="#94a3b8" size={18} />
             </Pressable>
-            {/* Mes apprentis — visible uniquement pour les livreurs racines.
+            {/* Mes apprentis — visible pour les livreurs racines uniquement.
                 Un apprenti (parentId défini) ne peut pas avoir lui-même
-                des sous-apprentis dans la hiérarchie actuelle. */}
-            {user.role === 'LIVREUR' && (user.parentId ?? null) === null ? (
+                des sous-apprentis dans la hiérarchie actuelle. On ne filtre
+                que sur `parentId` : ça gère aussi les sessions legacy où
+                le back ne renvoyait pas `role` (la version la plus
+                permissive — un admin sera de toute façon bloqué côté API). */}
+            {!user.parentId ? (
               <Pressable
                 onPress={() =>
                   router.push('/(livreur)/profil/apprentis' as never)

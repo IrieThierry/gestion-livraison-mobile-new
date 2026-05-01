@@ -38,10 +38,13 @@ export default function ApprentisList() {
     !!user && user.role === 'LIVREUR' && (user.parentId ?? null) === null;
 
   const filtered = useMemo(() => {
-    const data = q.data ?? [];
-    if (!search.trim()) return data;
+    // Tri stable alphabétique par prénom puis nom
+    const sorted = [...(q.data ?? [])].sort((a, b) =>
+      `${a.prenom} ${a.nom}`.localeCompare(`${b.prenom} ${b.nom}`, 'fr'),
+    );
+    if (!search.trim()) return sorted;
     const needle = search.toLowerCase();
-    return data.filter(
+    return sorted.filter(
       (a) =>
         `${a.prenom} ${a.nom}`.toLowerCase().includes(needle) ||
         (a.username ?? '').toLowerCase().includes(needle) ||

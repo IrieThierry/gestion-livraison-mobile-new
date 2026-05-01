@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -19,6 +19,8 @@ import {
   Percent,
   ArrowRight,
   DollarSign,
+  Info,
+  ListFilter,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
@@ -40,13 +42,21 @@ function parseLatLng(s: string | null | undefined): { lat: number; lng: number }
   return null;
 }
 
+type Periode = '7j' | '30j' | '90j' | 'all';
+type LivraisonStatut = 'all' | 'LIVREE' | 'ENCAISSEE';
+
+const PERIODES: Array<{ key: Periode; label: string; days: number | null }> = [
+  { key: '7j', label: '7 jours', days: 7 },
+  { key: '30j', label: '30 jours', days: 30 },
+  { key: '90j', label: '90 jours', days: 90 },
+  { key: 'all', label: 'Tout', days: null },
+];
+
 /**
- * Fiche client — accessible en tappant sur une ligne de la liste Clients.
- *
- * Affiche en un coup d'œil tout ce dont le livreur a besoin pour traiter
- * un client : coordonnées + carte + solde/encours, historique des dernières
- * livraisons + encaissements. Trois CTA principaux : Appeler, Y aller,
- * Livrer / Encaisser.
+ * Fiche client — 3 onglets :
+ *   • Info — coordonnées, GPS, synthèse, infos perso
+ *   • Livraisons — filtre période + statut, list
+ *   • Encaissements — filtre période, list
  */
 export default function ClientDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -57,24 +67,38 @@ export default function ClientDetail() {
   const qE = useEncaissementsByLivreur(livreurId);
   const qPrix = usePrixClient(id);
 
+  const [tab, setTab] = useState<'info' | 'livraisons' | 'encaissements'>('info');
+  const [periodeLiv, setPeriodeLiv] = useState<Periode>('30j');
+  const [periodeEnc, setPeriodeEnc] = useState<Periode>('30j');
+  const [statutLiv, setStatutLiv] = useState<LivraisonStatut>('all');
+
   const client = useMemo(
     () => (qC.data ?? []).find((c) => c.id === id),
     [qC.data, id],
   );
 
   const livraisonsClient = useMemo(
-    () => (qL.data ?? []).filter((l) => l.client.id === id),
+    () =>
+      (qL.data ?? [])
+        .filter((l) => l.client.id === id)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     [qL.data, id],
   );
 
   const encaissementsClient = useMemo(
-    () => (qE.data ?? []).filter((e) => e.client?.id === id),
+    () =>
+      (qE.data ?? [])
+        .filter((e) => e.client?.id === id)
+        .sort((a, b) => {
+          const da = a.date ? new Date(a.date).getTime() : 0;
+          const db = b.date ? new Date(b.date).getTime() : 0;
+          return db - da;
+        }),
     [qE.data, id],
   );
 
   const solde = useMemo(
-    () =>
-      computeSoldeForClient(qL.data ?? [], qE.data ?? [], id ?? ''),
+    () => computeSoldeForClient(qL.data ?? [], qE.data ?? [], id ?? ''),
     [qL.data, qE.data, id],
   );
 
@@ -82,6 +106,33 @@ export default function ClientDetail() {
     () => computeEncoursForClient(qL.data ?? [], id ?? ''),
     [qL.data, id],
   );
+
+  // Livraisons filtrées (période + statut)
+  const livFiltrees = useMemo(() => {
+    const now = Date.now();
+    const days = PERIODES.find((p) => p.key === periodeLiv)?.days ?? null;
+    return livraisonsClient.filter((l) => {
+      if (days !== null && now - new Date(l.date).getTime() > days * 86_400_000) {
+        return false;
+      }
+      if (statutLiv === 'all') return true;
+      if (statutLiv === 'ENCAISSEE') return l.statut === 'ENCAISSEE';
+      if (statutLiv === 'LIVREE') return l.statut !== 'ENCAISSEE';
+      return true;
+    });
+  }, [livraisonsClient, periodeLiv, statutLiv]);
+
+  // Encaissements filtrés (période seule)
+  const encFiltres = useMemo(() => {
+    const now = Date.now();
+    const days = PERIODES.find((p) => p.key === periodeEnc)?.days ?? null;
+    return encaissementsClient.filter((e) => {
+      if (days !== null && e.date) {
+        return now - new Date(e.date).getTime() <= days * 86_400_000;
+      }
+      return true;
+    });
+  }, [encaissementsClient, periodeEnc]);
 
   if (!user) return null;
 
@@ -119,282 +170,433 @@ export default function ClientDetail() {
 
   const onEncaisser = () => {
     const pending = livraisonsClient.filter((l) => l.statut !== 'ENCAISSEE');
-    if (pending.length === 0) return; // bouton désactivé en amont
-    if (pending.length === 1) {
-      router.push({
-        pathname: '/(livreur)/cash/encaisser' as never,
-        params: { livraisonId: pending[0].id },
-      } as never);
-      return;
-    }
-    const sorted = [...pending].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-    );
+    if (pending.length === 0) return;
+    const target = pending[0];
     router.push({
       pathname: '/(livreur)/cash/encaisser' as never,
-      params: { livraisonId: sorted[0].id },
+      params: { livraisonId: target.id },
     } as never);
   };
 
   const hasPendingLivraisons = livraisonsClient.some((l) => l.statut !== 'ENCAISSEE');
 
+  // Total des encaissements filtrés (pour la card en haut de l'onglet)
+  const totalEncFiltres = encFiltres.reduce(
+    (acc, e) => acc + (e.montantEncaisse ?? 0),
+    0,
+  );
+  const totalLivFiltrees = livFiltrees.reduce(
+    (acc, l) => acc + (l.montantLivre ?? 0),
+    0,
+  );
+
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader title={fullName} subtitle={client.quartier?.libelle ?? '—'} />
 
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 32 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={qC.isFetching && !qC.isLoading}
-            onRefresh={() => {
-              qC.refetch();
-              qL.refetch();
-              qE.refetch();
-            }}
-            tintColor="#10b981"
-          />
-        }
-      >
-        <View className="px-4 pt-3">
-          {/* Hero — avatar + nom + solde */}
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 flex-row items-center gap-3">
-            <View className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
-              <Text className="text-emerald-700 dark:text-emerald-400 font-extrabold text-base">
-                {initials || '?'}
+      {/* Hero — toujours visible au-dessus des onglets */}
+      <View className="px-4 pt-3 bg-slate-50 dark:bg-slate-950">
+        <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-3">
+          <View className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
+            <Text className="text-emerald-700 dark:text-emerald-400 font-extrabold text-sm">
+              {initials || '?'}
+            </Text>
+          </View>
+          <View className="flex-1">
+            <Text className="font-extrabold text-slate-900 dark:text-white">
+              {fullName}
+            </Text>
+            {client.contact ? (
+              <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                {client.contact}
               </Text>
-            </View>
-            <View className="flex-1">
-              <Text className="font-extrabold text-slate-900 dark:text-white text-lg">
-                {fullName}
-              </Text>
-              {client.contact ? (
-                <Text className="text-[12px] text-slate-500 dark:text-slate-400">
-                  {client.contact}
+            ) : null}
+          </View>
+          {debt ? (
+            <View className="items-end">
+              <View className="bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 rounded-full">
+                <Text className="text-[11px] font-extrabold text-amber-800 dark:text-amber-400">
+                  {formatFCFA(solde)} F
                 </Text>
-              ) : null}
-            </View>
-            {debt ? (
-              <View className="items-end">
-                <View className="bg-amber-100 dark:bg-amber-500/15 px-2 py-1 rounded-full">
-                  <Text className="text-[11px] font-extrabold text-amber-800 dark:text-amber-400">
-                    {formatFCFA(solde)} F
-                  </Text>
-                </View>
-                <Text className="text-[9px] text-slate-400 mt-1">SOLDE DÛ</Text>
               </View>
-            ) : credit ? (
-              <View className="items-end">
-                <View className="bg-emerald-100 dark:bg-emerald-500/15 px-2 py-1 rounded-full">
-                  <Text className="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400">
-                    +{formatFCFA(Math.abs(solde))} F
-                  </Text>
-                </View>
-                <Text className="text-[9px] text-slate-400 mt-1">CRÉDIT</Text>
+              <Text className="text-[8px] text-slate-400 mt-0.5">SOLDE DÛ</Text>
+            </View>
+          ) : credit ? (
+            <View className="items-end">
+              <View className="bg-emerald-100 dark:bg-emerald-500/15 px-2 py-0.5 rounded-full">
+                <Text className="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400">
+                  +{formatFCFA(Math.abs(solde))} F
+                </Text>
+              </View>
+              <Text className="text-[8px] text-slate-400 mt-0.5">CRÉDIT</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {/* Tabs */}
+        <View className="flex-row mt-3 bg-slate-100 dark:bg-slate-900 rounded-lg p-1">
+          <TabButton
+            active={tab === 'info'}
+            label="Info"
+            icon={Info}
+            onPress={() => setTab('info')}
+          />
+          <TabButton
+            active={tab === 'livraisons'}
+            label={`Livraisons${livraisonsClient.length ? ` (${livraisonsClient.length})` : ''}`}
+            icon={Truck}
+            onPress={() => setTab('livraisons')}
+          />
+          <TabButton
+            active={tab === 'encaissements'}
+            label={`Encaissé${encaissementsClient.length ? ` (${encaissementsClient.length})` : ''}`}
+            icon={Banknote}
+            onPress={() => setTab('encaissements')}
+          />
+        </View>
+      </View>
+
+      {/* Tab content */}
+      {tab === 'info' ? (
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 32 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={qC.isFetching && !qC.isLoading}
+              onRefresh={() => {
+                qC.refetch();
+                qL.refetch();
+                qE.refetch();
+              }}
+              tintColor="#10b981"
+            />
+          }
+        >
+          <View className="px-4 pt-3">
+            {/* CTA row */}
+            <View className="flex-row gap-2">
+              <ActionBtn
+                label="Appeler"
+                icon={Phone}
+                color="#10b981"
+                disabled={!client.contact}
+                onPress={() => client.contact && callPhone(client.contact)}
+              />
+              <ActionBtn
+                label="Y aller"
+                icon={MapPin}
+                color="#3b82f6"
+                disabled={!geo}
+                onPress={() => geo && navigateTo(geo.lat, geo.lng, fullName)}
+              />
+              <ActionBtn
+                label="Livrer"
+                icon={Truck}
+                color="#10b981"
+                onPress={onLivrer}
+              />
+              <ActionBtn
+                label="Encaisser"
+                icon={Banknote}
+                color="#f59e0b"
+                disabled={!hasPendingLivraisons}
+                onPress={onEncaisser}
+              />
+            </View>
+
+            {/* Carte « Prix personnalisés » */}
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/(livreur)/clients/[id]/prix' as never,
+                  params: { id: client.id },
+                } as never)
+              }
+              className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-3 active:opacity-70"
+            >
+              <View className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
+                <DollarSign color="#059669" size={18} />
+              </View>
+              <View className="flex-1">
+                <Text className="font-extrabold text-slate-900 dark:text-white">
+                  Prix personnalisés
+                </Text>
+                <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {qPrix.isLoading
+                    ? 'Chargement…'
+                    : (qPrix.data?.length ?? 0) === 0
+                    ? 'Aucun prix custom — paiera les prix par défaut'
+                    : `${qPrix.data?.length} produit${(qPrix.data?.length ?? 0) > 1 ? 's' : ''} avec un prix négocié`}
+                </Text>
+              </View>
+              <ArrowRight color="#94a3b8" size={16} />
+            </Pressable>
+
+            {/* Map */}
+            {geo ? (
+              <View className="mt-4">
+                <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                  Localisation
+                </Text>
+                <MapPreview lat={geo.lat} lng={geo.lng} height={180} />
+                <Text className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-2 font-mono">
+                  {geo.lat.toFixed(6)}, {geo.lng.toFixed(6)}
+                </Text>
               </View>
             ) : (
-              <View className="items-end">
-                <Text className="text-[11px] text-slate-500 dark:text-slate-400 font-bold">
-                  Solde nul
+              <View className="mt-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3">
+                <Text className="text-[12px] text-amber-700 dark:text-amber-400">
+                  Pas de coordonnées GPS enregistrées pour ce client.
                 </Text>
               </View>
             )}
-          </View>
 
-          {/* CTA row */}
-          <View className="flex-row gap-2 mt-3">
-            <ActionBtn
-              label="Appeler"
-              icon={Phone}
-              color="#10b981"
-              disabled={!client.contact}
-              onPress={() => client.contact && callPhone(client.contact)}
-            />
-            <ActionBtn
-              label="Y aller"
-              icon={MapPin}
-              color="#3b82f6"
-              disabled={!geo}
-              onPress={() => geo && navigateTo(geo.lat, geo.lng, fullName)}
-            />
-            <ActionBtn
-              label="Livrer"
-              icon={Truck}
-              color="#10b981"
-              onPress={onLivrer}
-            />
-            <ActionBtn
-              label="Encaisser"
-              icon={Banknote}
-              color="#f59e0b"
-              disabled={!hasPendingLivraisons}
-              onPress={onEncaisser}
-            />
-          </View>
-
-          {/* Map preview */}
-          {geo ? (
-            <View className="mt-4">
-              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-                Localisation
-              </Text>
-              <MapPreview lat={geo.lat} lng={geo.lng} height={180} />
-              <Text className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-2 font-mono">
-                {geo.lat.toFixed(6)}, {geo.lng.toFixed(6)}
-              </Text>
-            </View>
-          ) : (
-            <View className="mt-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3">
-              <Text className="text-[12px] text-amber-700 dark:text-amber-400">
-                Pas de coordonnées GPS enregistrées pour ce client.
-              </Text>
-            </View>
-          )}
-
-          {/* Carte « Prix personnalisés » */}
-          <Pressable
-            onPress={() =>
-              router.push({
-                pathname: '/(livreur)/clients/[id]/prix' as never,
-                params: { id: client.id },
-              } as never)
-            }
-            className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-3 active:opacity-70"
-          >
-            <View className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
-              <DollarSign color="#059669" size={18} />
-            </View>
-            <View className="flex-1">
-              <Text className="font-extrabold text-slate-900 dark:text-white">
-                Prix personnalisés
-              </Text>
-              <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                {qPrix.isLoading
-                  ? 'Chargement…'
-                  : (qPrix.data?.length ?? 0) === 0
-                  ? 'Aucun prix custom — paiera les prix par défaut'
-                  : `${qPrix.data?.length} produit${(qPrix.data?.length ?? 0) > 1 ? 's' : ''} avec un prix négocié`}
-              </Text>
-            </View>
-            <ArrowRight color="#94a3b8" size={16} />
-          </Pressable>
-
-          {/* Récap chiffré */}
-          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
-            Synthèse
-          </Text>
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 gap-2">
-            <Row label="Encours (livré non encaissé)" value={`${formatFCFA(encours)} FCFA`} />
-            <Row label="Livraisons" value={`${livraisonsClient.length}`} />
-            <Row label="Encaissements" value={`${encaissementsClient.length}`} />
-          </View>
-
-          {/* Infos client */}
-          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
-            Informations
-          </Text>
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 gap-3">
-            {client.email ? (
-              <InfoRow icon={Mail} label="Email" value={client.email} />
-            ) : null}
-            {client.adresse ? (
-              <InfoRow icon={MapPin} label="Adresse" value={client.adresse} />
-            ) : null}
-            <InfoRow
-              icon={Layers}
-              label="Quartier"
-              value={
-                client.quartier?.libelle
-                  ? `${client.quartier.libelle}${client.quartier.zone?.libelle ? ` · ${client.quartier.zone.libelle}` : ''}`
-                  : '—'
-              }
-            />
-            <InfoRow
-              icon={Tag}
-              label="Catégorie"
-              value={client.categorie?.libelle ?? '—'}
-            />
-            <InfoRow
-              icon={Percent}
-              label="Avec remise"
-              value={client.avecOuSansRemise ? 'Oui' : 'Non'}
-            />
-          </View>
-
-          {/* Livraisons récentes */}
-          <View className="flex-row items-center justify-between mt-5 mb-2">
-            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
-              Livraisons récentes
+            {/* Synthèse */}
+            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
+              Synthèse
             </Text>
-            {livraisonsClient.length > 5 ? (
-              <Pressable
-                onPress={() => router.push('/(livreur)/livraisons' as never)}
-                className="flex-row items-center gap-1 active:opacity-70"
-              >
-                <Text className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
-                  Tout voir
-                </Text>
-                <ArrowRight color="#10b981" size={12} />
-              </Pressable>
-            ) : null}
+            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 gap-2">
+              <Row label="Encours (livré non encaissé)" value={`${formatFCFA(encours)} FCFA`} />
+              <Row label="Livraisons" value={`${livraisonsClient.length}`} />
+              <Row label="Encaissements" value={`${encaissementsClient.length}`} />
+            </View>
+
+            {/* Infos client */}
+            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
+              Informations
+            </Text>
+            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 gap-3">
+              {client.email ? <InfoRow icon={Mail} label="Email" value={client.email} /> : null}
+              {client.adresse ? <InfoRow icon={MapPin} label="Adresse" value={client.adresse} /> : null}
+              <InfoRow
+                icon={Layers}
+                label="Quartier"
+                value={
+                  client.quartier?.libelle
+                    ? `${client.quartier.libelle}${client.quartier.zone?.libelle ? ` · ${client.quartier.zone.libelle}` : ''}`
+                    : '—'
+                }
+              />
+              <InfoRow icon={Tag} label="Catégorie" value={client.categorie?.libelle ?? '—'} />
+              <InfoRow icon={Percent} label="Avec remise" value={client.avecOuSansRemise ? 'Oui' : 'Non'} />
+            </View>
           </View>
-          {livraisonsClient.length === 0 ? (
-            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-4 items-center">
-              <Text className="text-slate-400 text-[12px]">
-                Aucune livraison pour ce client.
+        </ScrollView>
+      ) : tab === 'livraisons' ? (
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 32 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={qL.isFetching && !qL.isLoading}
+              onRefresh={() => qL.refetch()}
+              tintColor="#10b981"
+            />
+          }
+        >
+          <View className="px-4 pt-3">
+            {/* Filtres période */}
+            <View className="flex-row items-center gap-1.5 mb-2">
+              <ListFilter color="#64748b" size={12} />
+              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
+                Période
               </Text>
             </View>
-          ) : (
-            <View className="gap-2">
-              {[...livraisonsClient]
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .slice(0, 5)
-                .map((l) => (
+            <View className="flex-row gap-2 mb-3">
+              {PERIODES.map((p) => (
+                <FilterChip
+                  key={p.key}
+                  active={periodeLiv === p.key}
+                  label={p.label}
+                  onPress={() => setPeriodeLiv(p.key)}
+                />
+              ))}
+            </View>
+
+            {/* Filtres statut */}
+            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
+              Statut
+            </Text>
+            <View className="flex-row gap-2 mb-3">
+              <FilterChip
+                active={statutLiv === 'all'}
+                label="Toutes"
+                onPress={() => setStatutLiv('all')}
+              />
+              <FilterChip
+                active={statutLiv === 'LIVREE'}
+                label="Non encaissée"
+                onPress={() => setStatutLiv('LIVREE')}
+              />
+              <FilterChip
+                active={statutLiv === 'ENCAISSEE'}
+                label="Encaissée"
+                onPress={() => setStatutLiv('ENCAISSEE')}
+              />
+            </View>
+
+            {/* Récap card */}
+            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 mb-3 flex-row justify-between items-center">
+              <Text className="text-[12px] text-slate-500 dark:text-slate-400">
+                {livFiltrees.length} livraison{livFiltrees.length > 1 ? 's' : ''}
+              </Text>
+              <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                {formatFCFA(totalLivFiltrees)} FCFA
+              </Text>
+            </View>
+
+            {/* Liste */}
+            {livFiltrees.length === 0 ? (
+              <EmptyState
+                title="Aucune livraison"
+                message="Aucune livraison ne correspond aux filtres."
+              />
+            ) : (
+              <View className="gap-2">
+                {livFiltrees.map((l) => (
                   <LivraisonCard key={l.id} livraison={l} />
                 ))}
-            </View>
-          )}
-
-          {/* Encaissements récents */}
-          {encaissementsClient.length > 0 ? (
-            <>
-              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
-                Encaissements récents
-              </Text>
-              <View className="gap-2">
-                {[...encaissementsClient]
-                  .sort((a, b) => {
-                    const da = a.date ? new Date(a.date).getTime() : 0;
-                    const db = b.date ? new Date(b.date).getTime() : 0;
-                    return db - da;
-                  })
-                  .slice(0, 5)
-                  .map((e) => (
-                    <View
-                      key={e.reference}
-                      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 rounded-md p-3 flex-row items-center justify-between"
-                    >
-                      <View className="flex-1 pr-2">
-                        <Text className="text-[12px] text-slate-700 dark:text-slate-300">
-                          {e.date ? formatDateShort(e.date) : '—'}
-                        </Text>
-                        {e.commentaire ? (
-                          <Text className="text-[10px] text-slate-400 mt-0.5">
-                            {e.commentaire}
-                          </Text>
-                        ) : null}
-                      </View>
-                      <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
-                        +{formatFCFA(e.montantEncaisse)} F
-                      </Text>
-                    </View>
-                  ))}
               </View>
-            </>
-          ) : null}
-        </View>
-      </ScrollView>
+            )}
+          </View>
+        </ScrollView>
+      ) : (
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 32 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={qE.isFetching && !qE.isLoading}
+              onRefresh={() => qE.refetch()}
+              tintColor="#10b981"
+            />
+          }
+        >
+          <View className="px-4 pt-3">
+            {/* Filtre période */}
+            <View className="flex-row items-center gap-1.5 mb-2">
+              <ListFilter color="#64748b" size={12} />
+              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
+                Période
+              </Text>
+            </View>
+            <View className="flex-row gap-2 mb-3">
+              {PERIODES.map((p) => (
+                <FilterChip
+                  key={p.key}
+                  active={periodeEnc === p.key}
+                  label={p.label}
+                  onPress={() => setPeriodeEnc(p.key)}
+                />
+              ))}
+            </View>
+
+            {/* Récap card */}
+            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 mb-3 flex-row justify-between items-center">
+              <Text className="text-[12px] text-slate-500 dark:text-slate-400">
+                {encFiltres.length} encaissement{encFiltres.length > 1 ? 's' : ''}
+              </Text>
+              <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                {formatFCFA(totalEncFiltres)} FCFA
+              </Text>
+            </View>
+
+            {/* Liste */}
+            {encFiltres.length === 0 ? (
+              <EmptyState
+                title="Aucun encaissement"
+                message="Aucun encaissement ne correspond à la période choisie."
+              />
+            ) : (
+              <View className="gap-2">
+                {encFiltres.map((e) => (
+                  <View
+                    key={e.reference}
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 rounded-md p-3 flex-row items-center justify-between"
+                  >
+                    <View className="flex-1 pr-2">
+                      <Text className="text-[12px] text-slate-700 dark:text-slate-300 font-bold">
+                        {e.date ? formatDateShort(e.date) : '—'}
+                      </Text>
+                      {e.commentaire ? (
+                        <Text className="text-[10px] text-slate-400 mt-0.5">
+                          {e.commentaire}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                      +{formatFCFA(e.montantEncaisse)} F
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      )}
     </View>
+  );
+}
+
+function TabButton({
+  active,
+  label,
+  icon: Icon,
+  onPress,
+}: {
+  active: boolean;
+  label: string;
+  icon: React.ComponentType<{ color: string; size: number }>;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`flex-1 flex-row items-center justify-center gap-1 py-2 rounded-md ${
+        active
+          ? 'bg-white dark:bg-slate-700 shadow-sm'
+          : 'active:opacity-70'
+      }`}
+    >
+      <Icon color={active ? '#10b981' : '#64748b'} size={14} />
+      <Text
+        className={`text-[12px] font-bold ${
+          active
+            ? 'text-emerald-700 dark:text-emerald-300'
+            : 'text-slate-500 dark:text-slate-400'
+        }`}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function FilterChip({
+  active,
+  label,
+  onPress,
+}: {
+  active: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`px-3 py-1.5 rounded-md border ${
+        active
+          ? 'bg-emerald-500 border-emerald-500'
+          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+      }`}
+    >
+      <Text
+        className={`text-[12px] font-bold ${
+          active ? 'text-white' : 'text-slate-700 dark:text-slate-300'
+        }`}
+      >
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 

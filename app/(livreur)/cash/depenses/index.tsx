@@ -27,6 +27,16 @@ export default function DepensesList() {
     [q.data],
   );
 
+  // Tri stable : plus récent en premier
+  const sorted = useMemo(
+    () =>
+      [...(q.data ?? [])].sort(
+        (a, b) =>
+          new Date(b.dateDepense).getTime() - new Date(a.dateDepense).getTime(),
+      ),
+    [q.data],
+  );
+
   const onDelete = (d: DepenseResponse) => {
     Alert.alert('Supprimer cette dépense ?', d.libelle, [
       { text: 'Annuler', style: 'cancel' },
@@ -51,7 +61,7 @@ export default function DepensesList() {
       />
 
       <FlatList
-        data={q.data ?? []}
+        data={sorted}
         keyExtractor={(d) => d.id}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}
         refreshControl={

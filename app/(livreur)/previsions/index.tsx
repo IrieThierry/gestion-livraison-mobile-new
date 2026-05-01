@@ -133,7 +133,19 @@ export default function PrevisionsList() {
             />
           ) : (
             <View className="gap-2">
-              {(previsionsQ.data ?? []).map((p) => (
+              {[...(previsionsQ.data ?? [])]
+                .sort((a, b) => {
+                  const cliCmp = `${a.client.prenom} ${a.client.nom}`.localeCompare(
+                    `${b.client.prenom} ${b.client.nom}`,
+                    'fr',
+                  );
+                  if (cliCmp !== 0) return cliCmp;
+                  return (a.produit.designation ?? '').localeCompare(
+                    b.produit.designation ?? '',
+                    'fr',
+                  );
+                })
+                .map((p) => (
                 <View
                   key={p.id}
                   className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 flex-row items-center gap-2"

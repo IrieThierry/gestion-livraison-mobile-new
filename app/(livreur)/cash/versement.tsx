@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -12,6 +12,7 @@ import {
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../../../components/shared/PageHeader';
+import { SelectField } from '../../../components/shared/SelectField';
 import { DatePickerField } from '../../../components/shared/DatePickerField';
 import { useFournisseurs } from '../../../features/lookups/hooks';
 import {
@@ -136,6 +137,15 @@ export default function Versement() {
 
   const totalDu = sit.data?.totalDu ?? 0;
 
+  // Tri stable alphabétique pour la liste déroulante
+  const fournisseursOptions = useMemo(
+    () =>
+      [...fournisseurs]
+        .sort((a, b) => a.libelle.localeCompare(b.libelle, 'fr'))
+        .map((f) => ({ id: f.id, label: f.libelle })),
+    [fournisseurs],
+  );
+
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader title="Faire un versement" />
@@ -151,37 +161,16 @@ export default function Versement() {
         }
       >
         <View className="px-4">
-          {/* Fournisseur chip row */}
-          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-            Fournisseur
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {fournisseurs.length === 0 ? (
-              <Text className="text-slate-400 text-sm">Chargement…</Text>
-            ) : (
-              fournisseurs.map((f) => (
-                <Pressable
-                  key={f.id}
-                  onPress={() => setFournisseurId(f.id)}
-                  className={`px-3 py-2 rounded-md ${
-                    fournisseurId === f.id
-                      ? 'bg-emerald-500'
-                      : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
-                  }`}
-                >
-                  <Text
-                    className={`text-sm font-bold ${
-                      fournisseurId === f.id
-                        ? 'text-white'
-                        : 'text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    {f.libelle}
-                  </Text>
-                </Pressable>
-              ))
-            )}
-          </View>
+          {/* Fournisseur dropdown */}
+          <SelectField
+            label="Fournisseur *"
+            placeholder="Choisir un fournisseur"
+            value={fournisseurId}
+            onChange={setFournisseurId}
+            options={fournisseursOptions}
+            isLoading={fournisseurs.length === 0}
+            emptyMessage="Aucun fournisseur disponible"
+          />
 
           {/* Situation card */}
           {fournisseurId ? (

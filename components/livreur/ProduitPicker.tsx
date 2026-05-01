@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TextInput, Pressable } from 'react-native';
-import { Plus, Trash2, AlertCircle, Package, Tag, Save } from 'lucide-react-native';
+import { Plus, Trash2, AlertCircle, Package, Tag, Save, RotateCcw } from 'lucide-react-native';
 import { useProduits } from '../../features/produits/hooks';
 import { useStockCourant } from '../../features/stock/hooks';
 import { useResoudrePrix, useUpsertPrixClient } from '../../features/prix/hooks';
@@ -12,6 +12,13 @@ export interface Ligne {
   designation: string;
   prix: number;
   qte: number;
+  /**
+   * Quantité retournée par le client lors de cette livraison. Optionnel —
+   * la `nouvelle livraison` accepte un retour partiel immédiat (la livraison
+   * est créée avec `qteLivree=qte` et `qteRetournee=qteRet`, ce qui réduit
+   * d'autant le total et ré-incrémente le stock côté back).
+   */
+  qteRet?: number;
 }
 
 export function ProduitPicker({
@@ -20,6 +27,7 @@ export function ProduitPicker({
   prixDeVenteParDefaut,
   clientId,
   enforceStock = false,
+  allowReturns = false,
   onValidityChange,
 }: {
   lignes: Ligne[];
@@ -38,6 +46,11 @@ export function ProduitPicker({
   // « Nouvelle livraison ». Inactif sur « Déclarer un achat » (achat
   // = entrée de stock, le concept de stock dispo n'a pas de sens).
   enforceStock?: boolean;
+  // Quand true, chaque ligne expose un champ « Retourné » qui se mappe
+  // vers `qteRetournee` côté back. Permet de saisir un retour partiel au
+  // moment de la création de la livraison (ex : Anna a refusé 2 baguettes
+  // sur les 10 livrées). Activé sur Nouvelle livraison uniquement.
+  allowReturns?: boolean;
   // Notifie le parent quand au moins une ligne dépasse le stock dispo,
   // pour qu'il puisse désactiver son bouton « Enregistrer ».
   onValidityChange?: (insufficientLignes: number) => void;
@@ -153,6 +166,7 @@ export function ProduitPicker({
             clientId={clientId}
             stockDispo={stockMap.get(l.produitId) ?? 0}
             enforceStock={enforceStock}
+            allowReturns={allowReturns}
             onUpdate={(patch) => updateAt(i, patch)}
             onRemove={() => remove(i)}
           />
@@ -175,6 +189,7 @@ function LigneRow({
   clientId,
   stockDispo,
   enforceStock,
+  allowReturns,
   onUpdate,
   onRemove,
 }: {
@@ -182,6 +197,7 @@ function LigneRow({
   clientId?: string;
   stockDispo: number;
   enforceStock: boolean;
+  allowReturns: boolean;
   onUpdate: (patch: Partial<Ligne>) => void;
   onRemove: () => void;
 }) {
@@ -210,9 +226,12 @@ function LigneRow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolved, clientId, line.produitId]);
 
-  const sousTotal = line.prix * line.qte;
+  const qteRet = line.qteRet ?? 0;
+  const qteNette = Math.max(0, line.qte - qteRet);
+  const sousTotal = line.prix * qteNette;
   const prixZero = line.prix <= 0;
   const stockInsuffisant = enforceStock && line.qte > stockDispo;
+  const retInvalide = qteRet > line.qte;
   const prixModifie =
     resolvedPrix !== null && line.prix > 0 && line.prix !== resolvedPrix;
 
@@ -304,6 +323,43 @@ function LigneRow({
         </View>
       </View>
 
+      {/* Retour partiel — option `allowReturns` activée sur Nouvelle livraison */}
+      {allowReturns ? (
+        <View className="flex-row items-center gap-2 mt-2 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-2.5">
+          <RotateCcw color="#d97706" size={14} />
+          <Text className="text-[11px] text-amber-700 dark:text-amber-400 flex-1 font-bold">
+            Retourné par le client
+          </Text>
+          <TextInput
+            value={qteRet > 0 ? String(qteRet) : ''}
+            onChangeText={(v) =>
+              onUpdate({
+                qteRet: parseInt(v.replace(/[^0-9]/g, ''), 10) || 0,
+              })
+            }
+            keyboardType="number-pad"
+            selectTextOnFocus
+            placeholder="0"
+            placeholderTextColor="#94a3b8"
+            className={`w-16 px-2 py-1.5 border rounded text-center text-slate-900 dark:text-white text-base ${
+              retInvalide
+                ? 'border-red-400 bg-red-50 dark:bg-red-500/10'
+                : 'border-amber-200 dark:border-amber-500/40 bg-white dark:bg-slate-900'
+            }`}
+          />
+        </View>
+      ) : null}
+
+      {/* Warn retour > qté livrée */}
+      {allowReturns && retInvalide ? (
+        <View className="flex-row items-center gap-1.5 mt-2">
+          <AlertCircle color="#ef4444" size={12} />
+          <Text className="text-[11px] text-red-500 font-bold">
+            Retour ({qteRet}) supérieur à la qté livrée ({line.qte})
+          </Text>
+        </View>
+      ) : null}
+
       {/* Bouton mémoriser le nouveau prix client */}
       {prixModifie && clientId ? (
         <Pressable
@@ -360,10 +416,11 @@ function LigneRow({
         </View>
       ) : null}
 
-      {/* Sous-total */}
+      {/* Sous-total — utilise la qté nette (livrée − retournée) */}
       <View className="flex-row justify-between items-center mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
         <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-          {formatFCFA(line.prix)} × {line.qte}
+          {formatFCFA(line.prix)} × {qteNette}
+          {qteRet > 0 ? ` (livrée ${line.qte} − retour ${qteRet})` : ''}
         </Text>
         <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
           {formatFCFA(sousTotal)} FCFA

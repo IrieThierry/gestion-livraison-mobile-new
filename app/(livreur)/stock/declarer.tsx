@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -11,6 +11,7 @@ import {
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../../../components/shared/PageHeader';
+import { SelectField } from '../../../components/shared/SelectField';
 import { ProduitPicker, type Ligne } from '../../../components/livreur/ProduitPicker';
 import { useEnregistrerAchat } from '../../../features/stock/hooks';
 import { useFournisseurs } from '../../../features/lookups/hooks';
@@ -47,6 +48,15 @@ export default function DeclarerAchat() {
   // requête (cf. `LigneStockRequest` = { produitId, qte }) — c'est purement
   // une aide visuelle pour le livreur.
   const totalAchat = lignes.reduce((acc, l) => acc + l.prix * l.qte, 0);
+
+  // Tri stable alphabétique pour la liste déroulante
+  const fournisseursOptions = useMemo(
+    () =>
+      [...fournisseurs]
+        .sort((a, b) => a.libelle.localeCompare(b.libelle, 'fr'))
+        .map((f) => ({ id: f.id, label: f.libelle })),
+    [fournisseurs],
+  );
 
   const onSubmit = () => {
     if (!user) {
@@ -104,43 +114,15 @@ export default function DeclarerAchat() {
         }
       >
         <View className="px-4">
-          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-            Fournisseur
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {loadingFournisseurs ? (
-              <Text className="text-slate-400 text-sm">Chargement…</Text>
-            ) : fournisseurs.length === 0 ? (
-              <Text className="text-slate-400 text-sm">
-                Aucun fournisseur disponible
-              </Text>
-            ) : (
-              fournisseurs.map((f) => {
-                const selected = fournisseurId === f.id;
-                return (
-                  <Pressable
-                    key={f.id}
-                    onPress={() => setFournisseurId(f.id)}
-                    className={`px-3 py-2 rounded-md ${
-                      selected
-                        ? 'bg-emerald-500'
-                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
-                    }`}
-                  >
-                    <Text
-                      className={`text-sm font-bold ${
-                        selected
-                          ? 'text-white'
-                          : 'text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      {f.libelle}
-                    </Text>
-                  </Pressable>
-                );
-              })
-            )}
-          </View>
+          <SelectField
+            label="Fournisseur *"
+            placeholder="Choisir un fournisseur"
+            value={fournisseurId}
+            onChange={setFournisseurId}
+            options={fournisseursOptions}
+            isLoading={loadingFournisseurs}
+            emptyMessage="Aucun fournisseur disponible"
+          />
 
           <View className="mt-5">
             <ProduitPicker lignes={lignes} onChange={setLignes} />
