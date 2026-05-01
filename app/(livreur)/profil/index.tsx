@@ -15,6 +15,7 @@ import {
   UsersRound,
   CalendarClock,
   ClipboardCheck,
+  History,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { useAuthStore } from '../../../stores/authStore';
@@ -221,6 +222,25 @@ export default function Profil() {
                   </Text>
                   <Text className="text-[11px] text-slate-500 dark:text-slate-400">
                     Récap fin de journée + écart de caisse
+                  </Text>
+                </View>
+              </View>
+              <ChevronRight color="#94a3b8" size={18} />
+            </Pressable>
+            <Pressable
+              onPress={() =>
+                router.push('/(livreur)/cash/reversements/historique' as never)
+              }
+              className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
+            >
+              <View className="flex-row items-center gap-3">
+                <History color="#059669" size={20} />
+                <View>
+                  <Text className="font-extrabold text-slate-900 dark:text-white">
+                    Mes reversements
+                  </Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Historique des reversements clients / fournisseurs
                   </Text>
                 </View>
               </View>
