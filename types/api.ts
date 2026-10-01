@@ -661,9 +661,6 @@ export interface VersementResponse {
   detteAvant: number
   detteApres: number
   commentaire: string | null
-  statutContestation: 'NONE' | 'CONTESTE' | 'RESOLU'
-  motifContestation: string | null
-  contesteLe: string | null
 }
 
 export interface CreerVersementRequest {
