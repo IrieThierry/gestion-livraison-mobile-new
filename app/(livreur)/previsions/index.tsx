@@ -5,9 +5,9 @@ import {
   Text,
   Pressable,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { dialog } from '../../../lib/dialog';
 import { Plus, Trash2, ListTree, Calendar } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
@@ -38,10 +38,13 @@ export default function PrevisionsList() {
   const m = useSupprimerPrevision();
 
   const onDelete = (id: string, label: string) => {
-    Alert.alert('Supprimer cette prévision ?', label, [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: () => m.mutate(id) },
-    ]);
+    dialog.confirm({
+      title: 'Supprimer cette prévision ?',
+      message: label,
+      confirmLabel: 'Supprimer',
+      destructive: true,
+      onConfirm: () => m.mutate(id),
+    });
   };
 
   if (!user) return null;

@@ -2,6 +2,7 @@ import { apiClient } from '../../lib/api-client';
 import type {
   EnregistrerStockRequest,
   StockCourantLigneResponse,
+  StockEquipeLigneResponse,
   StockLivreurResponse,
   UUID,
 } from '../../types/api';
@@ -34,6 +35,19 @@ export const stockApi = {
   actuelParent: async (parentId: UUID): Promise<StockLivreurResponse[]> => {
     const { data } = await apiClient.get<StockLivreurResponse[]>(
       `/stock-livreur/parent/${parentId}/actuel`,
+    );
+    return data;
+  },
+
+  /**
+   * Stock courant de l'équipe agrégé par tuple (produit × fournisseur), avec
+   * ventilation `parLivreur` (root + apprentis). Source de vérité pour
+   * l'écran « Stock équipe » repensé : cumul par produit et filtre livreur.
+   * Source : `GET /stock-livreur/equipe`.
+   */
+  equipe: async (): Promise<StockEquipeLigneResponse[]> => {
+    const { data } = await apiClient.get<StockEquipeLigneResponse[]>(
+      '/stock-livreur/equipe',
     );
     return data;
   },

@@ -5,10 +5,10 @@ import {
   Text,
   TextInput,
   Pressable,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
+import { dialog } from '../../../lib/dialog';
 import { useMutation } from '@tanstack/react-query';
 import { Eye, EyeOff, KeyRound } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
@@ -33,13 +33,12 @@ export default function ChangerMotDePasse() {
   const m = useMutation({
     mutationFn: authApi.changePassword,
     onSuccess: () => {
-      Alert.alert('Succès', 'Ton mot de passe a été mis à jour.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      dialog.success('Ton mot de passe a été mis à jour.');
+      router.back();
     },
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { message?: string } } };
-      Alert.alert(
+      dialog.error(
         'Erreur',
         e.response?.data?.message ?? 'Mise à jour impossible — vérifie ton mot de passe actuel.',
       );
@@ -53,7 +52,7 @@ export default function ChangerMotDePasse() {
       confirmPassword,
     });
     if (!parsed.success) {
-      Alert.alert('Erreur', parsed.error.issues[0]?.message ?? 'Champs invalides');
+      dialog.warning('Champs invalides', parsed.error.issues[0]?.message);
       return;
     }
     m.mutate({

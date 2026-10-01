@@ -1,5 +1,6 @@
-import { ScrollView, View, Text, Pressable, Alert, Linking, Image } from 'react-native';
+import { ScrollView, View, Text, Pressable, Linking, Image } from 'react-native';
 import { router } from 'expo-router';
+import { dialog } from '../../../lib/dialog';
 import {
   LogOut,
   Moon,
@@ -40,17 +41,16 @@ export default function Profil() {
   if (!user) return null;
 
   const onLogout = () => {
-    Alert.alert('Déconnexion', 'Tu veux te déconnecter de l’app ?', [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Se déconnecter',
-        style: 'destructive',
-        onPress: async () => {
-          await logout();
-          router.replace('/(auth)/login');
-        },
+    dialog.confirm({
+      title: 'Déconnexion',
+      message: 'Tu veux te déconnecter de l’app ?',
+      confirmLabel: 'Se déconnecter',
+      destructive: true,
+      onConfirm: async () => {
+        await logout();
+        router.replace('/(auth)/login');
       },
-    ]);
+    });
   };
 
   // Tap sur l'avatar → ouvre la page de modification d'infos où la photo
@@ -229,7 +229,7 @@ export default function Profil() {
             </Pressable>
             <Pressable
               onPress={() =>
-                router.push('/(livreur)/cash/reversements/historique' as never)
+                router.push('/(livreur)/cash/reversements' as never)
               }
               className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
             >
@@ -240,7 +240,7 @@ export default function Profil() {
                     Mes reversements
                   </Text>
                   <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Historique des reversements clients / fournisseurs
+                    Synthèse : fournisseurs me doivent · clients à payer
                   </Text>
                 </View>
               </View>

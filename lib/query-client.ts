@@ -26,10 +26,27 @@ export const queryClient = new QueryClient({
     queries: {
       staleTime: 30 * 1000,
       gcTime: 24 * 60 * 60 * 1000,
-      retry: 1,
+      // Retry intelligent : on ne retente PAS sur 401/403/404 (= problème
+      // d'auth ou ressource inexistante, retry inutile et provoque un
+      // spinner infini si l'interceptor a déjà décidé de rediriger). Pour
+      // les vraies erreurs réseau / 5xx, on retente 1 fois.
+      retry: (failureCount, error) => {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        if (status === 401 || status === 403 || status === 404) return false;
+        return failureCount < 1;
+      },
       refetchOnReconnect: true,
       // refetchOnWindowFocus est laissé à sa valeur par défaut (`true`)
       // pour que `focusManager.setFocused(true)` déclenche bien le refetch.
+    },
+    mutations: {
+      // Idem côté mutations : ne pas spammer le back avec un POST en boucle
+      // sur erreur d'auth.
+      retry: (failureCount, error) => {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        if (status === 401 || status === 403) return false;
+        return failureCount < 1;
+      },
     },
   },
 });

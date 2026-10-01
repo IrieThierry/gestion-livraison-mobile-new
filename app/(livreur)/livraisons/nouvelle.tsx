@@ -6,9 +6,9 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Alert,
   RefreshControl,
 } from 'react-native';
+import { dialog } from '../../../lib/dialog';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { RotateCcw, Package, AlertCircle } from 'lucide-react-native';
@@ -135,11 +135,11 @@ export default function NouvelleLivraison() {
 
   const onSubmit = async () => {
     if (!user) {
-      Alert.alert('Erreur', 'Session invalide');
+      dialog.error('Session invalide', 'Reconnecte-toi pour continuer.');
       return;
     }
     if (!client) {
-      Alert.alert('Erreur', 'Choisis un client');
+      dialog.warning('Choisis un client', 'Sélectionne un client avant d’enregistrer.');
       return;
     }
     const validLignes = lignes.filter((l) => l.qte > 0);
@@ -147,22 +147,22 @@ export default function NouvelleLivraison() {
 
     // On accepte une soumission « retours seulement » sans nouvelle livraison
     if (validLignes.length === 0 && !hasRetours) {
-      Alert.alert('Erreur', 'Ajoute au moins une ligne livrée OU un retour > 0');
+      dialog.warning('Rien à enregistrer', 'Ajoute au moins une ligne livrée ou un retour > 0.');
       return;
     }
     if (validLignes.some((l) => l.prix <= 0)) {
-      Alert.alert('Erreur', 'Définis un prix unitaire (> 0) pour chaque ligne');
+      dialog.warning('Prix manquant', 'Définis un prix unitaire (> 0) pour chaque ligne.');
       return;
     }
     if (insufficientCount > 0) {
-      Alert.alert(
+      dialog.error(
         'Stock insuffisant',
         `${insufficientCount} ligne${insufficientCount > 1 ? 's' : ''} dépasse${insufficientCount === 1 ? '' : 'nt'} le stock dispo.`,
       );
       return;
     }
     if (retoursInvalides > 0) {
-      Alert.alert('Erreur', 'Certains retours dépassent la qté retournable.');
+      dialog.error('Retours invalides', 'Certains retours dépassent la quantité retournable.');
       return;
     }
 
@@ -210,13 +210,50 @@ export default function NouvelleLivraison() {
           : validLignes.length > 0
           ? 'Livraison enregistrée'
           : 'Retour(s) enregistrés';
-      Alert.alert('Succès', summary);
+      dialog.success(summary);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      Alert.alert(
-        'Erreur',
-        e.response?.data?.message ?? "Échec de l'enregistrement",
-      );
+      // Log complet vers Metro pour diagnostiquer (status, body, headers)
+      const e = err as {
+        response?: { status?: number; data?: unknown };
+        request?: unknown;
+        message?: string;
+        code?: string;
+        config?: { url?: string; method?: string };
+      };
+      console.error('[NouvelleLivraison] échec enregistrement', {
+        url: e.config?.url,
+        method: e.config?.method,
+        code: e.code,
+        message: e.message,
+        status: e.response?.status,
+        data: e.response?.data,
+        hadRequest: !!e.request,
+        hadResponse: !!e.response,
+      });
+
+      // Construit le meilleur message possible :
+      //  - si le back a renvoyé { success:false, message: string } → l'utiliser
+      //  - si message est un objet (validation), l'aplatir
+      //  - sinon afficher le code HTTP + message axios
+      const data = e.response?.data as
+        | { message?: string | Record<string, string> }
+        | string
+        | undefined;
+      let detail: string | undefined;
+      if (typeof data === 'string') {
+        detail = data;
+      } else if (data && typeof data.message === 'string') {
+        detail = data.message;
+      } else if (data && typeof data.message === 'object') {
+        detail = Object.entries(data.message)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join('\n');
+      }
+      const status = e.response?.status;
+      const fallback = status
+        ? `Erreur ${status}${e.message ? ` — ${e.message}` : ''}`
+        : e.message ?? "Échec de l'enregistrement";
+      dialog.error('Erreur', detail ?? fallback);
     }
   };
 
@@ -254,9 +291,11 @@ export default function NouvelleLivraison() {
             />
           </View>
 
-          {/* Section « Retours en attente » — affichée si le client a des
-              produits livrés avant et non encore retournés */}
-          {client && livraisonsRetournables.length > 0 ? (
+          {/* Section « Retours en attente » — toujours visible quand un
+              client est sélectionné. Les retours portent sur des livraisons
+              précédentes (les produits retournés peuvent différer des
+              produits livrés du jour). */}
+          {client ? (
             <View className="mt-5">
               <View className="flex-row items-center gap-1.5 mb-2">
                 <RotateCcw color="#d97706" size={14} />
@@ -268,26 +307,36 @@ export default function NouvelleLivraison() {
                 <Package color="#d97706" size={14} />
                 <Text className="text-[11px] text-amber-700 dark:text-amber-400 flex-1">
                   Le client peut te restituer des produits de livraisons
-                  précédentes. Saisis la quantité à reprendre — ça
-                  ré-incrémente ton stock et déduit le montant de son solde,
-                  sans impacter la livraison du jour.
+                  précédentes (souvent différents des produits livrés du
+                  jour). Saisis la quantité à reprendre — ça ré-incrémente ton
+                  stock et déduit le montant de son solde, sans impacter la
+                  livraison du jour.
                 </Text>
               </View>
-              <View className="gap-2">
-                {livraisonsRetournables.map((l) => (
-                  <RetourLivraisonCard
-                    key={l.id}
-                    livraison={l}
-                    retoursAttente={retoursAttente}
-                    onChangeQte={(produitLivraisonId, qte) =>
-                      setRetoursAttente((s) => ({
-                        ...s,
-                        [produitLivraisonId]: qte,
-                      }))
-                    }
-                  />
-                ))}
-              </View>
+              {livraisonsRetournables.length > 0 ? (
+                <View className="gap-2">
+                  {livraisonsRetournables.map((l) => (
+                    <RetourLivraisonCard
+                      key={l.id}
+                      livraison={l}
+                      retoursAttente={retoursAttente}
+                      onChangeQte={(produitLivraisonId, qte) =>
+                        setRetoursAttente((s) => ({
+                          ...s,
+                          [produitLivraisonId]: qte,
+                        }))
+                      }
+                    />
+                  ))}
+                </View>
+              ) : (
+                <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-4 items-center">
+                  <Text className="text-[12px] text-slate-400 text-center">
+                    Aucun produit livré antérieurement à reprendre pour ce
+                    client.
+                  </Text>
+                </View>
+              )}
             </View>
           ) : null}
 

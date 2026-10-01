@@ -6,8 +6,9 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Alert,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Save, Trash2, Tag } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
@@ -19,6 +20,7 @@ import {
   useSupprimerPrixLivreur,
 } from '../../../features/prix/hooks';
 import { formatFCFA } from '../../../lib/format';
+import { dialog } from '../../../lib/dialog';
 import type { ProduitResponse } from '../../../types/api';
 
 /**
@@ -60,7 +62,7 @@ export default function MesPrixPage() {
     const raw = draftPrix[produit.id] ?? '';
     const prix = parseInt(raw.replace(/[^0-9]/g, ''), 10);
     if (!prix || prix <= 0) {
-      Alert.alert('Erreur', 'Saisis un prix supérieur à 0');
+      dialog.error('Erreur', 'Saisis un prix supérieur à 0');
       return;
     }
     upsertMut.mutate(
@@ -71,25 +73,20 @@ export default function MesPrixPage() {
         },
         onError: (err: unknown) => {
           const e = err as { response?: { data?: { message?: string } } };
-          Alert.alert('Erreur', e.response?.data?.message ?? 'Échec');
+          dialog.error('Erreur', e.response?.data?.message ?? 'Échec');
         },
       },
     );
   };
 
   const onDelete = (produit: ProduitResponse) => {
-    Alert.alert(
-      'Supprimer ce prix ?',
-      `Tu n'auras plus de prix par défaut pour ${produit.designation} — il faudra le saisir manuellement à chaque livraison.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: () => deleteMut.mutate(produit.id),
-        },
-      ],
-    );
+    dialog.confirm({
+      title: 'Supprimer ce prix ?',
+      message: `Tu n'auras plus de prix par défaut pour ${produit.designation} — il faudra le saisir manuellement à chaque livraison.`,
+      confirmLabel: 'Supprimer',
+      destructive: true,
+      onConfirm: () => deleteMut.mutate(produit.id),
+    });
   };
 
   return (
@@ -99,8 +96,24 @@ export default function MesPrixPage() {
         subtitle="Barème par défaut"
       />
 
+      {/*
+        KeyboardAvoidingView : sans ça, sur Android le clavier numérique
+        recouvre les inputs en bas de la liste. iOS gère mieux nativement
+        mais on applique le pattern uniformément.
+        - iOS : behavior=padding (le contenu remonte avec animation)
+        - Android : behavior=height (Android remonte la window de lui-même
+          en mode adjustResize, mais sans ce wrapper le focus de l'input
+          ne scroll pas l'item visé jusqu'à la zone visible).
+      */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1"
+      >
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 32 }}
+        // paddingBottom large pour qu'un input cliqué proche du bas reste
+        // visible une fois le clavier ouvert (~280 dp de hauteur clavier).
+        contentContainerStyle={{ paddingBottom: 320 }}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={qPrix.isFetching && !qPrix.isLoading}
@@ -228,6 +241,7 @@ export default function MesPrixPage() {
           )}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

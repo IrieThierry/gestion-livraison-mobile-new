@@ -6,9 +6,9 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { dialog } from '../../../../lib/dialog';
 import { ArrowRight } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { SelectField } from '../../../../components/shared/SelectField';
@@ -71,19 +71,19 @@ export default function NouveauTransfert() {
   const onSubmit = () => {
     if (!user) return;
     if (!destinataireId) {
-      Alert.alert('Erreur', 'Choisis un apprenti destinataire');
+      dialog.warning('Champ requis', 'Choisis un apprenti destinataire');
       return;
     }
     if (!produitId) {
-      Alert.alert('Erreur', 'Choisis un produit');
+      dialog.warning('Champ requis', 'Choisis un produit');
       return;
     }
     if (!qteNum || qteNum <= 0) {
-      Alert.alert('Erreur', 'Quantité invalide');
+      dialog.warning('Quantité invalide', 'Quantité invalide');
       return;
     }
     if (insuffisant) {
-      Alert.alert('Erreur', `Stock insuffisant (max : ${stockDispo})`);
+      dialog.warning('Stock insuffisant', `Stock insuffisant (max : ${stockDispo})`);
       return;
     }
     m.mutate(
@@ -97,11 +97,11 @@ export default function NouveauTransfert() {
       {
         onSuccess: () => {
           router.back();
-          Alert.alert('Succès', 'Transfert enregistré');
+          dialog.success('Transfert enregistré');
         },
         onError: (err: unknown) => {
           const e = err as { response?: { data?: { message?: string } } };
-          Alert.alert('Erreur', e.response?.data?.message ?? 'Transfert refusé');
+          dialog.error('Erreur', e.response?.data?.message ?? 'Transfert refusé');
         },
       },
     );

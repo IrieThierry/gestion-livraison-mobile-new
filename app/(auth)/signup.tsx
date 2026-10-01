@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   Pressable,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -20,10 +19,17 @@ import {
   Eye,
   EyeOff,
   UserPlus,
+  User,
+  IdCard,
+  Phone,
+  Mail,
+  AtSign,
+  Lock,
 } from 'lucide-react-native';
 import { authApi } from '../../features/auth/api';
 import { signupSchema } from '../../features/auth/schemas';
 import { extractApiErrorMessage } from '../../lib/api-error';
+import { dialog } from '../../lib/dialog';
 
 /**
  * Auto-inscription d'un livreur ou fournisseur. Le back crée le compte avec
@@ -47,14 +53,23 @@ export default function Signup() {
   const m = useMutation({
     mutationFn: authApi.register,
     onSuccess: () => {
-      Alert.alert(
+      dialog.success(
         'Compte créé',
         'Ton inscription est enregistrée. Un administrateur doit valider ton compte avant que tu puisses utiliser l\'app — connecte-toi pour suivre l\'état.',
-        [{ text: 'Se connecter', onPress: () => router.replace('/(auth)/login') }],
+        {
+          autoDismissMs: 0,
+          actions: [
+            {
+              label: 'Se connecter',
+              style: 'primary',
+              onPress: () => router.replace('/(auth)/login'),
+            },
+          ],
+        },
       );
     },
     onError: (err: unknown) => {
-      Alert.alert('Erreur', extractApiErrorMessage(err, 'Création impossible'));
+      dialog.error('Erreur', extractApiErrorMessage(err, 'Création impossible'));
     },
   });
 
@@ -70,7 +85,7 @@ export default function Signup() {
       profile,
     });
     if (!parsed.success) {
-      Alert.alert('Erreur', parsed.error.issues[0]?.message ?? 'Champs invalides');
+      dialog.warning('Champs invalides', parsed.error.issues[0]?.message);
       return;
     }
     m.mutate(parsed.data);
@@ -165,10 +180,22 @@ export default function Signup() {
             {/* Identité */}
             <View className="flex-row gap-3 mt-4">
               <View className="flex-1">
-                <Field label="Prénom *" value={prenom} onChange={setPrenom} placeholder="Marc" />
+                <Field
+                  label="Prénom *"
+                  value={prenom}
+                  onChange={setPrenom}
+                  placeholder="Marc"
+                  icon={User}
+                />
               </View>
               <View className="flex-1">
-                <Field label="Nom *" value={nom} onChange={setNom} placeholder="Konan" />
+                <Field
+                  label="Nom *"
+                  value={nom}
+                  onChange={setNom}
+                  placeholder="Konan"
+                  icon={IdCard}
+                />
               </View>
             </View>
 
@@ -180,6 +207,7 @@ export default function Signup() {
                 placeholder="0712345678"
                 keyboardType="phone-pad"
                 hint="10 chiffres, sans espaces"
+                icon={Phone}
               />
             </View>
 
@@ -190,6 +218,7 @@ export default function Signup() {
                 onChange={setEmail}
                 placeholder="marc@…"
                 keyboardType="email-address"
+                icon={Mail}
               />
             </View>
 
@@ -201,6 +230,7 @@ export default function Signup() {
                 placeholder="marc"
                 autoCapitalize="none"
                 hint="Min 3 caractères, sans espaces"
+                icon={AtSign}
               />
             </View>
 
@@ -210,6 +240,9 @@ export default function Signup() {
                 Mot de passe *
               </Text>
               <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">
+                <View className="pl-3.5">
+                  <Lock color="#64748b" size={16} />
+                </View>
                 <TextInput
                   value={password}
                   onChangeText={setPassword}
@@ -218,7 +251,7 @@ export default function Signup() {
                   placeholderTextColor="#94a3b8"
                   autoCorrect={false}
                   autoCapitalize="none"
-                  className="flex-1 px-4 py-3.5 text-slate-900 dark:text-white text-base"
+                  className="flex-1 px-3 py-3.5 text-slate-900 dark:text-white text-base"
                 />
                 <Pressable
                   onPress={() => setShowPwd((v) => !v)}
@@ -237,16 +270,21 @@ export default function Signup() {
               <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
                 Confirmer le mot de passe *
               </Text>
-              <TextInput
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showPwd}
-                placeholder="Re-tape le mot de passe"
-                placeholderTextColor="#94a3b8"
-                autoCorrect={false}
-                autoCapitalize="none"
-                className="px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-base"
-              />
+              <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">
+                <View className="pl-3.5">
+                  <Lock color="#64748b" size={16} />
+                </View>
+                <TextInput
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showPwd}
+                  placeholder="Re-tape le mot de passe"
+                  placeholderTextColor="#94a3b8"
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  className="flex-1 px-3 py-3.5 text-slate-900 dark:text-white text-base"
+                />
+              </View>
             </View>
 
             {/* Submit */}
@@ -291,6 +329,7 @@ function Field({
   keyboardType,
   autoCapitalize,
   hint,
+  icon: Icon,
 }: {
   label: string;
   value: string;
@@ -299,7 +338,40 @@ function Field({
   keyboardType?: 'phone-pad' | 'email-address' | 'default';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   hint?: string;
+  icon?: React.ComponentType<{ color: string; size: number }>;
 }) {
+  if (Icon) {
+    return (
+      <View>
+        <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
+          {label}
+        </Text>
+        <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">
+          <View className="pl-3.5">
+            <Icon color="#64748b" size={16} />
+          </View>
+          <TextInput
+            value={value}
+            onChangeText={onChange}
+            placeholder={placeholder}
+            placeholderTextColor="#94a3b8"
+            keyboardType={keyboardType ?? 'default'}
+            autoCapitalize={
+              autoCapitalize ??
+              (keyboardType === 'email-address' ? 'none' : 'sentences')
+            }
+            autoCorrect={false}
+            className="flex-1 px-3 py-3.5 text-slate-900 dark:text-white text-base"
+          />
+        </View>
+        {hint ? (
+          <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
+            {hint}
+          </Text>
+        ) : null}
+      </View>
+    );
+  }
   return (
     <View>
       <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">

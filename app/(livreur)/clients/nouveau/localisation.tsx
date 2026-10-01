@@ -5,9 +5,9 @@ import {
   Text,
   Pressable,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { dialog } from '../../../../lib/dialog';
 import {
   MapPin,
   Check,
@@ -47,7 +47,7 @@ export default function NouveauClientStep2() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission refusée', 'Active la localisation dans les Réglages iOS.');
+        dialog.info('Permission refusée', 'Active la localisation dans les Réglages iOS.');
         return;
       }
       const pos = await Location.getCurrentPositionAsync({
@@ -56,16 +56,20 @@ export default function NouveauClientStep2() {
       setLat(pos.coords.latitude);
       setLng(pos.coords.longitude);
     } catch {
-      Alert.alert('Erreur', 'Impossible de capturer la position');
+      dialog.error('Erreur', 'Impossible de capturer la position');
     } finally {
       setCapturing(false);
     }
   };
 
   const onSubmit = () => {
-    if (!user) return Alert.alert('Erreur', 'Session expirée');
+    if (!user) {
+      dialog.error('Erreur', 'Session expirée');
+      return;
+    }
     if (lat == null || lng == null) {
-      return Alert.alert('Erreur', 'Capture la position avant d’enregistrer');
+      dialog.warning('Position manquante', 'Capture la position avant d’enregistrer');
+      return;
     }
 
     const prix = parseInt(draft.prixDeVenteParDefaut, 10) || 0;
@@ -88,11 +92,11 @@ export default function NouveauClientStep2() {
         reset();
         // Pop step 2 + step 1 to land back on the clients list
         router.dismissAll();
-        Alert.alert('Succès', 'Client créé');
+        dialog.success('Client créé');
       },
       onError: (err: unknown) => {
         const e = err as { response?: { data?: { message?: string } } };
-        Alert.alert('Erreur', e.response?.data?.message ?? 'Échec de la création');
+        dialog.error('Erreur', e.response?.data?.message ?? 'Échec de la création');
       },
     });
   };

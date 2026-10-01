@@ -5,10 +5,10 @@ import {
   Text,
   Pressable,
   ActivityIndicator,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
+import { dialog } from '../../../lib/dialog';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { SelectField } from '../../../components/shared/SelectField';
@@ -60,16 +60,16 @@ export default function DeclarerAchat() {
 
   const onSubmit = () => {
     if (!user) {
-      Alert.alert('Erreur', 'Session invalide');
+      dialog.error('Erreur', 'Session invalide');
       return;
     }
     if (!fournisseurId) {
-      Alert.alert('Erreur', 'Choisis un fournisseur');
+      dialog.warning('Champ requis', 'Choisis un fournisseur');
       return;
     }
     const validLignes = lignes.filter((l) => l.qte > 0);
     if (validLignes.length === 0) {
-      Alert.alert('Erreur', 'Ajoute au moins une ligne avec une quantité > 0');
+      dialog.warning('Lignes invalides', 'Ajoute au moins une ligne avec une quantité > 0');
       return;
     }
 
@@ -87,11 +87,11 @@ export default function DeclarerAchat() {
         setFournisseurId(null);
         setLignes([]);
         router.back();
-        Alert.alert('Succès', 'Achat enregistré, ton stock est mis à jour');
+        dialog.success('Achat enregistré', 'Ton stock est mis à jour');
       },
       onError: (err: unknown) => {
         const e = err as { response?: { data?: { message?: string } } };
-        Alert.alert(
+        dialog.error(
           'Erreur',
           e.response?.data?.message ?? "Échec de l'enregistrement",
         );

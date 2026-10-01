@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Pressable, Text, Modal, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Tabs, router } from 'expo-router';
 import {
   TrendingUp,
@@ -187,6 +187,12 @@ export default function LivreurLayout() {
   const effective = useThemeStore((s) => s.effective);
   const isDark = effective === 'dark';
 
+  // Safe-area inset bottom : sur Android avec gesture nav OU bouton home
+  // virtuel, sans ce padding la TabBar se fait recouvrir par les boutons
+  // système. On l'ajoute en padding (pas en height) pour que les items
+  // restent à leur place et que seule la zone de bas s'agrandisse.
+  const insets = useSafeAreaInsets();
+
   useEffect(() => {
     startWatching();
   }, []);
@@ -214,7 +220,10 @@ export default function LivreurLayout() {
             borderTopColor: isDark ? '#1e293b' : '#e2e8f0',
             // Bg : blanc light / Slate-900 dark, comme les cards de l'app
             backgroundColor: isDark ? '#0f172a' : '#ffffff',
-            height: 70,
+            // Hauteur fixe + padding bottom = inset système (boutons nav).
+            // Total : 70 + inset.bottom — la zone des items reste à 70.
+            height: 70 + insets.bottom,
+            paddingBottom: insets.bottom,
           },
           tabBarLabelStyle: { fontSize: 11, fontWeight: '700', marginTop: -3 },
           tabBarItemStyle: { paddingVertical: 6 },

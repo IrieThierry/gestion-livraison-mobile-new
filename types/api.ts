@@ -16,6 +16,12 @@ export type StatutCompte = 'VALIDE' | 'EN_ATTENTE_VALIDATION'
 
 export interface AuthResponse {
   token: string
+  /**
+   * JWT de refresh, durée de vie longue (~7 jours). Permet à l'interceptor
+   * axios d'obtenir un nouvel `access_token` sans demander à l'utilisateur
+   * de se relogger quand le token court (~15 min) expire.
+   */
+  refreshToken: string
   id: UUID
   nom: string
   prenom: string
@@ -400,6 +406,22 @@ export interface AchatResponse {
 
 /** @deprecated Alias historique de `AchatResponse` — conservé par parité avec le web. */
 export type StockLivreurResponse = AchatResponse
+
+/**
+ * Stock courant agrégé de l'équipe (root + apprentis) — une ligne par tuple
+ * (produit × fournisseur), avec ventilation `parLivreur`. Source :
+ * `GET /stock-livreur/equipe`. Mirror de `StockEquipeLigneResponse` côté web.
+ */
+export interface StockEquipeLigneResponse {
+  produit: ProduitResponse
+  fournisseur: FournisseurResponse
+  parLivreur: { livreurId: UUID; prenom: string; nom: string; qte: number }[]
+  totalQte: number
+  prixVersement: number | null
+  prixVente: number | null
+  coutTotal: number
+  valeurVenteTotal: number | null
+}
 
 /**
  * Une ligne du payload de déclaration d'achat (= entrée de stock chez un

@@ -6,11 +6,11 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { router } from 'expo-router';
+import { dialog } from '../../../../lib/dialog';
 import {
   Eye,
   EyeOff,
@@ -50,27 +50,27 @@ export default function NouveauApprenti() {
 
   const onSubmit = () => {
     if (prenom.trim().length < 2) {
-      Alert.alert('Erreur', 'Prénom trop court');
+      dialog.warning('Champ invalide', 'Prénom trop court');
       return;
     }
     if (nom.trim().length < 2) {
-      Alert.alert('Erreur', 'Nom trop court');
+      dialog.warning('Champ invalide', 'Nom trop court');
       return;
     }
     if (!/^[0-9]{10}$/.test(contact.trim())) {
-      Alert.alert('Erreur', 'Téléphone : 10 chiffres requis');
+      dialog.warning('Champ invalide', 'Téléphone : 10 chiffres requis');
       return;
     }
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      Alert.alert('Erreur', 'Email invalide');
+      dialog.warning('Champ invalide', 'Email invalide');
       return;
     }
     if (username.trim().length < 3) {
-      Alert.alert('Erreur', "Nom d'utilisateur min 3 caractères");
+      dialog.warning('Champ invalide', "Nom d'utilisateur min 3 caractères");
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Erreur', 'Mot de passe min 6 caractères');
+      dialog.warning('Champ invalide', 'Mot de passe min 6 caractères');
       return;
     }
 
@@ -85,14 +85,14 @@ export default function NouveauApprenti() {
       },
       {
         onSuccess: () => {
-          Alert.alert(
+          dialog.success(
             'Apprenti créé',
             `${prenom} ${nom} peut maintenant se connecter avec son nom d'utilisateur et le mot de passe que tu lui as fourni.`,
           );
           router.back();
         },
         onError: (err: unknown) => {
-          Alert.alert(
+          dialog.error(
             'Erreur',
             extractApiErrorMessage(err, 'Création impossible'),
           );

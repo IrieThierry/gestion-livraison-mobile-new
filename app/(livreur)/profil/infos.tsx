@@ -5,11 +5,11 @@ import {
   Text,
   TextInput,
   Pressable,
-  Alert,
   ActivityIndicator,
   Image,
 } from 'react-native';
 import { router } from 'expo-router';
+import { dialog } from '../../../lib/dialog';
 import { useMutation } from '@tanstack/react-query';
 import { Save, Camera, Trash2 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
@@ -49,13 +49,12 @@ export default function ModifierInfos() {
       useAuthStore.setState({ user: merged });
       await AsyncStorage.setItem('user', JSON.stringify(merged));
 
-      Alert.alert('Succès', 'Tes informations ont été mises à jour.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      dialog.success('Tes informations ont été mises à jour.');
+      router.back();
     },
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { message?: string } } };
-      Alert.alert('Erreur', e.response?.data?.message ?? 'Mise à jour impossible');
+      dialog.error('Erreur', e.response?.data?.message ?? 'Mise à jour impossible');
     },
   });
 
@@ -73,21 +72,20 @@ export default function ModifierInfos() {
       {
         onError: (err: unknown) => {
           const e = err as { response?: { data?: { message?: string } } };
-          Alert.alert('Erreur', e.response?.data?.message ?? 'Upload échoué');
+          dialog.error('Erreur', e.response?.data?.message ?? 'Upload échoué');
         },
       },
     );
   };
 
   const onDeletePhoto = () => {
-    Alert.alert('Supprimer la photo ?', 'Tu retomberas sur tes initiales.', [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Supprimer',
-        style: 'destructive',
-        onPress: () => deletePhoto.mutate(),
-      },
-    ]);
+    dialog.confirm({
+      title: 'Supprimer la photo ?',
+      message: 'Tu retomberas sur tes initiales.',
+      confirmLabel: 'Supprimer',
+      destructive: true,
+      onConfirm: () => deletePhoto.mutate(),
+    });
   };
 
   if (!user) return null;
@@ -98,7 +96,7 @@ export default function ModifierInfos() {
   const onSubmit = () => {
     const parsed = updateProfileSchema.safeParse({ prenom, nom, contact, email });
     if (!parsed.success) {
-      Alert.alert('Erreur', parsed.error.issues[0]?.message ?? 'Champs invalides');
+      dialog.warning('Champs invalides', parsed.error.issues[0]?.message);
       return;
     }
     m.mutate(parsed.data);

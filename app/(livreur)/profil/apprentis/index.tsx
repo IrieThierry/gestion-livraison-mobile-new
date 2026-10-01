@@ -6,11 +6,11 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Plus, UsersRound, Power, ChevronRight } from 'lucide-react-native';
+import { dialog } from '../../../../lib/dialog';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import {
@@ -73,20 +73,15 @@ export default function ApprentisList() {
 
   const onToggle = (a: LivreurResponse) => {
     const next = !a.actif;
-    Alert.alert(
-      next ? 'Activer le compte ?' : 'Désactiver le compte ?',
-      next
+    dialog.confirm({
+      title: next ? 'Activer le compte ?' : 'Désactiver le compte ?',
+      message: next
         ? `${a.prenom} ${a.nom} pourra à nouveau se connecter.`
         : `${a.prenom} ${a.nom} ne pourra plus se connecter tant que tu ne réactives pas son compte.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: next ? 'Activer' : 'Désactiver',
-          style: next ? 'default' : 'destructive',
-          onPress: () => toggleMut.mutate({ id: a.id, actif: next }),
-        },
-      ],
-    );
+      confirmLabel: next ? 'Activer' : 'Désactiver',
+      destructive: !next,
+      onConfirm: () => toggleMut.mutate({ id: a.id, actif: next }),
+    });
   };
 
   return (

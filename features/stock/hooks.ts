@@ -42,6 +42,19 @@ export function useStockActuelParent(parentId: UUID) {
 }
 
 /**
+ * Stock courant agrégé de l'équipe — une ligne par tuple
+ * (produit × fournisseur) avec ventilation `parLivreur`. Utilisé par la
+ * version repensée de l'écran « Stock équipe » (cumul par produit + filtre
+ * livreur). Source : `GET /stock-livreur/equipe`.
+ */
+export function useStockEquipe() {
+  return useQuery({
+    queryKey: stockKeys.equipe(),
+    queryFn: () => stockApi.equipe(),
+  });
+}
+
+/**
  * Déclare un achat (entrée de stock) chez un fournisseur. Sur succès, on
  * invalide tout le sous-arbre `['stock']` du cache pour que la page "Mon
  * stock" et les agrégats `courant` se rafraîchissent automatiquement.

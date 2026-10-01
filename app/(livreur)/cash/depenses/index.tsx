@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { View, Text, FlatList, Pressable, RefreshControl, Alert } from 'react-native';
+import { View, Text, FlatList, Pressable, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
+import { dialog } from '../../../../lib/dialog';
 import { Plus, Trash2, Fuel, Wrench, FileText, MoreHorizontal } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
@@ -38,10 +39,13 @@ export default function DepensesList() {
   );
 
   const onDelete = (d: DepenseResponse) => {
-    Alert.alert('Supprimer cette dépense ?', d.libelle, [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: () => m.mutate(d.id) },
-    ]);
+    dialog.confirm({
+      title: 'Supprimer cette dépense ?',
+      message: d.libelle,
+      confirmLabel: 'Supprimer',
+      destructive: true,
+      onConfirm: () => m.mutate(d.id),
+    });
   };
 
   return (

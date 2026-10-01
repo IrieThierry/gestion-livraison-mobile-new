@@ -6,7 +6,6 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -27,6 +26,7 @@ import {
 } from '../../../../features/lookups/hooks';
 import { useAuthStore } from '../../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
+import { dialog } from '../../../../lib/dialog';
 import type { ClientResponse, ModifierClientRequest } from '../../../../types/api';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
@@ -130,7 +130,7 @@ export default function ModifierClient() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
+        dialog.info(
           'Permission refusée',
           'Active la localisation dans les Réglages pour capturer la position.',
         );
@@ -141,7 +141,7 @@ export default function ModifierClient() {
       });
       setLatLng({ lat: pos.coords.latitude, lng: pos.coords.longitude });
     } catch {
-      Alert.alert('Erreur', 'Impossible de capturer la position');
+      dialog.error('Erreur', 'Impossible de capturer la position');
     } finally {
       setCapturing(false);
     }
@@ -149,13 +149,13 @@ export default function ModifierClient() {
 
   const onSubmit = () => {
     if (!user || !client) return;
-    if (!prenom.trim()) return Alert.alert('Erreur', 'Prénom requis');
-    if (!contact.trim()) return Alert.alert('Erreur', 'Téléphone requis');
-    if (!zoneId) return Alert.alert('Erreur', 'Zone requise');
-    if (!quartierId) return Alert.alert('Erreur', 'Quartier requis');
-    if (!categorieId) return Alert.alert('Erreur', 'Catégorie requise');
+    if (!prenom.trim()) return dialog.warning('Champ requis', 'Prénom requis');
+    if (!contact.trim()) return dialog.warning('Champ requis', 'Téléphone requis');
+    if (!zoneId) return dialog.warning('Champ requis', 'Zone requise');
+    if (!quartierId) return dialog.warning('Champ requis', 'Quartier requis');
+    if (!categorieId) return dialog.warning('Champ requis', 'Catégorie requise');
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      return Alert.alert('Erreur', 'Email invalide');
+      return dialog.warning('Email invalide', 'Vérifie le format de l’email.');
     }
 
     const payload: ModifierClientRequest = {
@@ -179,10 +179,10 @@ export default function ModifierClient() {
     m.mutate(payload, {
       onSuccess: () => {
         router.back();
-        Alert.alert('Succès', 'Client mis à jour');
+        dialog.success('Client mis à jour');
       },
       onError: (err: unknown) => {
-        Alert.alert('Erreur', extractApiErrorMessage(err, 'Mise à jour impossible'));
+        dialog.error('Erreur', extractApiErrorMessage(err, 'Mise à jour impossible'));
       },
     });
   };

@@ -7,7 +7,12 @@ import type { AuthUser } from '../features/auth/api';
 interface AuthState {
   user: AuthUser | null;
   isHydrated: boolean;
-  setSession: (token: string, user: AuthUser) => Promise<void>;
+  /**
+   * Persiste l'access token (court, ~15 min) ET le refresh token (long, ~7 j)
+   * en SecureStorage, plus l'utilisateur (sans tokens) en AsyncStorage.
+   * Appelé par les écrans login + signup.
+   */
+  setSession: (token: string, refreshToken: string, user: AuthUser) => Promise<void>;
   hydrate: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -16,10 +21,14 @@ export const useAuthStore = create<AuthState>()((set) => ({
   user: null,
   isHydrated: false,
 
-  // Le back ne renvoie qu'un seul token (pas de refresh). On le persiste
-  // sous la clé `access_token` que l'intercepteur axios lit déjà.
-  setSession: async (token, user) => {
+  // Le back renvoie `token` (access, ~15 min) + `refreshToken` (long, ~7 j).
+  // Les deux vivent en SecureStorage (chiffré). L'access est lu par
+  // l'intercepteur axios à chaque requête, le refresh est utilisé quand
+  // l'access répond 401 pour obtenir un nouveau couple.
+  // Le user (sans tokens) est en AsyncStorage pour rendu rapide au démarrage.
+  setSession: async (token, refreshToken, user) => {
     await SecureStorage.set('access_token', token);
+    await SecureStorage.set('refresh_token', refreshToken);
     await AsyncStorage.setItem('user', JSON.stringify(user));
     set({ user });
   },

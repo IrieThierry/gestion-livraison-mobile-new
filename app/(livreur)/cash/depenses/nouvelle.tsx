@@ -6,9 +6,9 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { dialog } from '../../../../lib/dialog';
 import { Fuel, Wrench, FileText, MoreHorizontal } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { DatePickerField } from '../../../../components/shared/DatePickerField';
@@ -39,16 +39,16 @@ export default function NouvelleDepense() {
 
   const onSubmit = () => {
     if (!libelle.trim()) {
-      Alert.alert('Erreur', 'Saisis un libellé');
+      dialog.warning('Champ requis', 'Saisis un libellé');
       return;
     }
     const n = parseInt(montant, 10);
     if (!n || n <= 0) {
-      Alert.alert('Erreur', 'Montant invalide');
+      dialog.warning('Montant invalide', 'Saisis un montant supérieur à 0.');
       return;
     }
     if (!dateDepense) {
-      Alert.alert('Erreur', 'Date requise');
+      dialog.warning('Champ requis', 'Date requise');
       return;
     }
     m.mutate(
@@ -62,11 +62,11 @@ export default function NouvelleDepense() {
       {
         onSuccess: () => {
           router.back();
-          Alert.alert('Succès', 'Dépense enregistrée');
+          dialog.success('Dépense enregistrée');
         },
         onError: (err: unknown) => {
           const e = err as { response?: { data?: { message?: string } } };
-          Alert.alert('Erreur', e.response?.data?.message ?? 'Échec');
+          dialog.error('Erreur', e.response?.data?.message ?? 'Échec');
         },
       },
     );

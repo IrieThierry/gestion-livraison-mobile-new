@@ -6,8 +6,9 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Alert,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Save, Trash2, Tag, User } from 'lucide-react-native';
@@ -23,6 +24,7 @@ import {
 } from '../../../../features/prix/hooks';
 import { useAuthStore } from '../../../../stores/authStore';
 import { formatFCFA } from '../../../../lib/format';
+import { dialog } from '../../../../lib/dialog';
 import type { ProduitResponse } from '../../../../types/api';
 
 /**
@@ -99,7 +101,7 @@ export default function PrixClientPage() {
     const raw = draftPrix[produit.id] ?? '';
     const prix = parseInt(raw.replace(/[^0-9]/g, ''), 10);
     if (!prix || prix <= 0) {
-      Alert.alert('Erreur', 'Saisis un prix supérieur à 0');
+      dialog.error('Erreur', 'Saisis un prix supérieur à 0');
       return;
     }
     upsertMut.mutate(
@@ -110,34 +112,36 @@ export default function PrixClientPage() {
         },
         onError: (err: unknown) => {
           const e = err as { response?: { data?: { message?: string } } };
-          Alert.alert('Erreur', e.response?.data?.message ?? 'Échec');
+          dialog.error('Erreur', e.response?.data?.message ?? 'Échec');
         },
       },
     );
   };
 
   const onDelete = (produit: ProduitResponse) => {
-    Alert.alert(
-      'Supprimer ce prix ?',
-      `${produit.designation} retombera sur le prix par défaut.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: () =>
-            deleteMut.mutate({ clientId: client.id, produitId: produit.id }),
-        },
-      ],
-    );
+    dialog.confirm({
+      title: 'Supprimer ce prix ?',
+      message: `${produit.designation} retombera sur le prix par défaut.`,
+      confirmLabel: 'Supprimer',
+      destructive: true,
+      onConfirm: () =>
+        deleteMut.mutate({ clientId: client.id, produitId: produit.id }),
+    });
   };
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader title="Prix personnalisés" subtitle={fullName} />
 
+      {/* KeyboardAvoidingView : empêche le clavier de masquer les inputs.
+          paddingBottom large dans le ScrollView pour laisser respirer. */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1"
+      >
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 320 }}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={qPrixClient.isFetching && !qPrixClient.isLoading}
@@ -306,6 +310,7 @@ export default function PrixClientPage() {
           )}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

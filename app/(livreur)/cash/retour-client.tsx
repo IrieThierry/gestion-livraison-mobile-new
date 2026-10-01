@@ -8,10 +8,10 @@ import {
   Modal,
   FlatList,
   ActivityIndicator,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
+import { dialog } from '../../../lib/dialog';
 import { X } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
@@ -93,7 +93,7 @@ export default function RetourClient() {
 
   const onSubmit = () => {
     if (!selected) {
-      Alert.alert('Erreur', 'Choisis une livraison');
+      dialog.warning('Champ requis', 'Choisis une livraison');
       return;
     }
     const lignes = (selected.produitsLivraison ?? [])
@@ -105,13 +105,13 @@ export default function RetourClient() {
       .filter((l) => l.quantite > 0);
 
     if (lignes.length === 0) {
-      Alert.alert('Erreur', 'Aucune quantité à retourner');
+      dialog.warning('Aucune ligne', 'Aucune quantité à retourner');
       return;
     }
     const overflow = lignes.find((l) => l.quantite > l.max);
     if (overflow) {
-      Alert.alert(
-        'Erreur',
+      dialog.warning(
+        'Quantité invalide',
         `Quantité dépasse le maximum (${overflow.max})`,
       );
       return;
@@ -133,14 +133,14 @@ export default function RetourClient() {
           setLivraisonId(null);
           setQtes({});
           router.back();
-          Alert.alert(
-            'Succès',
-            'Retour enregistré, stock et solde client mis à jour',
+          dialog.success(
+            'Retour enregistré',
+            'Stock et solde client mis à jour',
           );
         },
         onError: (err: unknown) => {
           const e = err as { response?: { data?: { message?: string } } };
-          Alert.alert(
+          dialog.error(
             'Erreur',
             e.response?.data?.message ?? 'Échec de l’enregistrement',
           );

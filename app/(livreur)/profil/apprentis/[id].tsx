@@ -6,9 +6,9 @@ import {
   Pressable,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { dialog } from '../../../../lib/dialog';
 import {
   Phone,
   Mail,
@@ -129,20 +129,15 @@ export default function ApprentiDetail() {
 
   const onToggle = () => {
     const next = !actif;
-    Alert.alert(
-      next ? 'Activer le compte ?' : 'Désactiver le compte ?',
-      next
+    dialog.confirm({
+      title: next ? 'Activer le compte ?' : 'Désactiver le compte ?',
+      message: next
         ? `${fullName} pourra à nouveau se connecter.`
         : `${fullName} ne pourra plus se connecter tant que tu ne réactives pas son compte.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: next ? 'Activer' : 'Désactiver',
-          style: next ? 'default' : 'destructive',
-          onPress: () => toggleMut.mutate({ id: apprenti.id, actif: next }),
-        },
-      ],
-    );
+      confirmLabel: next ? 'Activer' : 'Désactiver',
+      destructive: !next,
+      onConfirm: () => toggleMut.mutate({ id: apprenti.id, actif: next }),
+    });
   };
 
   return (

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ScrollView, View, Text, TextInput, Pressable, Alert, RefreshControl } from 'react-native';
+import { ScrollView, View, Text, TextInput, Pressable, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
+import { dialog } from '../../../../lib/dialog';
 import { ArrowRight } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../../../../components/shared/PageHeader';
@@ -101,13 +102,13 @@ export default function NouveauClientStep1() {
     // Côté UX mobile, on impose en plus le choix d'une Zone (le quartier
     // n'a pas vraiment de sens hors zone), même si le back-office l'extraira
     // de la jointure quartier.zone.
-    if (!prenom.trim()) return Alert.alert('Erreur', 'Prénom requis');
-    if (!contact.trim()) return Alert.alert('Erreur', 'Téléphone requis');
-    if (!zoneId) return Alert.alert('Erreur', 'Zone requise');
-    if (!quartierId) return Alert.alert('Erreur', 'Quartier requis');
-    if (!categorieId) return Alert.alert('Erreur', 'Catégorie requise');
+    if (!prenom.trim()) return dialog.warning('Champ requis', 'Prénom requis');
+    if (!contact.trim()) return dialog.warning('Champ requis', 'Téléphone requis');
+    if (!zoneId) return dialog.warning('Champ requis', 'Zone requise');
+    if (!quartierId) return dialog.warning('Champ requis', 'Quartier requis');
+    if (!categorieId) return dialog.warning('Champ requis', 'Catégorie requise');
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      return Alert.alert('Erreur', 'Email invalide');
+      return dialog.warning('Email invalide', 'Vérifie le format de l’email.');
     }
 
     setDraft({

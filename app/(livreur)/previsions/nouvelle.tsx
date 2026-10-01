@@ -6,9 +6,9 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { dialog } from '../../../lib/dialog';
 import { Plus } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { SelectField } from '../../../components/shared/SelectField';
@@ -63,15 +63,15 @@ export default function NouvellePrevision() {
   const onSubmit = async () => {
     if (!user) return;
     if (!clientId) {
-      Alert.alert('Erreur', 'Choisis un client');
+      dialog.warning('Champ requis', 'Choisis un client');
       return;
     }
     if (!date) {
-      Alert.alert('Erreur', 'Date requise');
+      dialog.warning('Champ requis', 'Date requise');
       return;
     }
     if (lignesAvecQte.length === 0) {
-      Alert.alert('Erreur', 'Saisis au moins une quantité > 0');
+      dialog.warning('Lignes invalides', 'Saisis au moins une quantité > 0');
       return;
     }
 
@@ -92,13 +92,12 @@ export default function NouvellePrevision() {
         ),
       );
       router.back();
-      Alert.alert(
-        'Succès',
+      dialog.success(
         `${lignesAvecQte.length} prévision${lignesAvecQte.length > 1 ? 's' : ''} créée${lignesAvecQte.length > 1 ? 's' : ''}`,
       );
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
-      Alert.alert('Erreur', e.response?.data?.message ?? 'Échec création');
+      dialog.error('Erreur', e.response?.data?.message ?? 'Échec création');
     }
   };
 

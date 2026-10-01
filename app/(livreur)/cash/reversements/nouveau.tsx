@@ -6,9 +6,9 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { dialog } from '../../../../lib/dialog';
 import { Building2, Users } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { DatePickerField } from '../../../../components/shared/DatePickerField';
@@ -42,12 +42,12 @@ export default function NouveauReversement() {
 
   const onSubmit = () => {
     if (!params.beneficiaireId) {
-      Alert.alert('Erreur', 'Bénéficiaire manquant');
+      dialog.error('Erreur', 'Bénéficiaire manquant');
       return;
     }
     const n = parseInt(montant, 10);
     if (!n || n <= 0) {
-      Alert.alert('Erreur', 'Montant invalide');
+      dialog.warning('Montant invalide', 'Saisis un montant supérieur à 0.');
       return;
     }
     m.mutate(
@@ -63,11 +63,11 @@ export default function NouveauReversement() {
       {
         onSuccess: () => {
           router.back();
-          Alert.alert('Succès', 'Reversement enregistré');
+          dialog.success('Reversement enregistré');
         },
         onError: (err: unknown) => {
           const e = err as { response?: { data?: { message?: string } } };
-          Alert.alert('Erreur', e.response?.data?.message ?? 'Échec');
+          dialog.error('Erreur', e.response?.data?.message ?? 'Échec');
         },
       },
     );

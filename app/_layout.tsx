@@ -12,6 +12,7 @@ import { queryClient, queryPersister } from '../lib/query-client';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 import { useNetworkStore } from '../stores/networkStore';
+import { AppDialog } from '../components/shared/AppDialog';
 
 // ---- TanStack Query : focus + online managers branchés sur React Native ----
 // Sur le web, react-query écoute `window.focus` et `navigator.onLine`. En
@@ -147,6 +148,13 @@ export default function RootLayout() {
             <Stack.Screen name="(livreur)" />
           </Stack>
         </AuthGate>
+        {/*
+          Dialog modal global — piloté par `useDialogStore` via le helper
+          `dialog.success/error/warning/info/confirm(...)`. Monté ici pour
+          être disponible depuis n'importe quel écran sans avoir à le
+          re-déclarer.
+        */}
+        <AppDialog />
       </PersistQueryClientProvider>
     </SafeAreaProvider>
   );

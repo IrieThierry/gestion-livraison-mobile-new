@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   Pressable,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -13,22 +12,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
+import { AtSign, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { authApi } from '../../features/auth/api';
 import { loginSchema } from '../../features/auth/schemas';
 import { useAuthStore } from '../../stores/authStore';
 import { Biometric } from '../../lib/biometric';
 import { SecureStorage } from '../../lib/secure-storage';
+import { dialog } from '../../lib/dialog';
 
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const setSession = useAuthStore((s) => s.setSession);
 
   const mutation = useMutation({
     mutationFn: authApi.login,
     onSuccess: async (data) => {
-      const { token, ...user } = data;
-      await setSession(token, user);
+      const { token, refreshToken, ...user } = data;
+      await setSession(token, refreshToken, user);
 
       // Offer to enable biometric for next launches. We await the Alert
       // promise so the user finishes choosing before we navigate away.
@@ -39,21 +41,17 @@ export default function Login() {
           if (already !== '1') {
             const label = await Biometric.getTypeLabel();
             await new Promise<void>((resolve) => {
-              Alert.alert(
-                `Activer ${label} ?`,
-                `La prochaine fois, ouvre l'app avec ${label} au lieu du mot de passe.`,
-                [
-                  { text: 'Plus tard', style: 'cancel', onPress: () => resolve() },
-                  {
-                    text: 'Activer',
-                    onPress: async () => {
-                      await SecureStorage.set('biometric_enabled', '1');
-                      resolve();
-                    },
-                  },
-                ],
-                { cancelable: false },
-              );
+              dialog.confirm({
+                title: `Activer ${label} ?`,
+                message: `La prochaine fois, ouvre l'app avec ${label} au lieu du mot de passe.`,
+                cancelLabel: 'Plus tard',
+                confirmLabel: 'Activer',
+                onCancel: () => resolve(),
+                onConfirm: async () => {
+                  await SecureStorage.set('biometric_enabled', '1');
+                  resolve();
+                },
+              });
             });
           }
         }
@@ -65,14 +63,14 @@ export default function Login() {
     },
     onError: (e: unknown) => {
       const err = e as { response?: { data?: { message?: string } } };
-      Alert.alert('Erreur', err.response?.data?.message ?? 'Identifiants incorrects');
+      dialog.error('Erreur', err.response?.data?.message ?? 'Identifiants incorrects');
     },
   });
 
   const onSubmit = () => {
     const parsed = loginSchema.safeParse({ username, password });
     if (!parsed.success) {
-      Alert.alert('Erreur', parsed.error.issues[0]?.message ?? 'Champs invalides');
+      dialog.warning('Champs invalides', parsed.error.issues[0]?.message ?? 'Vérifie les informations saisies.');
       return;
     }
     mutation.mutate(parsed.data);
@@ -112,28 +110,51 @@ export default function Login() {
               <Text className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
                 Nom d'utilisateur
               </Text>
-              <TextInput
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-                autoCorrect={false}
-                placeholder="ton.identifiant"
-                placeholderTextColor="#94a3b8"
-                className="px-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-lg"
-              />
+              <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
+                <View className="pl-4">
+                  <AtSign color="#64748b" size={18} />
+                </View>
+                <TextInput
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  placeholder="ton.identifiant"
+                  placeholderTextColor="#94a3b8"
+                  className="flex-1 px-3 py-4 text-slate-900 dark:text-white text-lg"
+                />
+              </View>
             </View>
             <View className="mt-5">
               <Text className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
                 Mot de passe
               </Text>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                placeholder="••••••••"
-                placeholderTextColor="#94a3b8"
-                className="px-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-lg"
-              />
+              <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
+                <View className="pl-4">
+                  <Lock color="#64748b" size={18} />
+                </View>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  placeholder="••••••••"
+                  placeholderTextColor="#94a3b8"
+                  className="flex-1 px-3 py-4 text-slate-900 dark:text-white text-lg"
+                />
+                <Pressable
+                  onPress={() => setShowPassword((v) => !v)}
+                  hitSlop={10}
+                  className="px-4 py-4 active:opacity-60"
+                >
+                  {showPassword ? (
+                    <EyeOff color="#64748b" size={20} />
+                  ) : (
+                    <Eye color="#64748b" size={20} />
+                  )}
+                </Pressable>
+              </View>
             </View>
 
             {/* Submit */}

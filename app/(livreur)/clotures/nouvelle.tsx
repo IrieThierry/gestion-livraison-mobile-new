@@ -6,9 +6,9 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { dialog } from '../../../lib/dialog';
 import { CheckCircle2, AlertTriangle } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { DatePickerField } from '../../../components/shared/DatePickerField';
@@ -72,11 +72,11 @@ export default function NouvelleCloture() {
   const onSubmit = () => {
     if (!user) return;
     if (!dateCloture) {
-      Alert.alert('Erreur', 'Date requise');
+      dialog.warning('Champ requis', 'Date requise');
       return;
     }
     if (remisNum < 0) {
-      Alert.alert('Erreur', 'Montant remis invalide');
+      dialog.warning('Montant invalide', 'Montant remis invalide');
       return;
     }
     m.mutate(
@@ -89,16 +89,16 @@ export default function NouvelleCloture() {
       {
         onSuccess: () => {
           router.back();
-          Alert.alert(
-            'Succès',
+          dialog.success(
+            'Clôture enregistrée',
             balanced
-              ? 'Clôture enregistrée — caisse équilibrée'
-              : `Clôture enregistrée — écart : ${formatFCFA(ecart)} FCFA`,
+              ? 'Caisse équilibrée'
+              : `Écart : ${formatFCFA(ecart)} FCFA`,
           );
         },
         onError: (err: unknown) => {
           const e = err as { response?: { data?: { message?: string } } };
-          Alert.alert('Erreur', e.response?.data?.message ?? 'Échec');
+          dialog.error('Erreur', e.response?.data?.message ?? 'Échec');
         },
       },
     );

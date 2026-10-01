@@ -3,8 +3,9 @@ import type { AuthResponse, LoginRequest } from '../../types/api';
 import type { LoginInput, SignupInput } from './schemas';
 
 // Le back renvoie une réponse plate (pas d'objet user imbriqué) — on extrait
-// la portion "user" depuis AuthResponse pour le store.
-export type AuthUser = Omit<AuthResponse, 'token'>;
+// la portion "user" depuis AuthResponse pour le store. Les tokens (`token`
+// et `refreshToken`) sont stockés séparément en SecureStorage par le store.
+export type AuthUser = Omit<AuthResponse, 'token' | 'refreshToken'>;
 
 export interface UpdateProfileRequest {
   nom: string;

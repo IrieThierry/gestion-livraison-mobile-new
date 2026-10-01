@@ -6,9 +6,9 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import { dialog } from '../../../lib/dialog';
 import {
   useLivraisonsByLivreur,
   useEncaisserLivraison,
@@ -175,27 +175,27 @@ export default function EncaisserPage() {
 
   const onSubmit = () => {
     if (!clientId) {
-      Alert.alert('Erreur', 'Client invalide');
+      dialog.error('Erreur', 'Client invalide');
       return;
     }
     const n = parseInt(montant, 10);
     if (!n || n <= 0) {
-      Alert.alert('Erreur', 'Montant invalide');
+      dialog.warning('Montant invalide', 'Saisis un montant supérieur à 0.');
       return;
     }
     if (totalCible > 0 && n > totalCible) {
-      Alert.alert(
-        'Erreur',
+      dialog.warning(
+        'Montant trop élevé',
         `Le montant dépasse le total à encaisser (${formatFCFA(totalCible)} FCFA)`,
       );
       return;
     }
     if (!libre && (!dateDebut || !dateFin)) {
-      Alert.alert('Erreur', 'Date début et date fin requises en mode période');
+      dialog.warning('Champs requis', 'Date début et date fin requises en mode période');
       return;
     }
     if (!libre && dateDebut && dateFin && dateDebut > dateFin) {
-      Alert.alert('Erreur', 'La date de début doit être avant la date de fin');
+      dialog.warning('Dates invalides', 'La date de début doit être avant la date de fin');
       return;
     }
 
@@ -219,11 +219,11 @@ export default function EncaisserPage() {
           setDateFin(todayIso);
           setDateEncaissement(todayIso);
           router.back();
-          Alert.alert('Succès', 'Encaissement enregistré');
+          dialog.success('Encaissement enregistré');
         },
         onError: (err: unknown) => {
           const e = err as { response?: { data?: { message?: string } } };
-          Alert.alert(
+          dialog.error(
             'Erreur',
             e.response?.data?.message ?? 'Échec de l’encaissement',
           );
