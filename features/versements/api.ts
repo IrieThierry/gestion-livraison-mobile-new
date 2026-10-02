@@ -8,8 +8,7 @@ import type {
 
 // Port direct de gestion-livraison-front/src/features/versements/api.ts.
 // Pour le mobile MVP on n'expose que `situation` (calcul en lecture)
-// et `enregistrer` (création) — les listings et la gestion des
-// contestations restent côté web.
+// et `enregistrer` (création) — les listings restent côté web.
 export const versementsApi = {
   /**
    * Calcule en lecture la situation du couple (livreur, fournisseur)
