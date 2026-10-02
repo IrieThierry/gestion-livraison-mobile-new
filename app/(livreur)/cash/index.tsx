@@ -9,6 +9,7 @@ import {
   TrendingUp,
   ArrowRight,
   RotateCcw,
+  ClipboardList,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { StatCard } from '../../../components/shared/StatCard';
@@ -129,16 +130,26 @@ export default function CashOverview() {
               onPress={() => router.push('/(livreur)/cash/retours' as never)}
               border
             />
-            {/* Encours visible pour les livreurs racines (pas pour les apprentis) */}
+            {/* Encours et Commandes visibles pour les livreurs racines (pas pour les apprentis) */}
             {!user.parentId ? (
-              <CashMenuRow
-                icon={TrendingUp}
-                color="#f59e0b"
-                label="Encours clients"
-                hint="Synthèse des créances clients"
-                onPress={() => router.push('/(livreur)/cash/encours' as never)}
-                border
-              />
+              <>
+                <CashMenuRow
+                  icon={ClipboardList}
+                  color="#0ea5e9"
+                  label="Commandes"
+                  hint="Commandes auprès des fournisseurs"
+                  onPress={() => router.push('/(livreur)/cash/commandes' as never)}
+                  border
+                />
+                <CashMenuRow
+                  icon={TrendingUp}
+                  color="#f59e0b"
+                  label="Encours clients"
+                  hint="Synthèse des créances clients"
+                  onPress={() => router.push('/(livreur)/cash/encours' as never)}
+                  border
+                />
+              </>
             ) : null}
           </View>
 

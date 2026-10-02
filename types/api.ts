@@ -339,20 +339,16 @@ export interface ModifierFournisseurRequest {
   contact: string
 }
 
-// ---------- Commandes ----------
-export type StatutCommande = 'ENVOYEE' | 'ENCAISSEE'
-
-export interface ProduitCommandeRequest {
-  produitId: UUID
-  qteCommandee: number
-  prixAchat: number
-}
+// ---------- Commandes (livreur -> fournisseur) ----------
+export type StatutCommande = 'ENVOYEE' | 'CONFIRMEE' | 'REFUSEE' | 'ANNULEE' | 'LIVREE'
 
 export interface ProduitCommandeResponse {
   id: UUID
   produit: ProduitResponse
   qteCommandee: number
-  prixAchat: number
+  qteLivree: number | null     // renseignée à la livraison par le fournisseur
+  prixUnitaire: number | null  // figé à la livraison
+  margeUnitaire: number | null // figée à la livraison
 }
 
 export interface CommandeResponse {
@@ -360,16 +356,29 @@ export interface CommandeResponse {
   reference: string
   livreur: LivreurResponse
   fournisseur: FournisseurResponse
-  montantCommande: number
-  date: ISODate
-  produitsCommandes: ProduitCommandeResponse[]
   statut: StatutCommande
+  date: string                 // ISO — date de la commande
+  dateDecision: string | null  // ISO — confirmation ou refus
+  motifRefus: string | null
+  dateLivraison: string | null // ISO
+  montantLivre: number | null  // Σ qteLivree × prixUnitaire (statut LIVREE)
+  margeLivree: number | null
+  versementId: UUID | null     // non nul = réglée par un versement
+  produitsCommandes: ProduitCommandeResponse[]
 }
 
 export interface CreerCommandeRequest {
   fournisseurId: UUID
-  livreurId: UUID
-  produitsCommandes: ProduitCommandeRequest[]
+  produitsCommandes: Array<{ produitId: UUID; qteCommandee: number }>
+}
+
+/** Ligne du catalogue d'un fournisseur (GET /produit-fournisseur?fournisseurId=). */
+export interface ProduitFournisseurResponse {
+  id: UUID
+  produit: ProduitResponse
+  fournisseur: FournisseurResponse
+  prixDeVente: number
+  marge: number
 }
 
 // ---------- Stock / Achats (Plan D — split achat / stock_courant_livreur) ----------
@@ -666,18 +675,19 @@ export interface VersementResponse {
 export interface CreerVersementRequest {
   livreurId: UUID
   fournisseurId: UUID
-  dateDebut?: string
-  dateFin?: string
+  /** Commandes réglées ; vide ou absent = versement libre (réduit seulement la dette, montant > 0). */
+  commandeIds?: UUID[]
   dateVersement?: string
   montantVerse: number
   commentaire?: string
-  /** Mode libre : solder la dette sans plage (valeurAchat=0). */
-  libre?: boolean
 }
 
 export interface SituationVersementResponse {
-  valeurAchat: number
-  margeCumulee: number
-  detteAvant: number
-  totalDu: number // = detteAvant + valeurAchat
+  valeurAchat: number      // Σ montant livré des commandes sélectionnées
+  margeCumulee: number     // Σ marge livrée des commandes sélectionnées
+  detteAvant: number       // dette du dernier versement créé
+  totalDu: number          // = detteAvant + valeurAchat
+  dateDebut: string | null // plus ancienne livraison sélectionnée (nulle si aucune commande)
+  dateFin: string | null   // plus récente livraison sélectionnée
+  nbCommandes: number
 }
