@@ -13,6 +13,7 @@ import { CheckCircle2, AlertTriangle } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { DatePickerField } from '../../../components/shared/DatePickerField';
 import { useEnregistrerCloture } from '../../../features/clotures/hooks';
+import { estEquilibre, parseMontantRemis } from '../../../features/clotures/regles';
 import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useEncaissementsByLivreur } from '../../../features/encaissements/hooks';
 import { useAuthStore } from '../../../stores/authStore';
@@ -65,9 +66,9 @@ export default function NouvelleCloture() {
     return { totalLivre, totalEncaisse };
   }, [dateCloture, today, livQ.data, encQ.data]);
 
-  const remisNum = parseInt(montantRemis, 10) || 0;
+  const remisNum = parseMontantRemis(montantRemis);
   const ecart = remisNum - stats.totalEncaisse;
-  const balanced = remisNum > 0 && ecart === 0;
+  const balanced = remisNum > 0 && estEquilibre(ecart);
 
   const onSubmit = () => {
     if (!user) return;
@@ -150,7 +151,7 @@ export default function NouvelleCloture() {
             <TextInput
               value={montantRemis}
               onChangeText={setMontantRemis}
-              keyboardType="number-pad"
+              keyboardType="decimal-pad"
               selectTextOnFocus
               placeholder="0"
               placeholderTextColor="#94a3b8"
