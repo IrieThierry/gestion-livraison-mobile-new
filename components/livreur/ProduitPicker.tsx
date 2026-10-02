@@ -179,10 +179,17 @@ function LigneRow({
   // s'il a été modifié manuellement (cas où on doit afficher le bouton
   // « Mémoriser »).
   const [resolvedPrix, setResolvedPrix] = useState<number | null>(null);
+  // Vrai dès que le résolveur a répondu pour ce (client, produit), même s'il
+  // n'a trouvé aucun prix (prix === null) — permet de proposer « Mémoriser »
+  // dès la première saisie.
+  const [resolvedLoaded, setResolvedLoaded] = useState(false);
   const lastQueryKey = useRef<string>('');
 
   useEffect(() => {
-    if (!resolved) return;
+    if (!resolved) {
+      setResolvedLoaded(false);
+      return;
+    }
     const queryKey = `${clientId ?? ''}__${line.produitId}`;
     // Quand le résolveur répond pour un nouveau (client, produit) :
     //   - on met à jour le prix de la ligne avec le prix mémorisé si présent
@@ -193,6 +200,7 @@ function LigneRow({
         onUpdate({ prix: resolved.prix });
       }
       setResolvedPrix(resolved.prix);
+      setResolvedLoaded(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolved, clientId, line.produitId]);
@@ -200,8 +208,12 @@ function LigneRow({
   const sousTotal = line.prix * line.qte;
   const prixZero = line.prix <= 0;
   const stockInsuffisant = enforceStock && line.qte > stockDispo;
+  // « Mémoriser » est proposé si le prix saisi diffère du prix résolu, ou
+  // s'il n'existe encore aucun prix pour ce client (premier prix saisi).
   const prixModifie =
-    resolvedPrix !== null && line.prix > 0 && line.prix !== resolvedPrix;
+    resolvedLoaded &&
+    line.prix > 0 &&
+    (resolvedPrix === null || line.prix !== resolvedPrix);
 
   const onMemoriser = () => {
     if (!clientId) return;
