@@ -1,24 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { versementsApi } from './api';
 import { versementKeys } from './keys';
+import { commandeKeys } from '../commandes/keys';
 import type { UUID } from '../../types/api';
 
 /**
- * Récupère la situation versement (valeurAchat, margeCumulee, detteAvant,
- * totalDu) pour le couple (livreurId, fournisseurId) sur la plage donnée.
- * Désactivé tant qu'un des paramètres est vide.
+ * Situation du versement à venir pour le couple (livreurId, fournisseurId) et la
+ * sélection de commandes (liste vide = versement libre). Activé dès que le livreur
+ * et le fournisseur sont connus.
  */
 export function useVersementSituation(params: {
   livreurId: UUID;
   fournisseurId: UUID;
-  dateDebut: string;
-  dateFin: string;
+  commandeIds: UUID[];
 }) {
-  const enabled =
-    !!params.livreurId &&
-    !!params.fournisseurId &&
-    !!params.dateDebut &&
-    !!params.dateFin;
+  const enabled = !!params.livreurId && !!params.fournisseurId;
   return useQuery({
     queryKey: versementKeys.situation(params),
     queryFn: () => versementsApi.situation(params),
@@ -27,8 +23,8 @@ export function useVersementSituation(params: {
 }
 
 /**
- * Mutation : enregistre un versement. À l'issue, invalide tout le scope
- * `versements` (situation incluse) pour forcer un recalcul à l'écran.
+ * Mutation : enregistre un versement. À l'issue, invalide le scope `versements`
+ * (situation incluse) ET les commandes (la liste « à régler » change).
  */
 export function useEnregistrerVersement() {
   const qc = useQueryClient();
@@ -36,6 +32,7 @@ export function useEnregistrerVersement() {
     mutationFn: versementsApi.enregistrer,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: versementKeys.all });
+      qc.invalidateQueries({ queryKey: commandeKeys.all });
     },
   });
 }

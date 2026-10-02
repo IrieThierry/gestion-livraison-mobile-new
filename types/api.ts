@@ -675,18 +675,19 @@ export interface VersementResponse {
 export interface CreerVersementRequest {
   livreurId: UUID
   fournisseurId: UUID
-  dateDebut?: string
-  dateFin?: string
+  /** Commandes réglées ; vide ou absent = versement libre (réduit seulement la dette, montant > 0). */
+  commandeIds?: UUID[]
   dateVersement?: string
   montantVerse: number
   commentaire?: string
-  /** Mode libre : solder la dette sans plage (valeurAchat=0). */
-  libre?: boolean
 }
 
 export interface SituationVersementResponse {
-  valeurAchat: number
-  margeCumulee: number
-  detteAvant: number
-  totalDu: number // = detteAvant + valeurAchat
+  valeurAchat: number      // Σ montant livré des commandes sélectionnées
+  margeCumulee: number     // Σ marge livrée des commandes sélectionnées
+  detteAvant: number       // dette du dernier versement créé
+  totalDu: number          // = detteAvant + valeurAchat
+  dateDebut: string | null // plus ancienne livraison sélectionnée (nulle si aucune commande)
+  dateFin: string | null   // plus récente livraison sélectionnée
+  nbCommandes: number
 }

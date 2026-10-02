@@ -5,32 +5,35 @@ import type {
   UUID,
   VersementResponse,
 } from '../../types/api';
+import { joindreIds } from './regles';
 
-// Port direct de gestion-livraison-front/src/features/versements/api.ts.
-// Pour le mobile MVP on n'expose que `situation` (calcul en lecture)
-// et `enregistrer` (création) — les listings restent côté web.
+// Pour le mobile on n'expose que `situation` (calcul en lecture) et `enregistrer`
+// (création) — les listings restent côté web. Le versement règle des commandes
+// livrées (`commandeIds`) ; aucune commande = versement libre.
 export const versementsApi = {
   /**
-   * Calcule en lecture la situation du couple (livreur, fournisseur)
-   * sur la plage `[dateDebut, dateFin]` : `valeurAchat`, `margeCumulee`,
-   * `detteAvant`, `totalDu` (= detteAvant + valeurAchat).
+   * Situation du couple (livreur, fournisseur) pour la sélection de commandes :
+   * `valeurAchat`, `margeCumulee`, `detteAvant`, `totalDu` (= detteAvant + valeurAchat),
+   * `dateDebut`/`dateFin` (nulles si aucune commande), `nbCommandes`.
    */
   situation: async (params: {
     livreurId: UUID;
     fournisseurId: UUID;
-    dateDebut: string;
-    dateFin: string;
+    commandeIds: UUID[];
   }): Promise<SituationVersementResponse> => {
-    const { data } = await apiClient.get<SituationVersementResponse>(
-      '/versement/situation',
-      { params },
-    );
+    const { data } = await apiClient.get<SituationVersementResponse>('/versement/situation', {
+      params: {
+        livreurId: params.livreurId,
+        fournisseurId: params.fournisseurId,
+        ...joindreIds(params.commandeIds),
+      },
+    });
     return data;
   },
 
   /**
-   * Enregistre un versement : crée l'événement de clôture pour la plage
-   * `[dateDebut, dateFin]` avec le `montantVerse` saisi, et chaîne la
+   * Enregistre un versement : crée l'événement de clôture pour les commandes
+   * sélectionnées avec le `montantVerse` saisi, et chaîne la
    * dette via `detteAvant` / `detteApres`.
    */
   enregistrer: async (
