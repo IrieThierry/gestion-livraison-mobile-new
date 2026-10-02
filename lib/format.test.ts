@@ -38,6 +38,10 @@ describe('formatDateShort', () => {
     expect(result).toMatch(/29 avr/);
   });
 
+  it('parses the back format without offset (local time)', () => {
+    expect(formatDateShort('2026-10-02T00:00:00')).toMatch(/2 oct/);
+  });
+
   it('accepts a Date object', () => {
     const d = new Date(2026, 3, 29); // month is 0-indexed → April
     expect(formatDateShort(d)).toMatch(/29 avr/);
