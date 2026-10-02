@@ -193,6 +193,10 @@ export default function Versement() {
               </Text>
               {commandesQ.isLoading ? (
                 <Text className="text-slate-400 text-sm">Chargement…</Text>
+              ) : commandesQ.isError ? (
+                <Text className="text-red-600 dark:text-red-400 text-sm">
+                  {extractApiErrorMessage(commandesQ.error, 'Chargement des commandes impossible')}
+                </Text>
               ) : commandes.length === 0 ? (
                 <Text className="text-slate-500 dark:text-slate-400 text-[12px]">
                   Aucune commande livrée à régler chez ce fournisseur. Tu peux quand même enregistrer

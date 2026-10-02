@@ -30,7 +30,7 @@ const STYLES: Record<StatutCommande, { bg: string; text: string; label: string }
 };
 
 export function CommandeStatusBadge({ statut }: { statut: StatutCommande }) {
-  const s = STYLES[statut];
+  const s = STYLES[statut] ?? { ...STYLES.ANNULEE, label: String(statut) };
   return (
     <View className={`${s.bg} px-2 py-0.5 rounded-full self-start`}>
       <Text className={`${s.text} text-[10px] font-bold`}>{s.label}</Text>
