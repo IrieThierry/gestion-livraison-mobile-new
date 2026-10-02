@@ -110,9 +110,9 @@
 | # | Action | À comparer |
 |---|--------|------------|
 | G.1 | Choisir fournisseur | Mêmes fournisseurs disponibles |
-| G.2 | Période 7 derniers jours | Card "Situation" : `valeurAchat`, `margeCumulee`, `detteAvant`, `totalDu` — **identiques au franc** |
+| G.2 | Cocher des commandes livrées non réglées | Card "Situation" : `valeurAchat`, `margeCumulee`, `detteAvant`, `totalDu` — **identiques au franc** |
 | G.3 | Quick-fill « Verser tout (totalDu) » | Montant rempli identique |
-| G.4 | Mode libre vs période | Mêmes contraintes back-office |
+| G.4 | Aucune commande cochée (versement libre) | Montant > 0 exigé ; mêmes contraintes back-office |
 | G.5 | Submit → recharger | Versement enregistré, dette `detteApres` recalculée, **identique** |
 
 ---
@@ -191,7 +191,7 @@ Si une valeur diverge entre web et mobile :
 - [ ] D — Création client (zones, quartiers, catégories)
 - [ ] E — Nouvelle livraison (prix éditable + selectTextOnFocus)
 - [ ] F — Encaissement (libre + période)
-- [ ] G — Versement fournisseur (situation 7j)
+- [ ] G — Versement fournisseur (sélection de commandes)
 - [ ] H — Stock courant
 - [ ] I — Retour client
 - [ ] J — Edge cases (offline, token, scoping)
