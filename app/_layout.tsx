@@ -139,7 +139,12 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <PersistQueryClientProvider
         client={queryClient}
-        persistOptions={{ persister: queryPersister, maxAge: 24 * 60 * 60 * 1000 }}
+        persistOptions={{
+          persister: queryPersister,
+          maxAge: 24 * 60 * 60 * 1000,
+          // Change à chaque évolution du format des données (dates ISO sans offset) : invalide le cache persisté.
+          buster: '2026-10-dates-iso',
+        }}
       >
         <StatusBar style="auto" />
         <AuthGate>

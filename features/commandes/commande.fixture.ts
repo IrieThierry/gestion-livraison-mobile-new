@@ -23,7 +23,7 @@ export function commandeFixture(overrides: Partial<CommandeResponse> = {}): Comm
       contact: '0701010101',
     },
     statut: 'ENVOYEE',
-    date: '2026-10-01T08:00:00.000+00:00',
+    date: '2026-10-01T08:00:00',
     dateDecision: null,
     motifRefus: null,
     dateLivraison: null,

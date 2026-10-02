@@ -4,6 +4,7 @@ import { Plus, CheckCircle2, AlertTriangle } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { useCloturesByLivreur } from '../../../features/clotures/hooks';
+import { estEquilibre } from '../../../features/clotures/regles';
 import { useAuthStore } from '../../../stores/authStore';
 import { formatFCFA, formatDateShort } from '../../../lib/format';
 
@@ -58,7 +59,7 @@ export default function CloturesList() {
         }
         renderItem={({ item }) => {
           const ecart = item.ecartEspeces ?? 0;
-          const balanced = ecart === 0;
+          const balanced = estEquilibre(ecart);
           return (
             <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 mb-2">
               <View className="flex-row items-center justify-between mb-2">
