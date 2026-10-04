@@ -8,6 +8,15 @@ export function formatFCFA(n: number | null | undefined): string {
 }
 
 /**
+ * Montant avec jusqu'à 2 décimales (paiements, soldes : le back manipule
+ * des BigDecimal). Valeur absolue NON prise : le signe est conservé.
+ */
+export function formatMontant(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(Number(n))) return '0';
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(Number(n));
+}
+
+/**
  * Format a date as 'DD MMM' (e.g., '29 avr.').
  */
 export function formatDateShort(d: string | Date): string {

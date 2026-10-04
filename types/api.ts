@@ -299,9 +299,9 @@ export interface ModifierLivraisonRequest extends CreerLivraisonRequest {
 export interface CreerEncaissementLivraisonRequest {
   livreurId: UUID
   clientId: UUID
-  dateDebut?: string         // YYYY-MM-DD — optionnel si libre=true
-  dateFin?: string           // YYYY-MM-DD — optionnel si libre=true
-  dateEncaissement?: string  // YYYY-MM-DD
+  dateDebut?: string         // LocalDateTime ISO — ignoré si libre=true
+  dateFin?: string           // LocalDateTime ISO — ignoré si libre=true
+  dateEncaissement?: string  // LocalDateTime ISO — absent = maintenant (serveur)
   montantEncaisse: number
   commentaire?: string
   /** Mode libre : solder la dette sans plage (valeurLivraisons=0). */

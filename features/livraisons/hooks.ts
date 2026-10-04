@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
-  CreerEncaissementLivraisonRequest,
   CreerLivraisonRequest,
   ModifierLivraisonRequest,
   UUID,
@@ -9,7 +8,7 @@ import { livraisonsApi } from './api';
 import { livraisonKeys } from './keys';
 import { stockKeys } from '../stock/keys';
 import { encaissementKeys } from '../encaissements/keys';
-import { clientKeys } from '../clients/keys';
+import { clientKeys, encoursKeys } from '../clients/keys';
 import { prixKeys } from '../prix/keys';
 import { remiseKeys } from '../remise/keys';
 
@@ -54,11 +53,13 @@ export function useCreerLivraison() {
       qc.invalidateQueries({ queryKey: prixKeys.all });
       qc.invalidateQueries({ queryKey: remiseKeys.all });
       qc.invalidateQueries({ queryKey: clientKeys.all });
+      qc.invalidateQueries({ queryKey: encoursKeys.all });
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
     },
   });
 }
 
+/** Modification : le dû du client change (encours, encaissements, remises). */
 export function useModifierLivraison() {
   const qc = useQueryClient();
   return useMutation({
@@ -66,6 +67,9 @@ export function useModifierLivraison() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: livraisonKeys.all });
       qc.invalidateQueries({ queryKey: stockKeys.all });
+      qc.invalidateQueries({ queryKey: encoursKeys.all });
+      qc.invalidateQueries({ queryKey: encaissementKeys.all });
+      qc.invalidateQueries({ queryKey: remiseKeys.all });
     },
   });
 }
@@ -77,32 +81,8 @@ export function useSupprimerLivraison() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: livraisonKeys.all });
       qc.invalidateQueries({ queryKey: stockKeys.all });
-    },
-  });
-}
-
-/**
- * Encaissement d'une (ou plusieurs) livraisons sur une plage de dates.
- * Le back marque les livraisons concernées comme `ENCAISSEE` — on doit
- * donc forcer un refetch côté mobile pour que les badges, totaux et
- * filtres soient cohérents partout (Tournée, détail livraison, page
- * Clients, etc.).
- *
- * On utilise `refetchType: 'active'` (défaut) qui re-fetch immédiatement
- * toutes les queries actuellement montées : pas d'attente jusqu'au focus
- * suivant.
- */
-export function useEncaisserLivraison() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: CreerEncaissementLivraisonRequest) => livraisonsApi.encaisser(payload),
-    onSuccess: () => {
-      // Statut des livraisons → ENCAISSEE pour celles dans la plage
-      qc.invalidateQueries({ queryKey: livraisonKeys.all });
-      // Liste des encaissements (le nouveau apparaît + cumul jour change)
+      qc.invalidateQueries({ queryKey: encoursKeys.all });
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
-      // Solde client (la dette baisse)
-      qc.invalidateQueries({ queryKey: clientKeys.all });
     },
   });
 }

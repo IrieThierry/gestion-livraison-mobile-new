@@ -4,7 +4,8 @@ import { retoursApi, type CreerRetourClientRequest } from './api';
 import { livraisonKeys } from '../livraisons/keys';
 import { stockKeys } from '../stock/keys';
 import { encaissementKeys } from '../encaissements/keys';
-import { clientKeys } from '../clients/keys';
+import { clientKeys, encoursKeys } from '../clients/keys';
+import { remiseKeys } from '../remise/keys';
 
 /**
  * Mutation qui enregistre un retour client (`PUT /livraison`).
@@ -27,6 +28,8 @@ export function useEnregistrerRetour() {
       qc.invalidateQueries({ queryKey: stockKeys.all });
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
       qc.invalidateQueries({ queryKey: clientKeys.all });
+      qc.invalidateQueries({ queryKey: encoursKeys.all });
+      qc.invalidateQueries({ queryKey: remiseKeys.all });
     },
     // Le payload est construit depuis la livraison en cache : après un échec
     // (409, livraison modifiée ailleurs…), on la recharge pour qu'une

@@ -15,41 +15,27 @@ import { PageHeader } from '../../../components/shared/PageHeader';
 import { StatCard } from '../../../components/shared/StatCard';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { useEncaissementsByLivreur } from '../../../features/encaissements/hooks';
-import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
+import { useEncoursByLivreur } from '../../../features/clients/hooks';
+import {
+  encaisseAujourdhui,
+  totalAEncaisser,
+} from '../../../features/encaissements/regles';
 import { useAuthStore } from '../../../stores/authStore';
-import { isAEncaisser } from '../../../lib/livraison-status';
-import { formatFCFA, formatDateShort } from '../../../lib/format';
+import { formatMontant, formatDateShort } from '../../../lib/format';
 
 // Onglet "Cash" du livreur (root de la stack /cash) :
-// - 2 KPIs : encaissé du jour (somme des encaissements dont la `date` est
-//   aujourd'hui) + à encaisser (somme des `montantLivre` des livraisons
-//   non encaissées)
-// - CTA "Faire un versement" qui route vers /(livreur)/cash/versement
-//   (Task 25 construit cet écran)
-// - Liste des 30 encaissements les plus récents (client, date, commentaire,
-//   montant)
-//
-// Source de vérité : `EncaissementLivraisonResponse` exposé par
-// `GET /encaissement/livraison/livreur/{livreurId}`. Champs utilisés :
-// `reference` (key), `date`, `montantEncaisse`, `client`, `commentaire`.
+// - 2 KPIs : « encaissé aujourd'hui » = Σ `montantEncaisse` des encaissements
+//   dont `dateEncaissement` est aujourd'hui ; « à encaisser » = Σ des soldes
+//   positifs des clients, calculés par le serveur (`/client/encours/livreur`).
+// - CTA "Faire un versement", sous-menu, 30 encaissements les plus récents.
 export default function CashOverview() {
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
   const qE = useEncaissementsByLivreur(livreurId);
-  const qL = useLivraisonsByLivreur(livreurId);
+  const qEncours = useEncoursByLivreur(livreurId);
 
-  const { totalJour, aEncaisser } = useMemo(() => {
-    const encs = qE.data ?? [];
-    const today = new Date().toDateString();
-    const totalJour = encs
-      .filter((e) => (e.dateEncaissement ? new Date(e.dateEncaissement).toDateString() === today : false))
-      .reduce((acc, e) => acc + (e.montantEncaisse ?? 0), 0);
-    const livraisons = qL.data ?? [];
-    const aEncaisser = livraisons
-      .filter(isAEncaisser)
-      .reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
-    return { totalJour, aEncaisser };
-  }, [qE.data, qL.data]);
+  const totalJour = useMemo(() => encaisseAujourdhui(qE.data ?? []), [qE.data]);
+  const aEncaisser = useMemo(() => totalAEncaisser(qEncours.data ?? []), [qEncours.data]);
 
   if (!user) return null;
 
@@ -71,7 +57,7 @@ export default function CashOverview() {
             refreshing={qE.isFetching && !qE.isLoading}
             onRefresh={() => {
               qE.refetch();
-              qL.refetch();
+              qEncours.refetch();
             }}
             tintColor="#10b981"
           />
@@ -81,10 +67,10 @@ export default function CashOverview() {
           {/* Stat cards */}
           <View className="flex-row gap-2">
             <View className="flex-1">
-              <StatCard label="Encaissé jour" value={formatFCFA(totalJour)} accent="emerald" />
+              <StatCard label="Encaissé jour" value={formatMontant(totalJour)} accent="emerald" />
             </View>
             <View className="flex-1">
-              <StatCard label="À encaisser" value={formatFCFA(aEncaisser)} accent="amber" />
+              <StatCard label="À encaisser" value={formatMontant(aEncaisser)} accent="amber" />
             </View>
           </View>
 
@@ -188,7 +174,7 @@ export default function CashOverview() {
                     <View className="flex-row items-center gap-2">
                       <Banknote color="#10b981" size={18} />
                       <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
-                        {formatFCFA(e.montantEncaisse)} F
+                        {formatMontant(e.montantEncaisse)} F
                       </Text>
                     </View>
                   </View>

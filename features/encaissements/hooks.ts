@@ -1,12 +1,48 @@
-import { useQuery } from '@tanstack/react-query';
-import type { UUID } from '../../types/api';
-import { encaissementsApi } from './api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { CreerEncaissementLivraisonRequest, UUID } from '../../types/api';
+import { encaissementsApi, type SituationEncaissementParams } from './api';
 import { encaissementKeys } from './keys';
+import { livraisonKeys } from '../livraisons/keys';
+import { clientKeys, encoursKeys } from '../clients/keys';
+import { remiseKeys } from '../remise/keys';
 
 export function useEncaissementsByLivreur(livreurId: UUID | undefined) {
   return useQuery({
     queryKey: encaissementKeys.byLivreur(livreurId ?? ''),
     queryFn: () => encaissementsApi.byLivreur(livreurId as UUID),
     enabled: !!livreurId,
+  });
+}
+
+/** Situation serveur d'un client sur une plage (mode « sur une période »). */
+export function useSituationEncaissement(params: SituationEncaissementParams | null) {
+  return useQuery({
+    queryKey: params
+      ? encaissementKeys.situation(params)
+      : [...encaissementKeys.all, 'situation', 'aucune'],
+    queryFn: () => encaissementsApi.situation(params as SituationEncaissementParams),
+    enabled: !!params,
+  });
+}
+
+/**
+ * Encaissement d'un paiement client. Renvoie l'encaissement relu (avec
+ * `detteApres` serveur) ou `null` si la relecture a échoué.
+ * Invalide livraisons (statut / dû restant), encaissements, encours,
+ * clients et remises (une remise devient acquise quand la livraison est
+ * entièrement payée).
+ */
+export function useCreerEncaissement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreerEncaissementLivraisonRequest) =>
+      encaissementsApi.creerEtRelire(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: livraisonKeys.all });
+      qc.invalidateQueries({ queryKey: encaissementKeys.all });
+      qc.invalidateQueries({ queryKey: encoursKeys.all });
+      qc.invalidateQueries({ queryKey: clientKeys.all });
+      qc.invalidateQueries({ queryKey: remiseKeys.all });
+    },
   });
 }

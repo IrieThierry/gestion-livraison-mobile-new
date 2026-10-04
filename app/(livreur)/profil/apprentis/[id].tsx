@@ -31,8 +31,8 @@ import { useEncaissementsByLivreur } from '../../../../features/encaissements/ho
 import { useClientsByLivreur } from '../../../../features/clients/hooks';
 import { useStockActuel } from '../../../../features/stock/hooks';
 import { callPhone } from '../../../../lib/linking';
-import { formatFCFA } from '../../../../lib/format';
-import { isAEncaisser } from '../../../../lib/livraison-status';
+import { formatMontant } from '../../../../lib/format';
+import { num } from '../../../../features/encaissements/regles';
 
 /**
  * Fiche apprenti — affiche un récap chiffré (livraisons / encaissements /
@@ -78,17 +78,15 @@ export default function ApprentiDetail() {
       (l) => new Date(l.date).toDateString() === today,
     );
     const totalCAMois = livMois.reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
-    const aEncaisser = livraisons
-      .filter(isAEncaisser)
-      .reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
+    // Reste dû des livraisons de l'apprenti : `montantDu` calculé par le
+    // serveur (paiements imputés, retours et remises compris) — l'apprenti
+    // livre aussi des clients de son parent, d'où la lecture par livraison.
+    const aEncaisser = livraisons.reduce((acc, l) => acc + Math.max(0, num(l.montantDu)), 0);
 
     const encMois = encaissements.filter((e) =>
       e.dateEncaissement ? new Date(e.dateEncaissement).getTime() >= thirtyDaysAgo : false,
     );
-    const totalEncaisseMois = encMois.reduce(
-      (acc, e) => acc + (e.montantEncaisse ?? 0),
-      0,
-    );
+    const totalEncaisseMois = encMois.reduce((acc, e) => acc + num(e.montantEncaisse), 0);
 
     const totalUnitesStock = stocks.reduce((acc, s) => acc + (s.qte ?? 0), 0);
 
@@ -272,7 +270,7 @@ export default function ApprentiDetail() {
                 icon={Banknote}
                 color="#059669"
                 label="Encaissé"
-                value={`${formatFCFA(stats.totalEncaisseMois)}`}
+                value={`${formatMontant(stats.totalEncaisseMois)}`}
                 hint="FCFA / 30j"
               />
             </View>
@@ -297,7 +295,7 @@ export default function ApprentiDetail() {
                 À encaisser
               </Text>
               <Text className="font-extrabold text-amber-700 dark:text-amber-400">
-                {formatFCFA(stats.aEncaisser)} FCFA
+                {formatMontant(stats.aEncaisser)} FCFA
               </Text>
             </View>
             <View className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-md p-3 flex-row justify-between items-center">
@@ -305,7 +303,7 @@ export default function ApprentiDetail() {
                 CA livré (30j)
               </Text>
               <Text className="font-extrabold text-emerald-700 dark:text-emerald-400">
-                {formatFCFA(stats.totalCAMois)} FCFA
+                {formatMontant(stats.totalCAMois)} FCFA
               </Text>
             </View>
           </View>

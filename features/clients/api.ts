@@ -2,6 +2,7 @@ import { apiClient } from '../../lib/api-client';
 import type {
   ClientResponse,
   CreerClientRequest,
+  EncoursClientResponse,
   ModifierClientRequest,
   UUID,
 } from '../../types/api';
@@ -26,5 +27,27 @@ export const clientsApi = {
    */
   modifier: async (payload: ModifierClientRequest): Promise<void> => {
     await apiClient.put('/client', payload);
+  },
+  /**
+   * Encours (solde, limite, dépassement) de tous les clients d'un livreur,
+   * calculés par le serveur. `solde < 0` = avance du client.
+   */
+  encoursByLivreur: async (livreurId: UUID): Promise<EncoursClientResponse[]> => {
+    const { data } = await apiClient.get<EncoursClientResponse[]>(
+      `/client/encours/livreur/${livreurId}`,
+    );
+    return data;
+  },
+  /** Encours des clients de l'équipe d'un livreur parent (lui et ses apprentis). */
+  encoursByParent: async (parentId: UUID): Promise<EncoursClientResponse[]> => {
+    const { data } = await apiClient.get<EncoursClientResponse[]>(
+      `/client/encours/parent/${parentId}`,
+    );
+    return data;
+  },
+  /** Encours d'un client. */
+  encours: async (clientId: UUID): Promise<EncoursClientResponse> => {
+    const { data } = await apiClient.get<EncoursClientResponse>(`/client/${clientId}/encours`);
+    return data;
   },
 };

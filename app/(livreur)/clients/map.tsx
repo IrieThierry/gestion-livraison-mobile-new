@@ -10,13 +10,11 @@ import { WebView } from 'react-native-webview';
 import { Phone, MapPin, X, AlertCircle } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
-import { useClientsByLivreur } from '../../../features/clients/hooks';
-import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
-import { useEncaissementsByLivreur } from '../../../features/encaissements/hooks';
+import { useClientsByLivreur, useEncoursByLivreur } from '../../../features/clients/hooks';
+import { indexerEncours, num } from '../../../features/encaissements/regles';
 import { useAuthStore } from '../../../stores/authStore';
-import { computeSoldeForClient } from '../../../lib/credit';
 import { callPhone, navigateTo } from '../../../lib/linking';
-import { formatFCFA } from '../../../lib/format';
+import { formatMontant } from '../../../lib/format';
 import type { ClientResponse } from '../../../types/api';
 
 interface ClientPin {
@@ -45,12 +43,11 @@ function parseLatLng(s: string | null | undefined): { lat: number; lng: number }
  * base, et tap → bottom sheet avec actions (Appeler / Y aller / Voir
  * détail). Pin coloré selon le solde :
  *   - rouge : client en dette (solde > 0)
- *   - vert  : client en crédit (solde < 0)
+ *   - vert  : client en avance (solde < 0)
  *   - bleu  : client à jour (solde = 0)
  *
- * Source de données : `useClientsByLivreur` + `useLivraisonsByLivreur` +
- * `useEncaissementsByLivreur`. Le solde est calculé front-side via
- * `computeSoldeForClient` (mirror du web).
+ * Source de données : `useClientsByLivreur` + `useEncoursByLivreur`
+ * (soldes calculés par le serveur).
  *
  * Carte : Leaflet via WebView (satellite Esri + labels overlay) — même
  * stack que `MapPreview` mais étendu avec multi-markers + autofit
@@ -60,19 +57,17 @@ export default function ClientsMap() {
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
   const qC = useClientsByLivreur(livreurId);
-  const qL = useLivraisonsByLivreur(livreurId);
-  const qE = useEncaissementsByLivreur(livreurId);
+  const qEncours = useEncoursByLivreur(livreurId);
 
   const [selected, setSelected] = useState<ClientPin | null>(null);
 
   const pins = useMemo<ClientPin[]>(() => {
-    const livraisons = qL.data ?? [];
-    const encaissements = qE.data ?? [];
+    const encours = indexerEncours(qEncours.data);
     return (qC.data ?? [])
       .map((c: ClientResponse) => {
         const geo = parseLatLng(c.latitudeLongitude);
         if (!geo) return null;
-        const solde = computeSoldeForClient(livraisons, encaissements, c.id);
+        const solde = num(encours.get(c.id)?.solde);
         const color: ClientPin['color'] =
           solde > 0 ? 'debt' : solde < 0 ? 'credit' : 'ok';
         return {
@@ -87,7 +82,7 @@ export default function ClientsMap() {
         };
       })
       .filter((p): p is ClientPin => p !== null);
-  }, [qC.data, qL.data, qE.data]);
+  }, [qC.data, qEncours.data]);
 
   const totalClients = qC.data?.length ?? 0;
   const sansGeo = totalClients - pins.length;
@@ -132,7 +127,7 @@ export default function ClientsMap() {
       {/* Légende compacte au-dessus de la carte */}
       <View className="px-4 pt-2 pb-3 flex-row gap-2">
         <Legend color="#dc2626" label={`${enDette} en dette`} />
-        <Legend color="#10b981" label={`${enCredit} en crédit`} />
+        <Legend color="#10b981" label={`${enCredit} en avance`} />
         <Legend color="#3b82f6" label={`${pins.length - enDette - enCredit} à jour`} />
       </View>
 
@@ -239,8 +234,8 @@ function ClientBottomSheet({
                   : 'text-emerald-700 dark:text-emerald-400'
               }`}
             >
-              {pin.color === 'debt' ? '⚠ Doit ' : '+ Crédit '}
-              {formatFCFA(Math.abs(pin.solde))} F
+              {pin.color === 'debt' ? '⚠ Doit ' : '+ Avance '}
+              {formatMontant(Math.abs(pin.solde))} F
             </Text>
           ) : (
             <Text className="text-[12px] text-emerald-700 dark:text-emerald-400 font-bold mt-1">
