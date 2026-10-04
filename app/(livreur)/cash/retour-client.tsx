@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   ScrollView,
   View,
@@ -17,25 +17,28 @@ import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useEnregistrerRetour } from '../../../features/retours/hooks';
+import { qteRetournable, valeurRetour } from '../../../features/retours/api';
+import type { SaisieRetours } from '../../../features/livraisons/regles';
+import { DestinationRetourToggle } from '../../../components/livreur/DestinationRetourToggle';
 import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
+import { extractApiErrorMessage } from '../../../lib/api-error';
 import { formatFCFA, formatDateShort } from '../../../lib/format';
 import type { LivraisonResponse } from '../../../types/api';
 
-type ReturnQty = Record<string, number>; // produitLivraisonId -> quantité retournée
-
 /**
- * Formulaire "Retour client" (Plan D).
+ * Formulaire "Retour client".
  *
  * Cible du raccourci "Retour client" du FAB de l'écran tournée. L'utilisateur
  * choisit une livraison récente (30j, ayant encore des lignes retournables),
- * saisit les quantités à rapporter par ligne, puis valide.
+ * saisit les quantités rapportées par ligne, choisit pour chacune « Remettre
+ * en stock » ou « Perdu », puis valide.
  *
- * Côté back, on envoie un `PUT /livraison` (le back ne fournit pas
- * d'endpoint dédié `/retour-client` ; cf. plan D — `ModifierLivraisonUseCase`
- * orchestre dans la même transaction la mise à jour des `qteRetournee`,
- * la ré-incrémentation du stock courant livreur et la déduction du solde
- * client).
+ * Côté back, `PUT /livraison` (`ModifierLivraisonUseCase`, une transaction) :
+ * mise à jour de `qteRetournee` et `qteRetourneeEnStock`, ré-incrémentation
+ * du stock du livreur de la seule part remise en stock, baisse du dû du
+ * client de (prix + remise) × quantité. Autorisé même sur une livraison
+ * entièrement payée (le surplus payé devient une avance).
  */
 export default function RetourClient() {
   const user = useAuthStore((s) => s.user);
@@ -43,10 +46,12 @@ export default function RetourClient() {
   const livreurId = user?.id ?? '';
   const q = useLivraisonsByLivreur(livreurId);
   const m = useEnregistrerRetour();
+  // Garde synchrone contre le double appui.
+  const submittingRef = useRef(false);
 
   const [livraisonId, setLivraisonId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [qtes, setQtes] = useState<ReturnQty>({});
+  const [qtes, setQtes] = useState<SaisieRetours>({});
 
   // Pull-to-refresh : recharge la liste des livraisons retournables. Utile
   // si une livraison vient d'être créée ou si un retour a été annulé/modifié
@@ -54,18 +59,14 @@ export default function RetourClient() {
   const onRefresh = () => q.refetch();
 
   // Livraisons des 30 derniers jours qui ont au moins une ligne retournable
-  // (qteLivre - qteRetourne > 0). On accepte tous statuts (LIVREE et ENCAISSEE
-  // peuvent recevoir un retour ; le back ré-ajuste le solde et le stock).
+  // (qteLivre - qteRetourne > 0). Encaissée ou non : une livraison payée reste
+  // modifiable pour ses retours (le back recalcule le dû et le stock).
   const candidates = useMemo<LivraisonResponse[]>(() => {
     const now = new Date();
     const cutoff = new Date(now.getTime() - 30 * 86400000);
     return (q.data ?? [])
       .filter((l) => new Date(l.date) >= cutoff)
-      .filter((l) =>
-        (l.produitsLivraison ?? []).some(
-          (p) => (p.qteLivre ?? 0) - (p.qteRetourne ?? 0) > 0,
-        ),
-      )
+      .filter((l) => (l.produitsLivraison ?? []).some((p) => qteRetournable(p) > 0))
       .sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       );
@@ -78,29 +79,45 @@ export default function RetourClient() {
 
   const totalRetour = useMemo(() => {
     if (!selected) return 0;
-    return (selected.produitsLivraison ?? []).reduce((acc, p) => {
-      const qty = qtes[p.id] ?? 0;
-      return acc + qty * (p.prixDeVente ?? 0);
-    }, 0);
+    return (selected.produitsLivraison ?? []).reduce(
+      (acc, p) => acc + valeurRetour(p, qtes[p.id]?.qte ?? 0),
+      0,
+    );
   }, [selected, qtes]);
 
   if (!user) return null;
 
   const onChangeQte = (produitLivraisonId: string, raw: string) => {
-    const n = parseInt(raw, 10) || 0;
-    setQtes((s) => ({ ...s, [produitLivraisonId]: Math.max(0, n) }));
+    const n = parseInt(raw.replace(/[^0-9]/g, ''), 10) || 0;
+    setQtes((s) => ({
+      ...s,
+      [produitLivraisonId]: { qte: Math.max(0, n), enStock: s[produitLivraisonId]?.enStock ?? false },
+    }));
+  };
+
+  const onChangeEnStock = (produitLivraisonId: string, enStock: boolean) => {
+    setQtes((s) => ({
+      ...s,
+      [produitLivraisonId]: { qte: s[produitLivraisonId]?.qte ?? 0, enStock },
+    }));
   };
 
   const onSubmit = () => {
+    if (submittingRef.current || m.isPending) return;
     if (!selected) {
       dialog.warning('Champ requis', 'Choisis une livraison');
+      return;
+    }
+    if (!isOnline) {
+      dialog.warning('Hors ligne', 'Reconnecte-toi pour enregistrer le retour.');
       return;
     }
     const lignes = (selected.produitsLivraison ?? [])
       .map((p) => ({
         produitLivraisonId: p.id,
-        quantite: qtes[p.id] ?? 0,
-        max: (p.qteLivre ?? 0) - (p.qteRetourne ?? 0),
+        quantite: qtes[p.id]?.qte ?? 0,
+        remettreEnStock: qtes[p.id]?.enStock === true,
+        max: qteRetournable(p),
       }))
       .filter((l) => l.quantite > 0);
 
@@ -117,6 +134,7 @@ export default function RetourClient() {
       return;
     }
 
+    submittingRef.current = true;
     m.mutate(
       {
         livraison: selected,
@@ -125,6 +143,7 @@ export default function RetourClient() {
           lignes: lignes.map((l) => ({
             produitLivraisonId: l.produitLivraisonId,
             quantite: l.quantite,
+            remettreEnStock: l.remettreEnStock,
           })),
         },
       },
@@ -133,17 +152,13 @@ export default function RetourClient() {
           setLivraisonId(null);
           setQtes({});
           router.back();
-          dialog.success(
-            'Retour enregistré',
-            'Stock et solde client mis à jour',
-          );
+          dialog.success('Retour enregistré', 'Stock et dû du client mis à jour');
         },
         onError: (err: unknown) => {
-          const e = err as { response?: { data?: { message?: string } } };
-          dialog.error(
-            'Erreur',
-            e.response?.data?.message ?? 'Échec de l’enregistrement',
-          );
+          dialog.error('Erreur', extractApiErrorMessage(err, 'Échec de l’enregistrement'));
+        },
+        onSettled: () => {
+          submittingRef.current = false;
         },
       },
     );
@@ -193,8 +208,9 @@ export default function RetourClient() {
               </Text>
               <View className="gap-2">
                 {(selected.produitsLivraison ?? []).map((p) => {
-                  const max = (p.qteLivre ?? 0) - (p.qteRetourne ?? 0);
-                  const qty = qtes[p.id] ?? 0;
+                  const max = qteRetournable(p);
+                  const qty = qtes[p.id]?.qte ?? 0;
+                  const enStock = qtes[p.id]?.enStock ?? false;
                   return (
                     <View
                       key={p.id}
@@ -209,9 +225,15 @@ export default function RetourClient() {
                           Max retournable {max}
                         </Text>
                         {qty > 0 ? (
-                          <Text className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">
-                            {formatFCFA((p.prixDeVente ?? 0) * qty)} FCFA déduit
-                          </Text>
+                          <>
+                            <Text className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                              {formatFCFA(valeurRetour(p, qty))} FCFA déduit (estimation)
+                            </Text>
+                            <DestinationRetourToggle
+                              enStock={enStock}
+                              onChange={(v) => onChangeEnStock(p.id, v)}
+                            />
+                          </>
                         ) : null}
                       </View>
                       <TextInput
@@ -235,7 +257,7 @@ export default function RetourClient() {
               {/* Total */}
               <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 mt-4 flex-row justify-between">
                 <Text className="font-bold text-slate-700 dark:text-slate-300">
-                  Total retour
+                  Total retour (estimation)
                 </Text>
                 <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
                   {formatFCFA(totalRetour)} FCFA

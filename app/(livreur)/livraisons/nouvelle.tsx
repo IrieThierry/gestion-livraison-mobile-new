@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -15,21 +15,31 @@ import { RotateCcw, Package, AlertCircle } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { ClientPicker } from '../../../components/livreur/ClientPicker';
 import { ProduitPicker, type Ligne } from '../../../components/livreur/ProduitPicker';
+import { DestinationRetourToggle } from '../../../components/livreur/DestinationRetourToggle';
 import {
   useCreerLivraison,
   useLivraisonsByLivreur,
 } from '../../../features/livraisons/hooks';
 import { useEnregistrerRetour } from '../../../features/retours/hooks';
+import { qteRetournable, valeurRetour } from '../../../features/retours/api';
 import { useClientsByLivreur } from '../../../features/clients/hooks';
 import { clientKeys } from '../../../features/clients/keys';
 import { produitKeys } from '../../../features/produits/keys';
+import { useRemisesClient } from '../../../features/remise/hooks';
+import {
+  bilanLivraisonEtRetours,
+  buildCreerLivraisonPayload,
+  enregistrerLivraisonEtRetours,
+  erreurLignesLivraison,
+  regrouperRetours,
+  totalLivraisonEstime,
+  type SaisieRetours,
+} from '../../../features/livraisons/regles';
 import { useAuthStore } from '../../../stores/authStore';
+import { useNetworkStore } from '../../../stores/networkStore';
+import { extractApiErrorMessage } from '../../../lib/api-error';
 import { formatFCFA, formatDateShort } from '../../../lib/format';
-import type {
-  ClientResponse,
-  CreerLivraisonRequest,
-  LivraisonResponse,
-} from '../../../types/api';
+import type { ClientResponse, LivraisonResponse } from '../../../types/api';
 
 /**
  * Formulaire de nouvelle livraison.
@@ -37,29 +47,43 @@ import type {
  * Le formulaire affiche en plus une section « Retours en attente » qui
  * liste, pour le client choisi, les produits-livraison passés où il
  * reste de la quantité retournable (`qteLivree − qteRetournee > 0`).
- * Le livreur peut saisir une quantité à retourner par ligne. À la
- * soumission :
- *  1. La nouvelle livraison est créée (existant)
- *  2. Pour chaque livraison passée avec au moins une ligne retournée
- *     > 0, on appelle `useEnregistrerRetour` (PUT /livraison)
- *
- * Les retours sont distincts de la quantité livrée du jour — ils
- * agissent sur des livraisons antérieures (le back ré-incrémente le
- * stock et déduit du solde client à part).
+ * Le livreur saisit une quantité à retourner par ligne et choisit
+ * « remettre en stock » ou « perdu ». À la soumission :
+ *  1. la nouvelle livraison est créée (si au moins une ligne) ;
+ *  2. un `PUT /livraison` par livraison passée concernée enregistre les
+ *     retours (le back ré-incrémente le stock de la part remise en stock
+ *     et baisse le dû du client).
+ * Chaque issue est rapportée : en cas d'échec partiel, l'écran dit ce qui
+ * est fait et ce qui reste à refaire, et vide la livraison déjà créée pour
+ * qu'un nouvel appui ne crée pas une seconde livraison.
  */
 export default function NouvelleLivraison() {
   const user = useAuthStore((s) => s.user);
+  const isOnline = useNetworkStore((s) => s.isOnline);
   const { clientId: prefilledClientId } = useLocalSearchParams<{ clientId?: string }>();
   const clientsQ = useClientsByLivreur(user?.id ?? '');
   const livraisonsQ = useLivraisonsByLivreur(user?.id ?? '');
   const clientsData = clientsQ.data ?? [];
   const [client, setClient] = useState<ClientResponse | null>(null);
   const [lignes, setLignes] = useState<Ligne[]>([]);
-  // Map produitLivraisonId → qte à retourner (saisie par le livreur)
-  const [retoursAttente, setRetoursAttente] = useState<Record<string, number>>({});
+  // produitLivraisonId → quantité à retourner + destination (stock / perdu)
+  const [retoursAttente, setRetoursAttente] = useState<SaisieRetours>({});
   const [refreshing, setRefreshing] = useState(false);
   const [insufficientCount, setInsufficientCount] = useState(0);
-  const total = lignes.reduce((acc, l) => acc + l.prix * l.qte, 0);
+  const [enCours, setEnCours] = useState(false);
+  // Garde synchrone contre le double appui (isPending arrive un rendu trop tard).
+  const submittingRef = useRef(false);
+  const avecRemise = client?.avecOuSansRemise === true;
+  const remisesQ = useRemisesClient(avecRemise ? client?.id : undefined);
+  const remisesConvenues = useMemo(() => {
+    if (!remisesQ.data) return undefined;
+    const map = new Map<string, number>();
+    for (const r of remisesQ.data) {
+      if (r.produit?.id) map.set(r.produit.id, Number(r.remiseUnitaire) || 0);
+    }
+    return map;
+  }, [remisesQ.data]);
+  const total = totalLivraisonEstime(lignes, avecRemise);
   const m = useCreerLivraison();
   const mRetour = useEnregistrerRetour();
   const qc = useQueryClient();
@@ -89,8 +113,13 @@ export default function NouvelleLivraison() {
 
   // Quand le client change, on remet à zéro les retours en attente :
   // ils sont indexés par produit-livraison, qui appartient à un client.
+  // La remise et le choix « mémoriser » appartiennent au client précédent :
+  // ils sont réinitialisés (la remise est re-pré-remplie pour le nouveau).
   useEffect(() => {
     setRetoursAttente({});
+    setLignes((ls) =>
+      ls.map((l) => ({ ...l, remise: undefined, remiseInvalide: false, memoriserPrix: false })),
+    );
   }, [client?.id]);
 
   // Livraisons passées du client courant qui ont encore de la qté
@@ -100,21 +129,16 @@ export default function NouvelleLivraison() {
     if (!client) return [];
     return (livraisonsQ.data ?? [])
       .filter((l) => l.client.id === client.id)
-      .filter((l) =>
-        (l.produitsLivraison ?? []).some(
-          (p) => (p.qteLivre ?? 0) - (p.qteRetourne ?? 0) > 0,
-        ),
-      )
+      .filter((l) => (l.produitsLivraison ?? []).some((p) => qteRetournable(p) > 0))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [livraisonsQ.data, client]);
 
-  // Valeur des retours en attente — pour info live au-dessus du bouton
+  // Valeur des retours en attente (estimation : (prix + remise) × quantité)
   const totalRetours = useMemo(() => {
     let sum = 0;
     for (const l of livraisonsRetournables) {
       for (const p of l.produitsLivraison ?? []) {
-        const qte = retoursAttente[p.id] ?? 0;
-        sum += qte * (p.prixDeVente ?? 0);
+        sum += valeurRetour(p, retoursAttente[p.id]?.qte ?? 0);
       }
     }
     return sum;
@@ -125,15 +149,14 @@ export default function NouvelleLivraison() {
     let count = 0;
     for (const l of livraisonsRetournables) {
       for (const p of l.produitsLivraison ?? []) {
-        const dispo = (p.qteLivre ?? 0) - (p.qteRetourne ?? 0);
-        const ret = retoursAttente[p.id] ?? 0;
-        if (ret > dispo) count++;
+        if ((retoursAttente[p.id]?.qte ?? 0) > qteRetournable(p)) count++;
       }
     }
     return count;
   }, [livraisonsRetournables, retoursAttente]);
 
   const onSubmit = async () => {
+    if (submittingRef.current) return;
     if (!user) {
       dialog.error('Session invalide', 'Reconnecte-toi pour continuer.');
       return;
@@ -142,16 +165,21 @@ export default function NouvelleLivraison() {
       dialog.warning('Choisis un client', 'Sélectionne un client avant d’enregistrer.');
       return;
     }
+    if (!isOnline) {
+      dialog.warning('Hors ligne', 'Reconnecte-toi pour enregistrer la livraison.');
+      return;
+    }
     const validLignes = lignes.filter((l) => l.qte > 0);
-    const hasRetours = Object.values(retoursAttente).some((q) => q > 0);
+    const retours = regrouperRetours(livraisonsRetournables, retoursAttente);
 
     // On accepte une soumission « retours seulement » sans nouvelle livraison
-    if (validLignes.length === 0 && !hasRetours) {
+    if (validLignes.length === 0 && retours.length === 0) {
       dialog.warning('Rien à enregistrer', 'Ajoute au moins une ligne livrée ou un retour > 0.');
       return;
     }
-    if (validLignes.some((l) => l.prix <= 0)) {
-      dialog.warning('Prix manquant', 'Définis un prix unitaire (> 0) pour chaque ligne.');
+    const erreurLignes = erreurLignesLivraison(validLignes, avecRemise);
+    if (erreurLignes) {
+      dialog.warning('Ligne invalide', erreurLignes);
       return;
     }
     if (insufficientCount > 0) {
@@ -166,99 +194,62 @@ export default function NouvelleLivraison() {
       return;
     }
 
+    submittingRef.current = true;
+    setEnCours(true);
     try {
-      // 1) Création de la nouvelle livraison (si au moins une ligne)
-      if (validLignes.length > 0) {
-        const payload: CreerLivraisonRequest = {
-          livreurId: user.id,
-          clientId: client.id,
-          avecRemise: client.avecOuSansRemise ?? false,
-          produitsLivraison: validLignes.map((l) => ({
-            produitId: l.produitId,
-            qteLivree: l.qte,
-            qteRetournee: 0,
-            prixDeVente: l.prix,
-          })),
-        };
-        await m.mutateAsync(payload);
-      }
-
-      // 2) Enregistrement des retours sur les livraisons passées —
-      // une mutation par livraison source (le back regroupe les lignes).
-      for (const liv of livraisonsRetournables) {
-        const lignesRet = (liv.produitsLivraison ?? [])
-          .map((p) => ({
-            produitLivraisonId: p.id,
-            quantite: retoursAttente[p.id] ?? 0,
-          }))
-          .filter((r) => r.quantite > 0);
-        if (lignesRet.length === 0) continue;
-        await mRetour.mutateAsync({
-          livraison: liv,
-          request: { livraisonId: liv.id, lignes: lignesRet },
-        });
-      }
-
-      // 3) Reset & navigate
-      setClient(null);
-      setLignes([]);
-      setRetoursAttente({});
-      router.back();
-      const summary =
-        validLignes.length > 0 && hasRetours
-          ? 'Livraison + retour(s) enregistrés'
-          : validLignes.length > 0
-          ? 'Livraison enregistrée'
-          : 'Retour(s) enregistrés';
-      dialog.success(summary);
-    } catch (err: unknown) {
-      // Log complet vers Metro pour diagnostiquer (status, body, headers)
-      const e = err as {
-        response?: { status?: number; data?: unknown };
-        request?: unknown;
-        message?: string;
-        code?: string;
-        config?: { url?: string; method?: string };
-      };
-      console.error('[NouvelleLivraison] échec enregistrement', {
-        url: e.config?.url,
-        method: e.config?.method,
-        code: e.code,
-        message: e.message,
-        status: e.response?.status,
-        data: e.response?.data,
-        hadRequest: !!e.request,
-        hadResponse: !!e.response,
+      const payload =
+        validLignes.length > 0
+          ? buildCreerLivraisonPayload({ livreurId: user.id, client, lignes: validLignes })
+          : null;
+      const res = await enregistrerLivraisonEtRetours({
+        creer: payload ? () => m.mutateAsync(payload) : null,
+        retours,
+        enregistrerRetour: (r) =>
+          mRetour.mutateAsync({
+            livraison: r.livraison,
+            request: { livraisonId: r.livraison.id, lignes: r.lignes },
+          }),
+        messageErreur: (err) => extractApiErrorMessage(err, "Échec de l'enregistrement"),
+      });
+      const bilan = bilanLivraisonEtRetours(res, {
+        livraison: payload !== null,
+        nbRetours: retours.length,
       });
 
-      // Construit le meilleur message possible :
-      //  - si le back a renvoyé { success:false, message: string } → l'utiliser
-      //  - si message est un objet (validation), l'aplatir
-      //  - sinon afficher le code HTTP + message axios
-      const data = e.response?.data as
-        | { message?: string | Record<string, string> }
-        | string
-        | undefined;
-      let detail: string | undefined;
-      if (typeof data === 'string') {
-        detail = data;
-      } else if (data && typeof data.message === 'string') {
-        detail = data.message;
-      } else if (data && typeof data.message === 'object') {
-        detail = Object.entries(data.message)
-          .map(([k, v]) => `${k}: ${v}`)
-          .join('\n');
+      if (bilan.ok) {
+        setClient(null);
+        setLignes([]);
+        setRetoursAttente({});
+        router.back();
+        dialog.success(bilan.titre);
+        return;
       }
-      const status = e.response?.status;
-      const fallback = status
-        ? `Erreur ${status}${e.message ? ` — ${e.message}` : ''}`
-        : e.message ?? "Échec de l'enregistrement";
-      dialog.error('Erreur', detail ?? fallback);
+      if (res.erreurLivraison === null) {
+        // Échec partiel : la livraison créée est retirée du formulaire (un
+        // nouvel appui ne la recrée pas), seuls les retours échoués restent.
+        if (res.livraisonCreee) setLignes([]);
+        const faits = new Set<string>();
+        for (const r of retours) {
+          if (res.retoursEnregistres.includes(r.livraison.id)) {
+            for (const l of r.lignes) faits.add(l.produitLivraisonId);
+          }
+        }
+        setRetoursAttente((s) => {
+          const reste: SaisieRetours = {};
+          for (const [id, v] of Object.entries(s)) if (!faits.has(id)) reste[id] = v;
+          return reste;
+        });
+      }
+      dialog.error(bilan.titre, bilan.message);
+    } finally {
+      submittingRef.current = false;
+      setEnCours(false);
     }
   };
 
-  const isPending = m.isPending || mRetour.isPending;
-  const blockSubmit = isPending || insufficientCount > 0 || retoursInvalides > 0;
+  const isPending = enCours || m.isPending || mRetour.isPending;
+  const blockSubmit =
+    isPending || !isOnline || insufficientCount > 0 || retoursInvalides > 0;
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
@@ -288,6 +279,8 @@ export default function NouvelleLivraison() {
               clientId={client?.id}
               enforceStock
               onValidityChange={setInsufficientCount}
+              avecRemise={avecRemise}
+              remisesConvenues={remisesConvenues}
             />
           </View>
 
@@ -308,8 +301,9 @@ export default function NouvelleLivraison() {
                 <Text className="text-[11px] text-amber-700 dark:text-amber-400 flex-1">
                   Le client peut te restituer des produits de livraisons
                   précédentes (souvent différents des produits livrés du
-                  jour). Saisis la quantité à reprendre — ça ré-incrémente ton
-                  stock et déduit le montant de son solde, sans impacter la
+                  jour). Saisis la quantité reprise et choisis « Remettre en
+                  stock » (elle revient dans ton stock) ou « Perdu ». Le
+                  montant est déduit du dû du client, sans impacter la
                   livraison du jour.
                 </Text>
               </View>
@@ -323,7 +317,19 @@ export default function NouvelleLivraison() {
                       onChangeQte={(produitLivraisonId, qte) =>
                         setRetoursAttente((s) => ({
                           ...s,
-                          [produitLivraisonId]: qte,
+                          [produitLivraisonId]: {
+                            qte,
+                            enStock: s[produitLivraisonId]?.enStock ?? false,
+                          },
+                        }))
+                      }
+                      onChangeEnStock={(produitLivraisonId, enStock) =>
+                        setRetoursAttente((s) => ({
+                          ...s,
+                          [produitLivraisonId]: {
+                            qte: s[produitLivraisonId]?.qte ?? 0,
+                            enStock,
+                          },
                         }))
                       }
                     />
@@ -344,7 +350,7 @@ export default function NouvelleLivraison() {
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 mt-5 gap-1.5">
             <View className="flex-row justify-between">
               <Text className="font-bold text-slate-700 dark:text-slate-300">
-                Total livraison
+                Total livraison (estimation)
               </Text>
               <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
                 {formatFCFA(total)} FCFA
@@ -353,7 +359,7 @@ export default function NouvelleLivraison() {
             {totalRetours > 0 ? (
               <View className="flex-row justify-between">
                 <Text className="text-[12px] text-amber-700 dark:text-amber-400">
-                  Retours déduits du solde
+                  Retours déduits du dû (estimation)
                 </Text>
                 <Text className="text-[12px] font-bold text-amber-700 dark:text-amber-400">
                   − {formatFCFA(totalRetours)} F
@@ -397,7 +403,9 @@ export default function NouvelleLivraison() {
                   blockSubmit ? 'text-slate-500' : 'text-white'
                 }`}
               >
-                {insufficientCount > 0
+                {!isOnline
+                  ? 'Hors ligne — réessaye en ligne'
+                  : insufficientCount > 0
                   ? 'Stock insuffisant'
                   : retoursInvalides > 0
                   ? 'Retour invalide'
@@ -419,14 +427,14 @@ function RetourLivraisonCard({
   livraison,
   retoursAttente,
   onChangeQte,
+  onChangeEnStock,
 }: {
   livraison: LivraisonResponse;
-  retoursAttente: Record<string, number>;
+  retoursAttente: SaisieRetours;
   onChangeQte: (produitLivraisonId: string, qte: number) => void;
+  onChangeEnStock: (produitLivraisonId: string, enStock: boolean) => void;
 }) {
-  const lignes = (livraison.produitsLivraison ?? []).filter(
-    (p) => (p.qteLivre ?? 0) - (p.qteRetourne ?? 0) > 0,
-  );
+  const lignes = (livraison.produitsLivraison ?? []).filter((p) => qteRetournable(p) > 0);
 
   if (lignes.length === 0) return null;
 
@@ -442,8 +450,9 @@ function RetourLivraisonCard({
       </View>
       <View className="gap-2">
         {lignes.map((p) => {
-          const dispo = (p.qteLivre ?? 0) - (p.qteRetourne ?? 0);
-          const qte = retoursAttente[p.id] ?? 0;
+          const dispo = qteRetournable(p);
+          const qte = retoursAttente[p.id]?.qte ?? 0;
+          const enStock = retoursAttente[p.id]?.enStock ?? false;
           const invalide = qte > dispo;
           return (
             <View
@@ -458,9 +467,15 @@ function RetourLivraisonCard({
                   Livré {p.qteLivre} · Déjà retourné {p.qteRetourne} · Max {dispo}
                 </Text>
                 {qte > 0 ? (
-                  <Text className="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5 font-bold">
-                    − {formatFCFA(qte * (p.prixDeVente ?? 0))} F déduit du solde
-                  </Text>
+                  <>
+                    <Text className="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5 font-bold">
+                      − {formatFCFA(valeurRetour(p, qte))} F déduit du dû (estimation)
+                    </Text>
+                    <DestinationRetourToggle
+                      enStock={enStock}
+                      onChange={(v) => onChangeEnStock(p.id, v)}
+                    />
+                  </>
                 ) : null}
               </View>
               <TextInput

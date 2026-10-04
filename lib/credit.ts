@@ -10,8 +10,7 @@ import { isAEncaisser } from './livraison-status';
 /**
  * Encours d'un client = somme `montantLivre` des livraisons NON encore
  * encaissées (totalement OU partiellement). On utilise `isAEncaisser`
- * qui s'appuie sur `statutEncaissement` (calculé par le back), avec
- * fallback sur `statut` métier.
+ * qui s'appuie uniquement sur `statutEncaissement` (calculé par le back).
  *
  * Important : le filtre direct `statut === 'LIVREE'` incluait à tort
  * toutes les livraisons du client puisque le back ne transite jamais
