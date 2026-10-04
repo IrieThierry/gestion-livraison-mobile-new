@@ -7,7 +7,7 @@ import type { Resultat } from '../commandes/regles';
 export function parseRemiseUnitaire(brut: string): Resultat<number> {
   const s = brut.trim().replace(/\s/g, '').replace(',', '.');
   if (s === '') return { ok: false, erreur: 'Saisis une remise' };
-  if (!/^\d+(\.\d{1,2})?$/.test(s)) {
+  if (!/^\d{1,12}(\.\d{1,2})?$/.test(s)) {
     return { ok: false, erreur: 'Remise invalide (nombre positif, 2 décimales maximum)' };
   }
   return { ok: true, valeur: Number(s) };

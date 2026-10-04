@@ -50,6 +50,7 @@ export default function ModifierClient() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
+  const isOnline = useNetworkStore((st) => st.isOnline);
 
   const qC = useClientsByLivreur(livreurId);
   const zonesQ = useZones();
@@ -151,6 +152,10 @@ export default function ModifierClient() {
 
   const onSubmit = () => {
     if (!user || !client) return;
+    if (!isOnline) {
+      dialog.warning('Hors ligne', 'Reconnecte-toi pour modifier le client.');
+      return;
+    }
     if (!prenom.trim()) return dialog.warning('Champ requis', 'Prénom requis');
     if (!contact.trim()) return dialog.warning('Champ requis', 'Téléphone requis');
     if (!zoneId) return dialog.warning('Champ requis', 'Zone requise');
@@ -375,7 +380,7 @@ export default function ModifierClient() {
             {/* Submit */}
             <Pressable
               onPress={onSubmit}
-              disabled={m.isPending}
+              disabled={m.isPending || !isOnline}
               className="bg-emerald-500 rounded-md py-3.5 mt-3 flex-row items-center justify-center gap-2 active:opacity-80"
             >
               {m.isPending ? (
@@ -384,7 +389,7 @@ export default function ModifierClient() {
                 <>
                   <Save color="#fff" size={16} />
                   <Text className="text-white font-bold text-base">
-                    Enregistrer les modifications
+                    {isOnline ? 'Enregistrer les modifications' : 'Hors ligne'}
                   </Text>
                 </>
               )}

@@ -158,6 +158,7 @@ export default function PrixClientPage() {
   };
 
   const onDeleteRemise = (produit: ProduitResponse) => {
+    if (!isOnline) return horsLigne();
     dialog.confirm({
       title: 'Supprimer cette remise ?',
       message: `${produit.designation} n'aura plus de remise convenue pour ce client.`,
@@ -177,6 +178,7 @@ export default function PrixClientPage() {
   };
 
   const onDelete = (produit: ProduitResponse) => {
+    if (!isOnline) return horsLigne();
     dialog.confirm({
       title: 'Supprimer ce prix ?',
       message: `${produit.designation} retombera sur le prix par défaut.`,

@@ -45,11 +45,12 @@ describe('parseRemiseUnitaire', () => {
     ['12,5', 12.5],
     ['12.75', 12.75],
     ['0', 0],
+    ['999999999999.99', 999999999999.99],
   ])('accepte %s', (brut, attendu) => {
     expect(parseRemiseUnitaire(brut)).toEqual({ ok: true, valeur: attendu });
   });
 
-  it.each(['', '  ', '-1', '1.234', 'abc', '1,2,3'])('refuse %p', (brut) => {
+  it.each(['', '  ', '-1', '1.234', 'abc', '1,2,3', '1000000000000'])('refuse %p', (brut) => {
     expect(parseRemiseUnitaire(brut).ok).toBe(false);
   });
 });
