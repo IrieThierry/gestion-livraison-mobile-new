@@ -1,6 +1,8 @@
 import { Pressable, View, Text } from 'react-native';
 import { router } from 'expo-router';
 import { formatFCFA, formatTime } from '../../lib/format';
+import { isEncaissee } from '../../lib/livraison-status';
+import { num } from '../../features/encaissements/regles';
 import type { LivraisonResponse } from '../../types/api';
 
 type DerivedStatus = 'ENCAISSEE' | 'LIVREE' | 'IMPAYEE';
@@ -28,9 +30,8 @@ const STATUS_STYLES: Record<DerivedStatus, { border: string; bg: string; text: s
 
 /**
  * Calcule le statut affiché à partir de `statutEncaissement` (calculé à
- * la volée par le back, équivalent au flux web) avec un fallback sur
- * `statut` pour rétro-compatibilité avec les anciens caches qui n'avaient
- * pas le champ.
+ * la volée par le back) : c'est le SEUL statut de paiement (règle M3),
+ * `statut` n'est jamais consulté.
  *
  * Mapping :
  *   - `statutEncaissement === 'ENCAISSEE'`             → ENCAISSEE
@@ -42,10 +43,7 @@ const STATUS_STYLES: Record<DerivedStatus, { border: string; bg: string; text: s
  * mettre en évidence visuellement les livraisons en retard.
  */
 export function deriveStatus(livraison: LivraisonResponse): DerivedStatus {
-  // Préférer statutEncaissement (calculé back) au statut métier figé
-  if (livraison.statutEncaissement === 'ENCAISSEE') return 'ENCAISSEE';
-  // Fallback : ancien comportement (statut métier == ENCAISSEE — rare)
-  if (livraison.statut === 'ENCAISSEE') return 'ENCAISSEE';
+  if (isEncaissee(livraison)) return 'ENCAISSEE';
 
   const today = new Date().toDateString();
   const livDate = new Date(livraison.date).toDateString();
@@ -57,7 +55,9 @@ export function LivraisonCard({ livraison }: { livraison: LivraisonResponse }) {
   const style = STATUS_STYLES[status];
   const clientName = `${livraison.client.prenom} ${livraison.client.nom}`;
   const quartier = livraison.client.quartier?.libelle ?? '—';
-  const montant = livraison.montantLivre ?? 0;
+  // Dû net serveur (remise et retours compris, avant paiements). Jamais
+  // `montantLivre` (brut prix × qté).
+  const montant = num(livraison.montantDu);
   const time = formatTime(livraison.date);
   const lignes = livraison.produitsLivraison ?? [];
   const lignesSummary = lignes
@@ -86,7 +86,7 @@ export function LivraisonCard({ livraison }: { livraison: LivraisonResponse }) {
               : 'font-bold text-slate-700 dark:text-slate-200'
           }
         >
-          {formatFCFA(montant)} {status === 'IMPAYEE' ? 'impayé' : 'FCFA'}
+          {formatFCFA(montant)} FCFA
         </Text>
       </Text>
       {lignesSummary ? (

@@ -124,9 +124,9 @@ describe('valeurRetour / qteRetournable', () => {
 
 describe('retoursApi.enregistrer', () => {
   it('PUT /livraison avec le payload complet', async () => {
-    put.mockResolvedValue({ data: { id: 'liv-1' } });
+    put.mockResolvedValue({ data: 'ok' });
     const liv = livraison([ligne({})]);
-    const r = await retoursApi.enregistrer(liv, {
+    await retoursApi.enregistrer(liv, {
       livraisonId: 'liv-1',
       lignes: [{ produitLivraisonId: 'pl-1', quantite: 2, remettreEnStock: true }],
     });
@@ -139,6 +139,5 @@ describe('retoursApi.enregistrer', () => {
         ],
       }),
     );
-    expect(r).toEqual({ id: 'liv-1' });
   });
 });

@@ -223,7 +223,7 @@ export default function ReversementsSynthese() {
                             params: {
                               type: 'CLIENT',
                               beneficiaireId: c.clientId,
-                              label: `${c.prenom} ${c.nom}`,
+                              label: `${c.prenom} ${c.nom ?? ''}`.trim(),
                               montantSuggere: montantSuggere(reste),
                               mois: String(mois),
                               annee: String(annee),

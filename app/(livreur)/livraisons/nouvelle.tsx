@@ -42,6 +42,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import { formatFCFA, formatDateShort } from '../../../lib/format';
+import { num } from '../../../features/encaissements/regles';
 import type { ClientResponse, LivraisonResponse } from '../../../types/api';
 
 /**
@@ -466,7 +467,7 @@ function RetourLivraisonCard({
           Livraison du {formatDateShort(livraison.date)}
         </Text>
         <Text className="text-[10px] text-slate-400 dark:text-slate-500">
-          {formatFCFA(livraison.montantLivre)} F
+          dû {formatFCFA(num(livraison.montantDu))} F
         </Text>
       </View>
       <View className="gap-2">

@@ -3,12 +3,7 @@ import { reversementsApi } from './api';
 import { encoursKeys } from '../clients/keys';
 import { remiseKeys } from '../remise/keys';
 import type { EnregistrerReversementRequest } from '../../types/api';
-
-const reversementKeys = {
-  all: ['reversements'] as const,
-  list: (a: number, m: number) => ['reversements', 'list', a, m] as const,
-  syntheseLivreur: (mois: string) => ['reversements', 'synthese-livreur', mois] as const,
-};
+import { reversementKeys } from './keys';
 
 export function useReversementsListe(annee: number, mois: number) {
   return useQuery({

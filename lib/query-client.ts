@@ -43,6 +43,11 @@ export const queryClient = new QueryClient({
       // Aucun rejeu automatique : un POST rejoué après une réponse perdue
       // peut dupliquer une écriture (livraison, encaissement...).
       retry: 0,
+      // Une mutation lancée alors que `onlineManager` dit « hors ligne »
+      // échoue tout de suite au lieu d'être mise en pause puis rejouée au
+      // retour du réseau (défense en profondeur : les écrans gardent déjà
+      // `isOnline`).
+      networkMode: 'always',
     },
   },
 });

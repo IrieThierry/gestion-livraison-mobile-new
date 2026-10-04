@@ -27,8 +27,12 @@ export function buildModifierClientPayload(
     id: client.id,
     livreurId: client.livreur?.id ?? livreurConnecteId,
     ...champs,
-    prixDeVenteProduitParDefault: client.prixDeVenteProduitParDefault ?? 0,
   };
+  // Même règle que limiteCredit : un prix par défaut absent n'est pas
+  // transformé en 0, il est omis et le back garde la valeur stockée.
+  if (client.prixDeVenteProduitParDefault != null) {
+    payload.prixDeVenteProduitParDefault = client.prixDeVenteProduitParDefault;
+  }
   if (client.limiteCredit != null) payload.limiteCredit = client.limiteCredit;
   return payload;
 }

@@ -209,8 +209,11 @@ export interface CreerClientRequest {
   limiteCredit?: number
 }
 
-export interface ModifierClientRequest extends CreerClientRequest {
+export interface ModifierClientRequest
+  extends Omit<CreerClientRequest, 'prixDeVenteProduitParDefault'> {
   id: UUID
+  /** Optionnel à la modification : absent, le back garde la valeur stockée. */
+  prixDeVenteProduitParDefault?: number
 }
 
 export interface ProduitClientResponse {

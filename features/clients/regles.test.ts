@@ -39,6 +39,15 @@ describe('buildModifierClientPayload', () => {
     expect(p).not.toHaveProperty('limiteCredit');
   });
 
+  it('omet prixDeVenteProduitParDefault quand il est null (jamais remplacé par 0)', () => {
+    const p = buildModifierClientPayload(
+      { ...client, prixDeVenteProduitParDefault: null } as unknown as ClientResponse,
+      champs,
+      'l-connecte',
+    );
+    expect(p).not.toHaveProperty('prixDeVenteProduitParDefault');
+  });
+
   it('retombe sur le livreur connecté seulement si le client n’a pas de livreur', () => {
     const p = buildModifierClientPayload(
       { ...client, livreur: undefined } as ClientResponse,

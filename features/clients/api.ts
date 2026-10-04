@@ -17,9 +17,9 @@ export const clientsApi = {
     );
     return data;
   },
-  enregistrer: async (payload: CreerClientRequest): Promise<ClientResponse> => {
-    const { data } = await apiClient.post<ClientResponse>('/client', payload);
-    return data;
+  // Le back renvoie un corps texte (pas de ClientResponse) : rien à lire.
+  enregistrer: async (payload: CreerClientRequest): Promise<void> => {
+    await apiClient.post('/client', payload);
   },
   /**
    * Modifie un client existant. Endpoint `PUT /client` avec

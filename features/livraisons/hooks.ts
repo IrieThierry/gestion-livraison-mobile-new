@@ -11,6 +11,7 @@ import { encaissementKeys } from '../encaissements/keys';
 import { clientKeys, encoursKeys } from '../clients/keys';
 import { prixKeys } from '../prix/keys';
 import { remiseKeys } from '../remise/keys';
+import { reversementKeys } from '../reversements/keys';
 
 // Le portail web n'expose pas de hooks dédiés (il appelle `useQuery` /
 // `useMutation` inline avec `livraisonsApi`). On les expose ici pour
@@ -55,6 +56,8 @@ export function useCreerLivraison() {
       qc.invalidateQueries({ queryKey: clientKeys.all });
       qc.invalidateQueries({ queryKey: encoursKeys.all });
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
+      // La remise « en attente / acquise » de la synthèse reversements change.
+      qc.invalidateQueries({ queryKey: reversementKeys.all });
     },
   });
 }
@@ -69,6 +72,8 @@ export function useModifierLivraison() {
       qc.invalidateQueries({ queryKey: stockKeys.all });
       qc.invalidateQueries({ queryKey: encoursKeys.all });
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
+      // La remise « en attente / acquise » de la synthèse reversements change.
+      qc.invalidateQueries({ queryKey: reversementKeys.all });
       qc.invalidateQueries({ queryKey: remiseKeys.all });
     },
   });
@@ -83,6 +88,8 @@ export function useSupprimerLivraison() {
       qc.invalidateQueries({ queryKey: stockKeys.all });
       qc.invalidateQueries({ queryKey: encoursKeys.all });
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
+      // La remise « en attente / acquise » de la synthèse reversements change.
+      qc.invalidateQueries({ queryKey: reversementKeys.all });
     },
   });
 }

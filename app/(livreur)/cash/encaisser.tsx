@@ -37,8 +37,9 @@ import type { EncaissementLivraisonResponse, LivraisonResponse } from '../../../
 /**
  * Page d'encaissement d'un paiement client.
  *
- *   • `livraisonId` — on arrive depuis une livraison : son dû restant
- *     (serveur, `montantDu`) est affiché et pré-rempli.
+ *   • `livraisonId` — on arrive depuis une livraison : son dû net
+ *     (serveur, `montantDu`, avant paiements) est affiché ; la suggestion
+ *     est bornée par le solde du client.
  *   • `clientId` — on arrive depuis la fiche / la liste clients : le
  *     solde du client (serveur) est pré-rempli.
  *
@@ -59,6 +60,7 @@ export default function EncaisserPage() {
   const qLiv = useLivraisonsByLivreur(livreurId);
   const qCli = useClientsByLivreur(livreurId);
   const m = useCreerEncaissement();
+  const submittingRef = useRef(false);
 
   const todayIso = jourLocal(new Date());
   const monthAgoIso = jourLocal(new Date(Date.now() - 30 * 86_400_000));
@@ -179,6 +181,9 @@ export default function EncaisserPage() {
   };
 
   const onSubmit = () => {
+    // Ref (pas `m.isPending`, figé dans la closure) : bloque un double appui
+    // qui créerait deux encaissements.
+    if (submittingRef.current || m.isPending) return;
     if (!clientId) {
       dialog.error('Erreur', 'Client invalide');
       return;
@@ -199,8 +204,14 @@ export default function EncaisserPage() {
       dialog.warning('Dates invalides', 'La date de début doit être avant la date de fin');
       return;
     }
+    // Le back accepte une date future : on la refuse ici (dates ISO AAAA-MM-JJ).
+    if (dateEncaissement && dateEncaissement > todayIso) {
+      dialog.warning('Date invalide', "La date d'encaissement ne peut pas être dans le futur");
+      return;
+    }
 
     const plage = !libre && dateDebut && dateFin ? plageEnParams(dateDebut, dateFin) : null;
+    submittingRef.current = true;
     m.mutate(
       {
         livreurId: user.id,
@@ -213,6 +224,9 @@ export default function EncaisserPage() {
         libre,
       },
       {
+        onSettled: () => {
+          submittingRef.current = false;
+        },
         onSuccess: (enc) => {
           router.back();
           dialog.success('Encaissement enregistré', messageApres(enc), { autoDismissMs: 4000 });
@@ -242,7 +256,7 @@ export default function EncaisserPage() {
           {/* Récap serveur */}
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-4">
             {mode === 'livraison' ? (
-              <Ligne label="Dû de cette livraison" valeur={`${formatMontant(duLivraison)} F`} />
+              <Ligne label="Dû de cette livraison (avant paiements)" valeur={`${formatMontant(duLivraison)} F`} />
             ) : null}
             {qEncours.isLoading ? (
               <ActivityIndicator color="#10b981" />
@@ -295,7 +309,7 @@ export default function EncaisserPage() {
                       </Text>
                     </View>
                     <Text className="font-extrabold text-slate-700 dark:text-slate-300">
-                      dû {formatMontant(num(l.montantDu))} F
+                      dû initial {formatMontant(num(l.montantDu))} F
                     </Text>
                   </View>
                 ))}
@@ -399,6 +413,7 @@ export default function EncaisserPage() {
               label="Date encaissement"
               value={dateEncaissement}
               onChange={setDateEncaissement}
+              maximumDate={new Date()}
               optional
             />
           </View>

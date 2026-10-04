@@ -98,9 +98,9 @@ export const retoursApi = {
   enregistrer: async (
     livraison: LivraisonResponse,
     request: CreerRetourClientRequest,
-  ): Promise<LivraisonResponse> => {
+  ): Promise<void> => {
     const payload = buildModifierPayload(livraison, request);
-    const { data } = await apiClient.put<LivraisonResponse>('/livraison', payload);
-    return data;
+    // Le back renvoie un corps texte : rien à lire.
+    await apiClient.put('/livraison', payload);
   },
 };

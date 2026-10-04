@@ -123,6 +123,24 @@ export function totalRemiseNette(
   return livraisons.reduce((acc, l) => acc + num(l.remiseNette), 0);
 }
 
+/**
+ * Σ des dûs nets serveur (`montantDu` : remise et retours compris, AVANT
+ * paiements) d'une liste de livraisons. Jamais `montantLivre` (brut).
+ */
+export function totalMontantDu(
+  livraisons: readonly { montantDu?: number | null }[],
+): number {
+  return livraisons.reduce((acc, l) => acc + num(l.montantDu), 0);
+}
+
+/** Prix unitaire payé par le client sur une ligne : prix de vente + remise unitaire. */
+export function prixUnitaireClient(p: {
+  prixDeVente?: number | null;
+  remiseUnitaire?: number | null;
+}): number {
+  return num(p.prixDeVente) + num(p.remiseUnitaire);
+}
+
 /** Libellé d'un solde serveur : dû, avance ou à jour. */
 export function libelleSolde(solde: number): 'du' | 'avance' | 'a-jour' {
   const s = num(solde);

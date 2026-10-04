@@ -13,7 +13,29 @@ import {
   plageEnParams,
   totalAEncaisser,
   totalAvances,
+  totalMontantDu,
+  prixUnitaireClient,
 } from './regles';
+
+describe('totalMontantDu (Σ dû net serveur, jamais le brut montantLivre)', () => {
+  it('somme montantDu, ignore montantLivre, tolère chaînes et null', () => {
+    expect(
+      totalMontantDu([
+        { montantDu: 2500, montantLivre: 3000 } as { montantDu: number },
+        { montantDu: '520.50' as unknown as number },
+        { montantDu: null },
+      ]),
+    ).toBe(3020.5);
+    expect(totalMontantDu([])).toBe(0);
+  });
+});
+
+describe('prixUnitaireClient', () => {
+  it('prix de vente + remise unitaire', () => {
+    expect(prixUnitaireClient({ prixDeVente: 200, remiseUnitaire: 50 })).toBe(250);
+    expect(prixUnitaireClient({ prixDeVente: 200, remiseUnitaire: null })).toBe(200);
+  });
+});
 
 const enc = (p: Partial<EncaissementLivraisonResponse>): EncaissementLivraisonResponse =>
   ({

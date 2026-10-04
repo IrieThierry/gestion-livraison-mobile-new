@@ -13,7 +13,8 @@ import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useAuthStore } from '../../../stores/authStore';
 import { LivraisonCard, deriveStatus } from '../../../components/livreur/LivraisonCard';
 import { EmptyState } from '../../../components/shared/EmptyState';
-import { formatFCFA } from '../../../lib/format';
+import { formatFCFA, formatMontant } from '../../../lib/format';
+import { totalMontantDu, totalRemiseNette } from '../../../features/encaissements/regles';
 import type { LivraisonResponse } from '../../../types/api';
 
 type Period = 'today' | 'week' | 'month' | 'all';
@@ -64,26 +65,16 @@ export default function LivraisonsList() {
     let encaissees = 0;
     let livrees = 0;
     let impayees = 0;
-    let totalEncaisse = 0;
-    let marge = 0;
     for (const l of filtered) {
       const ds = deriveStatus(l);
-      if (ds === 'ENCAISSEE') {
-        encaissees += 1;
-        totalEncaisse += l.montantLivre ?? 0;
-      } else if (ds === 'LIVREE') {
-        livrees += 1;
-      } else {
-        impayees += 1;
-      }
-      // Plan D — marge cristallisée par ligne : Σ qte × margeUnitaire (toutes
-      // livraisons, car la marge est acquise dès la livraison).
-      for (const p of l.produitsLivraison ?? []) {
-        const qte = (p.qteLivre ?? 0) - (p.qteRetourne ?? 0);
-        marge += (Number(p.margeUnitaire) || 0) * qte;
-      }
+      if (ds === 'ENCAISSEE') encaissees += 1;
+      else if (ds === 'LIVREE') livrees += 1;
+      else impayees += 1;
     }
-    return { encaissees, livrees, impayees, totalEncaisse, marge };
+    // Montants serveur uniquement : dû net (avant paiements) et remise nette.
+    const totalDu = totalMontantDu(filtered);
+    const remise = totalRemiseNette(filtered);
+    return { encaissees, livrees, impayees, totalDu, remise };
   }, [filtered]);
 
   if (!user) return null;
@@ -151,23 +142,23 @@ export default function LivraisonsList() {
             <StatCount label="Impayée" value={stats.impayees} accent="red" />
           </View>
 
-          {/* Total encaissé + Marge banner */}
+          {/* Total livré (dû) + Remise (nette) banner */}
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 mt-2 flex-row">
             <View className="flex-1">
               <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
-                Total encaissé
+                Total livré (dû)
               </Text>
               <Text className="font-extrabold text-slate-900 dark:text-white mt-0.5">
-                <Text className="text-xl">{formatFCFA(stats.totalEncaisse)}</Text>
+                <Text className="text-xl">{formatFCFA(stats.totalDu)}</Text>
                 <Text className="text-xs text-slate-500 dark:text-slate-400"> FCFA</Text>
               </Text>
             </View>
             <View className="items-end">
               <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
-                Marge
+                Remise (nette)
               </Text>
               <Text className="font-extrabold text-emerald-600 dark:text-emerald-400 text-xl mt-0.5">
-                + {formatFCFA(stats.marge)}
+                {formatMontant(stats.remise)}
               </Text>
             </View>
           </View>

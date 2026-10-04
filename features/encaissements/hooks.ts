@@ -5,6 +5,7 @@ import { encaissementKeys } from './keys';
 import { livraisonKeys } from '../livraisons/keys';
 import { clientKeys, encoursKeys } from '../clients/keys';
 import { remiseKeys } from '../remise/keys';
+import { reversementKeys } from '../reversements/keys';
 
 export function useEncaissementsByLivreur(livreurId: UUID | undefined) {
   return useQuery({
@@ -28,9 +29,9 @@ export function useSituationEncaissement(params: SituationEncaissementParams | n
 /**
  * Encaissement d'un paiement client. Renvoie l'encaissement créé par le
  * serveur (avec `detteApres`).
- * Invalide livraisons (statut / dû restant), encaissements, encours,
- * clients et remises (une remise devient acquise quand la livraison est
- * entièrement payée).
+ * Invalide livraisons (statut d'encaissement), encaissements, encours,
+ * clients, remises et reversements (une remise devient acquise quand la
+ * livraison est entièrement payée).
  */
 export function useCreerEncaissement() {
   const qc = useQueryClient();
@@ -43,6 +44,8 @@ export function useCreerEncaissement() {
       qc.invalidateQueries({ queryKey: encoursKeys.all });
       qc.invalidateQueries({ queryKey: clientKeys.all });
       qc.invalidateQueries({ queryKey: remiseKeys.all });
+      // Remise « en attente » → « acquise » dans la synthèse reversements.
+      qc.invalidateQueries({ queryKey: reversementKeys.all });
     },
   });
 }

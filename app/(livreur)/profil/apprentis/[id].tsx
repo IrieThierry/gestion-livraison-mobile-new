@@ -32,7 +32,7 @@ import { useClientsByLivreur, useEncoursByLivreur } from '../../../../features/c
 import { useStockActuel } from '../../../../features/stock/hooks';
 import { callPhone } from '../../../../lib/linking';
 import { formatMontant } from '../../../../lib/format';
-import { num, totalAEncaisser } from '../../../../features/encaissements/regles';
+import { num, totalAEncaisser, totalMontantDu } from '../../../../features/encaissements/regles';
 
 /**
  * Fiche apprenti — affiche un récap chiffré (livraisons / encaissements /
@@ -78,7 +78,8 @@ export default function ApprentiDetail() {
     const livJour = livraisons.filter(
       (l) => new Date(l.date).toDateString() === today,
     );
-    const totalCAMois = livMois.reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
+    // Dû net serveur (remise et retours compris), jamais le brut montantLivre.
+    const totalCAMois = totalMontantDu(livMois);
     // « À encaisser » = Σ soldes positifs (serveur) des clients de l’apprenti.
     const aEncaisser = totalAEncaisser(encoursQ.data ?? []);
 

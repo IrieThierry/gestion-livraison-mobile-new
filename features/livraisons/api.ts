@@ -28,9 +28,9 @@ export const livraisonsApi = {
     const { data } = await apiClient.post<LivraisonResponse>('/livraison', payload);
     return data;
   },
-  update: async (payload: ModifierLivraisonRequest): Promise<LivraisonResponse> => {
-    const { data } = await apiClient.put<LivraisonResponse>('/livraison', payload);
-    return data;
+  // Le back renvoie un corps texte (pas de LivraisonResponse) : rien à lire.
+  update: async (payload: ModifierLivraisonRequest): Promise<void> => {
+    await apiClient.put('/livraison', payload);
   },
   remove: async (id: UUID): Promise<void> => {
     await apiClient.delete(`/livraison/${id}`);

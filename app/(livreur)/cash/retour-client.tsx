@@ -29,6 +29,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import { formatFCFA, formatDateShort } from '../../../lib/format';
+import { num } from '../../../features/encaissements/regles';
 import type { LivraisonResponse } from '../../../types/api';
 
 /**
@@ -353,7 +354,7 @@ export default function RetourClient() {
                 </Text>
                 <Text className="text-[11px] text-slate-500 dark:text-slate-400">
                   {formatDateShort(item.date)} ·{' '}
-                  {formatFCFA(item.montantLivre)} FCFA ·{' '}
+                  dû {formatFCFA(num(item.montantDu))} FCFA ·{' '}
                   {item.produitsLivraison?.length ?? 0} ligne(s)
                 </Text>
               </Pressable>

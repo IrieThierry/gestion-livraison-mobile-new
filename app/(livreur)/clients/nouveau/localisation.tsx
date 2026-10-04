@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -39,6 +39,7 @@ export default function NouveauClientStep2() {
   const { data: quartiers = [] } = useQuartiers();
   const { data: categories = [] } = useCategories();
   const m = useEnregistrerClient();
+  const submittingRef = useRef(false);
 
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
@@ -65,6 +66,8 @@ export default function NouveauClientStep2() {
   };
 
   const onSubmit = () => {
+    // Ref (pas `m.isPending`, figé dans la closure) : bloque un double appui.
+    if (submittingRef.current || m.isPending) return;
     if (!user) {
       dialog.error('Erreur', 'Session expirée');
       return;
@@ -90,7 +93,11 @@ export default function NouveauClientStep2() {
       limiteCredit: parseLimiteCredit(draft.limiteCredit) ?? 0,
     };
 
+    submittingRef.current = true;
     m.mutate(payload, {
+      onSettled: () => {
+        submittingRef.current = false;
+      },
       onSuccess: () => {
         reset();
         // Pop step 2 + step 1 to land back on the clients list
