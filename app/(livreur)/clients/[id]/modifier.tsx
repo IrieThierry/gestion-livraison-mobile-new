@@ -27,7 +27,9 @@ import {
 import { useAuthStore } from '../../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { dialog } from '../../../../lib/dialog';
-import type { ClientResponse, ModifierClientRequest } from '../../../../types/api';
+import { useNetworkStore } from '../../../../stores/networkStore';
+import { buildModifierClientPayload } from '../../../../features/clients/regles';
+import type { ClientResponse } from '../../../../types/api';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
   if (!s) return null;
@@ -158,23 +160,21 @@ export default function ModifierClient() {
       return dialog.warning('Email invalide', 'Vérifie le format de l’email.');
     }
 
-    const payload: ModifierClientRequest = {
-      id: client.id,
-      livreurId: user.id,
-      prenom: prenom.trim(),
-      nom: nom.trim(),
-      contact: contact.trim(),
-      email: email.trim(),
-      adresse: adresse.trim(),
-      latitudeLongitude: latLng ? `${latLng.lat},${latLng.lng}` : (client.latitudeLongitude ?? ''),
-      quartierId,
-      categorieId,
-      // Plan D : marge cristallisée à la livraison ; on garde le champ
-      // `prixDeVenteProduitParDefault` à 0 — la marge reverse est portée
-      // par avecOuSansRemise.
-      prixDeVenteProduitParDefault: 0,
-      avecOuSansRemise: avecRemise,
-    };
+    const payload = buildModifierClientPayload(
+      client,
+      {
+        prenom: prenom.trim(),
+        nom: nom.trim(),
+        contact: contact.trim(),
+        email: email.trim(),
+        adresse: adresse.trim(),
+        latitudeLongitude: latLng ? `${latLng.lat},${latLng.lng}` : (client.latitudeLongitude ?? ''),
+        quartierId,
+        categorieId,
+        avecOuSansRemise: avecRemise,
+      },
+      user.id,
+    );
 
     m.mutate(payload, {
       onSuccess: () => {

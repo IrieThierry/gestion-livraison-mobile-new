@@ -758,3 +758,10 @@ export interface SituationVersementResponse {
   dateFin: string | null   // plus récente livraison sélectionnée
   nbCommandes: number
 }
+
+export interface UpsertRemiseClientRequest {
+  clientId: UUID
+  produitId: UUID
+  /** BigDecimal >= 0, 2 décimales maximum. */
+  remiseUnitaire: number
+}

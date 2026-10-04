@@ -27,6 +27,8 @@ import { useClientDraftStore } from '../../../../stores/clientDraftStore';
 import { useAuthStore } from '../../../../stores/authStore';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { navigateTo } from '../../../../lib/linking';
+import { extractApiErrorMessage } from '../../../../lib/api-error';
+import { parseLimiteCredit } from '../../../../features/clients/regles';
 import type { CreerClientRequest } from '../../../../types/api';
 
 export default function NouveauClientStep2() {
@@ -85,6 +87,7 @@ export default function NouveauClientStep2() {
       livreurId: user.id,
       prixDeVenteProduitParDefault: prix,
       avecOuSansRemise: draft.avecRemise,
+      limiteCredit: parseLimiteCredit(draft.limiteCredit) ?? 0,
     };
 
     m.mutate(payload, {
@@ -95,8 +98,7 @@ export default function NouveauClientStep2() {
         dialog.success('Client créé');
       },
       onError: (err: unknown) => {
-        const e = err as { response?: { data?: { message?: string } } };
-        dialog.error('Erreur', e.response?.data?.message ?? 'Échec de la création');
+        dialog.error('Erreur', extractApiErrorMessage(err, 'Échec de la création'));
       },
     });
   };
