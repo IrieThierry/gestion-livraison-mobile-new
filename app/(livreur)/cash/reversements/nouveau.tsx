@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -34,6 +34,7 @@ export default function NouveauReversement() {
   }>();
 
   const m = useEnregistrerReversement();
+  const submittingRef = useRef(false);
   const isOnline = useNetworkStore((s) => s.isOnline);
   const today = jourLocal(new Date());
 
@@ -51,7 +52,8 @@ export default function NouveauReversement() {
   const suggestion = parseMontant(initialMontant);
 
   const onSubmit = () => {
-    if (m.isPending) return;
+    // Ref (pas `m.isPending`, figé dans la closure) : bloque un double appui.
+    if (submittingRef.current || m.isPending) return;
     if (!isOnline) {
       dialog.warning('Hors ligne', 'Le reversement nécessite une connexion. Réessaye une fois en ligne.');
       return;
@@ -69,7 +71,11 @@ export default function NouveauReversement() {
       dialog.warning('Saisie invalide', req.erreur);
       return;
     }
+    submittingRef.current = true;
     m.mutate(req.valeur, {
+      onSettled: () => {
+        submittingRef.current = false;
+      },
       onSuccess: (r) => {
         router.back();
         dialog.success(
@@ -134,6 +140,11 @@ export default function NouveauReversement() {
                   Tout le reste à reverser ({formatMontant(suggestion.valeur)})
                 </Text>
               </Pressable>
+            ) : null}
+            {type === 'CLIENT' ? (
+              <Text className="text-[10px] text-slate-400 mt-2">
+                Plafonné au reste à reverser de la période et au reste actuel du client (le plus petit des deux).
+              </Text>
             ) : null}
             {montant.trim() !== '' && !saisie.ok ? (
               <Text className="text-[11px] text-red-600 dark:text-red-400 mt-1">{saisie.erreur}</Text>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   ScrollView,
   View,
@@ -51,6 +51,7 @@ export default function NouvelleCloture() {
   const livQ = useLivraisonsByLivreur(livreurId);
   const encQ = useEncaissementsByLivreur(livreurId);
   const m = useEnregistrerCloture();
+  const submittingRef = useRef(false);
 
   const estimation = useMemo(
     () => totauxEstimesDuJour(dateCloture ?? today, livQ.data ?? [], encQ.data ?? []),
@@ -62,7 +63,8 @@ export default function NouvelleCloture() {
   const sens = ecartEstime == null ? null : sensEcart(ecartEstime);
 
   const onSubmit = () => {
-    if (!user || m.isPending) return;
+    // Ref (pas `m.isPending`, figé dans la closure) : bloque un double appui.
+    if (!user || submittingRef.current || m.isPending) return;
     if (!isOnline) {
       dialog.warning('Hors ligne', 'La clôture nécessite une connexion. Réessaye une fois en ligne.');
       return;
@@ -77,7 +79,11 @@ export default function NouvelleCloture() {
       dialog.warning('Saisie incomplète', req.erreur);
       return;
     }
+    submittingRef.current = true;
     m.mutate(req.valeur, {
+      onSettled: () => {
+        submittingRef.current = false;
+      },
       onSuccess: (cloture) => {
         router.back();
         dialog.success('Clôture enregistrée', messageClotureEnregistree(cloture));
