@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -9,44 +9,44 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { dialog } from '../../../lib/dialog';
+import { extractApiErrorMessage } from '../../../lib/api-error';
+import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
+import { useClientsByLivreur, useEncoursClient } from '../../../features/clients/hooks';
 import {
-  useLivraisonsByLivreur,
-  useEncaisserLivraison,
-} from '../../../features/livraisons/hooks';
-import { useClientsByLivreur } from '../../../features/clients/hooks';
-import { useEncaissementsByLivreur } from '../../../features/encaissements/hooks';
+  useCreerEncaissement,
+  useSituationEncaissement,
+} from '../../../features/encaissements/hooks';
+import {
+  avanceEstimee,
+  dateEncaissementParam,
+  jourLocal,
+  num,
+  parseMontant,
+  plageEnParams,
+  suggestionBornee,
+} from '../../../features/encaissements/regles';
 import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { DatePickerField } from '../../../components/shared/DatePickerField';
-import {
-  computeSoldeForClient,
-  computeEncoursForClient,
-} from '../../../lib/credit';
 import { isAEncaisser } from '../../../lib/livraison-status';
-import { formatFCFA, formatDateShort } from '../../../lib/format';
-import type { LivraisonResponse } from '../../../types/api';
+import { formatMontant, formatDateShort } from '../../../lib/format';
+import type { EncaissementLivraisonResponse, LivraisonResponse } from '../../../types/api';
 
 /**
- * Page d'encaissement.
+ * Page d'encaissement d'un paiement client.
  *
- * Deux modes selon les query params :
+ *   • `livraisonId` — on arrive depuis une livraison : son dû net
+ *     (serveur, `montantDu`, avant paiements) est affiché ; la suggestion
+ *     est bornée par le solde du client.
+ *   • `clientId` — on arrive depuis la fiche / la liste clients : le
+ *     solde du client (serveur) est pré-rempli.
  *
- *   • `livraisonId` (mode livraison)  — cible une livraison précise. Le
- *     récap montre total livré / déjà encaissé / reste à encaisser pour
- *     CETTE livraison uniquement. Cible historique : bouton Encaisser
- *     du détail livraison.
- *
- *   • `clientId` (mode client) — cible un client. On agrège toutes ses
- *     livraisons non encaissées, on affiche la liste, le total à
- *     encaisser et le solde calculé. Le montant est pré-rempli avec le
- *     reste dû (= solde positif). Cible : bouton Encaisser de la fiche
- *     client et de la liste clients.
- *
- * Le payload backend est le même dans les deux cas : `clientId`,
- * `montantEncaisse`, optional `dateDebut`/`dateFin`/`libre`. Le back
- * applique l'encaissement sur les livraisons en cours côté serveur.
+ * Tous les montants dus viennent du serveur : solde et limite via
+ * `GET /client/{id}/encours`, situation d'une plage via
+ * `GET /encaissement/livraison/situation`. Un paiement au-delà du dû est
+ * accepté : c'est une avance (solde négatif). Mode libre par défaut.
  */
 export default function EncaisserPage() {
   const params = useLocalSearchParams<{
@@ -58,25 +58,21 @@ export default function EncaisserPage() {
   const livreurId = user?.id ?? '';
 
   const qLiv = useLivraisonsByLivreur(livreurId);
-  const qEnc = useEncaissementsByLivreur(livreurId);
   const qCli = useClientsByLivreur(livreurId);
-  const m = useEncaisserLivraison();
+  const m = useCreerEncaissement();
+  const submittingRef = useRef(false);
 
+  const todayIso = jourLocal(new Date());
+  const monthAgoIso = jourLocal(new Date(Date.now() - 30 * 86_400_000));
   const [montant, setMontant] = useState('');
   const [commentaire, setCommentaire] = useState('');
   const [libre, setLibre] = useState(true);
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const monthAgoIso = new Date(Date.now() - 30 * 86_400_000)
-    .toISOString()
-    .slice(0, 10);
   const [dateDebut, setDateDebut] = useState<string | null>(monthAgoIso);
   const [dateFin, setDateFin] = useState<string | null>(todayIso);
   const [dateEncaissement, setDateEncaissement] = useState<string | null>(todayIso);
 
-  // Mode = livraison si livraisonId présent, sinon client
   const mode: 'livraison' | 'client' = params.livraisonId ? 'livraison' : 'client';
 
-  // === Mode livraison : recherche de la livraison ciblée ===
   const livraisonCiblee = useMemo(
     () =>
       mode === 'livraison'
@@ -85,16 +81,32 @@ export default function EncaisserPage() {
     [mode, qLiv.data, params.livraisonId],
   );
 
-  // === Mode client : agrégation des livraisons non encaissées + solde ===
   const clientId =
-    mode === 'client'
-      ? params.clientId ?? null
-      : livraisonCiblee?.client.id ?? null;
+    mode === 'client' ? params.clientId ?? null : livraisonCiblee?.client.id ?? null;
 
   const client = useMemo(
     () => (qCli.data ?? []).find((c) => c.id === clientId),
     [qCli.data, clientId],
   );
+
+  const qEncours = useEncoursClient(clientId);
+  const encours = qEncours.data;
+  const solde = num(encours?.solde);
+
+  const plageValide = !libre && !!dateDebut && !!dateFin && dateDebut <= dateFin;
+  const qSituation = useSituationEncaissement(
+    plageValide && clientId && livreurId
+      ? { livreurId, clientId, ...plageEnParams(dateDebut as string, dateFin as string) }
+      : null,
+  );
+  const situation = qSituation.data;
+  // Valeur de la période, bornée par le total dû serveur et le solde client.
+  const suggestionPeriode = situation
+    ? suggestionBornee(
+        num(situation.valeurLivraisons),
+        Math.min(num(situation.totalDu), encours ? solde : num(situation.totalDu)),
+      )
+    : 0;
 
   const livraisonsNonEncaissees = useMemo<LivraisonResponse[]>(() => {
     if (!clientId) return [];
@@ -103,23 +115,20 @@ export default function EncaisserPage() {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [qLiv.data, clientId]);
 
-  const totalNonEncaisse = useMemo(
-    () => livraisonsNonEncaissees.reduce((acc, l) => acc + (l.montantLivre ?? 0), 0),
-    [livraisonsNonEncaissees],
-  );
+  // `montantDu` = dû net de la livraison AVANT paiements : la suggestion
+  // est bornée par ce que le client doit encore (solde serveur).
+  const duLivraison = num(livraisonCiblee?.montantDu);
+  const suggestionLivraison = suggestionBornee(duLivraison, solde);
 
-  const soldeClient = useMemo(
-    () =>
-      clientId
-        ? computeSoldeForClient(qLiv.data ?? [], qEnc.data ?? [], clientId)
-        : 0,
-    [qLiv.data, qEnc.data, clientId],
-  );
-
-  const encoursClient = useMemo(
-    () => (clientId ? computeEncoursForClient(qLiv.data ?? [], clientId) : 0),
-    [qLiv.data, clientId],
-  );
+  // Pré-remplissage une seule fois, hors du rendu, dès que le dû serveur est connu.
+  const prerempli = useRef(false);
+  useEffect(() => {
+    if (prerempli.current || !encours) return;
+    if (mode === 'livraison' && !livraisonCiblee) return;
+    prerempli.current = true;
+    const suggestion = mode === 'livraison' ? suggestionLivraison : Math.max(0, solde);
+    if (suggestion > 0) setMontant(String(suggestion));
+  }, [encours, mode, livraisonCiblee, suggestionLivraison, solde]);
 
   if (!user) return null;
 
@@ -131,7 +140,6 @@ export default function EncaisserPage() {
     );
   }
 
-  // Aucune cible n'est trouvée — message d'erreur clair
   if (mode === 'livraison' && !livraisonCiblee) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
@@ -155,39 +163,37 @@ export default function EncaisserPage() {
     );
   }
 
-  // === Calculs des montants à encaisser selon le mode ===
-  const totalCible = mode === 'livraison'
-    ? livraisonCiblee?.montantLivre ?? 0
-    : totalNonEncaisse;
-  // Reste à payer = solde dû (positif), borné par totalCible (cas crédit ou
-  // sur-encaissement précédent).
-  const resteAPayer = Math.max(0, Math.min(soldeClient, totalCible));
-  // Pré-remplir le montant la première fois (uniquement si vide)
-  if (montant === '' && resteAPayer > 0) {
-    setMontant(String(resteAPayer));
-  }
-
   const clientName = client
-    ? `${client.prenom} ${client.nom}`.trim()
+    ? `${client.prenom} ${client.nom ?? ''}`.trim()
     : livraisonCiblee
-    ? `${livraisonCiblee.client.prenom} ${livraisonCiblee.client.nom}`
+    ? `${livraisonCiblee.client.prenom} ${livraisonCiblee.client.nom ?? ''}`.trim()
     : 'Client';
 
+  const saisie = parseMontant(montant);
+  const montantSaisi = saisie.ok ? saisie.valeur : 0;
+  const avance = encours && montantSaisi > 0 ? avanceEstimee(solde, montantSaisi) : 0;
+
+  const messageApres = (enc: EncaissementLivraisonResponse): string => {
+    const apres = num(enc.detteApres);
+    if (apres > 0) return `Reste dû par le client : ${formatMontant(apres)} FCFA`;
+    if (apres < 0) return `Avance du client : ${formatMontant(-apres)} FCFA`;
+    return 'Le client est à jour.';
+  };
+
   const onSubmit = () => {
+    // Ref (pas `m.isPending`, figé dans la closure) : bloque un double appui
+    // qui créerait deux encaissements.
+    if (submittingRef.current || m.isPending) return;
     if (!clientId) {
       dialog.error('Erreur', 'Client invalide');
       return;
     }
-    const n = parseInt(montant, 10);
-    if (!n || n <= 0) {
-      dialog.warning('Montant invalide', 'Saisis un montant supérieur à 0.');
+    if (!isOnline) {
+      dialog.warning('Hors ligne', "L'encaissement nécessite une connexion. Réessaye une fois en ligne.");
       return;
     }
-    if (totalCible > 0 && n > totalCible) {
-      dialog.warning(
-        'Montant trop élevé',
-        `Le montant dépasse le total à encaisser (${formatFCFA(totalCible)} FCFA)`,
-      );
+    if (!saisie.ok) {
+      dialog.warning('Montant invalide', saisie.erreur);
       return;
     }
     if (!libre && (!dateDebut || !dateFin)) {
@@ -198,98 +204,92 @@ export default function EncaisserPage() {
       dialog.warning('Dates invalides', 'La date de début doit être avant la date de fin');
       return;
     }
+    // Le back accepte une date future : on la refuse ici (dates ISO AAAA-MM-JJ).
+    if (dateEncaissement && dateEncaissement > todayIso) {
+      dialog.warning('Date invalide', "La date d'encaissement ne peut pas être dans le futur");
+      return;
+    }
 
+    const plage = !libre && dateDebut && dateFin ? plageEnParams(dateDebut, dateFin) : null;
+    submittingRef.current = true;
     m.mutate(
       {
         livreurId: user.id,
         clientId,
-        montantEncaisse: n,
+        montantEncaisse: saisie.valeur,
         commentaire: commentaire.trim() || undefined,
-        dateDebut: libre ? undefined : (dateDebut ?? undefined),
-        dateFin: libre ? undefined : (dateFin ?? undefined),
-        dateEncaissement: dateEncaissement ?? undefined,
-        libre: libre || undefined,
+        dateDebut: plage?.dateDebut,
+        dateFin: plage?.dateFin,
+        dateEncaissement: dateEncaissementParam(dateEncaissement, todayIso),
+        libre,
       },
       {
-        onSuccess: () => {
-          setMontant('');
-          setCommentaire('');
-          setLibre(true);
-          setDateDebut(monthAgoIso);
-          setDateFin(todayIso);
-          setDateEncaissement(todayIso);
+        onSettled: () => {
+          submittingRef.current = false;
+        },
+        onSuccess: (enc) => {
           router.back();
-          dialog.success('Encaissement enregistré');
+          dialog.success('Encaissement enregistré', messageApres(enc), { autoDismissMs: 4000 });
         },
         onError: (err: unknown) => {
-          const e = err as { response?: { data?: { message?: string } } };
-          dialog.error(
-            'Erreur',
-            e.response?.data?.message ?? 'Échec de l’encaissement',
-          );
+          dialog.error('Erreur', extractApiErrorMessage(err, 'Échec de l’encaissement'));
         },
       },
     );
   };
 
-  const montantInt = parseInt(montant, 10) || 0;
+  const soldeLabel =
+    solde > 0 ? ' (dû)' : solde < 0 ? ' (avance)' : '';
+  const soldeClass =
+    solde > 0
+      ? 'text-amber-700 dark:text-amber-400'
+      : solde < 0
+      ? 'text-emerald-700 dark:text-emerald-400'
+      : 'text-slate-700 dark:text-slate-300';
+  const desactive = m.isPending || !isOnline || montantSaisi <= 0;
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader title="Encaisser" subtitle={clientName} />
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="px-4 pt-3">
-          {/* Récap principal — 4 chiffres clés */}
+          {/* Récap serveur */}
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-4">
-            <View className="flex-row justify-between mb-2">
-              <Text className="text-slate-500 dark:text-slate-400 text-[12px]">
-                {mode === 'livraison'
-                  ? 'Total livré (cette livraison)'
-                  : 'Total non encaissé'}
-              </Text>
-              <Text className="font-bold text-slate-700 dark:text-slate-300">
-                {formatFCFA(totalCible)} F
-              </Text>
-            </View>
-            {mode === 'client' ? (
-              <View className="flex-row justify-between mb-2">
-                <Text className="text-slate-500 dark:text-slate-400 text-[12px]">
-                  Encours (livré non encaissé)
-                </Text>
-                <Text className="font-bold text-slate-700 dark:text-slate-300">
-                  {formatFCFA(encoursClient)} F
-                </Text>
-              </View>
+            {mode === 'livraison' ? (
+              <Ligne label="Dû de cette livraison (avant paiements)" valeur={`${formatMontant(duLivraison)} F`} />
             ) : null}
-            <View className="flex-row justify-between mb-2">
-              <Text className="text-slate-500 dark:text-slate-400 text-[12px]">
-                Solde du client
+            {qEncours.isLoading ? (
+              <ActivityIndicator color="#10b981" />
+            ) : qEncours.isError ? (
+              <Text className="text-[12px] text-red-600 dark:text-red-400">
+                {extractApiErrorMessage(qEncours.error, 'Solde du client indisponible')}
               </Text>
-              <Text
-                className={`font-bold ${
-                  soldeClient > 0
-                    ? 'text-amber-700 dark:text-amber-400'
-                    : soldeClient < 0
-                    ? 'text-emerald-700 dark:text-emerald-400'
-                    : 'text-slate-700 dark:text-slate-300'
-                }`}
-              >
-                {soldeClient < 0 ? '+' : ''}
-                {formatFCFA(Math.abs(soldeClient))} F
-                {soldeClient < 0 ? ' (crédit)' : soldeClient > 0 ? ' (dû)' : ''}
-              </Text>
-            </View>
-            <View className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-3 flex-row justify-between">
-              <Text className="text-slate-700 dark:text-slate-300 font-bold">
-                Reste à encaisser
-              </Text>
-              <Text className="font-extrabold text-amber-600 dark:text-amber-400 text-base">
-                {formatFCFA(resteAPayer)} FCFA
-              </Text>
-            </View>
+            ) : (
+              <>
+                <View className="flex-row justify-between mb-2">
+                  <Text className="text-slate-500 dark:text-slate-400 text-[12px]">
+                    Solde du client
+                  </Text>
+                  <Text className={`font-bold ${soldeClass}`}>
+                    {formatMontant(Math.abs(solde))} F{soldeLabel}
+                  </Text>
+                </View>
+                <Ligne
+                  label="Limite de crédit"
+                  valeur={`${formatMontant(num(encours?.limiteCredit))} F`}
+                />
+                {encours?.enDepassement ? (
+                  <View className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded px-2 py-1 mt-1">
+                    <Text className="text-[11px] font-bold text-red-700 dark:text-red-400">
+                      Limite de crédit dépassée
+                    </Text>
+                  </View>
+                ) : null}
+              </>
+            )}
           </View>
 
-          {/* Liste des livraisons non encaissées (mode client uniquement) */}
+          {/* Livraisons non encaissées et leur dû (avant paiements) — mode client */}
           {mode === 'client' && livraisonsNonEncaissees.length > 0 ? (
             <View className="mt-3">
               <Text className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-2">
@@ -297,10 +297,7 @@ export default function EncaisserPage() {
               </Text>
               <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 gap-2">
                 {livraisonsNonEncaissees.map((l) => (
-                  <View
-                    key={l.id}
-                    className="flex-row justify-between items-center"
-                  >
+                  <View key={l.id} className="flex-row justify-between items-center">
                     <View className="flex-1 pr-2">
                       <Text className="text-[12px] font-bold text-slate-700 dark:text-slate-300">
                         {formatDateShort(l.date)}
@@ -312,22 +309,11 @@ export default function EncaisserPage() {
                       </Text>
                     </View>
                     <Text className="font-extrabold text-slate-700 dark:text-slate-300">
-                      {formatFCFA(l.montantLivre)} F
+                      dû initial {formatMontant(num(l.montantDu))} F
                     </Text>
                   </View>
                 ))}
               </View>
-            </View>
-          ) : null}
-
-          {mode === 'client' && livraisonsNonEncaissees.length === 0 ? (
-            <View className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-md p-3 mt-3">
-              <Text className="text-[12px] text-emerald-700 dark:text-emerald-400 text-center">
-                Toutes les livraisons sont déjà encaissées.
-                {soldeClient > 0
-                  ? ' Le solde restant correspond à une dette antérieure.'
-                  : ''}
-              </Text>
             </View>
           ) : null}
 
@@ -338,85 +324,87 @@ export default function EncaisserPage() {
           <TextInput
             value={montant}
             onChangeText={setMontant}
-            keyboardType="number-pad"
+            keyboardType="decimal-pad"
             selectTextOnFocus
             placeholder="0"
             placeholderTextColor="#94a3b8"
             className="px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-2xl font-extrabold"
           />
+          {montant !== '' && !saisie.ok ? (
+            <Text className="text-[11px] text-red-600 dark:text-red-400 mt-1">{saisie.erreur}</Text>
+          ) : null}
+          {avance > 0 ? (
+            <Text className="text-[12px] text-emerald-700 dark:text-emerald-400 mt-1">
+              dont avance de {formatMontant(avance)} FCFA (estimation)
+            </Text>
+          ) : null}
 
-          {/* Quick fills */}
+          {/* Remplissages rapides (valeurs serveur) */}
           <View className="flex-row gap-2 mt-2 flex-wrap">
-            {resteAPayer > 0 ? (
-              <Pressable
-                onPress={() => setMontant(String(resteAPayer))}
-                className="bg-emerald-100 dark:bg-emerald-500/15 px-3 py-1.5 rounded-md active:opacity-70"
-              >
-                <Text className="text-emerald-700 dark:text-emerald-400 text-[11px] font-bold">
-                  Tout solder ({formatFCFA(resteAPayer)})
-                </Text>
-              </Pressable>
+            {solde > 0 ? (
+              <Raccourci
+                label={`Tout solder (${formatMontant(solde)})`}
+                onPress={() => setMontant(String(solde))}
+              />
             ) : null}
-            {totalCible > 0 && totalCible !== resteAPayer ? (
-              <Pressable
-                onPress={() => setMontant(String(totalCible))}
-                className="bg-blue-100 dark:bg-blue-500/15 px-3 py-1.5 rounded-md active:opacity-70"
-              >
-                <Text className="text-blue-700 dark:text-blue-400 text-[11px] font-bold">
-                  Total ({formatFCFA(totalCible)})
-                </Text>
-              </Pressable>
+            {mode === 'livraison' && suggestionLivraison > 0 && suggestionLivraison !== solde ? (
+              <Raccourci
+                label={`Cette livraison (${formatMontant(suggestionLivraison)})`}
+                onPress={() => setMontant(String(suggestionLivraison))}
+              />
+            ) : null}
+            {suggestionPeriode > 0 ? (
+              <Raccourci
+                label={`Période (${formatMontant(suggestionPeriode)})`}
+                onPress={() => setMontant(String(suggestionPeriode))}
+              />
             ) : null}
           </View>
 
-          {/* Mode toggle */}
+          {/* Mode */}
           <Text className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
             Mode d'encaissement
           </Text>
           <View className="flex-row gap-2">
-            <Pressable
-              onPress={() => setLibre(true)}
-              className={`flex-1 py-2.5 rounded-md items-center ${
-                libre
-                  ? 'bg-emerald-500'
-                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
-              }`}
-            >
-              <Text
-                className={`font-bold text-[13px] ${
-                  libre ? 'text-white' : 'text-slate-700 dark:text-slate-300'
-                }`}
-              >
-                Solde libre
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setLibre(false)}
-              className={`flex-1 py-2.5 rounded-md items-center ${
-                !libre
-                  ? 'bg-emerald-500'
-                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
-              }`}
-            >
-              <Text
-                className={`font-bold text-[13px] ${
-                  !libre ? 'text-white' : 'text-slate-700 dark:text-slate-300'
-                }`}
-              >
-                Sur une période
-              </Text>
-            </Pressable>
+            <ModeBouton actif={libre} label="Solde libre" onPress={() => setLibre(true)} />
+            <ModeBouton actif={!libre} label="Sur une période" onPress={() => setLibre(false)} />
           </View>
           <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
             {libre
-              ? 'Solde la dette du client sans contrainte de plage.'
-              : 'Encaisse les livraisons de la plage choisie (vérifie les chevauchements).'}
+              ? 'Le paiement est imputé au solde du client.'
+              : 'Le paiement est imputé au solde du client ; la période sert de repère.'}
           </Text>
 
           {!libre ? (
             <View className="mt-4 gap-3">
               <DatePickerField label="Date début" value={dateDebut} onChange={setDateDebut} />
               <DatePickerField label="Date fin" value={dateFin} onChange={setDateFin} />
+              {qSituation.isLoading && plageValide ? (
+                <ActivityIndicator color="#10b981" />
+              ) : qSituation.isError ? (
+                <Text className="text-[12px] text-red-600 dark:text-red-400">
+                  {extractApiErrorMessage(qSituation.error, 'Situation indisponible')}
+                </Text>
+              ) : situation ? (
+                <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-4">
+                  <Ligne
+                    label="Livraisons de la période"
+                    valeur={`${formatMontant(num(situation.valeurLivraisons))} F`}
+                  />
+                  <Ligne
+                    label="Remise de la période"
+                    valeur={`${formatMontant(num(situation.margeCumulee))} F`}
+                  />
+                  <Ligne
+                    label="Solde hors période"
+                    valeur={`${formatMontant(num(situation.detteAvant))} F`}
+                  />
+                  <Ligne
+                    label="Total dû"
+                    valeur={`${formatMontant(num(situation.totalDu))} F`}
+                  />
+                </View>
+              ) : null}
             </View>
           ) : null}
 
@@ -425,11 +413,11 @@ export default function EncaisserPage() {
               label="Date encaissement"
               value={dateEncaissement}
               onChange={setDateEncaissement}
+              maximumDate={new Date()}
               optional
             />
           </View>
 
-          {/* Commentaire */}
           <Text className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
             Commentaire (optionnel)
           </Text>
@@ -442,12 +430,11 @@ export default function EncaisserPage() {
             className="px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white min-h-[80px]"
           />
 
-          {/* Submit */}
           <Pressable
             onPress={onSubmit}
-            disabled={m.isPending || !isOnline || montantInt <= 0}
+            disabled={desactive}
             className={`rounded-md py-3.5 mt-6 items-center ${
-              !isOnline || montantInt <= 0
+              !isOnline || montantSaisi <= 0
                 ? 'bg-slate-200 dark:bg-slate-800'
                 : 'bg-emerald-500 active:opacity-80'
             }`}
@@ -457,19 +444,68 @@ export default function EncaisserPage() {
             ) : (
               <Text
                 className={`font-bold text-base ${
-                  !isOnline || montantInt <= 0 ? 'text-slate-400' : 'text-white'
+                  !isOnline || montantSaisi <= 0 ? 'text-slate-400' : 'text-white'
                 }`}
               >
                 {!isOnline
                   ? 'Hors ligne — réessaye en ligne'
-                  : montantInt <= 0
+                  : montantSaisi <= 0
                   ? 'Saisis un montant'
-                  : `Encaisser ${formatFCFA(montantInt)} FCFA`}
+                  : `Encaisser ${formatMontant(montantSaisi)} FCFA`}
               </Text>
             )}
           </Pressable>
         </View>
       </ScrollView>
     </View>
+  );
+}
+
+function Ligne({ label, valeur }: { label: string; valeur: string }) {
+  return (
+    <View className="flex-row justify-between mb-2">
+      <Text className="text-slate-500 dark:text-slate-400 text-[12px]">{label}</Text>
+      <Text className="font-bold text-slate-700 dark:text-slate-300">{valeur}</Text>
+    </View>
+  );
+}
+
+function Raccourci({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className="bg-emerald-100 dark:bg-emerald-500/15 px-3 py-1.5 rounded-md active:opacity-70"
+    >
+      <Text className="text-emerald-700 dark:text-emerald-400 text-[11px] font-bold">{label}</Text>
+    </Pressable>
+  );
+}
+
+function ModeBouton({
+  actif,
+  label,
+  onPress,
+}: {
+  actif: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`flex-1 py-2.5 rounded-md items-center ${
+        actif
+          ? 'bg-emerald-500'
+          : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
+      }`}
+    >
+      <Text
+        className={`font-bold text-[13px] ${
+          actif ? 'text-white' : 'text-slate-700 dark:text-slate-300'
+        }`}
+      >
+        {label}
+      </Text>
+    </Pressable>
   );
 }

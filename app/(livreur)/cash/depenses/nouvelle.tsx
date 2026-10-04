@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
+import { extractApiErrorMessage } from '../../../../lib/api-error';
+import { parseMontant } from '../../../../features/encaissements/regles';
 import { Fuel, Wrench, FileText, MoreHorizontal } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { DatePickerField } from '../../../../components/shared/DatePickerField';
@@ -42,11 +44,12 @@ export default function NouvelleDepense() {
       dialog.warning('Champ requis', 'Saisis un libellé');
       return;
     }
-    const n = parseInt(montant, 10);
-    if (!n || n <= 0) {
-      dialog.warning('Montant invalide', 'Saisis un montant supérieur à 0.');
+    const saisie = parseMontant(montant);
+    if (!saisie.ok) {
+      dialog.warning('Montant invalide', saisie.erreur);
       return;
     }
+    const n = saisie.valeur;
     if (!dateDepense) {
       dialog.warning('Champ requis', 'Date requise');
       return;
@@ -65,8 +68,7 @@ export default function NouvelleDepense() {
           dialog.success('Dépense enregistrée');
         },
         onError: (err: unknown) => {
-          const e = err as { response?: { data?: { message?: string } } };
-          dialog.error('Erreur', e.response?.data?.message ?? 'Échec');
+          dialog.error('Erreur', extractApiErrorMessage(err, 'Échec'));
         },
       },
     );
@@ -133,7 +135,7 @@ export default function NouvelleDepense() {
             <TextInput
               value={montant}
               onChangeText={setMontant}
-              keyboardType="number-pad"
+              keyboardType="decimal-pad"
               selectTextOnFocus
               placeholder="0"
               placeholderTextColor="#94a3b8"

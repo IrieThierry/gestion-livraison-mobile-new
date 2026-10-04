@@ -28,11 +28,11 @@ import {
 } from '../../../../features/apprentis/hooks';
 import { useLivraisonsByLivreur } from '../../../../features/livraisons/hooks';
 import { useEncaissementsByLivreur } from '../../../../features/encaissements/hooks';
-import { useClientsByLivreur } from '../../../../features/clients/hooks';
+import { useClientsByLivreur, useEncoursByLivreur } from '../../../../features/clients/hooks';
 import { useStockActuel } from '../../../../features/stock/hooks';
 import { callPhone } from '../../../../lib/linking';
-import { formatFCFA } from '../../../../lib/format';
-import { isAEncaisser } from '../../../../lib/livraison-status';
+import { formatMontant } from '../../../../lib/format';
+import { num, totalAEncaisser, totalMontantDu } from '../../../../features/encaissements/regles';
 
 /**
  * Fiche apprenti — affiche un récap chiffré (livraisons / encaissements /
@@ -55,6 +55,7 @@ export default function ApprentiDetail() {
   const livQ = useLivraisonsByLivreur(id);
   const encQ = useEncaissementsByLivreur(id);
   const cliQ = useClientsByLivreur(id);
+  const encoursQ = useEncoursByLivreur(id);
   const stockQ = useStockActuel(id ?? '');
 
   const apprenti = useMemo(
@@ -77,18 +78,15 @@ export default function ApprentiDetail() {
     const livJour = livraisons.filter(
       (l) => new Date(l.date).toDateString() === today,
     );
-    const totalCAMois = livMois.reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
-    const aEncaisser = livraisons
-      .filter(isAEncaisser)
-      .reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
+    // Dû net serveur (remise et retours compris), jamais le brut montantLivre.
+    const totalCAMois = totalMontantDu(livMois);
+    // « À encaisser » = Σ soldes positifs (serveur) des clients de l’apprenti.
+    const aEncaisser = totalAEncaisser(encoursQ.data ?? []);
 
     const encMois = encaissements.filter((e) =>
-      e.date ? new Date(e.date).getTime() >= thirtyDaysAgo : false,
+      e.dateEncaissement ? new Date(e.dateEncaissement).getTime() >= thirtyDaysAgo : false,
     );
-    const totalEncaisseMois = encMois.reduce(
-      (acc, e) => acc + (e.montantEncaisse ?? 0),
-      0,
-    );
+    const totalEncaisseMois = encMois.reduce((acc, e) => acc + num(e.montantEncaisse), 0);
 
     const totalUnitesStock = stocks.reduce((acc, s) => acc + (s.qte ?? 0), 0);
 
@@ -101,7 +99,7 @@ export default function ApprentiDetail() {
       totalEncaisseMois,
       totalUnitesStock,
     };
-  }, [livQ.data, encQ.data, cliQ.data, stockQ.data]);
+  }, [livQ.data, encQ.data, cliQ.data, stockQ.data, encoursQ.data]);
 
   if (apprentisQ.isLoading) {
     return (
@@ -272,7 +270,7 @@ export default function ApprentiDetail() {
                 icon={Banknote}
                 color="#059669"
                 label="Encaissé"
-                value={`${formatFCFA(stats.totalEncaisseMois)}`}
+                value={`${formatMontant(stats.totalEncaisseMois)}`}
                 hint="FCFA / 30j"
               />
             </View>
@@ -297,7 +295,7 @@ export default function ApprentiDetail() {
                 À encaisser
               </Text>
               <Text className="font-extrabold text-amber-700 dark:text-amber-400">
-                {formatFCFA(stats.aEncaisser)} FCFA
+                {encoursQ.isError ? '—' : `${formatMontant(stats.aEncaisser)} FCFA`}
               </Text>
             </View>
             <View className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-md p-3 flex-row justify-between items-center">
@@ -305,7 +303,7 @@ export default function ApprentiDetail() {
                 CA livré (30j)
               </Text>
               <Text className="font-extrabold text-emerald-700 dark:text-emerald-400">
-                {formatFCFA(stats.totalCAMois)} FCFA
+                {formatMontant(stats.totalCAMois)} FCFA
               </Text>
             </View>
           </View>

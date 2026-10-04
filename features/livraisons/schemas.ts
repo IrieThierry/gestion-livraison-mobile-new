@@ -7,7 +7,23 @@ export const ligneProduitSchema = z.object({
   produitId: z.string().min(1, 'Produit requis'),
   qteLivree: z.coerce.number().int().min(1, 'Min 1'),
   qteRetournee: z.coerce.number().int().min(0).default(0),
-  prixDeVente: z.coerce.number().min(0),
+  /** Part des retours remise en stock (le reste est perdu) : 0 ≤ enStock ≤ qteRetournee. */
+  qteRetourneeEnStock: z.coerce.number().int().min(0).default(0),
+  // Le back refuse un prix nul ou négatif.
+  prixDeVente: z.coerce.number().positive('Prix > 0'),
+  memoriserPrixClient: z.boolean().default(false),
+  /** Remise unitaire saisie (optionnelle) : >= 0, 2 décimales maximum. */
+  remiseUnitaire: z.coerce
+    .number()
+    .min(0, 'Remise >= 0')
+    .refine((v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6, '2 décimales maximum')
+    .optional(),
+}).refine((l) => l.qteRetournee <= l.qteLivree, {
+  message: 'Retour > quantité livrée',
+  path: ['qteRetournee'],
+}).refine((l) => l.qteRetourneeEnStock <= l.qteRetournee, {
+  message: 'Remis en stock > quantité retournée',
+  path: ['qteRetourneeEnStock'],
 });
 
 export const livraisonSchema = z.object({

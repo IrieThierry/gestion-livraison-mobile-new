@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -27,6 +27,8 @@ import { useClientDraftStore } from '../../../../stores/clientDraftStore';
 import { useAuthStore } from '../../../../stores/authStore';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { navigateTo } from '../../../../lib/linking';
+import { extractApiErrorMessage } from '../../../../lib/api-error';
+import { parseLimiteCredit } from '../../../../features/clients/regles';
 import type { CreerClientRequest } from '../../../../types/api';
 
 export default function NouveauClientStep2() {
@@ -37,6 +39,7 @@ export default function NouveauClientStep2() {
   const { data: quartiers = [] } = useQuartiers();
   const { data: categories = [] } = useCategories();
   const m = useEnregistrerClient();
+  const submittingRef = useRef(false);
 
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
@@ -63,6 +66,8 @@ export default function NouveauClientStep2() {
   };
 
   const onSubmit = () => {
+    // Ref (pas `m.isPending`, figé dans la closure) : bloque un double appui.
+    if (submittingRef.current || m.isPending) return;
     if (!user) {
       dialog.error('Erreur', 'Session expirée');
       return;
@@ -85,9 +90,14 @@ export default function NouveauClientStep2() {
       livreurId: user.id,
       prixDeVenteProduitParDefault: prix,
       avecOuSansRemise: draft.avecRemise,
+      limiteCredit: parseLimiteCredit(draft.limiteCredit) ?? 0,
     };
 
+    submittingRef.current = true;
     m.mutate(payload, {
+      onSettled: () => {
+        submittingRef.current = false;
+      },
       onSuccess: () => {
         reset();
         // Pop step 2 + step 1 to land back on the clients list
@@ -95,8 +105,7 @@ export default function NouveauClientStep2() {
         dialog.success('Client créé');
       },
       onError: (err: unknown) => {
-        const e = err as { response?: { data?: { message?: string } } };
-        dialog.error('Erreur', e.response?.data?.message ?? 'Échec de la création');
+        dialog.error('Erreur', extractApiErrorMessage(err, 'Échec de la création'));
       },
     });
   };

@@ -31,12 +31,12 @@ export function useCreerApprenti() {
 
   return useMutation({
     mutationFn: (
-      payload: Omit<CreerApprentiRequest, 'role' | 'parentId'>,
+      payload: Omit<CreerApprentiRequest, 'profile' | 'parentId'>,
     ) => {
       if (!user) throw new Error('Non authentifié');
       return apprentisApi.create({
         ...payload,
-        role: 'LIVREUR',
+        profile: 'LIVREUR',
         parentId: user.id,
       });
     },

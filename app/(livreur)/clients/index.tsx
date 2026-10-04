@@ -12,14 +12,13 @@ import { router } from 'expo-router';
 import { Plus, Phone, MapPin, Truck, Banknote, Map } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
-import { useClientsByLivreur } from '../../../features/clients/hooks';
-import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
-import { useEncaissementsByLivreur } from '../../../features/encaissements/hooks';
+import { useClientsByLivreur, useEncoursByLivreur } from '../../../features/clients/hooks';
+import { indexerEncours, num } from '../../../features/encaissements/regles';
 import { useAuthStore } from '../../../stores/authStore';
 import { callPhone, navigateTo } from '../../../lib/linking';
-import { formatFCFA } from '../../../lib/format';
-import { computeSoldeForClient } from '../../../lib/credit';
-import type { ClientResponse } from '../../../types/api';
+import { formatMontant } from '../../../lib/format';
+import { extractApiErrorMessage } from '../../../lib/api-error';
+import type { ClientResponse, EncoursClientResponse } from '../../../types/api';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
   if (!s) return null;
@@ -32,8 +31,9 @@ export default function ClientsList() {
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
   const q = useClientsByLivreur(livreurId);
-  const qLiv = useLivraisonsByLivreur(livreurId);
-  const qEnc = useEncaissementsByLivreur(livreurId);
+  // Soldes et dépassements calculés par le serveur, en un appel.
+  const qEncours = useEncoursByLivreur(livreurId);
+  const encoursParClient = useMemo(() => indexerEncours(qEncours.data), [qEncours.data]);
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
@@ -62,10 +62,8 @@ export default function ClientsList() {
   };
 
   const onEncaisser = (client: ClientResponse) => {
-    // On ouvre directement la page d'encaissement en MODE CLIENT — la page
-    // agrège elle-même les livraisons non encaissées, calcule le total
-    // dû et le solde, et pré-remplit le montant à encaisser. Plus besoin
-    // de choisir une livraison spécifique.
+    // Page d'encaissement en MODE CLIENT : elle lit le solde du client sur
+    // le serveur et pré-remplit le montant.
     router.push({
       pathname: '/(livreur)/cash/encaisser' as never,
       params: { clientId: client.id },
@@ -110,6 +108,11 @@ export default function ClientsList() {
           autoCapitalize="none"
           className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2.5 text-slate-900 dark:text-white text-base"
         />
+        {qEncours.isError ? (
+          <Text className="text-[11px] text-red-600 dark:text-red-400 mt-1">
+            Soldes indisponibles : {extractApiErrorMessage(qEncours.error, 'réessaye plus tard')}
+          </Text>
+        ) : null}
       </View>
 
       <FlatList
@@ -121,7 +124,7 @@ export default function ClientsList() {
             refreshing={q.isFetching && !q.isLoading}
             onRefresh={() => {
               q.refetch();
-              qLiv.refetch();
+              qEncours.refetch();
             }}
             tintColor="#10b981"
           />
@@ -138,14 +141,12 @@ export default function ClientsList() {
         }
         renderItem={({ item }) => {
           const geo = parseLatLng(item.latitudeLongitude);
-          const livraisons = qLiv.data ?? [];
-          const encaissements = qEnc.data ?? [];
-          const solde = computeSoldeForClient(livraisons, encaissements, item.id);
           return (
             <ClientRow
               client={item}
               geo={geo}
-              solde={solde}
+              encours={encoursParClient.get(item.id)}
+              soldeIndisponible={qEncours.isError}
               onPress={() =>
                 router.push({
                   pathname: '/(livreur)/clients/[id]' as never,
@@ -165,19 +166,22 @@ export default function ClientsList() {
 function ClientRow({
   client,
   geo,
-  solde,
+  encours,
+  soldeIndisponible,
   onPress,
   onLivrer,
   onEncaisser,
 }: {
   client: ClientResponse;
   geo: { lat: number; lng: number } | null;
-  solde: number;
+  encours: EncoursClientResponse | undefined;
+  soldeIndisponible: boolean;
   onPress: () => void;
   onLivrer: () => void;
   onEncaisser: () => void;
 }) {
-  const initials = `${client.prenom[0] ?? ''}${client.nom[0] ?? ''}`.toUpperCase();
+  const initials = `${client.prenom?.[0] ?? ''}${client.nom?.[0] ?? ''}`.toUpperCase();
+  const solde = num(encours?.solde);
   const debt = solde > 0;
   const credit = solde < 0;
 
@@ -202,19 +206,40 @@ function ClientRow({
             {client.contact ? ` · ${client.contact}` : ''}
           </Text>
         </View>
-        {debt ? (
-          <View className="bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 rounded-full">
-            <Text className="text-[11px] font-bold text-amber-800 dark:text-amber-400">
-              {formatFCFA(solde)} F
+        <View className="items-end gap-0.5">
+          {soldeIndisponible ? (
+            <Text className="text-[11px] font-bold text-slate-400">—</Text>
+          ) : debt ? (
+            <View
+              className={`px-2 py-0.5 rounded-full ${
+                encours?.enDepassement
+                  ? 'bg-red-100 dark:bg-red-500/15'
+                  : 'bg-amber-100 dark:bg-amber-500/15'
+              }`}
+            >
+              <Text
+                className={`text-[11px] font-bold ${
+                  encours?.enDepassement
+                    ? 'text-red-700 dark:text-red-400'
+                    : 'text-amber-800 dark:text-amber-400'
+                }`}
+              >
+                {formatMontant(solde)} F
+              </Text>
+            </View>
+          ) : credit ? (
+            <View className="bg-emerald-100 dark:bg-emerald-500/15 px-2 py-0.5 rounded-full">
+              <Text className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                Avance {formatMontant(Math.abs(solde))} F
+              </Text>
+            </View>
+          ) : null}
+          {encours?.enDepassement ? (
+            <Text className="text-[9px] font-bold text-red-600 dark:text-red-400">
+              Limite dépassée
             </Text>
-          </View>
-        ) : credit ? (
-          <View className="bg-emerald-100 dark:bg-emerald-500/15 px-2 py-0.5 rounded-full">
-            <Text className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
-              +{formatFCFA(Math.abs(solde))} F
-            </Text>
-          </View>
-        ) : null}
+          ) : null}
+        </View>
       </View>
 
       {/* Action row */}

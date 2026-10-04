@@ -30,14 +30,14 @@ import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import { LivraisonCard } from '../../../../components/livreur/LivraisonCard';
 import { MapPreview } from '../../../../components/livreur/MapPreview';
-import { useClientsByLivreur } from '../../../../features/clients/hooks';
+import { useClientsByLivreur, useEncoursClient } from '../../../../features/clients/hooks';
 import { useLivraisonsByLivreur } from '../../../../features/livraisons/hooks';
 import { useEncaissementsByLivreur } from '../../../../features/encaissements/hooks';
+import { num } from '../../../../features/encaissements/regles';
 import { usePrixClient } from '../../../../features/prix/hooks';
 import { useAuthStore } from '../../../../stores/authStore';
 import { callPhone, navigateTo } from '../../../../lib/linking';
-import { formatFCFA, formatDateShort } from '../../../../lib/format';
-import { computeSoldeForClient, computeEncoursForClient } from '../../../../lib/credit';
+import { formatMontant, formatDateShort } from '../../../../lib/format';
 import { isEncaissee, isAEncaisser } from '../../../../lib/livraison-status';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
@@ -79,6 +79,8 @@ export default function ClientDetail() {
   const qL = useLivraisonsByLivreur(livreurId);
   const qE = useEncaissementsByLivreur(livreurId);
   const qPrix = usePrixClient(id);
+  // Solde, limite et dépassement calculés par le serveur.
+  const qEncours = useEncoursClient(id);
 
   // État accordéon — tous fermés par défaut. Le user déplie ce dont il a besoin.
   const [openInfo, setOpenInfo] = useState(false);
@@ -107,22 +109,15 @@ export default function ClientDetail() {
       (qE.data ?? [])
         .filter((e) => e.client?.id === id)
         .sort((a, b) => {
-          const da = a.date ? new Date(a.date).getTime() : 0;
-          const db = b.date ? new Date(b.date).getTime() : 0;
+          const da = a.dateEncaissement ? new Date(a.dateEncaissement).getTime() : 0;
+          const db = b.dateEncaissement ? new Date(b.dateEncaissement).getTime() : 0;
           return db - da;
         }),
     [qE.data, id],
   );
 
-  const solde = useMemo(
-    () => computeSoldeForClient(qL.data ?? [], qE.data ?? [], id ?? ''),
-    [qL.data, qE.data, id],
-  );
-
-  const encours = useMemo(
-    () => computeEncoursForClient(qL.data ?? [], id ?? ''),
-    [qL.data, id],
-  );
+  const encours = qEncours.data;
+  const solde = num(encours?.solde);
 
   const livFiltrees = useMemo(() => {
     const now = Date.now();
@@ -142,8 +137,8 @@ export default function ClientDetail() {
     const now = Date.now();
     const days = PERIODES.find((p) => p.key === periodeEnc)?.days ?? null;
     return encaissementsClient.filter((e) => {
-      if (days !== null && e.date) {
-        return now - new Date(e.date).getTime() <= days * 86_400_000;
+      if (days !== null && e.dateEncaissement) {
+        return now - new Date(e.dateEncaissement).getTime() <= days * 86_400_000;
       }
       return true;
     });
@@ -172,7 +167,7 @@ export default function ClientDetail() {
   }
 
   const fullName = `${client.prenom} ${client.nom}`.trim();
-  const initials = `${client.prenom[0] ?? ''}${client.nom[0] ?? ''}`.toUpperCase();
+  const initials = `${client.prenom?.[0] ?? ''}${client.nom?.[0] ?? ''}`.toUpperCase();
   const geo = parseLatLng(client.latitudeLongitude);
   const debt = solde > 0;
   const credit = solde < 0;
@@ -184,19 +179,16 @@ export default function ClientDetail() {
     } as never);
 
   const onEncaisser = () => {
-    // Mode CLIENT — la page agrège les non-encaissées + montre le solde
-    // et pré-remplit le montant. Évite de choisir une livraison précise.
+    // Mode CLIENT — la page lit le solde serveur et pré-remplit le montant.
+    // Toujours possible : un paiement sans dû est une avance.
     router.push({
       pathname: '/(livreur)/cash/encaisser' as never,
       params: { clientId: client.id },
     } as never);
   };
 
-  const hasPendingLivraisons = livraisonsClient.some(isAEncaisser);
-  const totalLivFiltrees = livFiltrees.reduce(
-    (acc, l) => acc + (l.montantLivre ?? 0),
-    0,
-  );
+  // Σ dû net (serveur, avant paiements) des livraisons filtrées.
+  const totalLivFiltrees = livFiltrees.reduce((acc, l) => acc + num(l.montantDu), 0);
   const totalEncFiltres = encFiltres.reduce(
     (acc, e) => acc + (e.montantEncaisse ?? 0),
     0,
@@ -232,12 +224,14 @@ export default function ClientDetail() {
             refreshing={
               (qC.isFetching && !qC.isLoading) ||
               (qL.isFetching && !qL.isLoading) ||
-              (qE.isFetching && !qE.isLoading)
+              (qE.isFetching && !qE.isLoading) ||
+              (qEncours.isFetching && !qEncours.isLoading)
             }
             onRefresh={() => {
               qC.refetch();
               qL.refetch();
               qE.refetch();
+              qEncours.refetch();
             }}
             tintColor="#10b981"
           />
@@ -265,7 +259,7 @@ export default function ClientDetail() {
               <View className="items-end">
                 <View className="bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 rounded-full">
                   <Text className="text-[11px] font-extrabold text-amber-800 dark:text-amber-400">
-                    {formatFCFA(solde)} F
+                    {formatMontant(solde)} F
                   </Text>
                 </View>
                 <Text className="text-[8px] text-slate-400 mt-0.5">SOLDE DÛ</Text>
@@ -274,10 +268,10 @@ export default function ClientDetail() {
               <View className="items-end">
                 <View className="bg-emerald-100 dark:bg-emerald-500/15 px-2 py-0.5 rounded-full">
                   <Text className="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400">
-                    +{formatFCFA(Math.abs(solde))} F
+                    {formatMontant(Math.abs(solde))} F
                   </Text>
                 </View>
-                <Text className="text-[8px] text-slate-400 mt-0.5">CRÉDIT</Text>
+                <Text className="text-[8px] text-slate-400 mt-0.5">AVANCE</Text>
               </View>
             ) : null}
           </View>
@@ -308,22 +302,31 @@ export default function ClientDetail() {
               label="Encaisser"
               icon={Banknote}
               color="#f59e0b"
-              disabled={!hasPendingLivraisons}
               onPress={onEncaisser}
             />
           </View>
 
-          {/* KPIs 2x2 */}
+          {/* KPIs 2x2 — montants lus sur le serveur */}
           <View className="flex-row gap-2 mt-3">
-            <KpiCard label="Encours" value={`${formatFCFA(encours)} F`} highlight={encours > 0} />
-            <KpiCard label="Livraisons" value={`${livraisonsClient.length}`} />
-          </View>
-          <View className="flex-row gap-2 mt-2">
             <KpiCard
-              label="Solde"
-              value={`${debt ? '' : credit ? '+' : ''}${formatFCFA(Math.abs(solde))} F`}
+              label={debt ? 'Solde dû' : credit ? 'Avance' : 'Solde'}
+              value={
+                qEncours.isLoading
+                  ? '…'
+                  : qEncours.isError
+                  ? 'Indisponible'
+                  : `${formatMontant(Math.abs(solde))} F`
+              }
               tone={debt ? 'amber' : credit ? 'emerald' : undefined}
             />
+            <KpiCard
+              label={encours?.enDepassement ? 'Limite dépassée' : 'Limite de crédit'}
+              value={encours ? `${formatMontant(num(encours.limiteCredit))} F` : '…'}
+              tone={encours?.enDepassement ? 'red' : undefined}
+            />
+          </View>
+          <View className="flex-row gap-2 mt-2">
+            <KpiCard label="Livraisons" value={`${livraisonsClient.length}`} />
             <KpiCard label="Encaissements" value={`${encaissementsClient.length}`} />
           </View>
 
@@ -366,16 +369,8 @@ export default function ClientDetail() {
                 ),
               0,
             );
-            const totalRetours = livraisonsClient.reduce(
-              (acc, l) =>
-                acc +
-                (l.produitsLivraison ?? []).reduce(
-                  (s, p) =>
-                    s + (p.qteRetourne ?? 0) * (Number(p.prixDeVente) || 0),
-                  0,
-                ),
-              0,
-            );
+            // Montant des retours : valeur serveur (encours du client).
+            const totalRetours = num(encours?.totalRetour);
             return (
               <Pressable
                 onPress={() =>
@@ -396,7 +391,7 @@ export default function ClientDetail() {
                   <Text className="text-[11px] text-slate-500 dark:text-slate-400">
                     {nbRetours === 0
                       ? 'Aucun retour enregistré'
-                      : `${nbRetours} ligne${nbRetours > 1 ? 's' : ''} · ${formatFCFA(totalRetours)} F`}
+                      : `${nbRetours} ligne${nbRetours > 1 ? 's' : ''} · ${formatMontant(totalRetours)} F`}
                   </Text>
                 </View>
                 <ArrowRight color="#94a3b8" size={16} />
@@ -507,7 +502,7 @@ export default function ClientDetail() {
                 {livFiltrees.length} livraison{livFiltrees.length > 1 ? 's' : ''} filtrée{livFiltrees.length > 1 ? 's' : ''}
               </Text>
               <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
-                {formatFCFA(totalLivFiltrees)} F
+                {formatMontant(totalLivFiltrees)} F
               </Text>
             </View>
 
@@ -557,7 +552,7 @@ export default function ClientDetail() {
                 {encFiltres.length} encaissement{encFiltres.length > 1 ? 's' : ''} filtré{encFiltres.length > 1 ? 's' : ''}
               </Text>
               <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
-                {formatFCFA(totalEncFiltres)} F
+                {formatMontant(totalEncFiltres)} F
               </Text>
             </View>
 
@@ -574,7 +569,12 @@ export default function ClientDetail() {
                   >
                     <View className="flex-1 pr-2">
                       <Text className="text-[12px] text-slate-700 dark:text-slate-300 font-bold">
-                        {e.date ? formatDateShort(e.date) : '—'}
+                        {e.dateEncaissement ? formatDateShort(e.dateEncaissement) : '—'}
+                      </Text>
+                      <Text className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        {num(e.detteApres) < 0
+                          ? `Avance après : ${formatMontant(-num(e.detteApres))} F`
+                          : `Solde après : ${formatMontant(num(e.detteApres))} F`}
                       </Text>
                       {e.commentaire ? (
                         <Text className="text-[10px] text-slate-400 mt-0.5">
@@ -583,7 +583,7 @@ export default function ClientDetail() {
                       ) : null}
                     </View>
                     <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
-                      +{formatFCFA(e.montantEncaisse)} F
+                      +{formatMontant(e.montantEncaisse)} F
                     </Text>
                   </View>
                 ))}
@@ -675,10 +675,12 @@ function KpiCard({
   label: string;
   value: string;
   highlight?: boolean;
-  tone?: 'amber' | 'emerald';
+  tone?: 'amber' | 'emerald' | 'red';
 }) {
   const valueClass =
-    tone === 'amber'
+    tone === 'red'
+      ? 'text-red-600 dark:text-red-400'
+      : tone === 'amber'
       ? 'text-amber-700 dark:text-amber-400'
       : tone === 'emerald'
       ? 'text-emerald-600 dark:text-emerald-400'

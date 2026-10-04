@@ -17,7 +17,15 @@ import {
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import { useReversementsListe } from '../../../../features/reversements/hooks';
-import { formatFCFA, formatDateShort } from '../../../../lib/format';
+import {
+  moisCourant,
+  moisPrecedent,
+  moisSuivant,
+  type Periode,
+} from '../../../../features/reversements/regles';
+import { num } from '../../../../features/encaissements/regles';
+import { extractApiErrorMessage } from '../../../../lib/api-error';
+import { formatMontant, formatDateShort } from '../../../../lib/format';
 
 /**
  * « Mes reversements » — historique des reversements enregistrés.
@@ -30,9 +38,10 @@ import { formatFCFA, formatDateShort } from '../../../../lib/format';
  * la page synthèse.
  */
 export default function ReversementsHistorique() {
-  const now = new Date();
-  const [annee, setAnnee] = useState(now.getFullYear());
-  const [mois, setMois] = useState(now.getMonth() + 1);
+  const [periode, setPeriode] = useState<Periode>(() => moisCourant());
+  const { annee, mois } = periode;
+  // Navigation bornée au mois courant.
+  const suivant = moisSuivant(periode);
 
   const q = useReversementsListe(annee, mois);
 
@@ -41,21 +50,9 @@ export default function ReversementsHistorique() {
     return date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
   }, [annee, mois]);
 
-  const onPrevMonth = () => {
-    if (mois === 1) {
-      setMois(12);
-      setAnnee(annee - 1);
-    } else {
-      setMois(mois - 1);
-    }
-  };
+  const onPrevMonth = () => setPeriode(moisPrecedent(periode));
   const onNextMonth = () => {
-    if (mois === 12) {
-      setMois(1);
-      setAnnee(annee + 1);
-    } else {
-      setMois(mois + 1);
-    }
+    if (suivant) setPeriode(suivant);
   };
 
   // Tri stable : plus récent en premier
@@ -69,16 +66,14 @@ export default function ReversementsHistorique() {
     [q.data],
   );
 
-  const totalMois = reversements.reduce(
-    (acc, r) => acc + (r.montant ?? 0),
-    0,
-  );
+  // Sommes d'affichage de montants serveur (BigDecimal possiblement en chaîne).
+  const totalMois = reversements.reduce((acc, r) => acc + num(r.montant), 0);
   const totalClients = reversements
     .filter((r) => r.type === 'CLIENT')
-    .reduce((acc, r) => acc + (r.montant ?? 0), 0);
+    .reduce((acc, r) => acc + num(r.montant), 0);
   const totalFournisseurs = reversements
     .filter((r) => r.type === 'FOURNISSEUR')
-    .reduce((acc, r) => acc + (r.montant ?? 0), 0);
+    .reduce((acc, r) => acc + num(r.montant), 0);
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
@@ -107,9 +102,12 @@ export default function ReversementsHistorique() {
           </Text>
           <Pressable
             onPress={onNextMonth}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-2 active:opacity-70"
+            disabled={!suivant}
+            className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-2 ${
+              suivant ? 'active:opacity-70' : 'opacity-40'
+            }`}
           >
-            <ChevronRight color="#64748b" size={18} />
+            <ChevronRight color={suivant ? '#64748b' : '#cbd5e1'} size={18} />
           </Pressable>
         </View>
 
@@ -120,7 +118,7 @@ export default function ReversementsHistorique() {
               Total reversé ce mois
             </Text>
             <Text className="text-3xl font-extrabold text-white mt-1">
-              {formatFCFA(totalMois)} <Text className="text-base">FCFA</Text>
+              {formatMontant(totalMois)} <Text className="text-base">FCFA</Text>
             </Text>
             <Text className="text-[11px] text-white/85 mt-1">
               {reversements.length} reversement{reversements.length > 1 ? 's' : ''}
@@ -136,7 +134,7 @@ export default function ReversementsHistorique() {
                 </Text>
               </View>
               <Text className="text-base font-extrabold text-slate-900 dark:text-white mt-1">
-                {formatFCFA(totalClients)} F
+                {formatMontant(totalClients)} F
               </Text>
             </View>
             <View className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3">
@@ -147,7 +145,7 @@ export default function ReversementsHistorique() {
                 </Text>
               </View>
               <Text className="text-base font-extrabold text-slate-900 dark:text-white mt-1">
-                {formatFCFA(totalFournisseurs)} F
+                {formatMontant(totalFournisseurs)} F
               </Text>
             </View>
           </View>
@@ -163,6 +161,12 @@ export default function ReversementsHistorique() {
           {q.isLoading ? (
             <View className="items-center py-12">
               <ActivityIndicator color="#10b981" />
+            </View>
+          ) : q.isError ? (
+            <View className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-md p-4">
+              <Text className="text-[12px] text-red-700 dark:text-red-400">
+                {extractApiErrorMessage(q.error, 'Historique indisponible.')}
+              </Text>
             </View>
           ) : reversements.length === 0 ? (
             <EmptyState
@@ -203,7 +207,7 @@ export default function ReversementsHistorique() {
                         className="font-extrabold text-base"
                         style={{ color }}
                       >
-                        {formatFCFA(r.montant)}
+                        {formatMontant(r.montant)}
                       </Text>
                       <Text className="text-[9px] text-slate-400 dark:text-slate-500">
                         FCFA

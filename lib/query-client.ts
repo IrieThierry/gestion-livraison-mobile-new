@@ -40,19 +40,23 @@ export const queryClient = new QueryClient({
       // pour que `focusManager.setFocused(true)` déclenche bien le refetch.
     },
     mutations: {
-      // Idem côté mutations : ne pas spammer le back avec un POST en boucle
-      // sur erreur d'auth.
-      retry: (failureCount, error) => {
-        const status = (error as { response?: { status?: number } })?.response?.status;
-        if (status === 401 || status === 403) return false;
-        return failureCount < 1;
-      },
+      // Aucun rejeu automatique : un POST rejoué après une réponse perdue
+      // peut dupliquer une écriture (livraison, encaissement...).
+      retry: 0,
+      // Une mutation lancée alors que `onlineManager` dit « hors ligne »
+      // échoue tout de suite au lieu d'être mise en pause puis rejouée au
+      // retour du réseau (défense en profondeur : les écrans gardent déjà
+      // `isOnline`).
+      networkMode: 'always',
     },
   },
 });
 
+/** Clé AsyncStorage du cache persisté. */
+export const QUERY_CACHE_KEY = 'GL_QUERY_CACHE';
+
 export const queryPersister = createAsyncStoragePersister({
   storage: AsyncStorage,
-  key: 'GL_QUERY_CACHE',
+  key: QUERY_CACHE_KEY,
   throttleTime: 1000,
 });

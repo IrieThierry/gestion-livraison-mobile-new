@@ -22,6 +22,14 @@ import {
   useUpsertPrixClient,
   useSupprimerPrixClient,
 } from '../../../../features/prix/hooks';
+import {
+  useRemisesClient,
+  useEnregistrerRemise,
+  useSupprimerRemise,
+} from '../../../../features/remise/hooks';
+import { parseRemiseUnitaire } from '../../../../features/remise/regles';
+import { useNetworkStore } from '../../../../stores/networkStore';
+import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { useAuthStore } from '../../../../stores/authStore';
 import { formatFCFA } from '../../../../lib/format';
 import { dialog } from '../../../../lib/dialog';
@@ -51,8 +59,13 @@ export default function PrixClientPage() {
   const qPrixLivreur = useMesPrix();
   const upsertMut = useUpsertPrixClient();
   const deleteMut = useSupprimerPrixClient();
+  const isOnline = useNetworkStore((s) => s.isOnline);
+  const qRemises = useRemisesClient(id);
+  const upsertRemise = useEnregistrerRemise();
+  const deleteRemise = useSupprimerRemise();
 
   const [draftPrix, setDraftPrix] = useState<Record<string, string>>({});
+  const [draftRemise, setDraftRemise] = useState<Record<string, string>>({});
 
   const client = useMemo(
     () => (qC.data ?? []).find((c) => c.id === id),
@@ -65,6 +78,12 @@ export default function PrixClientPage() {
     for (const p of qPrixClient.data ?? []) m.set(p.produit.id, p.prix);
     return m;
   }, [qPrixClient.data]);
+
+  const remiseMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of qRemises.data ?? []) m.set(r.produit.id, r.remiseUnitaire);
+    return m;
+  }, [qRemises.data]);
 
   const prixLivreurMap = useMemo(() => {
     const m = new Map<string, number>();
@@ -97,7 +116,11 @@ export default function PrixClientPage() {
   const fullName = `${client.prenom} ${client.nom}`.trim();
   const produits = qProduits.data ?? [];
 
+  const horsLigne = () =>
+    dialog.warning('Hors ligne', 'Reconnecte-toi pour enregistrer cette modification.');
+
   const onSave = (produit: ProduitResponse) => {
+    if (!isOnline) return horsLigne();
     const raw = draftPrix[produit.id] ?? '';
     const prix = parseInt(raw.replace(/[^0-9]/g, ''), 10);
     if (!prix || prix <= 0) {
@@ -111,21 +134,66 @@ export default function PrixClientPage() {
           setDraftPrix((d) => ({ ...d, [produit.id]: '' }));
         },
         onError: (err: unknown) => {
-          const e = err as { response?: { data?: { message?: string } } };
-          dialog.error('Erreur', e.response?.data?.message ?? 'Échec');
+          dialog.error('Erreur', extractApiErrorMessage(err, 'Échec'));
         },
       },
     );
   };
 
+  const onSaveRemise = (produit: ProduitResponse) => {
+    if (!isOnline) return horsLigne();
+    const r = parseRemiseUnitaire(draftRemise[produit.id] ?? '');
+    if (!r.ok) {
+      dialog.error('Erreur', r.erreur);
+      return;
+    }
+    upsertRemise.mutate(
+      { clientId: client.id, produitId: produit.id, remiseUnitaire: r.valeur },
+      {
+        onSuccess: () => setDraftRemise((d) => ({ ...d, [produit.id]: '' })),
+        onError: (err: unknown) =>
+          dialog.error('Erreur', extractApiErrorMessage(err, 'Enregistrement de la remise impossible')),
+      },
+    );
+  };
+
+  const onDeleteRemise = (produit: ProduitResponse) => {
+    if (!isOnline) return horsLigne();
+    dialog.confirm({
+      title: 'Supprimer cette remise ?',
+      message: `${produit.designation} n'aura plus de remise convenue pour ce client.`,
+      confirmLabel: 'Supprimer',
+      destructive: true,
+      onConfirm: () => {
+        if (!isOnline) return horsLigne();
+        deleteRemise.mutate(
+          { clientId: client.id, produitId: produit.id },
+          {
+            onError: (err: unknown) =>
+              dialog.error('Erreur', extractApiErrorMessage(err, 'Suppression impossible')),
+          },
+        );
+      },
+    });
+  };
+
   const onDelete = (produit: ProduitResponse) => {
+    if (!isOnline) return horsLigne();
     dialog.confirm({
       title: 'Supprimer ce prix ?',
       message: `${produit.designation} retombera sur le prix par défaut.`,
       confirmLabel: 'Supprimer',
       destructive: true,
-      onConfirm: () =>
-        deleteMut.mutate({ clientId: client.id, produitId: produit.id }),
+      onConfirm: () => {
+        if (!isOnline) return horsLigne();
+        deleteMut.mutate(
+          { clientId: client.id, produitId: produit.id },
+          {
+            onError: (err: unknown) =>
+              dialog.error('Erreur', extractApiErrorMessage(err, 'Suppression impossible')),
+          },
+        );
+      },
     });
   };
 
@@ -147,6 +215,7 @@ export default function PrixClientPage() {
             refreshing={qPrixClient.isFetching && !qPrixClient.isLoading}
             onRefresh={() => {
               qPrixClient.refetch();
+              qRemises.refetch();
               qPrixLivreur.refetch();
               qProduits.refetch();
             }}
@@ -303,6 +372,17 @@ export default function PrixClientPage() {
                         </Text>
                       </Pressable>
                     </View>
+
+                    {client.avecOuSansRemise ? (
+                      <RemiseBlock
+                        remise={remiseMap.get(produit.id)}
+                        draft={draftRemise[produit.id] ?? ''}
+                        onChange={(v) => setDraftRemise((d) => ({ ...d, [produit.id]: v }))}
+                        onSave={() => onSaveRemise(produit)}
+                        onDelete={() => onDeleteRemise(produit)}
+                        pending={upsertRemise.isPending || deleteRemise.isPending}
+                      />
+                    ) : null}
                   </View>
                 );
               })}
@@ -311,6 +391,68 @@ export default function PrixClientPage() {
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+function RemiseBlock({
+  remise,
+  draft,
+  onChange,
+  onSave,
+  onDelete,
+  pending,
+}: {
+  remise: number | undefined;
+  draft: string;
+  onChange: (v: string) => void;
+  onSave: () => void;
+  onDelete: () => void;
+  pending: boolean;
+}) {
+  const vide = !draft.trim();
+  return (
+    <View className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+      <View className="flex-row items-center justify-between mb-1">
+        <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
+          Remise convenue / unité
+        </Text>
+        {remise !== undefined ? (
+          <View className="flex-row items-center gap-2">
+            <Text className="font-extrabold text-violet-600 dark:text-violet-400">
+              {remise.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} FCFA
+            </Text>
+            <Pressable onPress={onDelete} disabled={pending} hitSlop={6} className="active:opacity-60 p-1">
+              <Trash2 color="#ef4444" size={16} />
+            </Pressable>
+          </View>
+        ) : (
+          <Text className="text-[11px] text-slate-400">Aucune (0)</Text>
+        )}
+      </View>
+      <View className="flex-row gap-2 items-end">
+        <TextInput
+          value={draft}
+          onChangeText={onChange}
+          keyboardType="decimal-pad"
+          selectTextOnFocus
+          placeholder={remise !== undefined ? String(remise) : '0'}
+          placeholderTextColor="#94a3b8"
+          className="flex-1 px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-slate-900 dark:text-white text-base"
+        />
+        <Pressable
+          onPress={onSave}
+          disabled={vide || pending}
+          className={`flex-row items-center gap-1.5 px-3 py-2.5 rounded-md ${
+            vide ? 'bg-slate-200 dark:bg-slate-800' : 'bg-violet-500 active:opacity-80'
+          }`}
+        >
+          <Save color={vide ? '#94a3b8' : '#ffffff'} size={14} />
+          <Text className={`text-[12px] font-bold ${vide ? 'text-slate-400' : 'text-white'}`}>
+            Enregistrer
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }

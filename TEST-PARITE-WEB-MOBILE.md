@@ -52,12 +52,13 @@
 | C.1 | Onglet Clients | Nombre total de clients du livreur |
 | C.2 | Pour les 3 premiers : prénom + nom + téléphone | **Identique caractère par caractère** |
 | C.3 | Encours par client | Σ montant des livraisons `LIVREE` non encaissées — **doit matcher** |
-| C.4 | Solde par client | (Σ livraisons − Σ encaissements) signé — **doit matcher** |
+| C.4 | Solde par client | Solde serveur signé (dû net − paiements ; négatif = avance) — **doit matcher** |
 | C.5 | Recherche par nom / téléphone | Mêmes résultats |
 | C.6 | Tap sur client → détail | Adresse, quartier, catégorie, prix de vente par défaut, remise — **identiques** |
 
-> ℹ️ Le calcul du solde mobile (`lib/credit.ts`) miroir 1:1 du web
-> (`computeSoldeForClient`). En cas de divergence : c'est un bug.
+> ℹ️ Le solde n'est plus calculé sur le mobile : il est lu sur le serveur
+> (`GET /client/encours/livreur/{id}`, `GET /client/{id}/encours`), comme sur
+> le web. Solde négatif = avance du client. En cas de divergence : c'est un bug.
 
 ---
 
@@ -99,9 +100,9 @@
 | # | Action | À vérifier |
 |---|--------|------------|
 | F.1 | Choisir client, mode « Solde libre », montant 5 000 | OK sur les deux |
-| F.2 | Mode « Sur une période », dates picker | Plage envoyée correcte (`dateDebut`, `dateFin` ISO yyyy-MM-dd) |
-| F.3 | Submit → vérifier solde du client (Section C.4) | Diminué exactement de 5 000 sur les deux |
-| F.4 | Réessayer en doublon (chevauchement de période) | Mêmes erreurs backend remontées sur les deux |
+| F.2 | Mode « Sur une période », dates picker | Plage envoyée correcte (`dateDebut` début de journée, `dateFin` fin de journée) ; situation serveur affichée |
+| F.3 | Submit → vérifier solde du client (Section C.4) | Diminué exactement de 5 000 sur les deux ; « solde après » = `detteApres` renvoyé |
+| F.4 | Montant supérieur au solde dû | Accepté sur les deux : la différence devient une avance (solde négatif) |
 
 ---
 

@@ -4,9 +4,10 @@ import { Plus, CheckCircle2, AlertTriangle } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { useCloturesByLivreur } from '../../../features/clotures/hooks';
-import { estEquilibre } from '../../../features/clotures/regles';
+import { sensEcart } from '../../../features/clotures/regles';
+import { num } from '../../../features/encaissements/regles';
 import { useAuthStore } from '../../../stores/authStore';
-import { formatFCFA, formatDateShort } from '../../../lib/format';
+import { formatMontant, formatDateShort } from '../../../lib/format';
 
 /**
  * Liste des clôtures journalières du livreur connecté. Source :
@@ -58,8 +59,10 @@ export default function CloturesList() {
           />
         }
         renderItem={({ item }) => {
-          const ecart = item.ecartEspeces ?? 0;
-          const balanced = estEquilibre(ecart);
+          // Signe du back : encaissé − remis ; positif = manque en caisse.
+          const ecart = num(item.ecartEspeces);
+          const sens = sensEcart(ecart);
+          const balanced = sens === 'equilibre';
           return (
             <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 mb-2">
               <View className="flex-row items-center justify-between mb-2">
@@ -77,17 +80,17 @@ export default function CloturesList() {
                   <View className="flex-row items-center gap-1 bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 rounded-full">
                     <AlertTriangle color="#d97706" size={11} />
                     <Text className="text-[10px] font-bold text-amber-700 dark:text-amber-400">
-                      Écart {ecart > 0 ? '+' : ''}{formatFCFA(ecart)}
+                      {sens === 'manque' ? 'Manque' : 'Excédent'} {formatMontant(Math.abs(ecart))}
                     </Text>
                   </View>
                 )}
               </View>
               <View className="flex-row justify-between mb-1">
                 <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Total livré
+                  Total livré (dû)
                 </Text>
                 <Text className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                  {formatFCFA(item.totalLivre)} F
+                  {formatMontant(item.totalLivre)} F
                 </Text>
               </View>
               <View className="flex-row justify-between mb-1">
@@ -95,7 +98,7 @@ export default function CloturesList() {
                   Total encaissé
                 </Text>
                 <Text className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                  {formatFCFA(item.totalEncaisse)} F
+                  {formatMontant(item.totalEncaisse)} F
                 </Text>
               </View>
               <View className="flex-row justify-between border-t border-slate-100 dark:border-slate-800 pt-2 mt-1">
@@ -103,7 +106,7 @@ export default function CloturesList() {
                   Montant remis
                 </Text>
                 <Text className="font-extrabold text-slate-900 dark:text-white">
-                  {formatFCFA(item.montantRemis)} F
+                  {formatMontant(item.montantRemis)} F
                 </Text>
               </View>
               {item.commentaire ? (

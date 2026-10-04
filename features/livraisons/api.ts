@@ -1,8 +1,6 @@
 import { apiClient } from '../../lib/api-client';
 import type {
-  CreerEncaissementLivraisonRequest,
   CreerLivraisonRequest,
-  EncaissementLivraisonResponse,
   LivraisonResponse,
   ModifierLivraisonRequest,
   UUID,
@@ -13,10 +11,8 @@ import type {
 // utilise les mêmes chemins) — la spec mobile mentionnait `/livraisons` mais
 // la source de vérité reste le contrat backend exposé par le web.
 //
-// `encaisser` n'existe pas dans le module livraisons côté web : le portail
-// passe par `encaissementsApi.createLivraison` (`POST /encaissement/livraison`).
-// On l'expose ici pour confort (l'app mobile encaisse depuis l'écran détail
-// livraison), mais l'endpoint reste celui de l'encaissement.
+// L'encaissement (`POST /encaissement/livraison`) est dans
+// `features/encaissements` (`useCreerEncaissement`).
 export const livraisonsApi = {
   list: async (): Promise<LivraisonResponse[]> => {
     const { data } = await apiClient.get<LivraisonResponse[]>('/livraison');
@@ -32,20 +28,11 @@ export const livraisonsApi = {
     const { data } = await apiClient.post<LivraisonResponse>('/livraison', payload);
     return data;
   },
-  update: async (payload: ModifierLivraisonRequest): Promise<LivraisonResponse> => {
-    const { data } = await apiClient.put<LivraisonResponse>('/livraison', payload);
-    return data;
+  // Le back renvoie un corps texte (pas de LivraisonResponse) : rien à lire.
+  update: async (payload: ModifierLivraisonRequest): Promise<void> => {
+    await apiClient.put('/livraison', payload);
   },
   remove: async (id: UUID): Promise<void> => {
     await apiClient.delete(`/livraison/${id}`);
-  },
-  encaisser: async (
-    payload: CreerEncaissementLivraisonRequest,
-  ): Promise<EncaissementLivraisonResponse> => {
-    const { data } = await apiClient.post<EncaissementLivraisonResponse>(
-      '/encaissement/livraison',
-      payload,
-    );
-    return data;
   },
 };

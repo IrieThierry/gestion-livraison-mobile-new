@@ -10,6 +10,7 @@ export interface ClientDraft {
   categorieId: string | null;
   prixDeVenteParDefaut: string;
   avecRemise: boolean;
+  limiteCredit: string;
 }
 
 export const EMPTY_DRAFT: ClientDraft = {
@@ -22,6 +23,7 @@ export const EMPTY_DRAFT: ClientDraft = {
   categorieId: null,
   prixDeVenteParDefaut: '0',
   avecRemise: false,
+  limiteCredit: '0',
 };
 
 interface ClientDraftState {

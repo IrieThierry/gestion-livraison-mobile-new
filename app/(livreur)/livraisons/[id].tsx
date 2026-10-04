@@ -8,8 +8,9 @@ import { PageHeader } from '../../../components/shared/PageHeader';
 import { StatusBadge } from '../../../components/shared/StatusBadge';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { callPhone, navigateTo } from '../../../lib/linking';
-import { formatFCFA, formatDateShort, formatTime } from '../../../lib/format';
-import { isAEncaisser } from '../../../lib/livraison-status';
+import { formatFCFA, formatMontant, formatDateShort, formatTime } from '../../../lib/format';
+import { isAEncaisser, isEncaissee } from '../../../lib/livraison-status';
+import { num, prixUnitaireClient } from '../../../features/encaissements/regles';
 
 /**
  * The backend stores client coords as a single string "lat,lng".
@@ -60,6 +61,7 @@ export default function LivraisonDetail() {
   const hasGeo = geo !== null;
   const hasPhone = !!c.contact && c.contact.trim().length > 0;
   const lignes = livraison.produitsLivraison ?? [];
+  const remiseNette = num(livraison.remiseNette);
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
@@ -83,18 +85,24 @@ export default function LivraisonDetail() {
             <View className="flex-row items-start justify-between">
               <View className="flex-1 pr-2">
                 <Text className="text-3xl font-extrabold text-slate-900 dark:text-white">
-                  {formatFCFA(livraison.montantLivre)}{' '}
+                  {formatFCFA(livraison.montantDu)}{' '}
                   <Text className="text-base font-semibold text-slate-500 dark:text-slate-400">
                     FCFA
                   </Text>
                 </Text>
+                <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Dû net (remise et retours compris)
+                </Text>
+                {remiseNette > 0 ? (
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Remise : {formatMontant(remiseNette)} FCFA
+                  </Text>
+                ) : null}
                 <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                   {c.quartier?.libelle ?? 'Quartier inconnu'}
                 </Text>
               </View>
-              <StatusBadge
-                statut={livraison.statutEncaissement ?? livraison.statut}
-              />
+              <StatusBadge statut={isEncaissee(livraison) ? 'ENCAISSEE' : 'NON_ENCAISSEE'} />
             </View>
 
             <View className="flex-row gap-2 mt-4">
@@ -147,7 +155,8 @@ export default function LivraisonDetail() {
                     {ligne.produit.designation}
                   </Text>
                   <Text className="text-slate-700 dark:text-slate-300 font-semibold">
-                    {ligne.qteLivre} × {formatFCFA(ligne.prixDeVente)}
+                    {ligne.qteLivre} × {formatMontant(prixUnitaireClient(ligne))}
+                    {(ligne.qteRetourne ?? 0) > 0 ? ` · retour ${ligne.qteRetourne}` : ''}
                   </Text>
                 </View>
               ))

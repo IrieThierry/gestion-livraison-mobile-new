@@ -3,16 +3,13 @@ import { View, Text, TextInput, Pressable } from 'react-native';
 import { Plus, Trash2, AlertCircle, Package, Tag, Save } from 'lucide-react-native';
 import { useProduits } from '../../features/produits/hooks';
 import { useStockCourant } from '../../features/stock/hooks';
-import { useResoudrePrix, useUpsertPrixClient } from '../../features/prix/hooks';
+import { useResoudrePrix } from '../../features/prix/hooks';
+import { parseRemiseUnitaire } from '../../features/remise/regles';
+import { montantLigneEstime, type LigneSaisie } from '../../features/livraisons/regles';
 import { formatFCFA } from '../../lib/format';
 import type { ProduitResponse } from '../../types/api';
 
-export interface Ligne {
-  produitId: string;
-  designation: string;
-  prix: number;
-  qte: number;
-}
+export type Ligne = LigneSaisie;
 
 export function ProduitPicker({
   lignes,
@@ -21,6 +18,8 @@ export function ProduitPicker({
   clientId,
   enforceStock = false,
   onValidityChange,
+  avecRemise = false,
+  remisesConvenues,
 }: {
   lignes: Ligne[];
   onChange: (l: Ligne[]) => void;
@@ -28,6 +27,10 @@ export function ProduitPicker({
   clientId?: string;
   enforceStock?: boolean;
   onValidityChange?: (insufficientLignes: number) => void;
+  /** Client avec remise : affiche la remise unitaire par ligne. */
+  avecRemise?: boolean;
+  /** Remises convenues (produitId → remise) ; undefined tant que non chargées. */
+  remisesConvenues?: Map<string, number>;
 }) {
   const { data: catalogue = [] } = useProduits();
   const stockQ = useStockCourant();
@@ -55,23 +58,40 @@ export function ProduitPicker({
   }, [insufficientLignes, onValidityChange]);
 
   const addLigne = (item: ProduitResponse) => {
-    if (lignes.find((l) => l.produitId === item.id)) return;
+    const courantes = lignesRef.current;
+    if (courantes.find((l) => l.produitId === item.id)) return;
     const prix = prixDeVenteParDefaut ?? item.prixAchatParDefaut ?? 0;
-    onChange([
-      ...lignes,
+    const next = [
+      ...courantes,
       { produitId: item.id, designation: item.designation, prix, qte: 1 },
-    ]);
-  };
-
-  const updateAt = (i: number, patch: Partial<Ligne>) => {
-    const next = [...lignes];
-    next[i] = { ...next[i], ...patch };
-    if (patch.qte !== undefined) next[i].qte = Math.max(0, next[i].qte);
-    if (patch.prix !== undefined) next[i].prix = Math.max(0, next[i].prix);
+    ];
+    lignesRef.current = next;
     onChange(next);
   };
 
-  const remove = (i: number) => onChange(lignes.filter((_, idx) => idx !== i));
+  // Dernières lignes connues : plusieurs mises à jour dans le même tick
+  // (pré-remplissage du prix ET de la remise, plusieurs lignes à la fois)
+  // s'accumulent au lieu de s'écraser avec une copie périmée de `lignes`.
+  const lignesRef = useRef(lignes);
+  lignesRef.current = lignes;
+
+  const updateProduit = (produitId: string, patch: Partial<Ligne>) => {
+    const next = lignesRef.current.map((l) => {
+      if (l.produitId !== produitId) return l;
+      const maj = { ...l, ...patch };
+      if (patch.qte !== undefined) maj.qte = Math.max(0, maj.qte);
+      if (patch.prix !== undefined) maj.prix = Math.max(0, maj.prix);
+      return maj;
+    });
+    lignesRef.current = next;
+    onChange(next);
+  };
+
+  const removeProduit = (produitId: string) => {
+    const next = lignesRef.current.filter((l) => l.produitId !== produitId);
+    lignesRef.current = next;
+    onChange(next);
+  };
 
   return (
     <View>
@@ -133,15 +153,17 @@ export function ProduitPicker({
         Lignes ({lignes.length})
       </Text>
       <View className="gap-2">
-        {lignes.map((l, i) => (
+        {lignes.map((l) => (
           <LigneRow
             key={l.produitId}
             line={l}
             clientId={clientId}
             stockDispo={stockMap.get(l.produitId) ?? 0}
             enforceStock={enforceStock}
-            onUpdate={(patch) => updateAt(i, patch)}
-            onRemove={() => remove(i)}
+            avecRemise={avecRemise}
+            remisesConvenues={remisesConvenues}
+            onUpdate={(patch) => updateProduit(l.produitId, patch)}
+            onRemove={() => removeProduit(l.produitId)}
           />
         ))}
       </View>
@@ -154,14 +176,22 @@ export function ProduitPicker({
  * `useResoudrePrix(clientId, produitId)` pour chaque (client, produit) et
  * pré-remplit `line.prix` avec le prix mémorisé si dispo. Affiche un badge
  * indiquant la source du prix (« Prix client » / « Prix livreur ») et
- * propose un bouton « Mémoriser » si le livreur a saisi un prix différent
- * du prix résolu.
+ * propose l'option « Mémoriser » si le livreur a saisi un prix différent
+ * du prix résolu : le choix est envoyé avec la livraison
+ * (`memoriserPrixClient`), le back mémorise le prix dans la même transaction.
+ *
+ * Client avec remise : la remise unitaire est pré-remplie depuis la remise
+ * convenue (0 sans valeur convenue) pour l'affichage et l'estimation ; elle
+ * n'est envoyée en `remiseUnitaire` que si le livreur la saisit (le back la
+ * mémorise : la dernière saisie gagne).
  */
 function LigneRow({
   line,
   clientId,
   stockDispo,
   enforceStock,
+  avecRemise,
+  remisesConvenues,
   onUpdate,
   onRemove,
 }: {
@@ -169,11 +199,42 @@ function LigneRow({
   clientId?: string;
   stockDispo: number;
   enforceStock: boolean;
+  avecRemise: boolean;
+  remisesConvenues?: Map<string, number>;
   onUpdate: (patch: Partial<Ligne>) => void;
   onRemove: () => void;
 }) {
   const { data: resolved } = useResoudrePrix(clientId, line.produitId);
-  const memorise = useUpsertPrixClient();
+
+  // Pré-remplissage de la remise dès que les remises convenues sont connues.
+  // Tant qu'elles ne le sont pas (hors-ligne sans cache), `remise` reste
+  // undefined : rien n'est envoyé et le back applique la remise convenue.
+  useEffect(() => {
+    if (!avecRemise || line.remiseSaisie || line.remise !== undefined || !remisesConvenues) return;
+    onUpdate({ remise: remisesConvenues.get(line.produitId) ?? 0, remiseInvalide: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avecRemise, remisesConvenues, line.remise, line.remiseSaisie, line.produitId]);
+
+  // Texte saisi pour la remise (null = afficher la valeur de la ligne).
+  const [remiseTexte, setRemiseTexte] = useState<string | null>(null);
+  useEffect(() => {
+    setRemiseTexte(null);
+  }, [clientId]);
+
+  // Seule une remise saisie (`remiseSaisie`) est envoyée. Champ vidé = pas de
+  // saisie : retour à l'affichage pré-rempli (remise convenue), rien n'est
+  // envoyé. « 0 » est une saisie valide.
+  const onChangeRemise = (v: string) => {
+    if (v.trim() === '') {
+      setRemiseTexte(null);
+      onUpdate({ remise: undefined, remiseSaisie: false, remiseInvalide: false });
+      return;
+    }
+    setRemiseTexte(v);
+    const r = parseRemiseUnitaire(v);
+    if (r.ok) onUpdate({ remise: r.valeur, remiseSaisie: true, remiseInvalide: false });
+    else onUpdate({ remiseSaisie: true, remiseInvalide: true });
+  };
 
   // Track le dernier prix résolu pour comparer au prix actuel et savoir
   // s'il a été modifié manuellement (cas où on doit afficher le bouton
@@ -205,20 +266,23 @@ function LigneRow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolved, clientId, line.produitId]);
 
-  const sousTotal = line.prix * line.qte;
+  const remiseLigne = avecRemise ? line.remise ?? 0 : 0;
+  const sousTotal = montantLigneEstime(line.prix, remiseLigne, line.qte);
   const prixZero = line.prix <= 0;
   const stockInsuffisant = enforceStock && line.qte > stockDispo;
   // « Mémoriser » est proposé si le prix saisi diffère du prix résolu, ou
   // s'il n'existe encore aucun prix pour ce client (premier prix saisi).
   const prixModifie =
+    !!clientId &&
     resolvedLoaded &&
     line.prix > 0 &&
     (resolvedPrix === null || line.prix !== resolvedPrix);
 
-  const onMemoriser = () => {
-    if (!clientId) return;
-    memorise.mutate({ clientId, produitId: line.produitId, prix: line.prix });
-  };
+  // Option désactivée si le prix revient au prix résolu (rien à mémoriser).
+  useEffect(() => {
+    if (!prixModifie && line.memoriserPrix) onUpdate({ memoriserPrix: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prixModifie, line.memoriserPrix]);
 
   return (
     <View
@@ -303,19 +367,57 @@ function LigneRow({
         </View>
       </View>
 
-      {/* Bouton mémoriser le nouveau prix client */}
-      {prixModifie && clientId ? (
+      {/* Remise unitaire (client avec remise uniquement) */}
+      {avecRemise ? (
+        <View className="mt-2">
+          <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-1">
+            Remise unitaire (FCFA)
+          </Text>
+          <TextInput
+            value={
+              remiseTexte ?? (line.remise !== undefined ? String(line.remise) : '')
+            }
+            onChangeText={onChangeRemise}
+            keyboardType="decimal-pad"
+            selectTextOnFocus
+            placeholder="Remise convenue"
+            placeholderTextColor="#94a3b8"
+            className={`px-3 py-2.5 rounded-md text-slate-900 dark:text-white text-base border ${
+              line.remiseInvalide
+                ? 'border-red-400 bg-red-50 dark:bg-red-500/10'
+                : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800'
+            }`}
+          />
+          {line.remiseInvalide ? (
+            <Text className="text-[11px] text-red-500 mt-1">
+              Remise invalide (nombre positif, 2 décimales maximum)
+            </Text>
+          ) : !remisesConvenues && !line.remiseSaisie ? (
+            <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              Remise convenue appliquée par le serveur
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {/* Option : mémoriser le prix saisi pour ce client (envoyé avec la livraison) */}
+      {prixModifie ? (
         <Pressable
-          onPress={onMemoriser}
-          disabled={memorise.isPending}
-          className="flex-row items-center gap-1.5 mt-2 self-start bg-emerald-100 dark:bg-emerald-500/15 px-2.5 py-1.5 rounded-md active:opacity-70"
+          onPress={() => onUpdate({ memoriserPrix: !line.memoriserPrix })}
+          className={`flex-row items-center gap-1.5 mt-2 self-start px-2.5 py-1.5 rounded-md active:opacity-70 ${
+            line.memoriserPrix
+              ? 'bg-emerald-500'
+              : 'bg-emerald-100 dark:bg-emerald-500/15'
+          }`}
         >
-          <Save color="#059669" size={12} />
-          <Text className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold">
-            {memorise.isPending
-              ? 'Enregistrement…'
-              : memorise.isSuccess
-              ? '✓ Mémorisé'
+          <Save color={line.memoriserPrix ? '#fff' : '#059669'} size={12} />
+          <Text
+            className={`text-[11px] font-bold ${
+              line.memoriserPrix ? 'text-white' : 'text-emerald-700 dark:text-emerald-400'
+            }`}
+          >
+            {line.memoriserPrix
+              ? `✓ ${formatFCFA(line.prix)} sera mémorisé pour ce client`
               : `Mémoriser ${formatFCFA(line.prix)} pour ce client`}
           </Text>
         </Pressable>
@@ -362,7 +464,9 @@ function LigneRow({
       {/* Sous-total */}
       <View className="flex-row justify-between items-center mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
         <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-          {formatFCFA(line.prix)} × {line.qte}
+          {avecRemise && remiseLigne > 0
+            ? `(${formatFCFA(line.prix)} + ${formatFCFA(remiseLigne)}) × ${line.qte} · estimation`
+            : `${formatFCFA(line.prix)} × ${line.qte}${clientId ? ' · estimation' : ''}`}
         </Text>
         <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
           {formatFCFA(sousTotal)} FCFA

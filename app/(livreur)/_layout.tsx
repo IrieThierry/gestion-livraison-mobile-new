@@ -112,7 +112,7 @@ function FabSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
               iconBg="#fce7f3"
               iconColor="#be185d"
               label="Retour client"
-              hint="Réincrémente stock + déduit solde"
+              hint="Remise en stock ou perdu · déduit du dû"
               onPress={() => go('/(livreur)/cash/retour-client')}
             />
             <FabAction

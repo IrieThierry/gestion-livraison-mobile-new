@@ -27,7 +27,9 @@ import {
 import { useAuthStore } from '../../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { dialog } from '../../../../lib/dialog';
-import type { ClientResponse, ModifierClientRequest } from '../../../../types/api';
+import { useNetworkStore } from '../../../../stores/networkStore';
+import { buildModifierClientPayload } from '../../../../features/clients/regles';
+import type { ClientResponse } from '../../../../types/api';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
   if (!s) return null;
@@ -48,6 +50,7 @@ export default function ModifierClient() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
+  const isOnline = useNetworkStore((st) => st.isOnline);
 
   const qC = useClientsByLivreur(livreurId);
   const zonesQ = useZones();
@@ -149,6 +152,10 @@ export default function ModifierClient() {
 
   const onSubmit = () => {
     if (!user || !client) return;
+    if (!isOnline) {
+      dialog.warning('Hors ligne', 'Reconnecte-toi pour modifier le client.');
+      return;
+    }
     if (!prenom.trim()) return dialog.warning('Champ requis', 'Prénom requis');
     if (!contact.trim()) return dialog.warning('Champ requis', 'Téléphone requis');
     if (!zoneId) return dialog.warning('Champ requis', 'Zone requise');
@@ -158,23 +165,21 @@ export default function ModifierClient() {
       return dialog.warning('Email invalide', 'Vérifie le format de l’email.');
     }
 
-    const payload: ModifierClientRequest = {
-      id: client.id,
-      livreurId: user.id,
-      prenom: prenom.trim(),
-      nom: nom.trim(),
-      contact: contact.trim(),
-      email: email.trim(),
-      adresse: adresse.trim(),
-      latitudeLongitude: latLng ? `${latLng.lat},${latLng.lng}` : (client.latitudeLongitude ?? ''),
-      quartierId,
-      categorieId,
-      // Plan D : marge cristallisée à la livraison ; on garde le champ
-      // `prixDeVenteProduitParDefault` à 0 — la marge reverse est portée
-      // par avecOuSansRemise.
-      prixDeVenteProduitParDefault: 0,
-      avecOuSansRemise: avecRemise,
-    };
+    const payload = buildModifierClientPayload(
+      client,
+      {
+        prenom: prenom.trim(),
+        nom: nom.trim(),
+        contact: contact.trim(),
+        email: email.trim(),
+        adresse: adresse.trim(),
+        latitudeLongitude: latLng ? `${latLng.lat},${latLng.lng}` : (client.latitudeLongitude ?? ''),
+        quartierId,
+        categorieId,
+        avecOuSansRemise: avecRemise,
+      },
+      user.id,
+    );
 
     m.mutate(payload, {
       onSuccess: () => {
@@ -375,7 +380,7 @@ export default function ModifierClient() {
             {/* Submit */}
             <Pressable
               onPress={onSubmit}
-              disabled={m.isPending}
+              disabled={m.isPending || !isOnline}
               className="bg-emerald-500 rounded-md py-3.5 mt-3 flex-row items-center justify-center gap-2 active:opacity-80"
             >
               {m.isPending ? (
@@ -384,7 +389,7 @@ export default function ModifierClient() {
                 <>
                   <Save color="#fff" size={16} />
                   <Text className="text-white font-bold text-base">
-                    Enregistrer les modifications
+                    {isOnline ? 'Enregistrer les modifications' : 'Hors ligne'}
                   </Text>
                 </>
               )}

@@ -8,22 +8,19 @@ import type {
 } from '../../types/api';
 
 /**
- * Représente une ligne à incrémenter en retour : pour chaque
- * `produitLivraisonId` (id de la `ProduitLivraisonResponse` existante),
- * on indique combien d'unités le client rapporte.
- *
- * Côté back : la quantité est ajoutée à `qteRetournee` du
- * ProduitLivraison correspondant ; le solde du client est déduit
- * du montant retourné. Le stock courant n'est PAS ré-incrémenté
- * (le delta du back est calculé sur `qteLivree` uniquement, qui
- * reste inchangée lors d'un retour — les unités retournées sont
- * considérées comme perdues côté stock, ce qui correspond au
- * métier boulangerie).
- * `ModifierLivraisonUseCase` orchestre le tout dans une transaction.
+ * Une ligne à incrémenter en retour : pour chaque `produitLivraisonId` (id de
+ * la `ProduitLivraisonResponse` existante), combien d'unités le client
+ * rapporte, et ce que le livreur en fait :
+ *  - `remettreEnStock: true` : les unités reviennent dans son stock
+ *    (`qteRetourneeEnStock` augmente d'autant, le back ré-incrémente le stock) ;
+ *  - `remettreEnStock: false` : les unités sont perdues (invendables), le
+ *    stock ne bouge pas.
+ * Dans les deux cas le dû du client baisse de (prix + remise) × quantité.
  */
 export interface LigneRetour {
   produitLivraisonId: UUID;
   quantite: number;
+  remettreEnStock: boolean;
 }
 
 export interface CreerRetourClientRequest {
@@ -31,35 +28,57 @@ export interface CreerRetourClientRequest {
   lignes: LigneRetour[];
 }
 
+/** Valeur d'un retour, même formule que le back : (prix + remise unitaire) × quantité. */
+export function valeurRetour(
+  p: Pick<ProduitLivraisonResponse, 'prixDeVente' | 'remiseUnitaire'>,
+  quantite: number,
+): number {
+  return ((Number(p.prixDeVente) || 0) + (Number(p.remiseUnitaire) || 0)) * (Number(quantite) || 0);
+}
+
+/** Quantité encore retournable sur une ligne. */
+export function qteRetournable(p: Pick<ProduitLivraisonResponse, 'qteLivre' | 'qteRetourne'>): number {
+  return Math.max(0, (p.qteLivre ?? 0) - (p.qteRetourne ?? 0));
+}
+
 /**
- * Construit le payload `ModifierLivraisonRequest` complet à partir de
- * la livraison source et des lignes à retourner.
+ * Construit le payload `ModifierLivraisonRequest` complet (le back attend
+ * toutes les lignes, pas un patch) à partir de la livraison source et des
+ * lignes à retourner.
  *
- * Le back attend toutes les lignes (pas un patch) : on remappe les
- * `ProduitLivraisonResponse` (champs `qteLivre` / `qteRetourne`) en
- * `ProduitLivraisonRequest` (`qteLivree` / `qteRetournee`) et on
- * additionne la quantité à retourner sur la ligne ciblée.
+ * Chaque ligne renvoie ses valeurs existantes (`qteLivree`, `prixDeVente`,
+ * `qteRetournee`, `qteRetourneeEnStock`) : `qteRetourneeEnStock` est TOUJOURS
+ * explicite pour ne jamais dépendre d'une valeur par défaut côté back. Sur la
+ * ligne ciblée, `qteRetournee` augmente de la quantité retournée et
+ * `qteRetourneeEnStock` de la part remise en stock.
  */
-function buildModifierPayload(
+export function buildModifierPayload(
   livraison: LivraisonResponse,
   request: CreerRetourClientRequest,
 ): ModifierLivraisonRequest {
-  const deltaParLigne = new Map<UUID, number>();
+  const retourParLigne = new Map<UUID, number>();
+  const enStockParLigne = new Map<UUID, number>();
   for (const ligne of request.lignes) {
-    deltaParLigne.set(
-      ligne.produitLivraisonId,
-      (deltaParLigne.get(ligne.produitLivraisonId) ?? 0) + ligne.quantite,
-    );
+    const q = Math.max(0, Math.trunc(ligne.quantite || 0));
+    retourParLigne.set(ligne.produitLivraisonId, (retourParLigne.get(ligne.produitLivraisonId) ?? 0) + q);
+    if (ligne.remettreEnStock) {
+      enStockParLigne.set(
+        ligne.produitLivraisonId,
+        (enStockParLigne.get(ligne.produitLivraisonId) ?? 0) + q,
+      );
+    }
   }
 
-  const produitsLivraison: ProduitLivraisonRequest[] = (
-    livraison.produitsLivraison ?? []
-  ).map((p: ProduitLivraisonResponse) => ({
-    produitId: p.produit.id,
-    qteLivree: p.qteLivre,
-    qteRetournee: (p.qteRetourne ?? 0) + (deltaParLigne.get(p.id) ?? 0),
-    prixDeVente: p.prixDeVente,
-  }));
+  const produitsLivraison: ProduitLivraisonRequest[] = (livraison.produitsLivraison ?? []).map(
+    (p: ProduitLivraisonResponse) => ({
+      produitId: p.produit.id,
+      qteLivree: p.qteLivre,
+      qteRetournee: (p.qteRetourne ?? 0) + (retourParLigne.get(p.id) ?? 0),
+      qteRetourneeEnStock: (p.qteRetourneeEnStock ?? 0) + (enStockParLigne.get(p.id) ?? 0),
+      prixDeVente: p.prixDeVente,
+      memoriserPrixClient: false,
+    }),
+  );
 
   return {
     id: livraison.id,
@@ -71,21 +90,17 @@ function buildModifierPayload(
 }
 
 /**
- * API retour client mobile.
- *
- * Le portail web n'a pas (encore) de feature `retours` dédiée — les
- * retours s'enregistrent via la page de modification d'une livraison
- * (`PUT /livraison`). On encapsule ici l'idiome pour l'app mobile :
- * l'appelant fournit la livraison source + les quantités à rapporter,
- * et on s'occupe de construire le `ModifierLivraisonRequest` complet.
+ * API retour client mobile : un retour est une modification de la livraison
+ * source (`PUT /livraison`, `ModifierLivraisonUseCase`), autorisée même sur
+ * une livraison entièrement payée (seuls les retours y sont modifiables).
  */
 export const retoursApi = {
   enregistrer: async (
     livraison: LivraisonResponse,
     request: CreerRetourClientRequest,
-  ): Promise<LivraisonResponse> => {
+  ): Promise<void> => {
     const payload = buildModifierPayload(livraison, request);
-    const { data } = await apiClient.put<LivraisonResponse>('/livraison', payload);
-    return data;
+    // Le back renvoie un corps texte : rien à lire.
+    await apiClient.put('/livraison', payload);
   },
 };

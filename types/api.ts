@@ -26,7 +26,8 @@ export interface AuthResponse {
   nom: string
   prenom: string
   username: string
-  role: 'ADMIN' | 'LIVREUR'
+  /** Profil métier renvoyé par le back (ex. 'LIVREUR', 'ADMIN', 'FOURNISSEUR'). */
+  profile?: string
   email: string
   contact: string
   // Optionnel pour rester compatible avec les anciennes sessions persistées
@@ -60,7 +61,7 @@ export interface CreerApprentiRequest {
   email: string
   username: string
   password: string
-  role: 'LIVREUR'
+  profile?: string
   parentId: UUID
 }
 
@@ -117,7 +118,9 @@ export interface LivreurResponse {
   contact: string
   email: string
   username: string
-  role: 'ADMIN' | 'LIVREUR'
+  profile: string
+  parentId?: UUID | null
+  photoUrl?: string | null
   parent: LivreurResponse | null
   // Optional pour back-compat avec les payloads pré-existants. Le back
   // renvoie ces champs sur les endpoints `/livreur/parent/{id}` et
@@ -133,8 +136,9 @@ export interface CreerLivreurRequest {
   email: string
   username: string
   password: string
-  role: 'ADMIN' | 'LIVREUR'
-  parent: { id: UUID } | null
+  profile?: string
+  parent?: { id: UUID } | null
+  parentId?: UUID
 }
 
 export interface ModifierLivreurRequest {
@@ -145,7 +149,7 @@ export interface ModifierLivreurRequest {
   email: string
   username: string
   password: string
-  role: 'ADMIN' | 'LIVREUR'
+  profile?: string
   parent: UUID | null
 }
 
@@ -182,6 +186,9 @@ export interface ClientResponse {
   livreur?: LivreurResponse
   prixDeVenteProduitParDefault: number
   avecOuSansRemise: boolean
+  limiteCredit: number | null
+  margeParUnite: number | null
+  photoUrl?: string | null
 }
 
 export interface CreerClientRequest {
@@ -196,10 +203,17 @@ export interface CreerClientRequest {
   livreurId: UUID
   prixDeVenteProduitParDefault: number
   avecOuSansRemise: boolean
+  /** Optionnel ; sans effet sur les remises (D7). */
+  margeParUnite?: number
+  /** Optionnel ; conservé côté back quand absent à la modification. */
+  limiteCredit?: number
 }
 
-export interface ModifierClientRequest extends CreerClientRequest {
+export interface ModifierClientRequest
+  extends Omit<CreerClientRequest, 'prixDeVenteProduitParDefault'> {
   id: UUID
+  /** Optionnel à la modification : absent, le back garde la valeur stockée. */
+  prixDeVenteProduitParDefault?: number
 }
 
 export interface ProduitClientResponse {
@@ -217,21 +231,25 @@ export interface ProduitClientResponse {
 export type StatutLivraison = 'LIVREE' | 'ENCAISSEE'
 
 /**
- * Statut d'encaissement calculé à la volée par le back :
- *   - `ENCAISSEE`             — un encaissement couvre la livraison avec
- *                                montant >= valeur livraison
- *   - `PARTIELLEMENT_ENCAISSEE` — encaissement couvre mais montant insuffisant
- *   - `NON_ENCAISSEE`         — aucun encaissement ne couvre cette livraison
+ * Statut d'encaissement calculé par le back :
+ *   - `ENCAISSEE`     — livraison entièrement payée
+ *   - `NON_ENCAISSEE` — reste un dû
  *
  * **C'est ce champ qu'il faut afficher au livreur**, pas `statut`.
  */
-export type StatutEncaissement = 'ENCAISSEE' | 'PARTIELLEMENT_ENCAISSEE' | 'NON_ENCAISSEE'
+export type StatutEncaissement = 'ENCAISSEE' | 'NON_ENCAISSEE'
 
 export interface ProduitLivraisonRequest {
   produitId: UUID
   qteLivree: number
   qteRetournee: number
   prixDeVente: number
+  /** Mémorise le prix pour ce client. */
+  memoriserPrixClient?: boolean
+  /** Quantité retournée remise en stock (le reste est perdu). */
+  qteRetourneeEnStock?: number
+  /** Remise unitaire convenue (saisie ; mémorisée par (client, produit)). */
+  remiseUnitaire?: number
 }
 
 export interface ProduitLivraisonResponse {
@@ -242,6 +260,8 @@ export interface ProduitLivraisonResponse {
   prixDeVente: number
   /** Marge cristallisée à la livraison (Plan D) — preferred for marge calculations. */
   margeUnitaire: number
+  qteRetourneeEnStock: number
+  remiseUnitaire: number
 }
 
 export interface LivraisonResponse {
@@ -260,6 +280,10 @@ export interface LivraisonResponse {
    */
   statutEncaissement?: StatutEncaissement
   montantLivre: number
+  /** Dû net (avant paiements) calculé par le back : (prix + remise) × (livré − retourné). */
+  montantDu: number
+  /** Remise nette calculée par le back. */
+  remiseNette: number
   avecRemise: boolean
 }
 
@@ -278,9 +302,9 @@ export interface ModifierLivraisonRequest extends CreerLivraisonRequest {
 export interface CreerEncaissementLivraisonRequest {
   livreurId: UUID
   clientId: UUID
-  dateDebut?: string         // YYYY-MM-DD — optionnel si libre=true
-  dateFin?: string           // YYYY-MM-DD — optionnel si libre=true
-  dateEncaissement?: string  // YYYY-MM-DD
+  dateDebut?: string         // LocalDateTime ISO — ignoré si libre=true
+  dateFin?: string           // LocalDateTime ISO — ignoré si libre=true
+  dateEncaissement?: string  // LocalDateTime ISO — absent = maintenant (serveur)
   montantEncaisse: number
   commentaire?: string
   /** Mode libre : solder la dette sans plage (valeurLivraisons=0). */
@@ -288,13 +312,53 @@ export interface CreerEncaissementLivraisonRequest {
 }
 
 export interface EncaissementLivraisonResponse {
+  id: UUID
   reference: string
-  montantEncaisse: number
   livreur: LivreurResponse
   client: ClientResponse
-  livraisons: LivraisonResponse[]
-  commentaire: string
-  date: ISODate
+  dateDebut: string | null
+  dateFin: string | null
+  dateEncaissement: ISODate
+  valeurLivraisons: number
+  margeCumulee: number
+  montantEncaisse: number
+  detteAvant: number
+  detteApres: number
+  commentaire: string | null
+}
+
+export interface SituationEncaissementResponse {
+  valeurLivraisons: number
+  margeCumulee: number
+  detteAvant: number
+  totalDu: number
+}
+
+export interface EncoursClientResponse {
+  clientId: UUID
+  nomClient: string
+  limiteCredit: number | null
+  totalLivre: number
+  totalRetour: number
+  totalEncaisse: number
+  solde: number
+  enDepassement: boolean
+  totalRemise: number
+}
+
+export interface MargeCumuleeResponse {
+  margeBrute: number
+  margeRetours: number
+  margeReversee: number
+  margeDue: number
+  remiseEnAttente: number
+}
+
+// ---------- Remises convenues par (client, produit) ----------
+export interface RemiseClientProduitResponse {
+  id: UUID
+  produit: ProduitResponse
+  remiseUnitaire: number
 }
 
 // ---------- Dashboard ----------
@@ -547,9 +611,11 @@ export interface ClotureJournaliereResponse {
 
 export interface EnregistrerClotureRequest {
   livreurId: UUID
+  /** LocalDateTime : le back ramène au début du jour. */
   dateCloture: ISODate
+  /** ≥ 0. Écart (back) = totalEncaisse − montantRemis ; positif = manque en caisse. */
   montantRemis: number
-  commentaire: string
+  commentaire?: string
 }
 
 // ---------- Reversements (Item A) ----------
@@ -559,6 +625,8 @@ export interface ReversementRecord {
   id: UUID
   type: BeneficiaireType
   beneficiaireId: UUID
+  /** Livreur propriétaire ; null pour les reversements antérieurs au lot 3. */
+  livreurId: UUID | null
   montant: number
   periodeMois: number
   periodeAnnee: number
@@ -570,8 +638,10 @@ export interface EnregistrerReversementRequest {
   type: BeneficiaireType
   beneficiaireId: UUID
   montant: number
+  /** Période (mois civil) : jamais un mois à venir (refus du back). */
   mois: number
   annee: number
+  /** LocalDateTime, jamais dans le futur ; absent = aujourd'hui (serveur). */
   dateReversement?: string
   commentaire?: string
 }
@@ -589,6 +659,11 @@ export interface LigneClientDuResponse {
   prenom: string
   nom: string
   margeDue: number
+  livreurId: UUID
+  remiseAcquise: number
+  remiseReversee: number
+  resteAReverser: number
+  remiseEnAttente: number
 }
 
 export interface ReversementsSyntheseLivreurResponse {
@@ -690,4 +765,11 @@ export interface SituationVersementResponse {
   dateDebut: string | null // plus ancienne livraison sélectionnée (nulle si aucune commande)
   dateFin: string | null   // plus récente livraison sélectionnée
   nbCommandes: number
+}
+
+export interface UpsertRemiseClientRequest {
+  clientId: UUID
+  produitId: UUID
+  /** BigDecimal >= 0, 2 décimales maximum. */
+  remiseUnitaire: number
 }

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SecureStorage } from '../lib/secure-storage';
 import { Biometric } from '../lib/biometric';
+import { queryClient, QUERY_CACHE_KEY } from '../lib/query-client';
 import type { AuthUser } from '../features/auth/api';
 
 interface AuthState {
@@ -65,6 +66,9 @@ export const useAuthStore = create<AuthState>()((set) => ({
   logout: async () => {
     await SecureStorage.clearAuth();
     await AsyncStorage.removeItem('user');
+    // Cache d'un autre utilisateur : vidé en mémoire ET dans le stockage persisté.
+    queryClient.clear();
+    await AsyncStorage.removeItem(QUERY_CACHE_KEY);
     set({ user: null });
   },
 }));

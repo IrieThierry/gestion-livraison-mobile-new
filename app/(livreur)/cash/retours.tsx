@@ -22,6 +22,7 @@ import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useClientsByLivreur } from '../../../features/clients/hooks';
 import { useAuthStore } from '../../../stores/authStore';
 import { formatFCFA, formatDateShort } from '../../../lib/format';
+import { valeurRetour } from '../../../features/retours/api';
 
 type Periode = '7j' | '30j' | '90j' | 'all';
 
@@ -40,6 +41,9 @@ interface RetourItem {
   clientName: string;
   produitName: string;
   qteRetournee: number;
+  /** Part remise en stock (le reste est perdu). */
+  qteEnStock: number;
+  /** Prix + remise unitaire : valeur d'une unité retournée. */
   prixUnitaire: number;
   montant: number;
 }
@@ -89,7 +93,8 @@ export default function RetoursList() {
       for (const p of l.produitsLivraison ?? []) {
         const qte = p.qteRetourne ?? 0;
         if (qte <= 0) continue;
-        const prix = Number(p.prixDeVente) || 0;
+        // Même formule que le back : (prix + remise unitaire) × quantité.
+        const prix = valeurRetour(p, 1);
         items.push({
           livraisonId: l.id,
           produitLivraisonId: p.id,
@@ -98,8 +103,9 @@ export default function RetoursList() {
           clientName: `${l.client.prenom} ${l.client.nom}`.trim(),
           produitName: p.produit?.designation ?? '—',
           qteRetournee: qte,
+          qteEnStock: Math.min(qte, p.qteRetourneeEnStock ?? 0),
           prixUnitaire: prix,
-          montant: prix * qte,
+          montant: valeurRetour(p, qte),
         });
       }
     }
@@ -266,6 +272,13 @@ export default function RetoursList() {
                     </View>
                     <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
                       {formatDateShort(r.date)} · {formatFCFA(r.prixUnitaire)} F l'unité
+                    </Text>
+                    <Text className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      {r.qteEnStock > 0 ? `${r.qteEnStock} remis en stock` : ''}
+                      {r.qteEnStock > 0 && r.qteRetournee - r.qteEnStock > 0 ? ' · ' : ''}
+                      {r.qteRetournee - r.qteEnStock > 0
+                        ? `${r.qteRetournee - r.qteEnStock} perdu${r.qteRetournee - r.qteEnStock > 1 ? 's' : ''}`
+                        : ''}
                     </Text>
                   </View>
                   <View className="items-end">

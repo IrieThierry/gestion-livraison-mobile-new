@@ -3,71 +3,64 @@ import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native'
 import { router } from 'expo-router';
 import { Bell, Package, Truck, Banknote, RotateCcw } from 'lucide-react-native';
 import { useLivraisonsByLivreur } from '../../features/livraisons/hooks';
+import { useEncaissementsByLivreur } from '../../features/encaissements/hooks';
+import { useEncoursByLivreur } from '../../features/clients/hooks';
+import {
+  encaisseAujourdhui,
+  num,
+  totalAEncaisser,
+  totalRemiseNette,
+} from '../../features/encaissements/regles';
 import { useStockCourant } from '../../features/stock/hooks';
 import { useAuthStore } from '../../stores/authStore';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { PendingValidationGate } from '../../components/shared/PendingValidationGate';
 import { LivraisonCard } from '../../components/livreur/LivraisonCard';
-import { formatFCFA } from '../../lib/format';
-import { isEncaissee, isAEncaisser } from '../../lib/livraison-status';
+import { formatMontant } from '../../lib/format';
+import { extractApiErrorMessage } from '../../lib/api-error';
 
 export default function Tournee() {
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
   const qLiv = useLivraisonsByLivreur(livreurId);
+  const qEnc = useEncaissementsByLivreur(livreurId);
+  const qEncours = useEncoursByLivreur(livreurId);
   // Stock courant (Plan D) — somme des `qteVendable` (= achats − livraisons
   // + retours sur la période). C'est ce que l'écran Stock affiche aussi.
-  // L'ancien `useStockActuel` retournait des `AchatResponse[]` dont la `qte`
-  // est la quantité d'achat initiale, ce qui donnait un cumul gonflé sur
-  // l'accueil — on n'en veut plus.
   const qStock = useStockCourant();
 
   const computed = useMemo(() => {
     const today = new Date().toDateString();
-    const yesterday = new Date(Date.now() - 86_400_000).toDateString();
-
     const all = qLiv.data ?? [];
     const duJour = all.filter((l) => new Date(l.date).toDateString() === today);
-    const dHier = all.filter((l) => new Date(l.date).toDateString() === yesterday);
 
-    const totalEncaisseAujourd = duJour
-      .filter(isEncaissee)
-      .reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
-    const totalEncaisseHier = dHier
-      .filter(isEncaissee)
-      .reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
-    const aEncaisser = duJour
-      .filter(isAEncaisser)
-      .reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
-    const clientsAEncaisser = new Set(
-      duJour.filter(isAEncaisser).map((l) => l.client.id),
-    ).size;
+    // « Encaissé aujourd'hui » = Σ montantEncaisse des encaissements du jour
+    // (et non plus le montant livré des livraisons soldées).
+    const encs = qEnc.data ?? [];
+    const totalEncaisseAujourd = encaisseAujourdhui(encs);
+    const totalEncaisseHier = encaisseAujourdhui(encs, new Date(Date.now() - 86_400_000));
+    // « À encaisser » = Σ des soldes positifs des clients (serveur).
+    const encours = qEncours.data ?? [];
+    const aEncaisser = totalAEncaisser(encours);
+    const clientsAEncaisser = encours.filter((e) => num(e.solde) > 0).length;
 
     let varPct: number | null = null;
     if (totalEncaisseHier > 0) {
       varPct = Math.round(((totalEncaisseAujourd - totalEncaisseHier) / totalEncaisseHier) * 100);
     }
 
-    // Marge cristallisée Plan D : Σ qteLivree × margeUnitaire (sur les lignes)
-    // de toutes les livraisons du jour (encaissées ou non — la marge est
-    // gagnée à la livraison, indépendamment de l'encaissement).
-    const margeApprox = duJour.reduce((acc, l) => {
-      const ligneMarge = (l.produitsLivraison ?? []).reduce((s, p) => {
-        const qte = (p.qteLivre ?? 0) - (p.qteRetourne ?? 0);
-        return s + (Number(p.margeUnitaire) || 0) * qte;
-      }, 0);
-      return acc + ligneMarge;
-    }, 0);
+    // Remise du jour : Σ remise nette (serveur) des livraisons du jour.
+    const remiseJour = totalRemiseNette(duJour);
 
     return {
       duJour,
       totalEncaisseAujourd,
       aEncaisser,
       clientsAEncaisser,
-      margeApprox,
+      remiseJour,
       varPct,
     };
-  }, [qLiv.data]);
+  }, [qLiv.data, qEnc.data, qEncours.data]);
 
   const totalStock = useMemo(
     () => (qStock.data ?? []).reduce((acc, s) => acc + (s.qteVendable ?? 0), 0),
@@ -81,6 +74,8 @@ export default function Tournee() {
 
   const onRefresh = () => {
     qLiv.refetch();
+    qEnc.refetch();
+    qEncours.refetch();
     qStock.refetch();
   };
 
@@ -141,7 +136,7 @@ export default function Tournee() {
         >
           <View className="flex-row items-center justify-between">
             <Text className="text-[10px] font-extrabold uppercase tracking-wider text-white/95">
-              Solde du jour
+              Encaissé aujourd’hui
             </Text>
             {computed.varPct !== null ? (
               <View className="bg-white/20 rounded-full px-2.5 py-1">
@@ -153,17 +148,17 @@ export default function Tournee() {
             ) : null}
           </View>
           <Text className="text-white font-extrabold mt-1">
-            <Text className="text-4xl">{formatFCFA(computed.totalEncaisseAujourd)}</Text>
+            <Text className="text-4xl">{formatMontant(computed.totalEncaisseAujourd)}</Text>
             <Text className="text-base"> FCFA</Text>
           </Text>
 
           <View className="flex-row gap-2 mt-3">
             <View className="flex-1 bg-white/15 rounded-xl px-3 py-2">
               <Text className="text-[10px] uppercase font-bold tracking-wider text-white/90">
-                Marge
+                Remise du jour
               </Text>
               <Text className="text-white font-extrabold text-lg">
-                + {formatFCFA(computed.margeApprox)}
+                {formatMontant(computed.remiseJour)}
               </Text>
             </View>
             <View className="flex-1 bg-white/15 rounded-xl px-3 py-2">
@@ -192,17 +187,23 @@ export default function Tournee() {
             </Text>
           </Pressable>
           <Pressable
-            onPress={() => router.push('/(livreur)/livraisons' as never)}
+            onPress={() => router.push('/(livreur)/clients' as never)}
             className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-amber-500 rounded-xl p-3 active:opacity-70"
           >
             <Text className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-semibold">
               À encaisser
             </Text>
             <Text className="text-3xl font-extrabold text-slate-900 dark:text-white mt-0.5 leading-none">
-              {formatFCFA(computed.aEncaisser)}
+              {qEncours.isError ? '—' : formatMontant(computed.aEncaisser)}
             </Text>
-            <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-              {computed.clientsAEncaisser} client{computed.clientsAEncaisser > 1 ? 's' : ''}
+            <Text
+              className={`text-[11px] mt-1 ${
+                qEncours.isError ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              {qEncours.isError
+                ? extractApiErrorMessage(qEncours.error, 'Soldes indisponibles')
+                : `${computed.clientsAEncaisser} client${computed.clientsAEncaisser > 1 ? 's' : ''}`}
             </Text>
           </Pressable>
         </View>

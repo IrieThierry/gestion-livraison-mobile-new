@@ -1,52 +1,40 @@
 import { useMemo } from 'react';
 import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
-import { TrendingUp, ArrowRight } from 'lucide-react-native';
+import { ArrowRight } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
-import { useClientsByLivreur } from '../../../features/clients/hooks';
-import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
-import { useEncaissementsByLivreur } from '../../../features/encaissements/hooks';
+import { useEncoursByLivreur } from '../../../features/clients/hooks';
+import {
+  num,
+  totalAEncaisser,
+  totalAvances,
+} from '../../../features/encaissements/regles';
+import { extractApiErrorMessage } from '../../../lib/api-error';
 import { useAuthStore } from '../../../stores/authStore';
-import { computeEncoursForClient, computeSoldeForClient } from '../../../lib/credit';
-import { formatFCFA } from '../../../lib/format';
+import { formatMontant } from '../../../lib/format';
 
 /**
- * Vue Encours — synthèse des créances clients du livreur connecté.
- *
- * On agrège côté front (mêmes formules que `lib/credit.ts`) parce que le
- * back ne propose pas (encore) un endpoint dédié. C'est cohérent avec ce
- * que la page web fait.
+ * Vue Encours — soldes clients du livreur connecté, calculés par le
+ * serveur (`GET /client/encours/livreur/{id}`) : dû net (remises et
+ * retours compris) moins paiements. Solde négatif = avance du client.
+ * La limite de crédit et le dépassement sont ceux du serveur.
  */
 export default function Encours() {
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
-  const cliQ = useClientsByLivreur(livreurId);
-  const livQ = useLivraisonsByLivreur(livreurId);
-  const encQ = useEncaissementsByLivreur(livreurId);
+  const q = useEncoursByLivreur(livreurId);
 
-  const lignes = useMemo(() => {
-    const clients = cliQ.data ?? [];
-    const livraisons = livQ.data ?? [];
-    const encaissements = encQ.data ?? [];
-    return clients
-      .map((c) => ({
-        client: c,
-        encours: computeEncoursForClient(livraisons, c.id),
-        solde: computeSoldeForClient(livraisons, encaissements, c.id),
-      }))
-      .filter((l) => l.encours > 0 || l.solde > 0)
-      .sort((a, b) => b.solde - a.solde);
-  }, [cliQ.data, livQ.data, encQ.data]);
-
-  const totals = useMemo(() => {
-    const totalEncours = lignes.reduce((acc, l) => acc + l.encours, 0);
-    const totalSolde = lignes.reduce(
-      (acc, l) => acc + Math.max(0, l.solde),
-      0,
-    );
-    return { totalEncours, totalSolde };
-  }, [lignes]);
+  const lignes = useMemo(
+    () =>
+      (q.data ?? [])
+        .filter((e) => num(e.solde) !== 0)
+        .sort((a, b) => num(b.solde) - num(a.solde)),
+    [q.data],
+  );
+  const totalDu = totalAEncaisser(q.data ?? []);
+  const avances = totalAvances(q.data ?? []);
+  const nbDepassement = (q.data ?? []).filter((e) => e.enDepassement).length;
 
   if (!user) return null;
 
@@ -54,88 +42,110 @@ export default function Encours() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
         title="Encours clients"
-        subtitle={`${lignes.length} client${lignes.length > 1 ? 's' : ''} avec créance`}
+        subtitle={`${lignes.length} client${lignes.length > 1 ? 's' : ''} avec un solde`}
       />
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={
           <RefreshControl
-            refreshing={cliQ.isFetching && !cliQ.isLoading}
-            onRefresh={() => {
-              cliQ.refetch();
-              livQ.refetch();
-              encQ.refetch();
-            }}
+            refreshing={q.isFetching && !q.isLoading}
+            onRefresh={() => q.refetch()}
             tintColor="#10b981"
           />
         }
       >
         <View className="px-4 pt-3">
-          {/* Totaux */}
           <View className="flex-row gap-2">
             <View className="flex-1 bg-amber-500 rounded-lg p-4 shadow-md">
-              <Text className="text-[10px] font-semibold uppercase text-white/90">
-                Total dû
-              </Text>
+              <Text className="text-[10px] font-semibold uppercase text-white/90">À encaisser</Text>
               <Text className="text-2xl font-extrabold text-white mt-1">
-                {formatFCFA(totals.totalSolde)}
+                {formatMontant(totalDu)}
               </Text>
-              <Text className="text-[10px] text-white/85 mt-1">FCFA · solde positif</Text>
+              <Text className="text-[10px] text-white/85 mt-1">FCFA · soldes dus</Text>
             </View>
             <View className="flex-1 bg-emerald-500 rounded-lg p-4 shadow-md">
-              <Text className="text-[10px] font-semibold uppercase text-white/90">
-                Encours
-              </Text>
+              <Text className="text-[10px] font-semibold uppercase text-white/90">Avances</Text>
               <Text className="text-2xl font-extrabold text-white mt-1">
-                {formatFCFA(totals.totalEncours)}
+                {formatMontant(avances)}
               </Text>
-              <Text className="text-[10px] text-white/85 mt-1">FCFA · livré non encaissé</Text>
+              <Text className="text-[10px] text-white/85 mt-1">FCFA · payées d'avance</Text>
             </View>
           </View>
+          {nbDepassement > 0 ? (
+            <Text className="text-[12px] font-bold text-red-600 dark:text-red-400 mt-3">
+              {nbDepassement} client{nbDepassement > 1 ? 's' : ''} au-delà de la limite de crédit
+            </Text>
+          ) : null}
 
-          {/* Liste */}
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
             Détail par client
           </Text>
 
-          {lignes.length === 0 ? (
+          {q.isLoading ? (
+            <Text className="text-slate-400 text-sm">Chargement…</Text>
+          ) : q.isError ? (
             <EmptyState
-              title="Aucun client en créance"
-              message="Toutes tes livraisons sont à jour."
+              title="Encours indisponibles"
+              message={extractApiErrorMessage(q.error, 'Réessaye plus tard.')}
             />
+          ) : lignes.length === 0 ? (
+            <EmptyState title="Aucun solde en cours" message="Tous tes clients sont à jour." />
           ) : (
             <View className="gap-2">
-              {lignes.map((l) => (
-                <Pressable
-                  key={l.client.id}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/(livreur)/clients/[id]' as never,
-                      params: { id: l.client.id },
-                    } as never)
-                  }
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-2 active:opacity-70"
-                >
-                  <View className="flex-1">
-                    <Text className="font-extrabold text-slate-900 dark:text-white">
-                      {l.client.prenom} {l.client.nom}
-                    </Text>
-                    <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      Encours : {formatFCFA(l.encours)} FCFA
-                    </Text>
-                  </View>
-                  <View className="items-end">
-                    <View className="bg-amber-100 dark:bg-amber-500/15 px-2 py-1 rounded-full">
-                      <Text className="text-[12px] font-extrabold text-amber-800 dark:text-amber-400">
-                        {formatFCFA(l.solde)} F
+              {lignes.map((e) => {
+                const solde = num(e.solde);
+                const avance = solde < 0;
+                return (
+                  <Pressable
+                    key={e.clientId}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/(livreur)/clients/[id]' as never,
+                        params: { id: e.clientId },
+                      } as never)
+                    }
+                    className={`bg-white dark:bg-slate-900 border rounded-lg p-3 flex-row items-center gap-2 active:opacity-70 ${
+                      e.enDepassement
+                        ? 'border-red-300 dark:border-red-500/40'
+                        : 'border-slate-200 dark:border-slate-800'
+                    }`}
+                  >
+                    <View className="flex-1">
+                      <Text className="font-extrabold text-slate-900 dark:text-white">
+                        {e.nomClient}
+                      </Text>
+                      <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Limite : {formatMontant(num(e.limiteCredit))} FCFA
+                        {e.enDepassement ? ' · dépassée' : ''}
                       </Text>
                     </View>
-                    <Text className="text-[9px] text-slate-400 mt-1">SOLDE</Text>
-                  </View>
-                  <ArrowRight color="#94a3b8" size={14} />
-                </Pressable>
-              ))}
+                    <View className="items-end">
+                      <View
+                        className={`px-2 py-1 rounded-full ${
+                          avance
+                            ? 'bg-emerald-100 dark:bg-emerald-500/15'
+                            : 'bg-amber-100 dark:bg-amber-500/15'
+                        }`}
+                      >
+                        <Text
+                          className={`text-[12px] font-extrabold ${
+                            avance
+                              ? 'text-emerald-800 dark:text-emerald-400'
+                              : 'text-amber-800 dark:text-amber-400'
+                          }`}
+                        >
+                          {formatMontant(Math.abs(solde))} F
+                        </Text>
+                      </View>
+                      <Text className="text-[9px] text-slate-400 mt-1">
+                        {avance ? 'AVANCE' : 'DÛ'}
+                      </Text>
+                    </View>
+                    <ArrowRight color="#94a3b8" size={14} />
+                  </Pressable>
+                );
+              })}
             </View>
           )}
         </View>

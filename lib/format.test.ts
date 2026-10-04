@@ -1,4 +1,16 @@
-import { formatFCFA, formatDateShort, formatTime, formatDateLong } from './format';
+import { formatFCFA, formatMontant, formatDateShort, formatTime, formatDateLong } from './format';
+
+describe('formatMontant', () => {
+  it('garde jusqu’à 2 décimales', () => {
+    expect(formatMontant(1500.5)).toMatch(/^1[\s  ]500,5$/);
+    expect(formatMontant(12.345)).toMatch(/^12,35$|^12,34$/);
+  });
+  it('conserve le signe et gère null / chaîne', () => {
+    expect(formatMontant(-300)).toMatch(/^-300$|^−300$/);
+    expect(formatMontant(null)).toBe('0');
+    expect(formatMontant('250.5' as unknown as number)).toBe('250,5');
+  });
+});
 
 describe('formatFCFA', () => {
   it('formats positive integers with French locale (space-like thousand separator)', () => {
