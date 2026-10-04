@@ -13,7 +13,14 @@ import { Building2, Users } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { DatePickerField } from '../../../../components/shared/DatePickerField';
 import { useEnregistrerReversement } from '../../../../features/reversements/hooks';
-import { formatFCFA } from '../../../../lib/format';
+import {
+  construireReversement,
+  periodeDepuisParams,
+} from '../../../../features/reversements/regles';
+import { jourLocal, num, parseMontant } from '../../../../features/encaissements/regles';
+import { useNetworkStore } from '../../../../stores/networkStore';
+import { extractApiErrorMessage } from '../../../../lib/api-error';
+import { formatMontant } from '../../../../lib/format';
 import type { BeneficiaireType } from '../../../../types/api';
 
 export default function NouveauReversement() {
@@ -27,51 +34,57 @@ export default function NouveauReversement() {
   }>();
 
   const m = useEnregistrerReversement();
-  const today = new Date().toISOString().slice(0, 10);
-  const now = new Date();
+  const isOnline = useNetworkStore((s) => s.isOnline);
+  const today = jourLocal(new Date());
 
-  const type: BeneficiaireType = (params.type as BeneficiaireType) ?? 'CLIENT';
+  const type: BeneficiaireType = params.type === 'FOURNISSEUR' ? 'FOURNISSEUR' : 'CLIENT';
   const beneficiaireLabel = params.label ?? 'Bénéficiaire';
   const initialMontant = params.montantSuggere ?? '';
   const [montant, setMontant] = useState(initialMontant);
   const [dateRev, setDateRev] = useState<string | null>(today);
   const [commentaire, setCommentaire] = useState('');
 
-  const mois = parseInt(params.mois ?? '', 10) || now.getMonth() + 1;
-  const annee = parseInt(params.annee ?? '', 10) || now.getFullYear();
+  // Période (mois civil) reçue de la synthèse ; jamais un mois à venir.
+  const periode = periodeDepuisParams(params.mois, params.annee);
+  const { mois, annee } = periode;
+  const saisie = parseMontant(montant);
+  const suggestion = parseMontant(initialMontant);
 
   const onSubmit = () => {
-    if (!params.beneficiaireId) {
-      dialog.error('Erreur', 'Bénéficiaire manquant');
+    if (m.isPending) return;
+    if (!isOnline) {
+      dialog.warning('Hors ligne', 'Le reversement nécessite une connexion. Réessaye une fois en ligne.');
       return;
     }
-    const n = parseInt(montant, 10);
-    if (!n || n <= 0) {
-      dialog.warning('Montant invalide', 'Saisis un montant supérieur à 0.');
+    const req = construireReversement({
+      type,
+      beneficiaireId: params.beneficiaireId,
+      montant,
+      periode,
+      dateReversement: dateRev,
+      aujourdhui: today,
+      commentaire,
+    });
+    if (!req.ok) {
+      dialog.warning('Saisie invalide', req.erreur);
       return;
     }
-    m.mutate(
-      {
-        type,
-        beneficiaireId: params.beneficiaireId,
-        montant: n,
-        mois,
-        annee,
-        dateReversement: dateRev ?? undefined,
-        commentaire: commentaire.trim() || undefined,
+    m.mutate(req.valeur, {
+      onSuccess: (r) => {
+        router.back();
+        dialog.success(
+          'Reversement enregistré',
+          `${formatMontant(num(r.montant))} FCFA — période ${String(r.periodeMois).padStart(2, '0')}/${r.periodeAnnee}`,
+        );
       },
-      {
-        onSuccess: () => {
-          router.back();
-          dialog.success('Reversement enregistré');
-        },
-        onError: (err: unknown) => {
-          const e = err as { response?: { data?: { message?: string } } };
-          dialog.error('Erreur', e.response?.data?.message ?? 'Échec');
-        },
+      onError: (err: unknown) => {
+        // Plafond (reste à reverser), mois à venir, date future : message du back.
+        dialog.error('Erreur', extractApiErrorMessage(err, 'Échec du reversement'));
       },
-    );
+    });
   };
+
+  const desactive = m.isPending || !isOnline || !saisie.ok;
 
   const TypeIcon = type === 'CLIENT' ? Users : Building2;
   const typeColor = type === 'CLIENT' ? '#8b5cf6' : '#3b82f6';
@@ -106,21 +119,24 @@ export default function NouveauReversement() {
             <TextInput
               value={montant}
               onChangeText={setMontant}
-              keyboardType="number-pad"
+              keyboardType="decimal-pad"
               selectTextOnFocus
               placeholder="0"
               placeholderTextColor="#94a3b8"
               className="px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-2xl font-extrabold"
             />
-            {initialMontant ? (
+            {suggestion.ok ? (
               <Pressable
                 onPress={() => setMontant(initialMontant)}
                 className="self-start bg-emerald-100 dark:bg-emerald-500/15 px-3 py-1.5 rounded-md mt-2 active:opacity-70"
               >
                 <Text className="text-emerald-700 dark:text-emerald-400 text-[11px] font-bold">
-                  Tout rembourser ({formatFCFA(parseInt(initialMontant, 10))})
+                  Tout le reste à reverser ({formatMontant(suggestion.valeur)})
                 </Text>
               </Pressable>
+            ) : null}
+            {montant.trim() !== '' && !saisie.ok ? (
+              <Text className="text-[11px] text-red-600 dark:text-red-400 mt-1">{saisie.erreur}</Text>
             ) : null}
           </View>
 
@@ -137,6 +153,7 @@ export default function NouveauReversement() {
             value={dateRev}
             onChange={setDateRev}
             optional
+            maximumDate={new Date()}
           />
 
           {/* Commentaire */}
@@ -157,13 +174,27 @@ export default function NouveauReversement() {
           {/* Submit */}
           <Pressable
             onPress={onSubmit}
-            disabled={m.isPending}
-            className="bg-emerald-500 rounded-md py-3.5 mt-3 items-center active:opacity-80"
+            disabled={desactive}
+            className={`rounded-md py-3.5 mt-3 items-center ${
+              !isOnline || !saisie.ok
+                ? 'bg-slate-200 dark:bg-slate-800'
+                : 'bg-emerald-500 active:opacity-80'
+            }`}
           >
             {m.isPending ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text className="text-white font-bold text-base">Enregistrer</Text>
+              <Text
+                className={`font-bold text-base ${
+                  !isOnline || !saisie.ok ? 'text-slate-400' : 'text-white'
+                }`}
+              >
+                {!isOnline
+                  ? 'Hors ligne — réessaye en ligne'
+                  : !saisie.ok
+                  ? 'Saisis un montant'
+                  : `Reverser ${formatMontant(saisie.valeur)} FCFA`}
+              </Text>
             )}
           </Pressable>
         </View>

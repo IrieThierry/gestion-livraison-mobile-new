@@ -608,9 +608,11 @@ export interface ClotureJournaliereResponse {
 
 export interface EnregistrerClotureRequest {
   livreurId: UUID
+  /** LocalDateTime : le back ramène au début du jour. */
   dateCloture: ISODate
+  /** ≥ 0. Écart (back) = totalEncaisse − montantRemis ; positif = manque en caisse. */
   montantRemis: number
-  commentaire: string
+  commentaire?: string
 }
 
 // ---------- Reversements (Item A) ----------
@@ -620,7 +622,8 @@ export interface ReversementRecord {
   id: UUID
   type: BeneficiaireType
   beneficiaireId: UUID
-  livreurId: UUID
+  /** Livreur propriétaire ; null pour les reversements antérieurs au lot 3. */
+  livreurId: UUID | null
   montant: number
   periodeMois: number
   periodeAnnee: number
@@ -632,8 +635,10 @@ export interface EnregistrerReversementRequest {
   type: BeneficiaireType
   beneficiaireId: UUID
   montant: number
+  /** Période (mois civil) : jamais un mois à venir (refus du back). */
   mois: number
   annee: number
+  /** LocalDateTime, jamais dans le futur ; absent = aujourd'hui (serveur). */
   dateReversement?: string
   commentaire?: string
 }
