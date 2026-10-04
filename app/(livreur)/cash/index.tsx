@@ -22,6 +22,7 @@ import {
 } from '../../../features/encaissements/regles';
 import { useAuthStore } from '../../../stores/authStore';
 import { formatMontant, formatDateShort } from '../../../lib/format';
+import { extractApiErrorMessage } from '../../../lib/api-error';
 
 // Onglet "Cash" du livreur (root de la stack /cash) :
 // - 2 KPIs : « encaissé aujourd'hui » = Σ `montantEncaisse` des encaissements
@@ -70,9 +71,18 @@ export default function CashOverview() {
               <StatCard label="Encaissé jour" value={formatMontant(totalJour)} accent="emerald" />
             </View>
             <View className="flex-1">
-              <StatCard label="À encaisser" value={formatMontant(aEncaisser)} accent="amber" />
+              <StatCard
+                label="À encaisser"
+                value={qEncours.isError ? '—' : formatMontant(aEncaisser)}
+                accent="amber"
+              />
             </View>
           </View>
+          {qEncours.isError ? (
+            <Text className="text-[11px] text-red-600 dark:text-red-400 mt-1">
+              {extractApiErrorMessage(qEncours.error, 'Soldes clients indisponibles')}
+            </Text>
+          ) : null}
 
           {/* Versement CTA */}
           <Pressable

@@ -5,7 +5,6 @@ import type {
   SituationEncaissementResponse,
   UUID,
 } from '../../types/api';
-import { dernierEncaissementDuClient } from './regles';
 
 export interface SituationEncaissementParams {
   livreurId: UUID;
@@ -34,26 +33,17 @@ export const encaissementsApi = {
     );
     return data;
   },
-  /** `POST /encaissement/livraison` : le back renvoie un simple message texte. */
-  creer: async (payload: CreerEncaissementLivraisonRequest): Promise<string> => {
-    const { data } = await apiClient.post<string>('/encaissement/livraison', payload);
-    return data;
-  },
   /**
-   * Crée l'encaissement puis relit la liste du livreur pour retrouver
-   * l'encaissement créé (`detteApres` calculé par le serveur). La relecture
-   * est best-effort : un échec de lecture ne doit PAS faire échouer la
-   * mutation (l'écriture a réussi ; un « réessayer » créerait un doublon).
+   * `POST /encaissement/livraison` : le back renvoie l'encaissement créé
+   * (référence, `detteAvant`, `detteApres` calculés par le serveur).
    */
-  creerEtRelire: async (
+  creer: async (
     payload: CreerEncaissementLivraisonRequest,
-  ): Promise<EncaissementLivraisonResponse | null> => {
-    await encaissementsApi.creer(payload);
-    try {
-      const liste = await encaissementsApi.byLivreur(payload.livreurId);
-      return dernierEncaissementDuClient(liste, payload.clientId) ?? null;
-    } catch {
-      return null;
-    }
+  ): Promise<EncaissementLivraisonResponse> => {
+    const { data } = await apiClient.post<EncaissementLivraisonResponse>(
+      '/encaissement/livraison',
+      payload,
+    );
+    return data;
   },
 };

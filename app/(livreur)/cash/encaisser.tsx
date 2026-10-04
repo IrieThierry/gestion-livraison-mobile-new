@@ -23,6 +23,7 @@ import {
   num,
   parseMontant,
   plageEnParams,
+  suggestionBornee,
 } from '../../../features/encaissements/regles';
 import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
@@ -97,6 +98,13 @@ export default function EncaisserPage() {
       : null,
   );
   const situation = qSituation.data;
+  // Valeur de la période, bornée par le total dû serveur et le solde client.
+  const suggestionPeriode = situation
+    ? suggestionBornee(
+        num(situation.valeurLivraisons),
+        Math.min(num(situation.totalDu), encours ? solde : num(situation.totalDu)),
+      )
+    : 0;
 
   const livraisonsNonEncaissees = useMemo<LivraisonResponse[]>(() => {
     if (!clientId) return [];
@@ -105,7 +113,10 @@ export default function EncaisserPage() {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [qLiv.data, clientId]);
 
+  // `montantDu` = dû net de la livraison AVANT paiements : la suggestion
+  // est bornée par ce que le client doit encore (solde serveur).
   const duLivraison = num(livraisonCiblee?.montantDu);
+  const suggestionLivraison = suggestionBornee(duLivraison, solde);
 
   // Pré-remplissage une seule fois, hors du rendu, dès que le dû serveur est connu.
   const prerempli = useRef(false);
@@ -113,9 +124,9 @@ export default function EncaisserPage() {
     if (prerempli.current || !encours) return;
     if (mode === 'livraison' && !livraisonCiblee) return;
     prerempli.current = true;
-    const suggestion = mode === 'livraison' && duLivraison > 0 ? duLivraison : Math.max(0, solde);
+    const suggestion = mode === 'livraison' ? suggestionLivraison : Math.max(0, solde);
     if (suggestion > 0) setMontant(String(suggestion));
-  }, [encours, mode, livraisonCiblee, duLivraison, solde]);
+  }, [encours, mode, livraisonCiblee, suggestionLivraison, solde]);
 
   if (!user) return null;
 
@@ -160,8 +171,7 @@ export default function EncaisserPage() {
   const montantSaisi = saisie.ok ? saisie.valeur : 0;
   const avance = encours && montantSaisi > 0 ? avanceEstimee(solde, montantSaisi) : 0;
 
-  const messageApres = (enc: EncaissementLivraisonResponse | null): string => {
-    if (!enc) return 'Le solde du client est mis à jour.';
+  const messageApres = (enc: EncaissementLivraisonResponse): string => {
     const apres = num(enc.detteApres);
     if (apres > 0) return `Reste dû par le client : ${formatMontant(apres)} FCFA`;
     if (apres < 0) return `Avance du client : ${formatMontant(-apres)} FCFA`;
@@ -232,7 +242,7 @@ export default function EncaisserPage() {
           {/* Récap serveur */}
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-4">
             {mode === 'livraison' ? (
-              <Ligne label="Dû restant (cette livraison)" valeur={`${formatMontant(duLivraison)} F`} />
+              <Ligne label="Dû de cette livraison" valeur={`${formatMontant(duLivraison)} F`} />
             ) : null}
             {qEncours.isLoading ? (
               <ActivityIndicator color="#10b981" />
@@ -265,7 +275,7 @@ export default function EncaisserPage() {
             )}
           </View>
 
-          {/* Livraisons avec un dû restant (mode client) */}
+          {/* Livraisons non encaissées et leur dû (avant paiements) — mode client */}
           {mode === 'client' && livraisonsNonEncaissees.length > 0 ? (
             <View className="mt-3">
               <Text className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-2">
@@ -285,7 +295,7 @@ export default function EncaisserPage() {
                       </Text>
                     </View>
                     <Text className="font-extrabold text-slate-700 dark:text-slate-300">
-                      {formatMontant(num(l.montantDu))} F
+                      dû {formatMontant(num(l.montantDu))} F
                     </Text>
                   </View>
                 ))}
@@ -323,16 +333,16 @@ export default function EncaisserPage() {
                 onPress={() => setMontant(String(solde))}
               />
             ) : null}
-            {mode === 'livraison' && duLivraison > 0 && duLivraison !== solde ? (
+            {mode === 'livraison' && suggestionLivraison > 0 && suggestionLivraison !== solde ? (
               <Raccourci
-                label={`Cette livraison (${formatMontant(duLivraison)})`}
-                onPress={() => setMontant(String(duLivraison))}
+                label={`Cette livraison (${formatMontant(suggestionLivraison)})`}
+                onPress={() => setMontant(String(suggestionLivraison))}
               />
             ) : null}
-            {situation && num(situation.valeurLivraisons) > 0 ? (
+            {suggestionPeriode > 0 ? (
               <Raccourci
-                label={`Période (${formatMontant(num(situation.valeurLivraisons))})`}
-                onPress={() => setMontant(String(num(situation.valeurLivraisons)))}
+                label={`Période (${formatMontant(suggestionPeriode)})`}
+                onPress={() => setMontant(String(suggestionPeriode))}
               />
             ) : null}
           </View>

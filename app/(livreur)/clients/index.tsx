@@ -17,6 +17,7 @@ import { indexerEncours, num } from '../../../features/encaissements/regles';
 import { useAuthStore } from '../../../stores/authStore';
 import { callPhone, navigateTo } from '../../../lib/linking';
 import { formatMontant } from '../../../lib/format';
+import { extractApiErrorMessage } from '../../../lib/api-error';
 import type { ClientResponse, EncoursClientResponse } from '../../../types/api';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
@@ -107,6 +108,11 @@ export default function ClientsList() {
           autoCapitalize="none"
           className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2.5 text-slate-900 dark:text-white text-base"
         />
+        {qEncours.isError ? (
+          <Text className="text-[11px] text-red-600 dark:text-red-400 mt-1">
+            Soldes indisponibles : {extractApiErrorMessage(qEncours.error, 'réessaye plus tard')}
+          </Text>
+        ) : null}
       </View>
 
       <FlatList
@@ -140,6 +146,7 @@ export default function ClientsList() {
               client={item}
               geo={geo}
               encours={encoursParClient.get(item.id)}
+              soldeIndisponible={qEncours.isError}
               onPress={() =>
                 router.push({
                   pathname: '/(livreur)/clients/[id]' as never,
@@ -160,6 +167,7 @@ function ClientRow({
   client,
   geo,
   encours,
+  soldeIndisponible,
   onPress,
   onLivrer,
   onEncaisser,
@@ -167,6 +175,7 @@ function ClientRow({
   client: ClientResponse;
   geo: { lat: number; lng: number } | null;
   encours: EncoursClientResponse | undefined;
+  soldeIndisponible: boolean;
   onPress: () => void;
   onLivrer: () => void;
   onEncaisser: () => void;
@@ -198,7 +207,9 @@ function ClientRow({
           </Text>
         </View>
         <View className="items-end gap-0.5">
-          {debt ? (
+          {soldeIndisponible ? (
+            <Text className="text-[11px] font-bold text-slate-400">—</Text>
+          ) : debt ? (
             <View
               className={`px-2 py-0.5 rounded-full ${
                 encours?.enDepassement

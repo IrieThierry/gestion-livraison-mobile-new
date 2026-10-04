@@ -277,7 +277,7 @@ export interface LivraisonResponse {
    */
   statutEncaissement?: StatutEncaissement
   montantLivre: number
-  /** Dû net restant calculé par le back. */
+  /** Dû net (avant paiements) calculé par le back : (prix + remise) × (livré − retourné). */
   montantDu: number
   /** Remise nette calculée par le back. */
   remiseNette: number

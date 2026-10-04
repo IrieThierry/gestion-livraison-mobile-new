@@ -9,13 +9,15 @@ import {
   encaisseAujourdhui,
   num,
   totalAEncaisser,
+  totalRemiseNette,
 } from '../../features/encaissements/regles';
 import { useStockCourant } from '../../features/stock/hooks';
 import { useAuthStore } from '../../stores/authStore';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { PendingValidationGate } from '../../components/shared/PendingValidationGate';
 import { LivraisonCard } from '../../components/livreur/LivraisonCard';
-import { formatFCFA, formatMontant } from '../../lib/format';
+import { formatMontant } from '../../lib/format';
+import { extractApiErrorMessage } from '../../lib/api-error';
 
 export default function Tournee() {
   const user = useAuthStore((s) => s.user);
@@ -47,23 +49,15 @@ export default function Tournee() {
       varPct = Math.round(((totalEncaisseAujourd - totalEncaisseHier) / totalEncaisseHier) * 100);
     }
 
-    // Marge cristallisée Plan D : Σ qteLivree × margeUnitaire (sur les lignes)
-    // de toutes les livraisons du jour (encaissées ou non — la marge est
-    // gagnée à la livraison, indépendamment de l'encaissement).
-    const margeApprox = duJour.reduce((acc, l) => {
-      const ligneMarge = (l.produitsLivraison ?? []).reduce((s, p) => {
-        const qte = (p.qteLivre ?? 0) - (p.qteRetourne ?? 0);
-        return s + (Number(p.margeUnitaire) || 0) * qte;
-      }, 0);
-      return acc + ligneMarge;
-    }, 0);
+    // Remise du jour : Σ remise nette (serveur) des livraisons du jour.
+    const remiseJour = totalRemiseNette(duJour);
 
     return {
       duJour,
       totalEncaisseAujourd,
       aEncaisser,
       clientsAEncaisser,
-      margeApprox,
+      remiseJour,
       varPct,
     };
   }, [qLiv.data, qEnc.data, qEncours.data]);
@@ -161,10 +155,10 @@ export default function Tournee() {
           <View className="flex-row gap-2 mt-3">
             <View className="flex-1 bg-white/15 rounded-xl px-3 py-2">
               <Text className="text-[10px] uppercase font-bold tracking-wider text-white/90">
-                Marge
+                Remise du jour
               </Text>
               <Text className="text-white font-extrabold text-lg">
-                + {formatFCFA(computed.margeApprox)}
+                {formatMontant(computed.remiseJour)}
               </Text>
             </View>
             <View className="flex-1 bg-white/15 rounded-xl px-3 py-2">
@@ -200,10 +194,16 @@ export default function Tournee() {
               À encaisser
             </Text>
             <Text className="text-3xl font-extrabold text-slate-900 dark:text-white mt-0.5 leading-none">
-              {formatMontant(computed.aEncaisser)}
+              {qEncours.isError ? '—' : formatMontant(computed.aEncaisser)}
             </Text>
-            <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-              {computed.clientsAEncaisser} client{computed.clientsAEncaisser > 1 ? 's' : ''}
+            <Text
+              className={`text-[11px] mt-1 ${
+                qEncours.isError ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              {qEncours.isError
+                ? extractApiErrorMessage(qEncours.error, 'Soldes indisponibles')
+                : `${computed.clientsAEncaisser} client${computed.clientsAEncaisser > 1 ? 's' : ''}`}
             </Text>
           </Pressable>
         </View>

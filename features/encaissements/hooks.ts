@@ -26,8 +26,8 @@ export function useSituationEncaissement(params: SituationEncaissementParams | n
 }
 
 /**
- * Encaissement d'un paiement client. Renvoie l'encaissement relu (avec
- * `detteApres` serveur) ou `null` si la relecture a échoué.
+ * Encaissement d'un paiement client. Renvoie l'encaissement créé par le
+ * serveur (avec `detteApres`).
  * Invalide livraisons (statut / dû restant), encaissements, encours,
  * clients et remises (une remise devient acquise quand la livraison est
  * entièrement payée).
@@ -36,7 +36,7 @@ export function useCreerEncaissement() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreerEncaissementLivraisonRequest) =>
-      encaissementsApi.creerEtRelire(payload),
+      encaissementsApi.creer(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: livraisonKeys.all });
       qc.invalidateQueries({ queryKey: encaissementKeys.all });

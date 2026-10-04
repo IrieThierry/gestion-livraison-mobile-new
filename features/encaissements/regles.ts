@@ -107,27 +107,20 @@ export function indexerEncours(
   return m;
 }
 
-/** Numéro d'une référence `ENC-LIV12` → 12 (0 si illisible). */
-export function numeroReference(reference: string | null | undefined): number {
-  const m = /(\d+)\s*$/.exec(reference ?? '');
-  return m ? Number(m[1]) : 0;
+/**
+ * Suggestion bornée par le solde du client : `montant` (dû net d'une
+ * livraison, avant paiements, ou valeur d'une période) ne peut pas être
+ * proposé au-delà de ce que le client doit encore (solde serveur > 0).
+ */
+export function suggestionBornee(montant: number, soldeServeur: number): number {
+  return Math.max(0, Math.min(num(montant), Math.max(0, num(soldeServeur))));
 }
 
-/**
- * Dernier encaissement d'un client dans une liste d'un livreur : la
- * référence est numérotée par livreur (MAX + 1), le plus grand numéro
- * est donc le plus récent.
- */
-export function dernierEncaissementDuClient(
-  encaissements: readonly EncaissementLivraisonResponse[],
-  clientId: UUID,
-): EncaissementLivraisonResponse | undefined {
-  let best: EncaissementLivraisonResponse | undefined;
-  for (const e of encaissements) {
-    if (e.client?.id !== clientId) continue;
-    if (!best || numeroReference(e.reference) > numeroReference(best.reference)) best = e;
-  }
-  return best;
+/** Σ des remises nettes (serveur) d'une liste de livraisons. */
+export function totalRemiseNette(
+  livraisons: readonly { remiseNette?: number | null }[],
+): number {
+  return livraisons.reduce((acc, l) => acc + num(l.remiseNette), 0);
 }
 
 /** Libellé d'un solde serveur : dû, avance ou à jour. */

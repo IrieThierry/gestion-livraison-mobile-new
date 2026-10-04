@@ -187,10 +187,8 @@ export default function ClientDetail() {
     } as never);
   };
 
-  const totalLivFiltrees = livFiltrees.reduce(
-    (acc, l) => acc + (l.montantLivre ?? 0),
-    0,
-  );
+  // Σ dû net (serveur, avant paiements) des livraisons filtrées.
+  const totalLivFiltrees = livFiltrees.reduce((acc, l) => acc + num(l.montantDu), 0);
   const totalEncFiltres = encFiltres.reduce(
     (acc, e) => acc + (e.montantEncaisse ?? 0),
     0,

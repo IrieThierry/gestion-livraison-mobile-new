@@ -2,13 +2,13 @@ import type { EncaissementLivraisonResponse, EncoursClientResponse } from '../..
 import {
   avanceEstimee,
   dateEncaissementParam,
-  dernierEncaissementDuClient,
+  suggestionBornee,
+  totalRemiseNette,
   encaisseAujourdhui,
   estDuJour,
   indexerEncours,
   jourLocal,
   libelleSolde,
-  numeroReference,
   parseMontant,
   plageEnParams,
   totalAEncaisser,
@@ -115,18 +115,31 @@ describe('à encaisser = Σ soldes positifs serveur', () => {
   });
 });
 
-describe('dernier encaissement d’un client', () => {
-  it('prend le plus grand numéro de référence du client (pas l’ordre de liste)', () => {
-    const liste = [
-      enc({ id: '1', reference: 'ENC-LIV9', client: { id: 'c-1' } as never }),
-      enc({ id: '2', reference: 'ENC-LIV10', client: { id: 'c-1' } as never }),
-      enc({ id: '3', reference: 'ENC-LIV11', client: { id: 'c-2' } as never }),
-    ];
-    expect(dernierEncaissementDuClient(liste, 'c-1')?.id).toBe('2');
-    expect(dernierEncaissementDuClient(liste, 'c-3')).toBeUndefined();
+describe('suggestionBornee (dû net d’une livraison ou d’une période, borné par le solde)', () => {
+  it('livraison déjà en partie payée : bornée par le solde restant', () => {
+    expect(suggestionBornee(5000, 1200)).toBe(1200);
   });
-  it('numeroReference', () => {
-    expect(numeroReference('ENC-LIV42')).toBe(42);
-    expect(numeroReference(null)).toBe(0);
+  it('solde supérieur : le dû de la livraison', () => {
+    expect(suggestionBornee(5000, 9000)).toBe(5000);
+  });
+  it('client à jour ou en avance : 0', () => {
+    expect(suggestionBornee(5000, 0)).toBe(0);
+    expect(suggestionBornee(5000, -300)).toBe(0);
+  });
+  it('tolère les chaînes BigDecimal', () => {
+    expect(suggestionBornee('3000.50' as unknown as number, '4000' as unknown as number)).toBe(3000.5);
+  });
+});
+
+describe('totalRemiseNette (remise du jour)', () => {
+  it('somme les remises nettes serveur, null/chaîne tolérés', () => {
+    expect(
+      totalRemiseNette([
+        { remiseNette: 100.5 },
+        { remiseNette: null },
+        { remiseNette: '50' as unknown as number },
+      ]),
+    ).toBe(150.5);
+    expect(totalRemiseNette([])).toBe(0);
   });
 });

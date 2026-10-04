@@ -29,48 +29,24 @@ describe('contrat API encaissement', () => {
     expect(r.totalDu).toBe(3500);
   });
 
-  it('création : POST /encaissement/livraison, montant décimal au-delà du dû, mode libre', async () => {
-    post.mockResolvedValue({ data: 'Encaissement enregistré avec succès !' });
+  it("création : POST /encaissement/livraison, montant décimal au-delà du dû, mode libre ; renvoie l'encaissement créé", async () => {
+    post.mockResolvedValue({
+      data: { id: 'e-1', reference: 'ENC-LIV4', montantEncaisse: 12500.5, detteAvant: 10000, detteApres: -2500.5 },
+    });
     const payload = { livreurId: 'l-1', clientId: 'c-1', montantEncaisse: 12500.5, libre: true };
-    await encaissementsApi.creer(payload);
-    expect(post).toHaveBeenCalledWith('/encaissement/livraison', payload);
-  });
-
-  it('creerEtRelire : relit la liste du livreur et renvoie le dernier encaissement du client (detteApres serveur)', async () => {
-    post.mockResolvedValue({ data: 'ok' });
-    get.mockResolvedValue({
-      data: [
-        { id: 'a', reference: 'ENC-LIV3', client: { id: 'c-1' }, detteApres: 1000 },
-        { id: 'b', reference: 'ENC-LIV4', client: { id: 'c-1' }, detteApres: -200 },
-        { id: 'c', reference: 'ENC-LIV5', client: { id: 'c-9' }, detteApres: 0 },
-      ],
-    });
-    const r = await encaissementsApi.creerEtRelire({
-      livreurId: 'l-1',
-      clientId: 'c-1',
-      montantEncaisse: 1200,
-      libre: true,
-    });
-    expect(get).toHaveBeenCalledWith('/encaissement/livraison/livreur/l-1');
-    expect(r?.id).toBe('b');
-    expect(r?.detteApres).toBe(-200);
-  });
-
-  it("creerEtRelire : un échec de relecture n'échoue pas la mutation (pas de doublon au rejeu)", async () => {
-    post.mockResolvedValue({ data: 'ok' });
-    get.mockRejectedValue(new Error('réseau'));
-    await expect(
-      encaissementsApi.creerEtRelire({ livreurId: 'l-1', clientId: 'c-1', montantEncaisse: 10 }),
-    ).resolves.toBeNull();
+    const r = await encaissementsApi.creer(payload);
     expect(post).toHaveBeenCalledTimes(1);
+    expect(post).toHaveBeenCalledWith('/encaissement/livraison', payload);
+    expect(get).not.toHaveBeenCalled();
+    expect(r.reference).toBe('ENC-LIV4');
+    expect(r.detteApres).toBe(-2500.5);
   });
 
-  it("creerEtRelire : un échec d'écriture est propagé sans relecture", async () => {
+  it("création : une erreur du back est propagée", async () => {
     post.mockRejectedValue({ response: { status: 400, data: { message: 'Montant invalide' } } });
     await expect(
-      encaissementsApi.creerEtRelire({ livreurId: 'l-1', clientId: 'c-1', montantEncaisse: 10 }),
+      encaissementsApi.creer({ livreurId: 'l-1', clientId: 'c-1', montantEncaisse: 10 }),
     ).rejects.toBeTruthy();
-    expect(get).not.toHaveBeenCalled();
   });
 });
 
