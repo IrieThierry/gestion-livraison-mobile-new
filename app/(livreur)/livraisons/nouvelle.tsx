@@ -31,7 +31,10 @@ import {
   buildCreerLivraisonPayload,
   enregistrerLivraisonEtRetours,
   erreurLignesLivraison,
+  etatApresEchecPartiel,
+  MESSAGE_DESTINATION_RETOUR,
   regrouperRetours,
+  retoursSansDestination,
   totalLivraisonEstime,
   type SaisieRetours,
 } from '../../../features/livraisons/regles';
@@ -118,7 +121,13 @@ export default function NouvelleLivraison() {
   useEffect(() => {
     setRetoursAttente({});
     setLignes((ls) =>
-      ls.map((l) => ({ ...l, remise: undefined, remiseInvalide: false, memoriserPrix: false })),
+      ls.map((l) => ({
+        ...l,
+        remise: undefined,
+        remiseSaisie: false,
+        remiseInvalide: false,
+        memoriserPrix: false,
+      })),
     );
   }, [client?.id]);
 
@@ -170,7 +179,12 @@ export default function NouvelleLivraison() {
       return;
     }
     const validLignes = lignes.filter((l) => l.qte > 0);
-    const retours = regrouperRetours(livraisonsRetournables, retoursAttente);
+    const groupes = regrouperRetours(livraisonsRetournables, retoursAttente);
+    if (!groupes.ok) {
+      dialog.warning('Destination du retour', groupes.erreur);
+      return;
+    }
+    const retours = groupes.valeur;
 
     // On accepte une soumission « retours seulement » sans nouvelle livraison
     if (validLignes.length === 0 && retours.length === 0) {
@@ -227,18 +241,9 @@ export default function NouvelleLivraison() {
       if (res.erreurLivraison === null) {
         // Échec partiel : la livraison créée est retirée du formulaire (un
         // nouvel appui ne la recrée pas), seuls les retours échoués restent.
-        if (res.livraisonCreee) setLignes([]);
-        const faits = new Set<string>();
-        for (const r of retours) {
-          if (res.retoursEnregistres.includes(r.livraison.id)) {
-            for (const l of r.lignes) faits.add(l.produitLivraisonId);
-          }
-        }
-        setRetoursAttente((s) => {
-          const reste: SaisieRetours = {};
-          for (const [id, v] of Object.entries(s)) if (!faits.has(id)) reste[id] = v;
-          return reste;
-        });
+        const etat = etatApresEchecPartiel({ res, retours, lignes, saisie: retoursAttente });
+        setLignes(etat.lignes);
+        setRetoursAttente(etat.saisie);
       }
       dialog.error(bilan.titre, bilan.message);
     } finally {
@@ -248,8 +253,13 @@ export default function NouvelleLivraison() {
   };
 
   const isPending = enCours || m.isPending || mRetour.isPending;
+  const nbSansDestination = retoursSansDestination(retoursAttente);
   const blockSubmit =
-    isPending || !isOnline || insufficientCount > 0 || retoursInvalides > 0;
+    isPending ||
+    !isOnline ||
+    insufficientCount > 0 ||
+    retoursInvalides > 0 ||
+    nbSansDestination > 0;
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
@@ -319,7 +329,7 @@ export default function NouvelleLivraison() {
                           ...s,
                           [produitLivraisonId]: {
                             qte,
-                            enStock: s[produitLivraisonId]?.enStock ?? false,
+                            enStock: s[produitLivraisonId]?.enStock ?? null,
                           },
                         }))
                       }
@@ -386,6 +396,15 @@ export default function NouvelleLivraison() {
             </View>
           ) : null}
 
+          {nbSansDestination > 0 ? (
+            <View className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3 mt-3 flex-row items-center gap-2">
+              <AlertCircle color="#d97706" size={14} />
+              <Text className="text-[12px] text-amber-700 dark:text-amber-400 font-bold flex-1">
+                {MESSAGE_DESTINATION_RETOUR}
+              </Text>
+            </View>
+          ) : null}
+
           <Pressable
             onPress={onSubmit}
             disabled={blockSubmit}
@@ -409,6 +428,8 @@ export default function NouvelleLivraison() {
                   ? 'Stock insuffisant'
                   : retoursInvalides > 0
                   ? 'Retour invalide'
+                  : nbSansDestination > 0
+                  ? 'Destination du retour à choisir'
                   : 'Enregistrer'}
               </Text>
             )}
@@ -452,7 +473,7 @@ function RetourLivraisonCard({
         {lignes.map((p) => {
           const dispo = qteRetournable(p);
           const qte = retoursAttente[p.id]?.qte ?? 0;
-          const enStock = retoursAttente[p.id]?.enStock ?? false;
+          const enStock = retoursAttente[p.id]?.enStock ?? null;
           const invalide = qte > dispo;
           return (
             <View

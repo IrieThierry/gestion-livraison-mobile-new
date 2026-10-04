@@ -28,5 +28,11 @@ export function useEnregistrerRetour() {
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
       qc.invalidateQueries({ queryKey: clientKeys.all });
     },
+    // Le payload est construit depuis la livraison en cache : après un échec
+    // (409, livraison modifiée ailleurs…), on la recharge pour qu'une
+    // nouvelle tentative parte de données fraîches.
+    onError: () => {
+      qc.invalidateQueries({ queryKey: livraisonKeys.all });
+    },
   });
 }

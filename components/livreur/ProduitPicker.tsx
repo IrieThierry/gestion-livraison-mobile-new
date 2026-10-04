@@ -181,8 +181,9 @@ export function ProduitPicker({
  * (`memoriserPrixClient`), le back mémorise le prix dans la même transaction.
  *
  * Client avec remise : la remise unitaire est pré-remplie depuis la remise
- * convenue (0 sans valeur convenue) et modifiable ; elle est envoyée en
- * `remiseUnitaire` (le back la mémorise : la dernière saisie gagne).
+ * convenue (0 sans valeur convenue) pour l'affichage et l'estimation ; elle
+ * n'est envoyée en `remiseUnitaire` que si le livreur la saisit (le back la
+ * mémorise : la dernière saisie gagne).
  */
 function LigneRow({
   line,
@@ -209,10 +210,10 @@ function LigneRow({
   // Tant qu'elles ne le sont pas (hors-ligne sans cache), `remise` reste
   // undefined : rien n'est envoyé et le back applique la remise convenue.
   useEffect(() => {
-    if (!avecRemise || line.remise !== undefined || !remisesConvenues) return;
+    if (!avecRemise || line.remiseSaisie || line.remise !== undefined || !remisesConvenues) return;
     onUpdate({ remise: remisesConvenues.get(line.produitId) ?? 0, remiseInvalide: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [avecRemise, remisesConvenues, line.remise, line.produitId]);
+  }, [avecRemise, remisesConvenues, line.remise, line.remiseSaisie, line.produitId]);
 
   // Texte saisi pour la remise (null = afficher la valeur de la ligne).
   const [remiseTexte, setRemiseTexte] = useState<string | null>(null);
@@ -220,15 +221,19 @@ function LigneRow({
     setRemiseTexte(null);
   }, [clientId]);
 
+  // Seule une remise saisie (`remiseSaisie`) est envoyée. Champ vidé = pas de
+  // saisie : retour à l'affichage pré-rempli (remise convenue), rien n'est
+  // envoyé. « 0 » est une saisie valide.
   const onChangeRemise = (v: string) => {
-    setRemiseTexte(v);
     if (v.trim() === '') {
-      onUpdate({ remise: 0, remiseInvalide: false });
+      setRemiseTexte(null);
+      onUpdate({ remise: undefined, remiseSaisie: false, remiseInvalide: false });
       return;
     }
+    setRemiseTexte(v);
     const r = parseRemiseUnitaire(v);
-    if (r.ok) onUpdate({ remise: r.valeur, remiseInvalide: false });
-    else onUpdate({ remiseInvalide: true });
+    if (r.ok) onUpdate({ remise: r.valeur, remiseSaisie: true, remiseInvalide: false });
+    else onUpdate({ remiseSaisie: true, remiseInvalide: true });
   };
 
   // Track le dernier prix résolu pour comparer au prix actuel et savoir
@@ -386,6 +391,10 @@ function LigneRow({
           {line.remiseInvalide ? (
             <Text className="text-[11px] text-red-500 mt-1">
               Remise invalide (nombre positif, 2 décimales maximum)
+            </Text>
+          ) : !remisesConvenues && !line.remiseSaisie ? (
+            <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              Remise convenue appliquée par le serveur
             </Text>
           ) : null}
         </View>

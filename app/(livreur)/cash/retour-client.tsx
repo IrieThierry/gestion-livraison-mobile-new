@@ -18,7 +18,12 @@ import { EmptyState } from '../../../components/shared/EmptyState';
 import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useEnregistrerRetour } from '../../../features/retours/hooks';
 import { qteRetournable, valeurRetour } from '../../../features/retours/api';
-import type { SaisieRetours } from '../../../features/livraisons/regles';
+import {
+  MESSAGE_DESTINATION_RETOUR,
+  regrouperRetours,
+  retoursSansDestination,
+  type SaisieRetours,
+} from '../../../features/livraisons/regles';
 import { DestinationRetourToggle } from '../../../components/livreur/DestinationRetourToggle';
 import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
@@ -87,11 +92,13 @@ export default function RetourClient() {
 
   if (!user) return null;
 
+  const sansDestination = retoursSansDestination(qtes) > 0;
+
   const onChangeQte = (produitLivraisonId: string, raw: string) => {
     const n = parseInt(raw.replace(/[^0-9]/g, ''), 10) || 0;
     setQtes((s) => ({
       ...s,
-      [produitLivraisonId]: { qte: Math.max(0, n), enStock: s[produitLivraisonId]?.enStock ?? false },
+      [produitLivraisonId]: { qte: Math.max(0, n), enStock: s[produitLivraisonId]?.enStock ?? null },
     }));
   };
 
@@ -112,14 +119,18 @@ export default function RetourClient() {
       dialog.warning('Hors ligne', 'Reconnecte-toi pour enregistrer le retour.');
       return;
     }
-    const lignes = (selected.produitsLivraison ?? [])
-      .map((p) => ({
-        produitLivraisonId: p.id,
-        quantite: qtes[p.id]?.qte ?? 0,
-        remettreEnStock: qtes[p.id]?.enStock === true,
-        max: qteRetournable(p),
-      }))
-      .filter((l) => l.quantite > 0);
+    const groupes = regrouperRetours([selected], qtes);
+    if (!groupes.ok) {
+      dialog.warning('Destination du retour', groupes.erreur);
+      return;
+    }
+    const maxParLigne = new Map(
+      (selected.produitsLivraison ?? []).map((p) => [p.id, qteRetournable(p)]),
+    );
+    const lignes = (groupes.valeur[0]?.lignes ?? []).map((l) => ({
+      ...l,
+      max: maxParLigne.get(l.produitLivraisonId) ?? 0,
+    }));
 
     if (lignes.length === 0) {
       dialog.warning('Aucune ligne', 'Aucune quantité à retourner');
@@ -210,7 +221,7 @@ export default function RetourClient() {
                 {(selected.produitsLivraison ?? []).map((p) => {
                   const max = qteRetournable(p);
                   const qty = qtes[p.id]?.qte ?? 0;
-                  const enStock = qtes[p.id]?.enStock ?? false;
+                  const enStock = qtes[p.id]?.enStock ?? null;
                   return (
                     <View
                       key={p.id}
@@ -264,12 +275,18 @@ export default function RetourClient() {
                 </Text>
               </View>
 
+              {sansDestination ? (
+                <Text className="text-[12px] text-amber-700 dark:text-amber-400 font-bold mt-3">
+                  {MESSAGE_DESTINATION_RETOUR}
+                </Text>
+              ) : null}
+
               {/* Submit */}
               <Pressable
                 onPress={onSubmit}
-                disabled={m.isPending || !isOnline}
+                disabled={m.isPending || !isOnline || sansDestination}
                 className={`rounded-md py-3.5 mt-5 items-center ${
-                  !isOnline
+                  !isOnline || sansDestination
                     ? 'bg-slate-200 dark:bg-slate-800'
                     : 'bg-emerald-500 active:opacity-80'
                 }`}
@@ -279,10 +296,12 @@ export default function RetourClient() {
                 ) : (
                   <Text
                     className={`font-bold text-base ${
-                      !isOnline ? 'text-slate-400' : 'text-white'
+                      !isOnline || sansDestination ? 'text-slate-400' : 'text-white'
                     }`}
                   >
-                    {!isOnline
+                    {sansDestination && isOnline
+                      ? 'Destination du retour à choisir'
+                      : !isOnline
                       ? 'Hors ligne — réessaye en ligne'
                       : 'Enregistrer le retour'}
                   </Text>

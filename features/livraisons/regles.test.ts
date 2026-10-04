@@ -3,8 +3,11 @@ import {
   buildCreerLivraisonPayload,
   enregistrerLivraisonEtRetours,
   erreurLignesLivraison,
+  etatApresEchecPartiel,
+  MESSAGE_DESTINATION_RETOUR,
   montantLigneEstime,
   regrouperRetours,
+  retoursSansDestination,
   totalLivraisonEstime,
   type LigneSaisie,
   type RetoursParLivraison,
@@ -45,11 +48,14 @@ describe('erreurLignesLivraison', () => {
 });
 
 describe('buildCreerLivraisonPayload', () => {
-  it('client avec remise : remiseUnitaire envoyée, memoriserPrixClient explicite', () => {
+  it('client avec remise : remise saisie envoyée (0 compris), memoriserPrixClient explicite', () => {
     const p = buildCreerLivraisonPayload({
       livreurId: 'l-1',
       client: { id: 'c-1', avecOuSansRemise: true },
-      lignes: [l({ remise: 12.5, memoriserPrix: true }), l({ produitId: 'p-2', remise: 0 })],
+      lignes: [
+        l({ remise: 12.5, remiseSaisie: true, memoriserPrix: true }),
+        l({ produitId: 'p-2', remise: 0, remiseSaisie: true }),
+      ],
     });
     expect(p).toEqual({
       livreurId: 'l-1',
@@ -78,6 +84,15 @@ describe('buildCreerLivraisonPayload', () => {
     });
   });
 
+  it('remise pré-remplie non modifiée : pas de remiseUnitaire (le back applique la convenue)', () => {
+    const p = buildCreerLivraisonPayload({
+      livreurId: 'l-1',
+      client: { id: 'c-1', avecOuSansRemise: true },
+      lignes: [l({ remise: 12.5 }), l({ produitId: 'p-2', remise: 7, remiseSaisie: false })],
+    });
+    for (const x of p.produitsLivraison) expect(x).not.toHaveProperty('remiseUnitaire');
+  });
+
   it('remise inconnue (non chargée) : pas de remiseUnitaire, le back applique la convenue', () => {
     const p = buildCreerLivraisonPayload({
       livreurId: 'l-1',
@@ -92,7 +107,7 @@ describe('buildCreerLivraisonPayload', () => {
     const p = buildCreerLivraisonPayload({
       livreurId: 'l-1',
       client: { id: 'c-1', avecOuSansRemise: false },
-      lignes: [l({ remise: 50 })],
+      lignes: [l({ remise: 50, remiseSaisie: true })],
     });
     expect(p.avecRemise).toBe(false);
     expect(p.produitsLivraison[0]).not.toHaveProperty('remiseUnitaire');
@@ -113,18 +128,85 @@ const liv = (id: string, plIds: string[]) =>
 
 describe('regrouperRetours', () => {
   it('un groupe par livraison, retours > 0 seulement, destination conservée', () => {
-    const groupes = regrouperRetours([liv('a', ['a1', 'a2']), liv('b', ['b1']), liv('c', ['c1'])], {
+    const r = regrouperRetours([liv('a', ['a1', 'a2']), liv('b', ['b1']), liv('c', ['c1'])], {
       a1: { qte: 2, enStock: true },
-      a2: { qte: 0, enStock: true },
+      a2: { qte: 0, enStock: null },
       b1: { qte: 1, enStock: false },
     });
-    expect(groupes.map((g) => g.livraison.id)).toEqual(['a', 'b']);
-    expect(groupes[0]?.lignes).toEqual([
+    if (!r.ok) throw new Error(r.erreur);
+    expect(r.valeur.map((g) => g.livraison.id)).toEqual(['a', 'b']);
+    expect(r.valeur[0]?.lignes).toEqual([
       { produitLivraisonId: 'a1', quantite: 2, remettreEnStock: true },
     ]);
-    expect(groupes[1]?.lignes).toEqual([
+    expect(r.valeur[1]?.lignes).toEqual([
       { produitLivraisonId: 'b1', quantite: 1, remettreEnStock: false },
     ]);
+  });
+
+  it('refuse un retour > 0 sans destination choisie (pas de défaut)', () => {
+    const r = regrouperRetours([liv('a', ['a1', 'a2'])], {
+      a1: { qte: 2, enStock: true },
+      a2: { qte: 1, enStock: null },
+    });
+    expect(r).toEqual({ ok: false, erreur: MESSAGE_DESTINATION_RETOUR });
+    expect(MESSAGE_DESTINATION_RETOUR).toBe(
+      'Choisis « Remettre en stock » ou « Perdu » pour chaque retour.',
+    );
+  });
+
+  it('retoursSansDestination compte les retours > 0 sans choix', () => {
+    expect(
+      retoursSansDestination({
+        a: { qte: 1, enStock: null },
+        b: { qte: 0, enStock: null },
+        c: { qte: 2, enStock: false },
+      }),
+    ).toBe(1);
+  });
+});
+
+describe('etatApresEchecPartiel', () => {
+  const retours: RetoursParLivraison[] = [
+    { livraison: liv('a', ['a1']), lignes: [{ produitLivraisonId: 'a1', quantite: 1, remettreEnStock: true }] },
+    { livraison: liv('b', ['b1']), lignes: [{ produitLivraisonId: 'b1', quantite: 2, remettreEnStock: false }] },
+  ];
+  const saisie = {
+    a1: { qte: 1, enStock: true },
+    b1: { qte: 2, enStock: false },
+    z9: { qte: 0, enStock: null },
+  };
+
+  it('livraison créée : lignes vidées, seuls les retours échoués restent', () => {
+    const etat = etatApresEchecPartiel({
+      res: {
+        livraisonCreee: true,
+        erreurLivraison: null,
+        retoursEnregistres: ['a'],
+        retoursEchoues: [{ livraisonId: 'b', message: 'x' }],
+      },
+      retours,
+      lignes: [l({})],
+      saisie,
+    });
+    expect(etat.lignes).toEqual([]);
+    expect(etat.saisie).toEqual({ b1: { qte: 2, enStock: false }, z9: { qte: 0, enStock: null } });
+  });
+
+  it('pas de livraison à créer : lignes conservées', () => {
+    const lignes = [l({ qte: 0 })];
+    const etat = etatApresEchecPartiel({
+      res: {
+        livraisonCreee: false,
+        erreurLivraison: null,
+        retoursEnregistres: [],
+        retoursEchoues: [{ livraisonId: 'a', message: 'x' }, { livraisonId: 'b', message: 'y' }],
+      },
+      retours,
+      lignes,
+      saisie,
+    });
+    expect(etat.lignes).toBe(lignes);
+    expect(etat.saisie).toEqual(saisie);
   });
 });
 

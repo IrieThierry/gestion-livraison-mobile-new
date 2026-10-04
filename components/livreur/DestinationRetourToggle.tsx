@@ -3,13 +3,15 @@ import { View, Text, Pressable } from 'react-native';
 /**
  * Choix de la destination d'un retour : « Remettre en stock » (les unités
  * reviennent dans le stock du livreur) ou « Perdu » (invendable).
+ * `enStock === null` : aucun choix fait, aucune option sélectionnée (D3 :
+ * pas de valeur par défaut).
  */
 export function DestinationRetourToggle({
   enStock,
   onChange,
   disabled = false,
 }: {
-  enStock: boolean;
+  enStock: boolean | null;
   onChange: (enStock: boolean) => void;
   disabled?: boolean;
 }) {
@@ -33,6 +35,8 @@ export function DestinationRetourToggle({
                 ? o.valeur
                   ? 'bg-emerald-500 border-emerald-500'
                   : 'bg-slate-600 border-slate-600'
+                : enStock === null
+                ? 'bg-white dark:bg-slate-900 border-amber-400'
                 : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'
             } ${disabled ? 'opacity-40' : 'active:opacity-70'}`}
           >

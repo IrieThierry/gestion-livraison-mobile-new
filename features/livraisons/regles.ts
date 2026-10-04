@@ -12,11 +12,17 @@ export interface LigneSaisie {
   prix: number;
   qte: number;
   /**
-   * Remise unitaire de la ligne (client avec remise). `undefined` tant
-   * qu'elle n'est ni pré-remplie ni saisie : elle n'est alors pas envoyée et
-   * le back applique la remise convenue pour (client, produit).
+   * Remise unitaire affichée et estimée (client avec remise) : pré-remplie
+   * depuis la remise convenue, ou saisie. `undefined` tant que les remises
+   * convenues ne sont pas chargées et que rien n'est saisi.
    */
   remise?: number;
+  /**
+   * Vrai seulement si le livreur a saisi la remise (« 0 » compris). Seule une
+   * remise saisie est envoyée en `remiseUnitaire` ; sinon le back applique la
+   * remise convenue pour (client, produit).
+   */
+  remiseSaisie?: boolean;
   /** Saisie de remise invalide (bloque l'enregistrement). */
   remiseInvalide?: boolean;
   /** Le livreur a choisi de mémoriser le prix saisi pour ce client. */
@@ -54,8 +60,9 @@ export function erreurLignesLivraison(lignes: LigneSaisie[], avecRemise: boolean
  * Payload `POST /livraison`. Seules les lignes avec une quantité > 0 sont
  * envoyées. `memoriserPrixClient` est toujours explicite (le back mémorise le
  * prix dans la même transaction). `remiseUnitaire` n'est envoyée que pour un
- * client avec remise et une valeur connue ; absente, le back applique la
- * remise convenue (et 0 pour un client sans remise).
+ * client avec remise et une remise SAISIE par le livreur (le back la mémorise,
+ * D9) ; une remise seulement pré-remplie n'est pas envoyée : le back applique
+ * la remise convenue (et 0 pour un client sans remise).
  */
 export function buildCreerLivraisonPayload(input: {
   livreurId: UUID;
@@ -76,7 +83,9 @@ export function buildCreerLivraisonPayload(input: {
         qteRetourneeEnStock: 0,
         prixDeVente: l.prix,
         memoriserPrixClient: l.memoriserPrix === true,
-        ...(avecRemise && l.remise !== undefined ? { remiseUnitaire: l.remise } : {}),
+        ...(avecRemise && l.remiseSaisie === true && l.remise !== undefined
+          ? { remiseUnitaire: l.remise }
+          : {}),
       })),
   };
 }
@@ -87,26 +96,65 @@ export interface RetoursParLivraison {
   lignes: Array<{ produitLivraisonId: UUID; quantite: number; remettreEnStock: boolean }>;
 }
 
-/** Saisie d'un retour en attente, indexée par id de ligne de livraison. */
-export type SaisieRetours = Record<UUID, { qte: number; enStock: boolean }>;
+/**
+ * Saisie d'un retour en attente, indexée par id de ligne de livraison.
+ * `enStock` : true = remettre en stock, false = perdu, null = pas encore
+ * choisi (D3 : aucun choix par défaut).
+ */
+export type SaisieRetours = Record<UUID, { qte: number; enStock: boolean | null }>;
 
-/** Regroupe les retours saisis (> 0) par livraison source (un PUT par livraison). */
+export const MESSAGE_DESTINATION_RETOUR =
+  'Choisis « Remettre en stock » ou « Perdu » pour chaque retour.';
+
+/** Nombre de retours saisis (> 0) dont la destination n'est pas choisie. */
+export function retoursSansDestination(saisie: SaisieRetours): number {
+  return Object.values(saisie).filter((s) => s.qte > 0 && s.enStock === null).length;
+}
+
+/**
+ * Regroupe les retours saisis (> 0) par livraison source (un PUT par
+ * livraison). Refuse toute saisie sans destination choisie.
+ */
 export function regrouperRetours(
   livraisons: LivraisonResponse[],
   saisie: SaisieRetours,
-): RetoursParLivraison[] {
+): { ok: true; valeur: RetoursParLivraison[] } | { ok: false; erreur: string } {
   const res: RetoursParLivraison[] = [];
   for (const livraison of livraisons) {
-    const lignes = (livraison.produitsLivraison ?? [])
-      .map((p) => ({
-        produitLivraisonId: p.id,
-        quantite: saisie[p.id]?.qte ?? 0,
-        remettreEnStock: saisie[p.id]?.enStock === true,
-      }))
-      .filter((l) => l.quantite > 0);
+    const lignes: RetoursParLivraison['lignes'] = [];
+    for (const p of livraison.produitsLivraison ?? []) {
+      const s = saisie[p.id];
+      if (!s || !(s.qte > 0)) continue;
+      if (s.enStock === null) return { ok: false, erreur: MESSAGE_DESTINATION_RETOUR };
+      lignes.push({ produitLivraisonId: p.id, quantite: s.qte, remettreEnStock: s.enStock });
+    }
     if (lignes.length > 0) res.push({ livraison, lignes });
   }
-  return res;
+  return { ok: true, valeur: res };
+}
+
+/**
+ * État du formulaire après un échec partiel (création réussie ou absente,
+ * au moins un retour en échec) : les lignes de la livraison créée sont
+ * vidées (un nouvel appui ne la recrée pas) et seuls les retours échoués
+ * restent à refaire.
+ */
+export function etatApresEchecPartiel<L>(input: {
+  res: ResultatLivraisonEtRetours;
+  retours: RetoursParLivraison[];
+  lignes: L[];
+  saisie: SaisieRetours;
+}): { lignes: L[]; saisie: SaisieRetours } {
+  const { res, retours } = input;
+  const faits = new Set<UUID>();
+  for (const r of retours) {
+    if (res.retoursEnregistres.includes(r.livraison.id)) {
+      for (const l of r.lignes) faits.add(l.produitLivraisonId);
+    }
+  }
+  const saisie: SaisieRetours = {};
+  for (const [id, v] of Object.entries(input.saisie)) if (!faits.has(id)) saisie[id] = v;
+  return { lignes: res.livraisonCreee ? [] : input.lignes, saisie };
 }
 
 /**

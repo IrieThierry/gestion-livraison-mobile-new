@@ -10,6 +10,8 @@ import { livraisonKeys } from './keys';
 import { stockKeys } from '../stock/keys';
 import { encaissementKeys } from '../encaissements/keys';
 import { clientKeys } from '../clients/keys';
+import { prixKeys } from '../prix/keys';
+import { remiseKeys } from '../remise/keys';
 
 // Le portail web n'expose pas de hooks dédiés (il appelle `useQuery` /
 // `useMutation` inline avec `livraisonsApi`). On les expose ici pour
@@ -46,6 +48,13 @@ export function useCreerLivraison() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: livraisonKeys.all });
       qc.invalidateQueries({ queryKey: stockKeys.all });
+      // Le back mémorise dans la même transaction le prix (memoriserPrixClient)
+      // et la remise saisie (remiseUnitaire), et le dû du client change :
+      // prix, remises, clients (soldes / encours) et encaissements.
+      qc.invalidateQueries({ queryKey: prixKeys.all });
+      qc.invalidateQueries({ queryKey: remiseKeys.all });
+      qc.invalidateQueries({ queryKey: clientKeys.all });
+      qc.invalidateQueries({ queryKey: encaissementKeys.all });
     },
   });
 }
