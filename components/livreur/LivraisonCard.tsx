@@ -40,7 +40,6 @@ const STATUS_STYLES: Record<DerivedStatus, { border: string; bg: string; text: s
  *
  * Mapping :
  *   - `statutEncaissement === 'ENCAISSEE'`             → ENCAISSEE
- *   - `statutEncaissement === 'PARTIELLEMENT_ENCAISSEE'` → PARTIEL
  *   - `statutEncaissement === 'NON_ENCAISSEE'` :
  *       • date du jour → LIVREE
  *       • date passée  → IMPAYEE (créance dépassant la journée)
@@ -51,7 +50,6 @@ const STATUS_STYLES: Record<DerivedStatus, { border: string; bg: string; text: s
 export function deriveStatus(livraison: LivraisonResponse): DerivedStatus {
   // Préférer statutEncaissement (calculé back) au statut métier figé
   if (livraison.statutEncaissement === 'ENCAISSEE') return 'ENCAISSEE';
-  if (livraison.statutEncaissement === 'PARTIELLEMENT_ENCAISSEE') return 'PARTIEL';
   // Fallback : ancien comportement (statut métier == ENCAISSEE — rare)
   if (livraison.statut === 'ENCAISSEE') return 'ENCAISSEE';
 

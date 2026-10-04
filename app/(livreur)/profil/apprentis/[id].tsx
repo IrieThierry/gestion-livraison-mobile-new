@@ -83,7 +83,7 @@ export default function ApprentiDetail() {
       .reduce((acc, l) => acc + (l.montantLivre ?? 0), 0);
 
     const encMois = encaissements.filter((e) =>
-      e.date ? new Date(e.date).getTime() >= thirtyDaysAgo : false,
+      e.dateEncaissement ? new Date(e.dateEncaissement).getTime() >= thirtyDaysAgo : false,
     );
     const totalEncaisseMois = encMois.reduce(
       (acc, e) => acc + (e.montantEncaisse ?? 0),

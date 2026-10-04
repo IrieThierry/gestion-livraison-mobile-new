@@ -42,7 +42,7 @@ export default function CashOverview() {
     const encs = qE.data ?? [];
     const today = new Date().toDateString();
     const totalJour = encs
-      .filter((e) => (e.date ? new Date(e.date).toDateString() === today : false))
+      .filter((e) => (e.dateEncaissement ? new Date(e.dateEncaissement).toDateString() === today : false))
       .reduce((acc, e) => acc + (e.montantEncaisse ?? 0), 0);
     const livraisons = qL.data ?? [];
     const aEncaisser = livraisons
@@ -55,8 +55,8 @@ export default function CashOverview() {
 
   const encs = qE.data ?? [];
   const sorted = [...encs].sort((a, b) => {
-    const da = a.date ? new Date(a.date).getTime() : 0;
-    const db = b.date ? new Date(b.date).getTime() : 0;
+    const da = a.dateEncaissement ? new Date(a.dateEncaissement).getTime() : 0;
+    const db = b.dateEncaissement ? new Date(b.dateEncaissement).getTime() : 0;
     return db - da;
   });
 
@@ -181,7 +181,7 @@ export default function CashOverview() {
                         {clientName || 'Encaissement'}
                       </Text>
                       <Text className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        {e.date ? formatDateShort(e.date) : '—'}
+                        {e.dateEncaissement ? formatDateShort(e.dateEncaissement) : '—'}
                         {e.commentaire ? ` · ${e.commentaire}` : ''}
                       </Text>
                     </View>

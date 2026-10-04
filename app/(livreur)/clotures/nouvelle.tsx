@@ -57,8 +57,8 @@ export default function NouvelleCloture() {
 
     const totalEncaisse = encs
       .filter((e) => {
-        if (!e.date) return false;
-        const t = new Date(e.date).getTime();
+        if (!e.dateEncaissement) return false;
+        const t = new Date(e.dateEncaissement).getTime();
         return t >= dayStart && t < dayEnd;
       })
       .reduce((acc, e) => acc + (e.montantEncaisse ?? 0), 0);

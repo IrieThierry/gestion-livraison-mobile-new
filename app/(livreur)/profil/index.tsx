@@ -94,7 +94,7 @@ export default function Profil() {
             </Text>
             <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
               {user.username}
-              {user.role ? ` · ${user.role}` : ''}
+              {user.profile ? ` · ${user.profile}` : ''}
             </Text>
             {user.contact ? (
               <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">

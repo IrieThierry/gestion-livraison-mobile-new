@@ -107,8 +107,8 @@ export default function ClientDetail() {
       (qE.data ?? [])
         .filter((e) => e.client?.id === id)
         .sort((a, b) => {
-          const da = a.date ? new Date(a.date).getTime() : 0;
-          const db = b.date ? new Date(b.date).getTime() : 0;
+          const da = a.dateEncaissement ? new Date(a.dateEncaissement).getTime() : 0;
+          const db = b.dateEncaissement ? new Date(b.dateEncaissement).getTime() : 0;
           return db - da;
         }),
     [qE.data, id],
@@ -142,8 +142,8 @@ export default function ClientDetail() {
     const now = Date.now();
     const days = PERIODES.find((p) => p.key === periodeEnc)?.days ?? null;
     return encaissementsClient.filter((e) => {
-      if (days !== null && e.date) {
-        return now - new Date(e.date).getTime() <= days * 86_400_000;
+      if (days !== null && e.dateEncaissement) {
+        return now - new Date(e.dateEncaissement).getTime() <= days * 86_400_000;
       }
       return true;
     });
@@ -574,7 +574,7 @@ export default function ClientDetail() {
                   >
                     <View className="flex-1 pr-2">
                       <Text className="text-[12px] text-slate-700 dark:text-slate-300 font-bold">
-                        {e.date ? formatDateShort(e.date) : '—'}
+                        {e.dateEncaissement ? formatDateShort(e.dateEncaissement) : '—'}
                       </Text>
                       {e.commentaire ? (
                         <Text className="text-[10px] text-slate-400 mt-0.5">

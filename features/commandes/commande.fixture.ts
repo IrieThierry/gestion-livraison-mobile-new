@@ -12,7 +12,7 @@ export function commandeFixture(overrides: Partial<CommandeResponse> = {}): Comm
       contact: '0712345678',
       email: '',
       username: 'ahmed',
-      role: 'LIVREUR',
+      profile: 'LIVREUR',
       parent: null,
     },
     fournisseur: {

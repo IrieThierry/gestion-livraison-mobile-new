@@ -8,20 +8,35 @@
  * Fallback : on tente d'extraire `response.data.message`, sinon on
  * renvoie `defaultMsg`.
  */
+/**
+ * `message` du back : chaîne (règle métier) OU objet {champ: message}
+ * (validation) — jamais "[object Object]".
+ */
+function toText(v: unknown): string {
+  if (typeof v === 'string') return v;
+  if (v && typeof v === 'object') {
+    return Object.values(v as Record<string, unknown>)
+      .filter((x): x is string => typeof x === 'string' && x.length > 0)
+      .join(' ; ');
+  }
+  return '';
+}
+
 export function extractApiErrorMessage(
   err: unknown,
   defaultMsg = 'Une erreur est survenue',
 ): string {
   const e = err as {
-    response?: { data?: { message?: string; error?: string } };
+    response?: { status?: number; data?: { message?: unknown; error?: unknown } };
     message?: string;
   };
 
-  const raw =
-    e?.response?.data?.message ??
-    e?.response?.data?.error ??
-    e?.message ??
-    '';
+  // 409 : conflit d'écriture concurrente.
+  if (e?.response?.status === 409) {
+    return 'Cet élément a été modifié entre-temps, rechargez puis réessayez.';
+  }
+
+  const raw = toText(e?.response?.data?.message) || toText(e?.response?.data?.error) || (typeof e?.message === 'string' ? e.message : '');
 
   // Pattern PostgreSQL : duplicate key value violates unique constraint
   // Détail : `Key (X)=(value) already exists.`
