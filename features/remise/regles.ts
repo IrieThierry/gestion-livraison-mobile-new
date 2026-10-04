@@ -1,4 +1,13 @@
 import type { Resultat } from '../commandes/regles';
+import type { AuthResponse } from '../../types/api';
+
+/**
+ * D14 : seuls l'admin et le livreur racine (sans parentId) fixent une remise
+ * convenue ; un apprenti l'applique sans pouvoir la changer.
+ */
+export function peutFixerRemise(user: Pick<AuthResponse, 'profile' | 'parentId'> | null): boolean {
+  return !!user && (user.profile === 'ADMIN' || !user.parentId);
+}
 
 /**
  * Remise unitaire saisie : nombre >= 0, 2 décimales max, virgule ou point.

@@ -27,7 +27,7 @@ import {
   useEnregistrerRemise,
   useSupprimerRemise,
 } from '../../../../features/remise/hooks';
-import { parseRemiseUnitaire } from '../../../../features/remise/regles';
+import { parseRemiseUnitaire, peutFixerRemise } from '../../../../features/remise/regles';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { useAuthStore } from '../../../../stores/authStore';
@@ -381,6 +381,7 @@ export default function PrixClientPage() {
                         onSave={() => onSaveRemise(produit)}
                         onDelete={() => onDeleteRemise(produit)}
                         pending={upsertRemise.isPending || deleteRemise.isPending}
+                        lectureSeule={!peutFixerRemise(user)}
                       />
                     ) : null}
                   </View>
@@ -402,7 +403,9 @@ function RemiseBlock({
   onSave,
   onDelete,
   pending,
+  lectureSeule,
 }: {
+  lectureSeule: boolean;
   remise: number | undefined;
   draft: string;
   onChange: (v: string) => void;
@@ -422,14 +425,21 @@ function RemiseBlock({
             <Text className="font-extrabold text-violet-600 dark:text-violet-400">
               {remise.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} FCFA
             </Text>
-            <Pressable onPress={onDelete} disabled={pending} hitSlop={6} className="active:opacity-60 p-1">
-              <Trash2 color="#ef4444" size={16} />
-            </Pressable>
+            {lectureSeule ? null : (
+              <Pressable onPress={onDelete} disabled={pending} hitSlop={6} className="active:opacity-60 p-1">
+                <Trash2 color="#ef4444" size={16} />
+              </Pressable>
+            )}
           </View>
         ) : (
           <Text className="text-[11px] text-slate-400">Aucune (0)</Text>
         )}
       </View>
+      {lectureSeule ? (
+        <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+          Fixée par le livreur principal
+        </Text>
+      ) : (
       <View className="flex-row gap-2 items-end">
         <TextInput
           value={draft}
@@ -453,6 +463,7 @@ function RemiseBlock({
           </Text>
         </Pressable>
       </View>
+      )}
     </View>
   );
 }

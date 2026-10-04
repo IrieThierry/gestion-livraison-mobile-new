@@ -20,6 +20,7 @@ export function ProduitPicker({
   onValidityChange,
   avecRemise = false,
   remisesConvenues,
+  remiseModifiable = true,
 }: {
   lignes: Ligne[];
   onChange: (l: Ligne[]) => void;
@@ -31,6 +32,8 @@ export function ProduitPicker({
   avecRemise?: boolean;
   /** Remises convenues (produitId → remise) ; undefined tant que non chargées. */
   remisesConvenues?: Map<string, number>;
+  /** Faux (apprenti, D14) : remise convenue affichée sans champ éditable. */
+  remiseModifiable?: boolean;
 }) {
   const { data: catalogue = [] } = useProduits();
   const stockQ = useStockCourant();
@@ -162,6 +165,7 @@ export function ProduitPicker({
             enforceStock={enforceStock}
             avecRemise={avecRemise}
             remisesConvenues={remisesConvenues}
+            remiseModifiable={remiseModifiable}
             onUpdate={(patch) => updateProduit(l.produitId, patch)}
             onRemove={() => removeProduit(l.produitId)}
           />
@@ -192,6 +196,7 @@ function LigneRow({
   enforceStock,
   avecRemise,
   remisesConvenues,
+  remiseModifiable,
   onUpdate,
   onRemove,
 }: {
@@ -201,6 +206,7 @@ function LigneRow({
   enforceStock: boolean;
   avecRemise: boolean;
   remisesConvenues?: Map<string, number>;
+  remiseModifiable: boolean;
   onUpdate: (patch: Partial<Ligne>) => void;
   onRemove: () => void;
 }) {
@@ -373,6 +379,16 @@ function LigneRow({
           <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-1">
             Remise unitaire (FCFA)
           </Text>
+          {!remiseModifiable ? (
+            <View className="px-3 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 flex-row items-center justify-between">
+              <Text className="text-[12px] text-slate-500 dark:text-slate-400">Remise convenue</Text>
+              <Text className="font-extrabold text-slate-900 dark:text-white">
+                {line.remise !== undefined
+                  ? `${line.remise.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} FCFA`
+                  : 'Appliquée par le serveur'}
+              </Text>
+            </View>
+          ) : (
           <TextInput
             value={
               remiseTexte ?? (line.remise !== undefined ? String(line.remise) : '')
@@ -388,11 +404,12 @@ function LigneRow({
                 : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800'
             }`}
           />
-          {line.remiseInvalide ? (
+          )}
+          {remiseModifiable && line.remiseInvalide ? (
             <Text className="text-[11px] text-red-500 mt-1">
               Remise invalide (nombre positif, 2 décimales maximum)
             </Text>
-          ) : !remisesConvenues && !line.remiseSaisie ? (
+          ) : remiseModifiable && !remisesConvenues && !line.remiseSaisie ? (
             <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
               Remise convenue appliquée par le serveur
             </Text>

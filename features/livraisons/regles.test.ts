@@ -51,6 +51,7 @@ describe('buildCreerLivraisonPayload', () => {
   it('client avec remise : remise saisie envoyée (0 compris), memoriserPrixClient explicite', () => {
     const p = buildCreerLivraisonPayload({
       livreurId: 'l-1',
+      remiseFixable: true,
       client: { id: 'c-1', avecOuSansRemise: true },
       lignes: [
         l({ remise: 12.5, remiseSaisie: true, memoriserPrix: true }),
@@ -87,6 +88,7 @@ describe('buildCreerLivraisonPayload', () => {
   it('remise pré-remplie non modifiée : pas de remiseUnitaire (le back applique la convenue)', () => {
     const p = buildCreerLivraisonPayload({
       livreurId: 'l-1',
+      remiseFixable: true,
       client: { id: 'c-1', avecOuSansRemise: true },
       lignes: [l({ remise: 12.5 }), l({ produitId: 'p-2', remise: 7, remiseSaisie: false })],
     });
@@ -96,6 +98,7 @@ describe('buildCreerLivraisonPayload', () => {
   it('remise inconnue (non chargée) : pas de remiseUnitaire, le back applique la convenue', () => {
     const p = buildCreerLivraisonPayload({
       livreurId: 'l-1',
+      remiseFixable: true,
       client: { id: 'c-1', avecOuSansRemise: true },
       lignes: [l({})],
     });
@@ -106,6 +109,7 @@ describe('buildCreerLivraisonPayload', () => {
   it('client sans remise : jamais de remiseUnitaire, avecRemise false', () => {
     const p = buildCreerLivraisonPayload({
       livreurId: 'l-1',
+      remiseFixable: true,
       client: { id: 'c-1', avecOuSansRemise: false },
       lignes: [l({ remise: 50, remiseSaisie: true })],
     });
@@ -113,9 +117,21 @@ describe('buildCreerLivraisonPayload', () => {
     expect(p.produitsLivraison[0]).not.toHaveProperty('remiseUnitaire');
   });
 
+  it('apprenti (remiseFixable false) : remise saisie jamais envoyée', () => {
+    const p = buildCreerLivraisonPayload({
+      livreurId: 'l-1',
+      remiseFixable: false,
+      client: { id: 'c-1', avecOuSansRemise: true },
+      lignes: [l({ remise: 12.5, remiseSaisie: true }), l({ produitId: 'p-2', remise: 0, remiseSaisie: true })],
+    });
+    expect(p.avecRemise).toBe(true);
+    for (const x of p.produitsLivraison) expect(x).not.toHaveProperty('remiseUnitaire');
+  });
+
   it('lignes à quantité 0 non envoyées', () => {
     const p = buildCreerLivraisonPayload({
       livreurId: 'l-1',
+      remiseFixable: true,
       client: { id: 'c-1', avecOuSansRemise: false },
       lignes: [l({ qte: 0 }), l({ produitId: 'p-2' })],
     });
