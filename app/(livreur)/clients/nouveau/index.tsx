@@ -245,7 +245,7 @@ export default function NouveauClientStep1() {
 
           {/* Limite de crédit */}
           <Field
-            label="Limite de crédit (FCFA)"
+            label="Limite de crédit (FCFA) — 0 ou vide = sans limite"
             value={limiteCredit}
             onChange={setLimiteCredit}
             placeholder="0"

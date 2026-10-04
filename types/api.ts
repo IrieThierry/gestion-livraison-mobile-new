@@ -279,6 +279,8 @@ export interface LivraisonResponse {
    * renvoyer) — fallback à `NON_ENCAISSEE` côté front.
    */
   statutEncaissement?: StatutEncaissement
+  /** Calculé par le back (D16) : payée avec dû > 0, ou gel après retour total. Seuls les retours restent possibles. */
+  figee?: boolean
   montantLivre: number
   /** Dû net (avant paiements) calculé par le back : (prix + remise) × (livré − retourné). */
   montantDu: number

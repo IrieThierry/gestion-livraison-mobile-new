@@ -105,6 +105,12 @@ export default function LivraisonDetail() {
               <StatusBadge statut={isEncaissee(livraison) ? 'ENCAISSEE' : 'NON_ENCAISSEE'} />
             </View>
 
+            {livraison.figee ? (
+              <Text className="text-[11px] text-amber-700 dark:text-amber-400 mt-2">
+                Payée : seuls les retours sont possibles
+              </Text>
+            ) : null}
+
             <View className="flex-row gap-2 mt-4">
               <Pressable
                 onPress={() => hasPhone && callPhone(c.contact)}

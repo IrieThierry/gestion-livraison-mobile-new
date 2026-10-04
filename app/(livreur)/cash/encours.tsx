@@ -116,7 +116,7 @@ export default function Encours() {
                         {e.nomClient}
                       </Text>
                       <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Limite : {formatMontant(num(e.limiteCredit))} FCFA
+                        {num(e.limiteCredit) > 0 ? `Limite : ${formatMontant(num(e.limiteCredit))} FCFA` : 'Sans limite de crédit'}
                         {e.enDepassement ? ' · dépassée' : ''}
                       </Text>
                     </View>

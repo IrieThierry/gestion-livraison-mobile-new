@@ -1,4 +1,4 @@
-import { buildModifierClientPayload, parseLimiteCredit } from './regles';
+import { buildModifierClientPayload, parseLimiteCredit, libelleLimiteCredit } from './regles';
 import type { ClientResponse } from '../../types/api';
 
 const champs = {
@@ -64,5 +64,17 @@ describe('parseLimiteCredit', () => {
     expect(parseLimiteCredit('50 000')).toBe(50000);
     expect(parseLimiteCredit('1,5')).toBeNull();
     expect(parseLimiteCredit('-3')).toBeNull();
+  });
+});
+
+describe('libelleLimiteCredit', () => {
+  it('0, null, undefined et négatif = sans limite', () => {
+    expect(libelleLimiteCredit(0)).toBe('Sans limite');
+    expect(libelleLimiteCredit(null)).toBe('Sans limite');
+    expect(libelleLimiteCredit(undefined)).toBe('Sans limite');
+    expect(libelleLimiteCredit(-5)).toBe('Sans limite');
+  });
+  it('limite positive formatée', () => {
+    expect(libelleLimiteCredit(1500)).toMatch(/^1\D?500 F$/);
   });
 });

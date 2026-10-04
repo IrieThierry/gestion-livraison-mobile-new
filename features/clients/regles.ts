@@ -1,4 +1,5 @@
 import type { ClientResponse, ModifierClientRequest, UUID } from '../../types/api';
+import { formatMontant } from '../../lib/format';
 
 export interface ChampsClientModifies {
   prenom: string;
@@ -42,4 +43,9 @@ export function parseLimiteCredit(brut: string): number | null {
   const s = brut.replace(/\s/g, '');
   if (s === '') return 0;
   return /^\d+$/.test(s) ? Number(s) : null;
+}
+
+/** Libellé de la limite de crédit : 0, vide ou négative = sans limite (D13). */
+export function libelleLimiteCredit(limite: number | null | undefined): string {
+  return limite != null && limite > 0 ? `${formatMontant(limite)} F` : 'Sans limite';
 }
