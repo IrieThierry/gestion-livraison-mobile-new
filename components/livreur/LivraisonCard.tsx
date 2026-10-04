@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { formatFCFA, formatTime } from '../../lib/format';
 import type { LivraisonResponse } from '../../types/api';
 
-type DerivedStatus = 'ENCAISSEE' | 'PARTIEL' | 'LIVREE' | 'IMPAYEE';
+type DerivedStatus = 'ENCAISSEE' | 'LIVREE' | 'IMPAYEE';
 
 const STATUS_STYLES: Record<DerivedStatus, { border: string; bg: string; text: string; label: string }> = {
   ENCAISSEE: {
@@ -11,12 +11,6 @@ const STATUS_STYLES: Record<DerivedStatus, { border: string; bg: string; text: s
     bg: 'bg-emerald-100 dark:bg-emerald-500/15',
     text: 'text-emerald-700 dark:text-emerald-400',
     label: 'Encaissée',
-  },
-  PARTIEL: {
-    border: 'border-l-blue-500',
-    bg: 'bg-blue-100 dark:bg-blue-500/15',
-    text: 'text-blue-700 dark:text-blue-400',
-    label: 'Partielle',
   },
   LIVREE: {
     border: 'border-l-amber-500',

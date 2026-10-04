@@ -27,7 +27,7 @@ export interface AuthResponse {
   prenom: string
   username: string
   /** Profil métier renvoyé par le back (ex. 'LIVREUR', 'ADMIN', 'FOURNISSEUR'). */
-  profile: string
+  profile?: string
   email: string
   contact: string
   // Optionnel pour rester compatible avec les anciennes sessions persistées
@@ -61,7 +61,7 @@ export interface CreerApprentiRequest {
   email: string
   username: string
   password: string
-  role: 'LIVREUR'
+  profile?: string
   parentId: UUID
 }
 
@@ -136,8 +136,9 @@ export interface CreerLivreurRequest {
   email: string
   username: string
   password: string
-  role: 'ADMIN' | 'LIVREUR'
-  parent: { id: UUID } | null
+  profile?: string
+  parent?: { id: UUID } | null
+  parentId?: UUID
 }
 
 export interface ModifierLivreurRequest {
@@ -148,7 +149,7 @@ export interface ModifierLivreurRequest {
   email: string
   username: string
   password: string
-  role: 'ADMIN' | 'LIVREUR'
+  profile?: string
   parent: UUID | null
 }
 

@@ -4,13 +4,10 @@ import type { LivraisonResponse } from '../types/api';
  * Vrai si la livraison est ENTIÈREMENT encaissée.
  *
  * Préfère `statutEncaissement` (calculé à la volée par le back, valeurs
- * `ENCAISSEE | PARTIELLEMENT_ENCAISSEE | NON_ENCAISSEE`) à `statut`
+ * `ENCAISSEE | NON_ENCAISSEE`) à `statut`
  * métier qui ne transite jamais en pratique. Fallback sur `statut` pour
  * rétro-compatibilité avec les anciens caches qui n'avaient pas le
  * champ.
- *
- * Une livraison `PARTIELLEMENT_ENCAISSEE` n'est PAS considérée comme
- * encaissée — elle reste à compléter.
  */
 export function isEncaissee(l: LivraisonResponse): boolean {
   if (l.statutEncaissement) {
