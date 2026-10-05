@@ -30,6 +30,14 @@ describe('contrat API commandes', () => {
     expect(get).toHaveBeenCalledWith('/produit-fournisseur', { params: { fournisseurId: 'f-1' } });
   });
 
+  it('renvoie les champs remise livreur, actif et prix particulier du catalogue', async () => {
+    get.mockResolvedValue({
+      data: [{ id: 'pf1', prixDeVente: 140, remiseLivreur: 10, actif: true, prixParticulier: true }],
+    });
+    const lignes = await commandesApi.catalogue('f-1');
+    expect(lignes[0]).toMatchObject({ remiseLivreur: 10, actif: true, prixParticulier: true });
+  });
+
   it('crée une commande avec le corps attendu', async () => {
     const payload = { fournisseurId: 'f-1', produitsCommandes: [{ produitId: 'p1', qteCommandee: 3 }] };
     await commandesApi.creer(payload);

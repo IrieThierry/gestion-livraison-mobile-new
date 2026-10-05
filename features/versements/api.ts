@@ -13,7 +13,7 @@ import { joindreIds } from './regles';
 export const versementsApi = {
   /**
    * Situation du couple (livreur, fournisseur) pour la sélection de commandes :
-   * `valeurAchat`, `margeCumulee`, `detteAvant`, `totalDu` (= detteAvant + valeurAchat),
+   * `valeurAchat`, `remiseLivreurCumulee`, `detteAvant`, `totalDu` (= detteAvant + valeurAchat),
    * `dateDebut`/`dateFin` (nulles si aucune commande), `nbCommandes`.
    */
   situation: async (params: {

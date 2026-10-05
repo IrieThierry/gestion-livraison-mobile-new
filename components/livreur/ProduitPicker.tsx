@@ -66,11 +66,11 @@ export function ProduitPicker({
   const addLigne = (item: ProduitResponse) => {
     const courantes = lignesRef.current;
     if (courantes.find((l) => l.produitId === item.id)) return;
-    // Un prix par défaut du client à 0 ou absent ne fixe rien : on part du prix du produit (comme le web).
+    // Un prix par défaut du client à 0 ou absent ne fixe rien : le prix reste à saisir.
     const prix =
       prixDeVenteParDefaut != null && prixDeVenteParDefaut > 0
         ? prixDeVenteParDefaut
-        : item.prixAchatParDefaut ?? 0;
+        : 0;
     const next = [
       ...courantes,
       { produitId: item.id, designation: item.designation, prix, qte: 1 },

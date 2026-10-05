@@ -44,7 +44,7 @@ export default function DeclarerAchat() {
   };
 
   // Pour le total affiché : on multiplie quantité × prix indicatif venant du
-  // catalogue (`prixAchatParDefaut`). Le back ne lit pas ce prix dans la
+  // catalogue. Le back ne lit pas ce prix dans la
   // requête (cf. `LigneStockRequest` = { produitId, qte }) — c'est purement
   // une aide visuelle pour le livreur.
   const totalAchat = lignes.reduce((acc, l) => acc + l.prix * l.qte, 0);

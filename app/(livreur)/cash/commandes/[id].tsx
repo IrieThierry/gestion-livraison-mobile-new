@@ -103,6 +103,11 @@ export default function CommandeDetail() {
                     </Text>
                   ) : null}
                 </View>
+                {l.remiseLivreurUnitaire != null ? (
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Remise livreur : {formatFCFA(l.remiseLivreurUnitaire)} F / unité
+                  </Text>
+                ) : null}
               </View>
             ))}
           </View>
@@ -112,6 +117,15 @@ export default function CommandeDetail() {
               <Text className="text-slate-700 dark:text-slate-300 font-bold">Total livré</Text>
               <Text className="font-extrabold text-emerald-600 dark:text-emerald-400 text-base">
                 {formatFCFA(commande.montantLivre)} FCFA
+              </Text>
+            </View>
+          ) : null}
+
+          {commande.remiseLivreurLivree != null ? (
+            <View className="flex-row justify-between mt-1 px-1">
+              <Text className="text-slate-700 dark:text-slate-300 font-bold">Remise livreur</Text>
+              <Text className="font-bold text-slate-700 dark:text-slate-300">
+                {formatFCFA(commande.remiseLivreurLivree)} F
               </Text>
             </View>
           ) : null}

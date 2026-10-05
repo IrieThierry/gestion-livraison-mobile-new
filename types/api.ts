@@ -157,19 +157,8 @@ export interface ProduitResponse {
   id: UUID
   code: string
   designation: string
-  prixAchatParDefaut: number
-  statut?: string
-}
-
-export interface CreerProduitRequest {
-  designation: string
-  prixAchatParDefaut: number
-}
-
-export interface ModifierProduitRequest {
-  id: UUID
-  designation: string
-  prixAchatParDefaut: number
+  /** Renseigné quand le produit a été créé par un fournisseur. */
+  creeParFournisseurId?: UUID | null
 }
 
 // ---------- Clients ----------
@@ -418,7 +407,7 @@ export interface ProduitCommandeResponse {
   qteCommandee: number
   qteLivree: number | null     // renseignée à la livraison par le fournisseur
   prixUnitaire: number | null  // figé à la livraison
-  margeUnitaire: number | null // figée à la livraison
+  remiseLivreurUnitaire: number | null // figée à la livraison
 }
 
 export interface CommandeResponse {
@@ -432,7 +421,7 @@ export interface CommandeResponse {
   motifRefus: string | null
   dateLivraison: string | null // ISO
   montantLivre: number | null  // Σ qteLivree × prixUnitaire (statut LIVREE)
-  margeLivree: number | null
+  remiseLivreurLivree: number | null
   versementId: UUID | null     // non nul = réglée par un versement
   produitsCommandes: ProduitCommandeResponse[]
 }
@@ -448,7 +437,12 @@ export interface ProduitFournisseurResponse {
   produit: ProduitResponse
   fournisseur: FournisseurResponse
   prixDeVente: number
-  marge: number
+  /** Remise livreur par unité (valeur résolue pour le livreur connecté). */
+  remiseLivreur: number
+  actif: boolean
+  dateDesactivation?: string | null
+  /** Vrai si les valeurs sont celles d'un prix particulier accordé à ce livreur. */
+  prixParticulier: boolean
 }
 
 // ---------- Stock / Achats (Plan D — split achat / stock_courant_livreur) ----------
@@ -655,7 +649,7 @@ export interface EnregistrerReversementRequest {
 export interface LigneFournisseurDuResponse {
   fournisseurId: UUID
   libelle: string
-  margeCumuleeMois: number
+  remiseLivreurCumuleeMois: number
   detteCourante: number
   montantNetDu: number
 }
@@ -746,7 +740,7 @@ export interface VersementResponse {
   dateFin: string
   dateVersement: string
   valeurAchat: number
-  margeCumulee: number
+  remiseLivreurCumulee: number
   montantVerse: number
   detteAvant: number
   detteApres: number
@@ -765,7 +759,7 @@ export interface CreerVersementRequest {
 
 export interface SituationVersementResponse {
   valeurAchat: number      // Σ montant livré des commandes sélectionnées
-  margeCumulee: number     // Σ marge livrée des commandes sélectionnées
+  remiseLivreurCumulee: number // Σ remise livreur livrée des commandes sélectionnées
   detteAvant: number       // dette du dernier versement créé
   totalDu: number          // = detteAvant + valeurAchat
   dateDebut: string | null // plus ancienne livraison sélectionnée (nulle si aucune commande)
