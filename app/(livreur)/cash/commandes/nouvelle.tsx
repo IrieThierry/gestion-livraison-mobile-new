@@ -20,6 +20,7 @@ import {
 import {
   construireCommande,
   lignesCommandables,
+  remisePartenaire,
   type Quantites,
 } from '../../../../features/commandes/regles';
 import { useAuthStore } from '../../../../stores/authStore';
@@ -118,6 +119,12 @@ export default function NouvelleCommande() {
                 />
               ) : (
                 <View className="gap-2">
+                  {remisePartenaire(lignes) > 0 ? (
+                    <Text className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      Remise livreur : {formatFCFA(remisePartenaire(lignes))} F par unité
+                      (accordée par le fournisseur)
+                    </Text>
+                  ) : null}
                   {lignes.map((pf) => (
                     <View
                       key={pf.id}
@@ -129,9 +136,6 @@ export default function NouvelleCommande() {
                         </Text>
                         <Text className="text-[11px] text-slate-500 dark:text-slate-400">
                           {formatFCFA(pf.prixDeVente)} F
-                        </Text>
-                        <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                          Remise livreur : {formatFCFA(pf.remiseLivreur)} F
                         </Text>
                         {pf.prixParticulier ? (
                           <Text className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">

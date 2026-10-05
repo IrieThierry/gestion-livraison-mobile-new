@@ -4,6 +4,7 @@ import {
   FILTRES_STATUT_COMMANDE,
   lignesCommandables,
   peutAnnuler,
+  remisePartenaire,
 } from './regles';
 import type { ProduitFournisseurResponse } from '../../types/api';
 import { commandeFixture } from './commande.fixture';
@@ -93,5 +94,16 @@ describe('lignesCommandables', () => {
     const [l] = lignesCommandables([ligne('Pain', { prixParticulier: true, remiseLivreur: 5 })]);
     expect(l?.prixParticulier).toBe(true);
     expect(l?.remiseLivreur).toBe(5);
+  });
+});
+
+describe('remisePartenaire', () => {
+  it('lit la remise partenaire commune à toutes les lignes', () => {
+    expect(remisePartenaire([ligne('Pain', { remiseLivreur: 15 }), ligne('Lait', { remiseLivreur: 15 })])).toBe(15);
+  });
+
+  it('vaut 0 sans ligne ou sans remise, et ne dépend pas du prix particulier', () => {
+    expect(remisePartenaire([])).toBe(0);
+    expect(remisePartenaire([ligne('Pain', { remiseLivreur: 0, prixParticulier: true })])).toBe(0);
   });
 });
