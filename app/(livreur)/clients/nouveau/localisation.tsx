@@ -29,8 +29,7 @@ import { useAuthStore } from '../../../../stores/authStore';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { navigateTo } from '../../../../lib/linking';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
-import { parseLimiteCredit } from '../../../../features/clients/regles';
-import type { CreerClientRequest } from '../../../../types/api';
+import { buildCreerClientPayload } from '../../../../features/clients/regles';
 
 export default function NouveauClientStep2() {
   const user = useAuthStore((s) => s.user);
@@ -79,21 +78,16 @@ export default function NouveauClientStep2() {
       return;
     }
 
-    const prix = parseInt(draft.prixDeVenteParDefaut, 10) || 0;
-    const payload: CreerClientRequest = {
-      nom: draft.nom,
-      prenom: draft.prenom,
-      contact: draft.contact,
-      email: draft.email,
-      adresse: draft.adresse,
-      latitudeLongitude: `${lat.toFixed(6)},${lng.toFixed(6)}`,
-      quartierId: draft.quartierId ?? '',
-      categorieId: draft.categorieId ?? '',
-      livreurId: user.id,
-      prixDeVenteProduitParDefault: prix,
-      avecOuSansRemise: conditionsFixables && draft.avecRemise,
-      limiteCredit: parseLimiteCredit(draft.limiteCredit) ?? 0,
-    };
+    const payload = buildCreerClientPayload(
+      {
+        ...draft,
+        quartierId: draft.quartierId ?? '',
+        categorieId: draft.categorieId ?? '',
+        latitudeLongitude: `${lat.toFixed(6)},${lng.toFixed(6)}`,
+      },
+      user.id,
+      conditionsFixables,
+    );
 
     submittingRef.current = true;
     m.mutate(payload, {

@@ -25,7 +25,7 @@ export function ProduitPicker({
 }: {
   lignes: Ligne[];
   onChange: (l: Ligne[]) => void;
-  prixDeVenteParDefaut?: number;
+  prixDeVenteParDefaut?: number | null;
   clientId?: string;
   enforceStock?: boolean;
   onValidityChange?: (insufficientLignes: number) => void;

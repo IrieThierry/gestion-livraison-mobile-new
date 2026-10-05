@@ -1,4 +1,4 @@
-import type { ClientResponse, ModifierClientRequest, UUID } from '../../types/api';
+import type { ClientResponse, CreerClientRequest, ModifierClientRequest, UUID } from '../../types/api';
 import { formatMontant } from '../../lib/format';
 
 export interface ChampsClientModifies {
@@ -45,6 +45,44 @@ export function buildModifierClientPayload(
   }
   if (client.limiteCredit != null) payload.limiteCredit = client.limiteCredit;
   return payload;
+}
+
+export interface ChampsClientCree {
+  prenom: string;
+  nom: string;
+  contact: string;
+  email: string;
+  adresse: string;
+  latitudeLongitude: string;
+  quartierId: UUID;
+  categorieId: UUID;
+  avecRemise: boolean;
+  limiteCredit: string;
+}
+
+/**
+ * Payload de création : aucun prix par défaut n'est envoyé (le client n'en a
+ * pas, les lignes de livraison partent du prix du produit). Le statut remise
+ * n'est transmis que par un livreur racine / admin (D20), sinon false.
+ */
+export function buildCreerClientPayload(
+  champs: ChampsClientCree,
+  livreurId: UUID,
+  conditionsFixables: boolean,
+): CreerClientRequest {
+  return {
+    nom: champs.nom,
+    prenom: champs.prenom,
+    contact: champs.contact,
+    email: champs.email,
+    adresse: champs.adresse,
+    latitudeLongitude: champs.latitudeLongitude,
+    quartierId: champs.quartierId,
+    categorieId: champs.categorieId,
+    livreurId,
+    avecOuSansRemise: conditionsFixables && champs.avecRemise,
+    limiteCredit: parseLimiteCredit(champs.limiteCredit) ?? 0,
+  };
 }
 
 /** Limite de crédit saisie : entier >= 0, vide = 0. */

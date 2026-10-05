@@ -1,4 +1,4 @@
-import { buildModifierClientPayload, parseLimiteCredit, libelleLimiteCredit } from './regles';
+import { buildCreerClientPayload, buildModifierClientPayload, parseLimiteCredit, libelleLimiteCredit } from './regles';
 import type { ClientResponse } from '../../types/api';
 
 const champs = {
@@ -89,5 +89,35 @@ describe('libelleLimiteCredit', () => {
   });
   it('limite positive formatée', () => {
     expect(libelleLimiteCredit(1500)).toMatch(/^1\D?500 F$/);
+  });
+});
+
+describe('buildCreerClientPayload', () => {
+  const draft = {
+    prenom: 'A',
+    nom: 'B',
+    contact: '07',
+    email: '',
+    adresse: '',
+    latitudeLongitude: '1,2',
+    quartierId: 'q',
+    categorieId: 'k',
+    avecRemise: true,
+    limiteCredit: '1500',
+  };
+
+  it("n'envoie jamais prixDeVenteProduitParDefault (ni 0)", () => {
+    const p = buildCreerClientPayload(draft, 'l-1', true);
+    expect(p).not.toHaveProperty('prixDeVenteProduitParDefault');
+    expect(p.livreurId).toBe('l-1');
+    expect(p.limiteCredit).toBe(1500);
+  });
+
+  it('racine : transmet le statut remise', () => {
+    expect(buildCreerClientPayload(draft, 'l-1', true).avecOuSansRemise).toBe(true);
+  });
+
+  it('apprenti : ignore avecRemise du brouillon (hérité d’une session racine)', () => {
+    expect(buildCreerClientPayload(draft, 'l-1', false).avecOuSansRemise).toBe(false);
   });
 });

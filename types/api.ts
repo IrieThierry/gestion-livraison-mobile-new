@@ -184,7 +184,8 @@ export interface ClientResponse {
   quartier: QuartierResponse
   categorie: CategorieResponse
   livreur?: LivreurResponse
-  prixDeVenteProduitParDefault: number
+  /** Null pour un client créé sans prix par défaut (ex. par un apprenti). */
+  prixDeVenteProduitParDefault: number | null
   avecOuSansRemise: boolean
   limiteCredit: number | null
   margeParUnite: number | null
@@ -201,7 +202,8 @@ export interface CreerClientRequest {
   quartierId: UUID
   categorieId: UUID
   livreurId: UUID
-  prixDeVenteProduitParDefault: number
+  /** Omis à la création : le client n'a pas de prix par défaut (null). */
+  prixDeVenteProduitParDefault?: number
   avecOuSansRemise: boolean
   /** Optionnel ; sans effet sur les remises (D7). */
   margeParUnite?: number
