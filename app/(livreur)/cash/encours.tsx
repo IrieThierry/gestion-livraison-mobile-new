@@ -117,7 +117,9 @@ export default function Encours() {
                         {e.nomClient}
                       </Text>
                       <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        {`Limite : ${libelleLimiteCredit(num(e.limiteCredit))}`}
+                        {num(e.limiteCredit) > 0
+                          ? `Limite : ${libelleLimiteCredit(num(e.limiteCredit))}`
+                          : 'Sans limite de crédit'}
                         {e.enDepassement ? ' · dépassée' : ''}
                       </Text>
                     </View>
