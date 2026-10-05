@@ -26,7 +26,7 @@ export function useCatalogueFournisseur(fournisseurId: UUID | undefined) {
     queryKey: commandeKeys.catalogue(fournisseurId ?? ''),
     queryFn: () => commandesApi.catalogue(fournisseurId!),
     enabled: !!fournisseurId,
-    staleTime: 60_000,
+    staleTime: 0,
   });
 }
 
@@ -35,6 +35,10 @@ export function useCreerCommande() {
   return useMutation({
     mutationFn: commandesApi.creer,
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: commandeKeys.all });
+    },
+    // Refus du back (ligne désactivée, livreur bloqué) : on rafraîchit le catalogue.
+    onError: () => {
       qc.invalidateQueries({ queryKey: commandeKeys.all });
     },
   });

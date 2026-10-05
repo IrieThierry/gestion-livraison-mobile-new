@@ -23,6 +23,8 @@ export function ProduitPicker({
   remisesConvenues,
   remiseModifiable = true,
   memoriserPossible = true,
+  prixParProduit,
+  prixModifiable = true,
 }: {
   lignes: Ligne[];
   onChange: (l: Ligne[]) => void;
@@ -40,6 +42,10 @@ export function ProduitPicker({
   remiseModifiable?: boolean;
   /** Faux (apprenti, D20) : option « Mémoriser le prix » masquée. */
   memoriserPossible?: boolean;
+  /** Prix imposé par produit (achat : prix du catalogue fournisseur), utilisé à l'ajout d'une ligne. */
+  prixParProduit?: Map<string, number>;
+  /** Faux (achat) : prix affiché en lecture seule, ni champ ni alerte de prix à 0. */
+  prixModifiable?: boolean;
 }) {
   const { data: referentiel = [] } = useProduits();
   const catalogue = produits ?? referentiel;
@@ -71,7 +77,7 @@ export function ProduitPicker({
     const courantes = lignesRef.current;
     if (courantes.find((l) => l.produitId === item.id)) return;
     // Un prix par défaut du client à 0 ou absent ne fixe rien : le prix reste à saisir.
-    const prix = prixInitialLigne(prixDeVenteParDefaut);
+    const prix = prixParProduit?.get(item.id) ?? prixInitialLigne(prixDeVenteParDefaut);
     const next = [
       ...courantes,
       { produitId: item.id, designation: item.designation, prix, qte: 1 },
@@ -175,6 +181,7 @@ export function ProduitPicker({
             remisesConvenues={remisesConvenues}
             remiseModifiable={remiseModifiable}
             memoriserPossible={memoriserPossible}
+            prixModifiable={prixModifiable}
             onUpdate={(patch) => updateProduit(l.produitId, patch)}
             onRemove={() => removeProduit(l.produitId)}
           />
@@ -207,6 +214,7 @@ function LigneRow({
   remisesConvenues,
   remiseModifiable,
   memoriserPossible,
+  prixModifiable,
   onUpdate,
   onRemove,
 }: {
@@ -218,6 +226,7 @@ function LigneRow({
   remisesConvenues?: Map<string, number>;
   remiseModifiable: boolean;
   memoriserPossible: boolean;
+  prixModifiable: boolean;
   onUpdate: (patch: Partial<Ligne>) => void;
   onRemove: () => void;
 }) {
@@ -285,7 +294,7 @@ function LigneRow({
 
   const remiseLigne = avecRemise ? line.remise ?? 0 : 0;
   const sousTotal = montantLigneEstime(line.prix, remiseLigne, line.qte);
-  const prixZero = line.prix <= 0;
+  const prixZero = prixModifiable && line.prix <= 0;
   const stockInsuffisant = enforceStock && line.qte > stockDispo;
   // « Mémoriser » est proposé si le prix saisi diffère du prix résolu, ou
   // s'il n'existe encore aucun prix pour ce client (premier prix saisi).
@@ -342,6 +351,13 @@ function LigneRow({
           <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-1">
             Prix unitaire (FCFA)
           </Text>
+          {!prixModifiable ? (
+            <View className="px-3 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60">
+              <Text className="font-extrabold text-slate-900 dark:text-white">
+                Prix catalogue : {formatFCFA(line.prix)} F
+              </Text>
+            </View>
+          ) : (
           <TextInput
             value={line.prix > 0 ? String(line.prix) : ''}
             onChangeText={(v) =>
@@ -359,6 +375,7 @@ function LigneRow({
                 : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800'
             }`}
           />
+          )}
         </View>
         <View className="w-24">
           <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-1">

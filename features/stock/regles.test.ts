@@ -1,4 +1,4 @@
-import { produitsAchetables, totalIndicatifAchat } from './regles';
+import { prixCatalogueParProduit, produitsAchetables, totalIndicatifAchat } from './regles';
 import type { ProduitFournisseurResponse } from '../../types/api';
 
 const ligne = (
@@ -51,5 +51,14 @@ describe('totalIndicatifAchat', () => {
         catalogue,
       ),
     ).toBe(150);
+  });
+});
+
+describe('prixCatalogueParProduit', () => {
+  it('associe chaque produit à son prix de vente du catalogue', () => {
+    const m = prixCatalogueParProduit([ligne('Pain', 150), ligne('Lait', 400)]);
+    expect(m.get('p-Pain')).toBe(150);
+    expect(m.get('p-Lait')).toBe(400);
+    expect(m.get('inconnu')).toBeUndefined();
   });
 });

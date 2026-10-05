@@ -18,7 +18,7 @@ import { useFournisseurs } from '../../../features/lookups/hooks';
 import { produitKeys } from '../../../features/produits/keys';
 import { commandeKeys } from '../../../features/commandes/keys';
 import { useCatalogueFournisseur } from '../../../features/commandes/hooks';
-import { produitsAchetables, totalIndicatifAchat } from '../../../features/stock/regles';
+import { prixCatalogueParProduit, produitsAchetables, totalIndicatifAchat } from '../../../features/stock/regles';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import { useAuthStore } from '../../../stores/authStore';
 import { formatFCFA } from '../../../lib/format';
@@ -30,9 +30,14 @@ export default function DeclarerAchat() {
   const [fournisseurId, setFournisseurId] = useState<string | null>(null);
   const [lignes, setLignes] = useState<Ligne[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const { data: catalogue = [], isLoading: loadingCatalogue } =
-    useCatalogueFournisseur(fournisseurId ?? undefined);
+  const {
+    data: catalogue = [],
+    isLoading: loadingCatalogue,
+    isError: catalogueEnErreur,
+    error: catalogueErreur,
+  } = useCatalogueFournisseur(fournisseurId ?? undefined);
   const produits = useMemo(() => produitsAchetables(catalogue), [catalogue]);
+  const prixParProduit = useMemo(() => prixCatalogueParProduit(catalogue), [catalogue]);
   const m = useEnregistrerAchat();
   const qc = useQueryClient();
 
@@ -136,12 +141,22 @@ export default function DeclarerAchat() {
               </Text>
             ) : loadingCatalogue ? (
               <ActivityIndicator color="#10b981" />
+            ) : catalogueEnErreur ? (
+              <Text className="text-sm text-red-500">
+                {extractApiErrorMessage(catalogueErreur, 'Catalogue indisponible')}
+              </Text>
             ) : produits.length === 0 ? (
               <Text className="text-sm text-slate-500 dark:text-slate-400">
                 Ce fournisseur n'a aucun produit actif.
               </Text>
             ) : (
-              <ProduitPicker lignes={lignes} onChange={setLignes} produits={produits} />
+              <ProduitPicker
+                lignes={lignes}
+                onChange={setLignes}
+                produits={produits}
+                prixParProduit={prixParProduit}
+                prixModifiable={false}
+              />
             )}
           </View>
 

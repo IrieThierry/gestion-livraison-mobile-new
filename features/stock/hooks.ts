@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { stockApi } from './api';
 import { stockKeys } from './keys';
+import { commandeKeys } from '../commandes/keys';
 import type { EnregistrerStockRequest, UUID } from '../../types/api';
 
 // Mirror des hooks lecture du web (gestion-livraison-front/src/features/stock/hooks.ts)
@@ -66,6 +67,10 @@ export function useEnregistrerAchat() {
       stockApi.enregistrerAchat(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: stockKeys.all });
+    },
+    // Refus du back (ligne désactivée, livreur bloqué) : on rafraîchit le catalogue.
+    onError: () => {
+      qc.invalidateQueries({ queryKey: commandeKeys.all });
     },
   });
 }

@@ -107,6 +107,10 @@ export default function NouvelleCommande() {
               </Text>
               {catalogue.isLoading ? (
                 <Text className="text-slate-400 text-sm">Chargement…</Text>
+              ) : catalogue.isError ? (
+                <Text className="text-red-500 text-sm">
+                  {extractApiErrorMessage(catalogue.error, 'Catalogue indisponible')}
+                </Text>
               ) : lignes.length === 0 ? (
                 <EmptyState
                   title="Catalogue vide"
