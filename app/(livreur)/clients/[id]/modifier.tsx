@@ -28,6 +28,7 @@ import { useAuthStore } from '../../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { dialog } from '../../../../lib/dialog';
 import { useNetworkStore } from '../../../../stores/networkStore';
+import { peutFixerConditions } from '../../../../features/remise/regles';
 import { buildModifierClientPayload } from '../../../../features/clients/regles';
 import type { ClientResponse } from '../../../../types/api';
 
@@ -49,6 +50,8 @@ function parseLatLng(s: string | null | undefined): { lat: number; lng: number }
 export default function ModifierClient() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
+  // D20 : statut avec/sans remise en lecture seule pour l'apprenti.
+  const conditionsFixables = peutFixerConditions(user);
   const livreurId = user?.id ?? '';
   const isOnline = useNetworkStore((st) => st.isOnline);
 
@@ -179,6 +182,7 @@ export default function ModifierClient() {
         avecOuSansRemise: avecRemise,
       },
       user.id,
+      conditionsFixables,
     );
 
     m.mutate(payload, {
@@ -320,12 +324,15 @@ export default function ModifierClient() {
             {/* Avec remise */}
             <Pressable
               onPress={() => setAvecRemise((v) => !v)}
-              className="flex-row items-center justify-between bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md px-4 py-3.5 active:opacity-70"
+              disabled={!conditionsFixables}
+              className={`flex-row items-center justify-between bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md px-4 py-3.5 ${conditionsFixables ? 'active:opacity-70' : 'opacity-60'}`}
             >
               <View className="flex-1 pr-3">
                 <Text className="font-extrabold text-slate-900 dark:text-white">Avec remise</Text>
                 <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  Le reversement de marge ne s'applique qu'à ce client si activé
+                  {conditionsFixables
+                    ? "Le reversement de marge ne s'applique qu'à ce client si activé"
+                    : "Réservé au livreur principal ou à l'administrateur"}
                 </Text>
               </View>
               <View

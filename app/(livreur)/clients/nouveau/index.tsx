@@ -12,6 +12,8 @@ import {
   useZones,
 } from '../../../../features/lookups/hooks';
 import { useClientDraftStore } from '../../../../stores/clientDraftStore';
+import { useAuthStore } from '../../../../stores/authStore';
+import { peutFixerConditions } from '../../../../features/remise/regles';
 import { parseLimiteCredit } from '../../../../features/clients/regles';
 
 export default function NouveauClientStep1() {
@@ -31,7 +33,9 @@ export default function NouveauClientStep1() {
   const [adresse, setAdresse] = useState(draft.adresse);
   const [quartierId, setQuartierId] = useState<string | null>(draft.quartierId);
   const [categorieId, setCategorieId] = useState<string | null>(draft.categorieId);
-  const [avecRemise, setAvecRemise] = useState(draft.avecRemise);
+  // D20 : un apprenti ne fixe pas le statut remise (le client est créé sans remise).
+  const conditionsFixables = peutFixerConditions(useAuthStore((s) => s.user));
+  const [avecRemise, setAvecRemise] = useState(conditionsFixables && draft.avecRemise);
   const [limiteCredit, setLimiteCredit] = useState(draft.limiteCredit);
   const initialZoneId =
     quartiers.find((q) => q.id === draft.quartierId)?.zone?.id ?? null;
@@ -64,7 +68,7 @@ export default function NouveauClientStep1() {
     setAdresse(draft.adresse);
     setQuartierId(draft.quartierId);
     setCategorieId(draft.categorieId);
-    setAvecRemise(draft.avecRemise);
+    setAvecRemise(conditionsFixables && draft.avecRemise);
     setLimiteCredit(draft.limiteCredit);
   }, [draft]);
 
@@ -130,7 +134,7 @@ export default function NouveauClientStep1() {
       // Field removed from the form — keep at default 0 in the draft for
       // backward compat with the store's existing shape.
       prixDeVenteParDefaut: '0',
-      avecRemise,
+      avecRemise: conditionsFixables && avecRemise,
       limiteCredit: String(limite),
     });
     router.push('/(livreur)/clients/nouveau/localisation' as never);
@@ -245,14 +249,15 @@ export default function NouveauClientStep1() {
 
           {/* Limite de crédit */}
           <Field
-            label="Limite de crédit (FCFA)"
+            label="Limite de crédit (FCFA) — 0 ou vide = sans limite"
             value={limiteCredit}
             onChange={setLimiteCredit}
             placeholder="0"
             keyboardType="number-pad"
           />
 
-          {/* Avec remise — toggle */}
+          {/* Avec remise — toggle (réservé racine/admin, D20) */}
+          {conditionsFixables ? (
           <Pressable
             onPress={() => setAvecRemise((v) => !v)}
             className="flex-row items-center justify-between bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md px-4 py-3.5 active:opacity-70"
@@ -275,6 +280,11 @@ export default function NouveauClientStep1() {
               />
             </View>
           </Pressable>
+          ) : (
+            <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+              Le statut « avec remise » est fixé par le livreur principal ou l'administrateur.
+            </Text>
+          )}
 
           {/* Next */}
           <Pressable

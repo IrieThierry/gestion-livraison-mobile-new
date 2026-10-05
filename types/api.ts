@@ -184,7 +184,8 @@ export interface ClientResponse {
   quartier: QuartierResponse
   categorie: CategorieResponse
   livreur?: LivreurResponse
-  prixDeVenteProduitParDefault: number
+  /** Null pour un client créé sans prix par défaut (ex. par un apprenti). */
+  prixDeVenteProduitParDefault: number | null
   avecOuSansRemise: boolean
   limiteCredit: number | null
   margeParUnite: number | null
@@ -201,7 +202,8 @@ export interface CreerClientRequest {
   quartierId: UUID
   categorieId: UUID
   livreurId: UUID
-  prixDeVenteProduitParDefault: number
+  /** Omis à la création : le client n'a pas de prix par défaut (null). */
+  prixDeVenteProduitParDefault?: number
   avecOuSansRemise: boolean
   /** Optionnel ; sans effet sur les remises (D7). */
   margeParUnite?: number
@@ -210,8 +212,10 @@ export interface CreerClientRequest {
 }
 
 export interface ModifierClientRequest
-  extends Omit<CreerClientRequest, 'prixDeVenteProduitParDefault'> {
+  extends Omit<CreerClientRequest, 'prixDeVenteProduitParDefault' | 'avecOuSansRemise'> {
   id: UUID
+  /** Omis pour un apprenti (D20) : le back garde le statut stocké. */
+  avecOuSansRemise?: boolean
   /** Optionnel à la modification : absent, le back garde la valeur stockée. */
   prixDeVenteProduitParDefault?: number
 }
@@ -279,6 +283,8 @@ export interface LivraisonResponse {
    * renvoyer) — fallback à `NON_ENCAISSEE` côté front.
    */
   statutEncaissement?: StatutEncaissement
+  /** Calculé par le back (D16) : payée avec dû > 0, ou gel après retour total. Seuls les retours restent possibles. */
+  figee?: boolean
   montantLivre: number
   /** Dû net (avant paiements) calculé par le back : (prix + remise) × (livré − retourné). */
   montantDu: number

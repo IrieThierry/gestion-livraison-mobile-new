@@ -20,10 +20,12 @@ export function ProduitPicker({
   onValidityChange,
   avecRemise = false,
   remisesConvenues,
+  remiseModifiable = true,
+  memoriserPossible = true,
 }: {
   lignes: Ligne[];
   onChange: (l: Ligne[]) => void;
-  prixDeVenteParDefaut?: number;
+  prixDeVenteParDefaut?: number | null;
   clientId?: string;
   enforceStock?: boolean;
   onValidityChange?: (insufficientLignes: number) => void;
@@ -31,6 +33,10 @@ export function ProduitPicker({
   avecRemise?: boolean;
   /** Remises convenues (produitId → remise) ; undefined tant que non chargées. */
   remisesConvenues?: Map<string, number>;
+  /** Faux (apprenti, D14) : remise convenue affichée sans champ éditable. */
+  remiseModifiable?: boolean;
+  /** Faux (apprenti, D20) : option « Mémoriser le prix » masquée. */
+  memoriserPossible?: boolean;
 }) {
   const { data: catalogue = [] } = useProduits();
   const stockQ = useStockCourant();
@@ -60,7 +66,11 @@ export function ProduitPicker({
   const addLigne = (item: ProduitResponse) => {
     const courantes = lignesRef.current;
     if (courantes.find((l) => l.produitId === item.id)) return;
-    const prix = prixDeVenteParDefaut ?? item.prixAchatParDefaut ?? 0;
+    // Un prix par défaut du client à 0 ou absent ne fixe rien : on part du prix du produit (comme le web).
+    const prix =
+      prixDeVenteParDefaut != null && prixDeVenteParDefaut > 0
+        ? prixDeVenteParDefaut
+        : item.prixAchatParDefaut ?? 0;
     const next = [
       ...courantes,
       { produitId: item.id, designation: item.designation, prix, qte: 1 },
@@ -162,6 +172,8 @@ export function ProduitPicker({
             enforceStock={enforceStock}
             avecRemise={avecRemise}
             remisesConvenues={remisesConvenues}
+            remiseModifiable={remiseModifiable}
+            memoriserPossible={memoriserPossible}
             onUpdate={(patch) => updateProduit(l.produitId, patch)}
             onRemove={() => removeProduit(l.produitId)}
           />
@@ -192,6 +204,8 @@ function LigneRow({
   enforceStock,
   avecRemise,
   remisesConvenues,
+  remiseModifiable,
+  memoriserPossible,
   onUpdate,
   onRemove,
 }: {
@@ -201,6 +215,8 @@ function LigneRow({
   enforceStock: boolean;
   avecRemise: boolean;
   remisesConvenues?: Map<string, number>;
+  remiseModifiable: boolean;
+  memoriserPossible: boolean;
   onUpdate: (patch: Partial<Ligne>) => void;
   onRemove: () => void;
 }) {
@@ -373,6 +389,16 @@ function LigneRow({
           <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-1">
             Remise unitaire (FCFA)
           </Text>
+          {!remiseModifiable ? (
+            <View className="px-3 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 flex-row items-center justify-between">
+              <Text className="text-[12px] text-slate-500 dark:text-slate-400">Remise convenue</Text>
+              <Text className="font-extrabold text-slate-900 dark:text-white">
+                {line.remise !== undefined
+                  ? `${line.remise.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} FCFA`
+                  : 'Appliquée par le serveur'}
+              </Text>
+            </View>
+          ) : (
           <TextInput
             value={
               remiseTexte ?? (line.remise !== undefined ? String(line.remise) : '')
@@ -388,11 +414,12 @@ function LigneRow({
                 : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800'
             }`}
           />
-          {line.remiseInvalide ? (
+          )}
+          {remiseModifiable && line.remiseInvalide ? (
             <Text className="text-[11px] text-red-500 mt-1">
               Remise invalide (nombre positif, 2 décimales maximum)
             </Text>
-          ) : !remisesConvenues && !line.remiseSaisie ? (
+          ) : remiseModifiable && !remisesConvenues && !line.remiseSaisie ? (
             <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
               Remise convenue appliquée par le serveur
             </Text>
@@ -401,7 +428,7 @@ function LigneRow({
       ) : null}
 
       {/* Option : mémoriser le prix saisi pour ce client (envoyé avec la livraison) */}
-      {prixModifie ? (
+      {prixModifie && memoriserPossible ? (
         <Pressable
           onPress={() => onUpdate({ memoriserPrix: !line.memoriserPrix })}
           className={`flex-row items-center gap-1.5 mt-2 self-start px-2.5 py-1.5 rounded-md active:opacity-70 ${

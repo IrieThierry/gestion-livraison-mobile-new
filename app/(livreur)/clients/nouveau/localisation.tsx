@@ -24,15 +24,16 @@ import { MapPreview } from '../../../../components/livreur/MapPreview';
 import { useEnregistrerClient } from '../../../../features/clients/hooks';
 import { useQuartiers, useCategories } from '../../../../features/lookups/hooks';
 import { useClientDraftStore } from '../../../../stores/clientDraftStore';
+import { peutFixerConditions } from '../../../../features/remise/regles';
 import { useAuthStore } from '../../../../stores/authStore';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { navigateTo } from '../../../../lib/linking';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
-import { parseLimiteCredit } from '../../../../features/clients/regles';
-import type { CreerClientRequest } from '../../../../types/api';
+import { buildCreerClientPayload } from '../../../../features/clients/regles';
 
 export default function NouveauClientStep2() {
   const user = useAuthStore((s) => s.user);
+  const conditionsFixables = peutFixerConditions(user);
   const isOnline = useNetworkStore((s) => s.isOnline);
   const draft = useClientDraftStore((s) => s.draft);
   const reset = useClientDraftStore((s) => s.reset);
@@ -77,21 +78,16 @@ export default function NouveauClientStep2() {
       return;
     }
 
-    const prix = parseInt(draft.prixDeVenteParDefaut, 10) || 0;
-    const payload: CreerClientRequest = {
-      nom: draft.nom,
-      prenom: draft.prenom,
-      contact: draft.contact,
-      email: draft.email,
-      adresse: draft.adresse,
-      latitudeLongitude: `${lat.toFixed(6)},${lng.toFixed(6)}`,
-      quartierId: draft.quartierId ?? '',
-      categorieId: draft.categorieId ?? '',
-      livreurId: user.id,
-      prixDeVenteProduitParDefault: prix,
-      avecOuSansRemise: draft.avecRemise,
-      limiteCredit: parseLimiteCredit(draft.limiteCredit) ?? 0,
-    };
+    const payload = buildCreerClientPayload(
+      {
+        ...draft,
+        quartierId: draft.quartierId ?? '',
+        categorieId: draft.categorieId ?? '',
+        latitudeLongitude: `${lat.toFixed(6)},${lng.toFixed(6)}`,
+      },
+      user.id,
+      conditionsFixables,
+    );
 
     submittingRef.current = true;
     m.mutate(payload, {
@@ -238,7 +234,7 @@ export default function NouveauClientStep2() {
                 icon={Percent}
                 color="#8b5cf6"
                 label="Avec remise"
-                value={draft.avecRemise ? 'Oui' : 'Non'}
+                value={conditionsFixables && draft.avecRemise ? 'Oui' : 'Non'}
                 last
               />
             </View>

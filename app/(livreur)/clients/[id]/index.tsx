@@ -34,6 +34,7 @@ import { useClientsByLivreur, useEncoursClient } from '../../../../features/clie
 import { useLivraisonsByLivreur } from '../../../../features/livraisons/hooks';
 import { useEncaissementsByLivreur } from '../../../../features/encaissements/hooks';
 import { num } from '../../../../features/encaissements/regles';
+import { libelleLimiteCredit } from '../../../../features/clients/regles';
 import { usePrixClient } from '../../../../features/prix/hooks';
 import { useAuthStore } from '../../../../stores/authStore';
 import { callPhone, navigateTo } from '../../../../lib/linking';
@@ -321,7 +322,7 @@ export default function ClientDetail() {
             />
             <KpiCard
               label={encours?.enDepassement ? 'Limite dépassée' : 'Limite de crédit'}
-              value={encours ? `${formatMontant(num(encours.limiteCredit))} F` : '…'}
+              value={encours ? libelleLimiteCredit(encours.limiteCredit) : '…'}
               tone={encours?.enDepassement ? 'red' : undefined}
             />
           </View>

@@ -1,4 +1,4 @@
-import { buildModifierClientPayload, parseLimiteCredit } from './regles';
+import { buildCreerClientPayload, buildModifierClientPayload, parseLimiteCredit, libelleLimiteCredit } from './regles';
 import type { ClientResponse } from '../../types/api';
 
 const champs = {
@@ -28,6 +28,19 @@ describe('buildModifierClientPayload', () => {
     expect(p.livreurId).toBe('l-proprio');
     expect(p.id).toBe('c-1');
     expect(p).not.toHaveProperty('margeParUnite');
+  });
+
+  it('apprenti (D20) : omet avecOuSansRemise et prixDeVenteProduitParDefault, garde le reste', () => {
+    const p = buildModifierClientPayload(client, champs, 'l-connecte', false);
+    expect(p).not.toHaveProperty('avecOuSansRemise');
+    expect(p).not.toHaveProperty('prixDeVenteProduitParDefault');
+    expect(p.limiteCredit).toBe(50000);
+    expect(p.nom).toBe(champs.nom);
+  });
+
+  it('racine/admin : envoie avecOuSansRemise', () => {
+    const p = buildModifierClientPayload(client, champs, 'l-connecte', true);
+    expect(p.avecOuSansRemise).toBe(champs.avecOuSansRemise);
   });
 
   it('omet limiteCredit quand le client n’en a pas (le back garde la valeur)', () => {
@@ -64,5 +77,47 @@ describe('parseLimiteCredit', () => {
     expect(parseLimiteCredit('50 000')).toBe(50000);
     expect(parseLimiteCredit('1,5')).toBeNull();
     expect(parseLimiteCredit('-3')).toBeNull();
+  });
+});
+
+describe('libelleLimiteCredit', () => {
+  it('0, null, undefined et négatif = sans limite', () => {
+    expect(libelleLimiteCredit(0)).toBe('Sans limite');
+    expect(libelleLimiteCredit(null)).toBe('Sans limite');
+    expect(libelleLimiteCredit(undefined)).toBe('Sans limite');
+    expect(libelleLimiteCredit(-5)).toBe('Sans limite');
+  });
+  it('limite positive formatée', () => {
+    expect(libelleLimiteCredit(1500)).toMatch(/^1\D?500 F$/);
+  });
+});
+
+describe('buildCreerClientPayload', () => {
+  const draft = {
+    prenom: 'A',
+    nom: 'B',
+    contact: '07',
+    email: '',
+    adresse: '',
+    latitudeLongitude: '1,2',
+    quartierId: 'q',
+    categorieId: 'k',
+    avecRemise: true,
+    limiteCredit: '1500',
+  };
+
+  it("n'envoie jamais prixDeVenteProduitParDefault (ni 0)", () => {
+    const p = buildCreerClientPayload(draft, 'l-1', true);
+    expect(p).not.toHaveProperty('prixDeVenteProduitParDefault');
+    expect(p.livreurId).toBe('l-1');
+    expect(p.limiteCredit).toBe(1500);
+  });
+
+  it('racine : transmet le statut remise', () => {
+    expect(buildCreerClientPayload(draft, 'l-1', true).avecOuSansRemise).toBe(true);
+  });
+
+  it('apprenti : ignore avecRemise du brouillon (hérité d’une session racine)', () => {
+    expect(buildCreerClientPayload(draft, 'l-1', false).avecOuSansRemise).toBe(false);
   });
 });
