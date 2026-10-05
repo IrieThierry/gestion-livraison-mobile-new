@@ -68,8 +68,8 @@ export function buildCreerLivraisonPayload(input: {
   livreurId: UUID;
   client: Pick<ClientResponse, 'id' | 'avecOuSansRemise'>;
   lignes: LigneSaisie[];
-  /** D14 : faux pour un apprenti, le back ignore sa remise : on ne l'envoie pas. */
-  remiseFixable: boolean;
+  /** D14/D20 : faux pour un apprenti (le back ignore sa remise et ne mémorise rien) : remise non envoyée, memoriserPrixClient à false. */
+  conditionsFixables: boolean;
 }): CreerLivraisonRequest {
   const avecRemise = input.client.avecOuSansRemise === true;
   return {
@@ -84,8 +84,8 @@ export function buildCreerLivraisonPayload(input: {
         qteRetournee: 0,
         qteRetourneeEnStock: 0,
         prixDeVente: l.prix,
-        memoriserPrixClient: l.memoriserPrix === true,
-        ...(input.remiseFixable && avecRemise && l.remiseSaisie === true && l.remise !== undefined
+        memoriserPrixClient: input.conditionsFixables && l.memoriserPrix === true,
+        ...(input.conditionsFixables && avecRemise && l.remiseSaisie === true && l.remise !== undefined
           ? { remiseUnitaire: l.remise }
           : {}),
       })),

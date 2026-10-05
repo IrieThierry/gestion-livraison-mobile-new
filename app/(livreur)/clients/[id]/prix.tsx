@@ -27,7 +27,7 @@ import {
   useEnregistrerRemise,
   useSupprimerRemise,
 } from '../../../../features/remise/hooks';
-import { parseRemiseUnitaire, peutFixerRemise } from '../../../../features/remise/regles';
+import { parseRemiseUnitaire, peutFixerConditions } from '../../../../features/remise/regles';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { useAuthStore } from '../../../../stores/authStore';
@@ -52,6 +52,8 @@ export default function PrixClientPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
+  // D20 : prix client en lecture seule pour l'apprenti.
+  const conditionsFixables = peutFixerConditions(user);
 
   const qC = useClientsByLivreur(livreurId);
   const qProduits = useProduits();
@@ -228,8 +230,9 @@ export default function PrixClientPage() {
           <View className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-md p-3 flex-row items-start gap-2 mb-3">
             <Tag color="#059669" size={14} />
             <Text className="flex-1 text-[12px] text-emerald-700 dark:text-emerald-400">
-              Les prix mémorisés ici remplacent ton barème par défaut pour ce
-              client uniquement. Ils sont visibles aussi sur le portail web.
+              {conditionsFixables
+                ? 'Les prix mémorisés ici remplacent ton barème par défaut pour ce client uniquement. Ils sont visibles aussi sur le portail web.'
+                : "Prix négociés pour ce client (lecture seule). Seul le livreur principal ou l'administrateur peut les modifier."}
             </Text>
           </View>
 
@@ -301,6 +304,7 @@ export default function PrixClientPage() {
                           <Text className="font-extrabold text-emerald-700 dark:text-emerald-400">
                             {formatFCFA(prixCustom)} FCFA
                           </Text>
+                          {conditionsFixables ? (
                           <Pressable
                             onPress={() => onDelete(produit)}
                             disabled={deleteMut.isPending}
@@ -309,6 +313,7 @@ export default function PrixClientPage() {
                           >
                             <Trash2 color="#ef4444" size={16} />
                           </Pressable>
+                          ) : null}
                         </View>
                       </View>
                     ) : null}
@@ -324,7 +329,8 @@ export default function PrixClientPage() {
                       </View>
                     ) : null}
 
-                    {/* Input + bouton enregistrer */}
+                    {/* Input + bouton enregistrer (racine/admin uniquement, D20) */}
+                    {conditionsFixables ? (
                     <View className="flex-row gap-2 items-end">
                       <View className="flex-1">
                         <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-1">
@@ -372,6 +378,7 @@ export default function PrixClientPage() {
                         </Text>
                       </Pressable>
                     </View>
+                    ) : null}
 
                     {client.avecOuSansRemise ? (
                       <RemiseBlock
@@ -381,7 +388,7 @@ export default function PrixClientPage() {
                         onSave={() => onSaveRemise(produit)}
                         onDelete={() => onDeleteRemise(produit)}
                         pending={upsertRemise.isPending || deleteRemise.isPending}
-                        lectureSeule={!peutFixerRemise(user)}
+                        lectureSeule={!peutFixerConditions(user)}
                       />
                     ) : null}
                   </View>

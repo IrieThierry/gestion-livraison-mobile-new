@@ -30,6 +30,19 @@ describe('buildModifierClientPayload', () => {
     expect(p).not.toHaveProperty('margeParUnite');
   });
 
+  it('apprenti (D20) : omet avecOuSansRemise et prixDeVenteProduitParDefault, garde le reste', () => {
+    const p = buildModifierClientPayload(client, champs, 'l-connecte', false);
+    expect(p).not.toHaveProperty('avecOuSansRemise');
+    expect(p).not.toHaveProperty('prixDeVenteProduitParDefault');
+    expect(p.limiteCredit).toBe(50000);
+    expect(p.nom).toBe(champs.nom);
+  });
+
+  it('racine/admin : envoie avecOuSansRemise', () => {
+    const p = buildModifierClientPayload(client, champs, 'l-connecte', true);
+    expect(p.avecOuSansRemise).toBe(champs.avecOuSansRemise);
+  });
+
   it('omet limiteCredit quand le client n’en a pas (le back garde la valeur)', () => {
     const p = buildModifierClientPayload(
       { ...client, limiteCredit: null } as ClientResponse,

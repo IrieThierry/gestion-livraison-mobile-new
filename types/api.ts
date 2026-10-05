@@ -210,8 +210,10 @@ export interface CreerClientRequest {
 }
 
 export interface ModifierClientRequest
-  extends Omit<CreerClientRequest, 'prixDeVenteProduitParDefault'> {
+  extends Omit<CreerClientRequest, 'prixDeVenteProduitParDefault' | 'avecOuSansRemise'> {
   id: UUID
+  /** Omis pour un apprenti (D20) : le back garde le statut stocké. */
+  avecOuSansRemise?: boolean
   /** Optionnel à la modification : absent, le back garde la valeur stockée. */
   prixDeVenteProduitParDefault?: number
 }

@@ -26,7 +26,7 @@ import { useClientsByLivreur } from '../../../features/clients/hooks';
 import { clientKeys } from '../../../features/clients/keys';
 import { produitKeys } from '../../../features/produits/keys';
 import { useRemisesClient } from '../../../features/remise/hooks';
-import { peutFixerRemise } from '../../../features/remise/regles';
+import { peutFixerConditions } from '../../../features/remise/regles';
 import {
   bilanLivraisonEtRetours,
   buildCreerLivraisonPayload,
@@ -79,7 +79,7 @@ export default function NouvelleLivraison() {
   // Garde synchrone contre le double appui (isPending arrive un rendu trop tard).
   const submittingRef = useRef(false);
   const avecRemise = client?.avecOuSansRemise === true;
-  const remiseFixable = peutFixerRemise(user);
+  const conditionsFixables = peutFixerConditions(user);
   const remisesQ = useRemisesClient(avecRemise ? client?.id : undefined);
   const remisesConvenues = useMemo(() => {
     if (!remisesQ.data) return undefined;
@@ -220,7 +220,7 @@ export default function NouvelleLivraison() {
               livreurId: user.id,
               client,
               lignes: validLignes,
-              remiseFixable,
+              conditionsFixables,
             })
           : null;
       const res = await enregistrerLivraisonEtRetours({
@@ -299,7 +299,8 @@ export default function NouvelleLivraison() {
               onValidityChange={setInsufficientCount}
               avecRemise={avecRemise}
               remisesConvenues={remisesConvenues}
-              remiseModifiable={remiseFixable}
+              remiseModifiable={conditionsFixables}
+              memoriserPossible={conditionsFixables}
             />
           </View>
 

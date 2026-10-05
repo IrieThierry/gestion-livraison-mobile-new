@@ -14,6 +14,12 @@ export interface ChampsClientModifies {
 }
 
 /**
+ * D20 : le statut avec/sans remise et le prix par défaut sont réservés au
+ * livreur racine / admin. Pour un apprenti ils sont omis du payload (le back
+ * les ignorerait de toute façon).
+ */
+
+/**
  * Payload de modification : les champs non saisis à l'écran gardent leur
  * valeur ACTUELLE (prix par défaut, limite de crédit) et le client reste
  * rattaché à son livreur (pas au livreur connecté). `limiteCredit` est omis
@@ -23,15 +29,18 @@ export function buildModifierClientPayload(
   client: ClientResponse,
   champs: ChampsClientModifies,
   livreurConnecteId: UUID,
+  conditionsFixables = true,
 ): ModifierClientRequest {
+  const { avecOuSansRemise, ...autresChamps } = champs;
   const payload: ModifierClientRequest = {
     id: client.id,
     livreurId: client.livreur?.id ?? livreurConnecteId,
-    ...champs,
+    ...autresChamps,
+    ...(conditionsFixables ? { avecOuSansRemise } : {}),
   };
   // Même règle que limiteCredit : un prix par défaut absent n'est pas
   // transformé en 0, il est omis et le back garde la valeur stockée.
-  if (client.prixDeVenteProduitParDefault != null) {
+  if (conditionsFixables && client.prixDeVenteProduitParDefault != null) {
     payload.prixDeVenteProduitParDefault = client.prixDeVenteProduitParDefault;
   }
   if (client.limiteCredit != null) payload.limiteCredit = client.limiteCredit;

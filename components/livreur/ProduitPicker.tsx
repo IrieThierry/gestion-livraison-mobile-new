@@ -21,6 +21,7 @@ export function ProduitPicker({
   avecRemise = false,
   remisesConvenues,
   remiseModifiable = true,
+  memoriserPossible = true,
 }: {
   lignes: Ligne[];
   onChange: (l: Ligne[]) => void;
@@ -34,6 +35,8 @@ export function ProduitPicker({
   remisesConvenues?: Map<string, number>;
   /** Faux (apprenti, D14) : remise convenue affichée sans champ éditable. */
   remiseModifiable?: boolean;
+  /** Faux (apprenti, D20) : option « Mémoriser le prix » masquée. */
+  memoriserPossible?: boolean;
 }) {
   const { data: catalogue = [] } = useProduits();
   const stockQ = useStockCourant();
@@ -166,6 +169,7 @@ export function ProduitPicker({
             avecRemise={avecRemise}
             remisesConvenues={remisesConvenues}
             remiseModifiable={remiseModifiable}
+            memoriserPossible={memoriserPossible}
             onUpdate={(patch) => updateProduit(l.produitId, patch)}
             onRemove={() => removeProduit(l.produitId)}
           />
@@ -197,6 +201,7 @@ function LigneRow({
   avecRemise,
   remisesConvenues,
   remiseModifiable,
+  memoriserPossible,
   onUpdate,
   onRemove,
 }: {
@@ -207,6 +212,7 @@ function LigneRow({
   avecRemise: boolean;
   remisesConvenues?: Map<string, number>;
   remiseModifiable: boolean;
+  memoriserPossible: boolean;
   onUpdate: (patch: Partial<Ligne>) => void;
   onRemove: () => void;
 }) {
@@ -418,7 +424,7 @@ function LigneRow({
       ) : null}
 
       {/* Option : mémoriser le prix saisi pour ce client (envoyé avec la livraison) */}
-      {prixModifie ? (
+      {prixModifie && memoriserPossible ? (
         <Pressable
           onPress={() => onUpdate({ memoriserPrix: !line.memoriserPrix })}
           className={`flex-row items-center gap-1.5 mt-2 self-start px-2.5 py-1.5 rounded-md active:opacity-70 ${

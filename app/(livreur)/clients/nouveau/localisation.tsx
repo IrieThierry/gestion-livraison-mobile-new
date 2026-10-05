@@ -24,6 +24,7 @@ import { MapPreview } from '../../../../components/livreur/MapPreview';
 import { useEnregistrerClient } from '../../../../features/clients/hooks';
 import { useQuartiers, useCategories } from '../../../../features/lookups/hooks';
 import { useClientDraftStore } from '../../../../stores/clientDraftStore';
+import { peutFixerConditions } from '../../../../features/remise/regles';
 import { useAuthStore } from '../../../../stores/authStore';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { navigateTo } from '../../../../lib/linking';
@@ -33,6 +34,7 @@ import type { CreerClientRequest } from '../../../../types/api';
 
 export default function NouveauClientStep2() {
   const user = useAuthStore((s) => s.user);
+  const conditionsFixables = peutFixerConditions(user);
   const isOnline = useNetworkStore((s) => s.isOnline);
   const draft = useClientDraftStore((s) => s.draft);
   const reset = useClientDraftStore((s) => s.reset);
@@ -89,7 +91,7 @@ export default function NouveauClientStep2() {
       categorieId: draft.categorieId ?? '',
       livreurId: user.id,
       prixDeVenteProduitParDefault: prix,
-      avecOuSansRemise: draft.avecRemise,
+      avecOuSansRemise: conditionsFixables && draft.avecRemise,
       limiteCredit: parseLimiteCredit(draft.limiteCredit) ?? 0,
     };
 
@@ -238,7 +240,7 @@ export default function NouveauClientStep2() {
                 icon={Percent}
                 color="#8b5cf6"
                 label="Avec remise"
-                value={draft.avecRemise ? 'Oui' : 'Non'}
+                value={conditionsFixables && draft.avecRemise ? 'Oui' : 'Non'}
                 last
               />
             </View>

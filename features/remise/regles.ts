@@ -2,10 +2,11 @@ import type { Resultat } from '../commandes/regles';
 import type { AuthResponse } from '../../types/api';
 
 /**
- * D14 : seuls l'admin et le livreur racine (sans parentId) fixent une remise
- * convenue ; un apprenti l'applique sans pouvoir la changer.
+ * D14/D20 : seuls l'admin et le livreur racine (sans parentId) fixent une remise
+ * convenue, le statut avec/sans remise du client, son prix par défaut et ses
+ * prix personnalisés ; un apprenti les voit en lecture seule.
  */
-export function peutFixerRemise(user: Pick<AuthResponse, 'profile' | 'parentId'> | null): boolean {
+export function peutFixerConditions(user: Pick<AuthResponse, 'profile' | 'parentId'> | null): boolean {
   return !!user && (user.profile === 'ADMIN' || !user.parentId);
 }
 
