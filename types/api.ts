@@ -499,8 +499,7 @@ export interface StockEquipeLigneResponse {
 /**
  * Une ligne du payload de déclaration d'achat (= entrée de stock chez un
  * fournisseur). Mirror de `LigneStockRequest` côté web/back — pas de prix
- * d'achat sur la ligne, le prix vient du `produit.prixAchatParDefaut` côté
- * back.
+ * d'achat sur la ligne (le back lit le catalogue actif du fournisseur).
  */
 export interface LigneStockRequest {
   produitId: UUID
@@ -703,8 +702,8 @@ export interface UpsertPrixClientRequest {
  *   - `source = 'CLIENT'` → prix custom enregistré pour ce couple
  *   - `source = 'LIVREUR'` → prix par défaut du livreur connecté
  *   - `source = null` (et `prix = null`) → aucun prix mémorisé, le
- *     livreur doit taper le prix manuellement (fallback sur
- *     `client.prixDeVenteProduitParDefault` ou `produit.prixAchatParDefaut`)
+ *     livreur doit taper le prix manuellement (repli sur
+ *     `client.prixDeVenteProduitParDefault`, sinon prix laissé à saisir)
  */
 export interface ResoudrePrixResponse {
   prix: number | null

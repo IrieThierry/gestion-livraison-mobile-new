@@ -6,6 +6,7 @@ import {
   etatApresEchecPartiel,
   MESSAGE_DESTINATION_RETOUR,
   montantLigneEstime,
+  prixInitialLigne,
   regrouperRetours,
   retoursSansDestination,
   totalLivraisonEstime,
@@ -308,5 +309,18 @@ describe('enregistrerLivraisonEtRetours', () => {
     expect(bilanLivraisonEtRetours(res, { livraison: true, nbRetours: 0 }).titre).toBe(
       'Livraison enregistrée',
     );
+  });
+});
+
+describe('prixInitialLigne', () => {
+  it('0, null, undefined et négatif donnent 0', () => {
+    expect(prixInitialLigne(0)).toBe(0);
+    expect(prixInitialLigne(null)).toBe(0);
+    expect(prixInitialLigne(undefined)).toBe(0);
+    expect(prixInitialLigne(-5)).toBe(0);
+  });
+
+  it('un prix positif est conservé', () => {
+    expect(prixInitialLigne(220)).toBe(220);
   });
 });

@@ -16,6 +16,10 @@ import { ProduitPicker, type Ligne } from '../../../components/livreur/ProduitPi
 import { useEnregistrerAchat } from '../../../features/stock/hooks';
 import { useFournisseurs } from '../../../features/lookups/hooks';
 import { produitKeys } from '../../../features/produits/keys';
+import { commandeKeys } from '../../../features/commandes/keys';
+import { useCatalogueFournisseur } from '../../../features/commandes/hooks';
+import { produitsAchetables, totalIndicatifAchat } from '../../../features/stock/regles';
+import { extractApiErrorMessage } from '../../../lib/api-error';
 import { useAuthStore } from '../../../stores/authStore';
 import { formatFCFA } from '../../../lib/format';
 import type { EnregistrerStockRequest } from '../../../types/api';
@@ -26,28 +30,30 @@ export default function DeclarerAchat() {
   const [fournisseurId, setFournisseurId] = useState<string | null>(null);
   const [lignes, setLignes] = useState<Ligne[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const { data: catalogue = [], isLoading: loadingCatalogue } =
+    useCatalogueFournisseur(fournisseurId ?? undefined);
+  const produits = useMemo(() => produitsAchetables(catalogue), [catalogue]);
   const m = useEnregistrerAchat();
   const qc = useQueryClient();
 
   // Pull-to-refresh : invalide les fournisseurs (lookup, staleTime 5min) et
-  // le catalogue produits — utile si l'admin vient d'ajouter un produit.
+  // le catalogue produits et celui du fournisseur choisi.
   const onRefresh = async () => {
     setRefreshing(true);
     try {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ['lookups', 'fournisseurs'] }),
         qc.invalidateQueries({ queryKey: produitKeys.all }),
+        qc.invalidateQueries({ queryKey: commandeKeys.all }),
       ]);
     } finally {
       setRefreshing(false);
     }
   };
 
-  // Pour le total affiché : on multiplie quantité × prix indicatif venant du
-  // catalogue. Le back ne lit pas ce prix dans la
-  // requête (cf. `LigneStockRequest` = { produitId, qte }) — c'est purement
-  // une aide visuelle pour le livreur.
-  const totalAchat = lignes.reduce((acc, l) => acc + l.prix * l.qte, 0);
+  // Total indicatif : quantité × prix du catalogue du fournisseur (aide visuelle,
+  // le back ne lit pas de prix dans la requête `LigneStockRequest` = { produitId, qte }).
+  const totalAchat = totalIndicatifAchat(lignes, catalogue);
 
   // Tri stable alphabétique pour la liste déroulante
   const fournisseursOptions = useMemo(
@@ -90,11 +96,7 @@ export default function DeclarerAchat() {
         dialog.success('Achat enregistré', 'Ton stock est mis à jour');
       },
       onError: (err: unknown) => {
-        const e = err as { response?: { data?: { message?: string } } };
-        dialog.error(
-          'Erreur',
-          e.response?.data?.message ?? "Échec de l'enregistrement",
-        );
+        dialog.error('Erreur', extractApiErrorMessage(err, "Échec de l'enregistrement"));
       },
     });
   };
@@ -118,14 +120,29 @@ export default function DeclarerAchat() {
             label="Fournisseur *"
             placeholder="Choisir un fournisseur"
             value={fournisseurId}
-            onChange={setFournisseurId}
+            onChange={(id) => {
+              setFournisseurId(id);
+              setLignes([]);
+            }}
             options={fournisseursOptions}
             isLoading={loadingFournisseurs}
             emptyMessage="Aucun fournisseur disponible"
           />
 
           <View className="mt-5">
-            <ProduitPicker lignes={lignes} onChange={setLignes} />
+            {!fournisseurId ? (
+              <Text className="text-sm text-slate-500 dark:text-slate-400">
+                Choisis d'abord un fournisseur
+              </Text>
+            ) : loadingCatalogue ? (
+              <ActivityIndicator color="#10b981" />
+            ) : produits.length === 0 ? (
+              <Text className="text-sm text-slate-500 dark:text-slate-400">
+                Ce fournisseur n'a aucun produit actif.
+              </Text>
+            ) : (
+              <ProduitPicker lignes={lignes} onChange={setLignes} produits={produits} />
+            )}
           </View>
 
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 mt-5 flex-row justify-between">

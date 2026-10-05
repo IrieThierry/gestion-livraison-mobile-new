@@ -5,7 +5,7 @@ import { useProduits } from '../../features/produits/hooks';
 import { useStockCourant } from '../../features/stock/hooks';
 import { useResoudrePrix } from '../../features/prix/hooks';
 import { parseRemiseUnitaire } from '../../features/remise/regles';
-import { montantLigneEstime, type LigneSaisie } from '../../features/livraisons/regles';
+import { montantLigneEstime, prixInitialLigne, type LigneSaisie } from '../../features/livraisons/regles';
 import { formatFCFA } from '../../lib/format';
 import type { ProduitResponse } from '../../types/api';
 
@@ -15,6 +15,7 @@ export function ProduitPicker({
   lignes,
   onChange,
   prixDeVenteParDefaut,
+  produits,
   clientId,
   enforceStock = false,
   onValidityChange,
@@ -26,6 +27,8 @@ export function ProduitPicker({
   lignes: Ligne[];
   onChange: (l: Ligne[]) => void;
   prixDeVenteParDefaut?: number | null;
+  /** Liste restreinte de produits proposés ; si fournie, remplace le référentiel complet. */
+  produits?: ProduitResponse[];
   clientId?: string;
   enforceStock?: boolean;
   onValidityChange?: (insufficientLignes: number) => void;
@@ -38,7 +41,8 @@ export function ProduitPicker({
   /** Faux (apprenti, D20) : option « Mémoriser le prix » masquée. */
   memoriserPossible?: boolean;
 }) {
-  const { data: catalogue = [] } = useProduits();
+  const { data: referentiel = [] } = useProduits();
+  const catalogue = produits ?? referentiel;
   const stockQ = useStockCourant();
 
   // Map produitId → qteVendable pour lookup O(1) sur chaque ligne
@@ -67,10 +71,7 @@ export function ProduitPicker({
     const courantes = lignesRef.current;
     if (courantes.find((l) => l.produitId === item.id)) return;
     // Un prix par défaut du client à 0 ou absent ne fixe rien : le prix reste à saisir.
-    const prix =
-      prixDeVenteParDefaut != null && prixDeVenteParDefaut > 0
-        ? prixDeVenteParDefaut
-        : 0;
+    const prix = prixInitialLigne(prixDeVenteParDefaut);
     const next = [
       ...courantes,
       { produitId: item.id, designation: item.designation, prix, qte: 1 },
