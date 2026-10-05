@@ -165,11 +165,6 @@ export default function MesPrixPage() {
                           </Text>
                         ) : null}
                       </View>
-                      {produit.prixAchatParDefaut > 0 ? (
-                        <Text className="text-[10px] text-slate-400 dark:text-slate-500">
-                          PA: {formatFCFA(produit.prixAchatParDefaut)}
-                        </Text>
-                      ) : null}
                     </View>
 
                     {/* Prix actuel */}

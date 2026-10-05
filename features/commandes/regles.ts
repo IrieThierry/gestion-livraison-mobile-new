@@ -1,4 +1,10 @@
-import type { CommandeResponse, CreerCommandeRequest, StatutCommande, UUID } from '../../types/api';
+import type {
+  CommandeResponse,
+  CreerCommandeRequest,
+  ProduitFournisseurResponse,
+  StatutCommande,
+  UUID,
+} from '../../types/api';
 
 /** Quantités saisies, indexées par id de produit (valeurs brutes des champs). */
 export type Quantites = Record<UUID, string>;
@@ -23,6 +29,18 @@ export const peutAnnuler = (c: CommandeResponse) => c.statut === 'ENVOYEE';
 
 /** Livrée et pas encore rattachée à un versement. */
 export const estReglable = (c: CommandeResponse) => c.statut === 'LIVREE' && c.versementId === null;
+
+/**
+ * Lignes du catalogue sur lesquelles on peut commander : actives (`actif !== false`,
+ * défense : le back filtre déjà), triées par désignation.
+ */
+export function lignesCommandables(
+  catalogue: ProduitFournisseurResponse[],
+): ProduitFournisseurResponse[] {
+  return catalogue
+    .filter((l) => l.actif !== false)
+    .sort((a, b) => a.produit.designation.localeCompare(b.produit.designation, 'fr'));
+}
 
 // ─── Validation des saisies ───────────────────────────────────────────────
 

@@ -2,8 +2,10 @@ import {
   construireCommande,
   estReglable,
   FILTRES_STATUT_COMMANDE,
+  lignesCommandables,
   peutAnnuler,
 } from './regles';
+import type { ProduitFournisseurResponse } from '../../types/api';
 import { commandeFixture } from './commande.fixture';
 
 describe('droits par statut', () => {
@@ -54,5 +56,42 @@ describe('construireCommande', () => {
     expect(construireCommande('f-1', { p1: '-2' }).ok).toBe(false);
     expect(construireCommande('f-1', { p1: '2.5' }).ok).toBe(false);
     expect(construireCommande('f-1', { p1: 'abc' }).ok).toBe(false);
+  });
+});
+
+const ligne = (
+  designation: string,
+  extra: Partial<ProduitFournisseurResponse> = {},
+): ProduitFournisseurResponse => ({
+  id: designation,
+  produit: { id: 'p-' + designation, code: designation, designation },
+  fournisseur: { id: 'f-1', code: 'F-001', libelle: 'F', interlocuteur: '', contact: '' },
+  prixDeVente: 100,
+  remiseLivreur: 10,
+  actif: true,
+  prixParticulier: false,
+  ...extra,
+});
+
+describe('lignesCommandables', () => {
+  it('écarte les lignes inactives et trie par désignation', () => {
+    const res = lignesCommandables([
+      ligne('Pain'),
+      ligne('Baguette'),
+      ligne('Brioche', { actif: false }),
+    ]);
+    expect(res.map((l) => l.produit.designation)).toEqual(['Baguette', 'Pain']);
+  });
+
+  it('garde une ligne dont actif est absent (défense)', () => {
+    const sansActif = { ...ligne('Croissant') } as Partial<ProduitFournisseurResponse>;
+    delete sansActif.actif;
+    expect(lignesCommandables([sansActif as ProduitFournisseurResponse])).toHaveLength(1);
+  });
+
+  it('conserve remise livreur et prix particulier', () => {
+    const [l] = lignesCommandables([ligne('Pain', { prixParticulier: true, remiseLivreur: 5 })]);
+    expect(l?.prixParticulier).toBe(true);
+    expect(l?.remiseLivreur).toBe(5);
   });
 });

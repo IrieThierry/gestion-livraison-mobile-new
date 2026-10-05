@@ -26,7 +26,7 @@ import { formatFCFA, formatMontant } from '../../../../lib/format';
 
 /**
  * Synthèse Reversements (Item A) — affiche pour le mois sélectionné :
- *   - « Mes fournisseurs me doivent » (marge cumulée − dette courante)
+ *   - « Mes fournisseurs me doivent » (remise livreur cumulée − dette courante)
  *   - « Je dois à mes clients » : remise acquise / reversée / reste à
  *     reverser / en attente d'encaissement, compte arrêté à la fin du mois
  *     (valeurs serveur). Navigation de mois bornée au mois courant.
@@ -144,7 +144,7 @@ export default function ReversementsSynthese() {
               {(q.data?.mesFournisseursMeDoivent ?? []).length === 0 ? (
                 <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-4 items-center mb-4">
                   <Text className="text-[12px] text-slate-400">
-                    Aucune marge à recevoir ce mois-ci
+                    Aucune remise livreur à recevoir ce mois-ci
                   </Text>
                 </View>
               ) : (
@@ -159,10 +159,10 @@ export default function ReversementsSynthese() {
                       </Text>
                       <View className="flex-row justify-between mt-2">
                         <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                          Marge cumulée
+                          Remise livreur cumulée
                         </Text>
                         <Text className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                          {formatFCFA(f.margeCumuleeMois)} F
+                          {formatFCFA(f.remiseLivreurCumuleeMois)} F
                         </Text>
                       </View>
                       <View className="flex-row justify-between mt-1">

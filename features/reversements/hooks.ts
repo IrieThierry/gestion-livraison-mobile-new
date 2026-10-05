@@ -22,7 +22,7 @@ export function useReversementsSyntheseLivreur(mois: string) {
 }
 
 /**
- * Reversement (remise reversée au client ou marge fournisseur). Le
+ * Reversement (remise reversée au client ou remise livreur du fournisseur). Le
  * reste à reverser fait partie du compte client : on invalide aussi les
  * encours et les remises.
  */

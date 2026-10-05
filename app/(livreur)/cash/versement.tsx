@@ -34,7 +34,7 @@ import { formatDateShort, formatFCFA } from '../../../lib/format';
 //  1. choisit un fournisseur
 //  2. coche les commandes livrées qu'il règle (aucune cochée = versement libre,
 //     qui réduit seulement la dette et exige un montant > 0)
-//  3. consulte la situation (valeur, marge, dette antérieure, total dû) calculée
+//  3. consulte la situation (valeur, remise livreur, dette antérieure, total dû) calculée
 //     par GET /versement/situation
 //  4. saisit le montant versé (quick-fill « Verser tout = totalDu »)
 //  5. soumet → POST /versement (CreerVersementRequest)
@@ -272,7 +272,7 @@ export default function Versement() {
                   </Text>
                   <View className="mt-2 gap-1">
                     <RowKV label="Valeur des commandes" value={formatFCFA(sit.data.valeurAchat)} />
-                    <RowKV label="Marge cumulée" value={formatFCFA(sit.data.margeCumulee)} />
+                    <RowKV label="Remise livreur cumulée" value={formatFCFA(sit.data.remiseLivreurCumulee)} />
                     <RowKV label="Dette avant" value={formatFCFA(sit.data.detteAvant)} />
                   </View>
                   <View className="border-t border-slate-100 dark:border-slate-800 mt-3 pt-3 flex-row justify-between">

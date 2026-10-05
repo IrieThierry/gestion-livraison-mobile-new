@@ -17,7 +17,11 @@ import {
   useCatalogueFournisseur,
   useCreerCommande,
 } from '../../../../features/commandes/hooks';
-import { construireCommande, type Quantites } from '../../../../features/commandes/regles';
+import {
+  construireCommande,
+  lignesCommandables,
+  type Quantites,
+} from '../../../../features/commandes/regles';
 import { useAuthStore } from '../../../../stores/authStore';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
@@ -33,6 +37,7 @@ export default function NouvelleCommande() {
   const [quantites, setQuantites] = useState<Quantites>({});
   const catalogue = useCatalogueFournisseur(fournisseurId ?? undefined);
   const m = useCreerCommande();
+  const lignes = useMemo(() => lignesCommandables(catalogue.data ?? []), [catalogue.data]);
 
   const options = useMemo(
     () =>
@@ -98,18 +103,22 @@ export default function NouvelleCommande() {
           {fournisseurId ? (
             <>
               <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
-                Produits (prix du catalogue ; le prix retenu est figé à la livraison)
+                Produits (prix applicable ; le prix retenu est figé à la livraison)
               </Text>
               {catalogue.isLoading ? (
                 <Text className="text-slate-400 text-sm">Chargement…</Text>
-              ) : (catalogue.data ?? []).length === 0 ? (
+              ) : catalogue.isError ? (
+                <Text className="text-red-500 text-sm">
+                  {extractApiErrorMessage(catalogue.error, 'Catalogue indisponible')}
+                </Text>
+              ) : lignes.length === 0 ? (
                 <EmptyState
                   title="Catalogue vide"
                   message="Ce fournisseur n'a aucun produit au catalogue."
                 />
               ) : (
                 <View className="gap-2">
-                  {(catalogue.data ?? []).map((pf) => (
+                  {lignes.map((pf) => (
                     <View
                       key={pf.id}
                       className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center justify-between"
@@ -121,6 +130,14 @@ export default function NouvelleCommande() {
                         <Text className="text-[11px] text-slate-500 dark:text-slate-400">
                           {formatFCFA(pf.prixDeVente)} F
                         </Text>
+                        <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Remise livreur : {formatFCFA(pf.remiseLivreur)} F
+                        </Text>
+                        {pf.prixParticulier ? (
+                          <Text className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                            Prix particulier
+                          </Text>
+                        ) : null}
                       </View>
                       <TextInput
                         value={quantites[pf.produit.id] ?? ''}

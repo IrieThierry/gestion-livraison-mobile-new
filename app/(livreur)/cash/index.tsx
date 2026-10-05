@@ -114,7 +114,7 @@ export default function CashOverview() {
               icon={Coins}
               color="#8b5cf6"
               label="Reversements"
-              hint="Remise due aux clients, marge des fournisseurs"
+              hint="Remise due aux clients, remise livreur des fournisseurs"
               onPress={() => router.push('/(livreur)/cash/reversements' as never)}
               border
             />

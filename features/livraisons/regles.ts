@@ -246,3 +246,8 @@ export async function enregistrerLivraisonEtRetours(input: {
   }
   return res;
 }
+
+/** Prix initial d'une ligne : le prix par défaut du client s'il est > 0, sinon 0 (à saisir). */
+export function prixInitialLigne(prixDeVenteParDefaut: number | null | undefined): number {
+  return prixDeVenteParDefaut != null && prixDeVenteParDefaut > 0 ? prixDeVenteParDefaut : 0;
+}
