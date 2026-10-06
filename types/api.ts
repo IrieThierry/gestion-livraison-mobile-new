@@ -437,11 +437,11 @@ export interface ProduitFournisseurResponse {
   produit: ProduitResponse
   fournisseur: FournisseurResponse
   prixDeVente: number
-  /** Remise livreur par unité (valeur résolue pour le livreur connecté). */
+  /** Remise livreur par unité : remise partenaire (fournisseur, livreur racine), identique sur toutes les lignes. */
   remiseLivreur: number
   actif: boolean
   dateDesactivation?: string | null
-  /** Vrai si les valeurs sont celles d'un prix particulier accordé à ce livreur. */
+  /** Vrai si le prix est un prix particulier accordé à ce livreur (concerne le prix uniquement). */
   prixParticulier: boolean
 }
 

@@ -68,3 +68,11 @@ export function construireCommande(
   if (lignes.length === 0) return { ok: false, erreur: 'Saisis au moins une quantité.' };
   return { ok: true, valeur: { fournisseurId, produitsCommandes: lignes } };
 }
+
+/**
+ * Remise livreur par unité du fournisseur (remise partenaire, identique sur toutes les lignes) :
+ * 0 si le catalogue est vide ou si aucune remise n'est accordée.
+ */
+export function remisePartenaire(catalogue: ProduitFournisseurResponse[]): number {
+  return catalogue[0]?.remiseLivreur ?? 0;
+}
