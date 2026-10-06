@@ -8,9 +8,7 @@ export interface ClientDraft {
   adresse: string;
   quartierId: string | null;
   categorieId: string | null;
-  prixDeVenteParDefaut: string;
   avecRemise: boolean;
-  limiteCredit: string;
 }
 
 export const EMPTY_DRAFT: ClientDraft = {
@@ -21,9 +19,7 @@ export const EMPTY_DRAFT: ClientDraft = {
   adresse: '',
   quartierId: null,
   categorieId: null,
-  prixDeVenteParDefaut: '0',
   avecRemise: false,
-  limiteCredit: '0',
 };
 
 interface ClientDraftState {

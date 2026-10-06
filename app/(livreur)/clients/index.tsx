@@ -31,7 +31,7 @@ export default function ClientsList() {
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
   const q = useClientsByLivreur(livreurId);
-  // Soldes et dépassements calculés par le serveur, en un appel.
+  // Soldes calculés par le serveur, en un appel.
   const qEncours = useEncoursByLivreur(livreurId);
   const encoursParClient = useMemo(() => indexerEncours(qEncours.data), [qEncours.data]);
   const [search, setSearch] = useState('');
@@ -210,20 +210,8 @@ function ClientRow({
           {soldeIndisponible ? (
             <Text className="text-[11px] font-bold text-slate-400">—</Text>
           ) : debt ? (
-            <View
-              className={`px-2 py-0.5 rounded-full ${
-                encours?.enDepassement
-                  ? 'bg-red-100 dark:bg-red-500/15'
-                  : 'bg-amber-100 dark:bg-amber-500/15'
-              }`}
-            >
-              <Text
-                className={`text-[11px] font-bold ${
-                  encours?.enDepassement
-                    ? 'text-red-700 dark:text-red-400'
-                    : 'text-amber-800 dark:text-amber-400'
-                }`}
-              >
+            <View className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/15">
+              <Text className="text-[11px] font-bold text-amber-800 dark:text-amber-400">
                 {formatMontant(solde)} F
               </Text>
             </View>
@@ -233,11 +221,6 @@ function ClientRow({
                 Avance {formatMontant(Math.abs(solde))} F
               </Text>
             </View>
-          ) : null}
-          {encours?.enDepassement ? (
-            <Text className="text-[9px] font-bold text-red-600 dark:text-red-400">
-              Limite dépassée
-            </Text>
           ) : null}
         </View>
       </View>

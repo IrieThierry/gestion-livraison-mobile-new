@@ -32,7 +32,6 @@ import { EmptyState } from '../../../components/shared/EmptyState';
 import { DatePickerField } from '../../../components/shared/DatePickerField';
 import { isAEncaisser } from '../../../lib/livraison-status';
 import { formatMontant, formatDateShort } from '../../../lib/format';
-import { libelleLimiteCredit } from '../../../features/clients/regles';
 import type { EncaissementLivraisonResponse, LivraisonResponse } from '../../../types/api';
 
 /**
@@ -275,17 +274,6 @@ export default function EncaisserPage() {
                     {formatMontant(Math.abs(solde))} F{soldeLabel}
                   </Text>
                 </View>
-                <Ligne
-                  label="Limite de crédit"
-                  valeur={libelleLimiteCredit(encours?.limiteCredit)}
-                />
-                {encours?.enDepassement ? (
-                  <View className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded px-2 py-1 mt-1">
-                    <Text className="text-[11px] font-bold text-red-700 dark:text-red-400">
-                      Limite de crédit dépassée
-                    </Text>
-                  </View>
-                ) : null}
               </>
             )}
           </View>

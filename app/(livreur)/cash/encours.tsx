@@ -10,7 +10,6 @@ import {
   totalAEncaisser,
   totalAvances,
 } from '../../../features/encaissements/regles';
-import { libelleLimiteCredit } from '../../../features/clients/regles';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import { useAuthStore } from '../../../stores/authStore';
 import { formatMontant } from '../../../lib/format';
@@ -19,7 +18,6 @@ import { formatMontant } from '../../../lib/format';
  * Vue Encours — soldes clients du livreur connecté, calculés par le
  * serveur (`GET /client/encours/livreur/{id}`) : dû net (remises et
  * retours compris) moins paiements. Solde négatif = avance du client.
- * La limite de crédit et le dépassement sont ceux du serveur.
  */
 export default function Encours() {
   const user = useAuthStore((s) => s.user);
@@ -35,7 +33,6 @@ export default function Encours() {
   );
   const totalDu = totalAEncaisser(q.data ?? []);
   const avances = totalAvances(q.data ?? []);
-  const nbDepassement = (q.data ?? []).filter((e) => e.enDepassement).length;
 
   if (!user) return null;
 
@@ -73,11 +70,6 @@ export default function Encours() {
               <Text className="text-[10px] text-white/85 mt-1">FCFA · payées d'avance</Text>
             </View>
           </View>
-          {nbDepassement > 0 ? (
-            <Text className="text-[12px] font-bold text-red-600 dark:text-red-400 mt-3">
-              {nbDepassement} client{nbDepassement > 1 ? 's' : ''} au-delà de la limite de crédit
-            </Text>
-          ) : null}
 
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
             Détail par client
@@ -106,21 +98,11 @@ export default function Encours() {
                         params: { id: e.clientId },
                       } as never)
                     }
-                    className={`bg-white dark:bg-slate-900 border rounded-lg p-3 flex-row items-center gap-2 active:opacity-70 ${
-                      e.enDepassement
-                        ? 'border-red-300 dark:border-red-500/40'
-                        : 'border-slate-200 dark:border-slate-800'
-                    }`}
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-2 active:opacity-70"
                   >
                     <View className="flex-1">
                       <Text className="font-extrabold text-slate-900 dark:text-white">
                         {e.nomClient}
-                      </Text>
-                      <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        {num(e.limiteCredit) > 0
-                          ? `Limite : ${libelleLimiteCredit(num(e.limiteCredit))}`
-                          : 'Sans limite de crédit'}
-                        {e.enDepassement ? ' · dépassée' : ''}
                       </Text>
                     </View>
                     <View className="items-end">

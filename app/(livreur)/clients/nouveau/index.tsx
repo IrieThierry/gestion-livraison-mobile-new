@@ -14,7 +14,6 @@ import {
 import { useClientDraftStore } from '../../../../stores/clientDraftStore';
 import { useAuthStore } from '../../../../stores/authStore';
 import { peutFixerConditions } from '../../../../features/remise/regles';
-import { parseLimiteCredit } from '../../../../features/clients/regles';
 
 export default function NouveauClientStep1() {
   const draft = useClientDraftStore((s) => s.draft);
@@ -36,7 +35,6 @@ export default function NouveauClientStep1() {
   // D20 : un apprenti ne fixe pas le statut remise (le client est créé sans remise).
   const conditionsFixables = peutFixerConditions(useAuthStore((s) => s.user));
   const [avecRemise, setAvecRemise] = useState(conditionsFixables && draft.avecRemise);
-  const [limiteCredit, setLimiteCredit] = useState(draft.limiteCredit);
   const initialZoneId =
     quartiers.find((q) => q.id === draft.quartierId)?.zone?.id ?? null;
   const [zoneId, setZoneId] = useState<string | null>(initialZoneId);
@@ -69,7 +67,6 @@ export default function NouveauClientStep1() {
     setQuartierId(draft.quartierId);
     setCategorieId(draft.categorieId);
     setAvecRemise(conditionsFixables && draft.avecRemise);
-    setLimiteCredit(draft.limiteCredit);
   }, [draft]);
 
   // Quartiers strictement filtrés par la zone choisie. Si pas de zone,
@@ -118,11 +115,6 @@ export default function NouveauClientStep1() {
       return dialog.warning('Email invalide', 'Vérifie le format de l’email.');
     }
 
-    const limite = parseLimiteCredit(limiteCredit);
-    if (limite === null) {
-      return dialog.warning('Limite de crédit invalide', 'Saisis un montant entier positif (0 = aucune limite).');
-    }
-
     setDraft({
       prenom: prenom.trim(),
       nom: nom.trim(),
@@ -131,11 +123,7 @@ export default function NouveauClientStep1() {
       adresse: adresse.trim(),
       quartierId,
       categorieId,
-      // Field removed from the form — keep at default 0 in the draft for
-      // backward compat with the store's existing shape.
-      prixDeVenteParDefaut: '0',
       avecRemise: conditionsFixables && avecRemise,
-      limiteCredit: String(limite),
     });
     router.push('/(livreur)/clients/nouveau/localisation' as never);
   };
@@ -245,15 +233,6 @@ export default function NouveauClientStep1() {
             options={categoriesOptions}
             isLoading={categoriesQ.isLoading}
             emptyMessage="Aucune catégorie configurée"
-          />
-
-          {/* Limite de crédit */}
-          <Field
-            label="Limite de crédit (FCFA) — 0 ou vide = sans limite"
-            value={limiteCredit}
-            onChange={setLimiteCredit}
-            placeholder="0"
-            keyboardType="number-pad"
           />
 
           {/* Avec remise — toggle (réservé racine/admin, D20) */}

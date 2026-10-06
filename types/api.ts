@@ -176,7 +176,8 @@ export interface ClientResponse {
   /** Null pour un client créé sans prix par défaut (ex. par un apprenti). */
   prixDeVenteProduitParDefault: number | null
   avecOuSansRemise: boolean
-  limiteCredit: number | null
+  /** @deprecated Limite de crédit abandonnée (tous les clients sont sans limite). */
+  limiteCredit?: number | null
   margeParUnite: number | null
   photoUrl?: string | null
 }
@@ -191,12 +192,12 @@ export interface CreerClientRequest {
   quartierId: UUID
   categorieId: UUID
   livreurId: UUID
-  /** Omis à la création : le client n'a pas de prix par défaut (null). */
+  /** @deprecated Plus saisi à l'enrôlement : ne jamais envoyer. */
   prixDeVenteProduitParDefault?: number
   avecOuSansRemise: boolean
   /** Optionnel ; sans effet sur les remises (D7). */
   margeParUnite?: number
-  /** Optionnel ; conservé côté back quand absent à la modification. */
+  /** @deprecated Abandonnée : ne jamais envoyer (le back garde la valeur stockée / défaut). */
   limiteCredit?: number
 }
 
@@ -205,7 +206,7 @@ export interface ModifierClientRequest
   id: UUID
   /** Omis pour un apprenti (D20) : le back garde le statut stocké. */
   avecOuSansRemise?: boolean
-  /** Optionnel à la modification : absent, le back garde la valeur stockée. */
+  /** @deprecated Ne jamais envoyer : le back garde la valeur stockée. */
   prixDeVenteProduitParDefault?: number
 }
 
@@ -332,12 +333,14 @@ export interface SituationEncaissementResponse {
 export interface EncoursClientResponse {
   clientId: UUID
   nomClient: string
-  limiteCredit: number | null
+  /** @deprecated Limite de crédit abandonnée. */
+  limiteCredit?: number | null
   totalLivre: number
   totalRetour: number
   totalEncaisse: number
   solde: number
-  enDepassement: boolean
+  /** @deprecated Limite de crédit abandonnée : plus affiché. */
+  enDepassement?: boolean
   totalRemise: number
 }
 
