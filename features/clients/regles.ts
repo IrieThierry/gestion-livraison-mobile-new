@@ -1,5 +1,4 @@
 import type { ClientResponse, CreerClientRequest, ModifierClientRequest, UUID } from '../../types/api';
-import { formatMontant } from '../../lib/format';
 
 export interface ChampsClientModifies {
   prenom: string;
@@ -21,9 +20,10 @@ export interface ChampsClientModifies {
 
 /**
  * Payload de modification : les champs non saisis à l'écran gardent leur
- * valeur ACTUELLE (prix par défaut, limite de crédit) et le client reste
- * rattaché à son livreur (pas au livreur connecté). `limiteCredit` est omis
- * quand elle n'existe pas : le back conserve alors la valeur stockée.
+ * valeur stockée côté back et le client reste rattaché à son livreur (pas au
+ * livreur connecté). `limiteCredit` (abandonnée) et
+ * `prixDeVenteProduitParDefault` ne sont JAMAIS envoyés : le back conserve les
+ * valeurs stockées à la modification.
  */
 export function buildModifierClientPayload(
   client: ClientResponse,
@@ -38,12 +38,6 @@ export function buildModifierClientPayload(
     ...autresChamps,
     ...(conditionsFixables ? { avecOuSansRemise } : {}),
   };
-  // Même règle que limiteCredit : un prix par défaut absent n'est pas
-  // transformé en 0, il est omis et le back garde la valeur stockée.
-  if (conditionsFixables && client.prixDeVenteProduitParDefault != null) {
-    payload.prixDeVenteProduitParDefault = client.prixDeVenteProduitParDefault;
-  }
-  if (client.limiteCredit != null) payload.limiteCredit = client.limiteCredit;
   return payload;
 }
 
@@ -57,12 +51,12 @@ export interface ChampsClientCree {
   quartierId: UUID;
   categorieId: UUID;
   avecRemise: boolean;
-  limiteCredit: string;
 }
 
 /**
- * Payload de création : aucun prix par défaut n'est envoyé (le client n'en a
- * pas, les lignes de livraison partent du prix du produit). Le statut remise
+ * Payload de création : ni prix par défaut ni limite de crédit ne sont envoyés
+ * (le back applique ses défauts ; les lignes de livraison partent du prix du
+ * produit, tous les clients sont « sans limite »). Le statut remise
  * n'est transmis que par un livreur racine / admin (D20), sinon false.
  */
 export function buildCreerClientPayload(
@@ -81,18 +75,5 @@ export function buildCreerClientPayload(
     categorieId: champs.categorieId,
     livreurId,
     avecOuSansRemise: conditionsFixables && champs.avecRemise,
-    limiteCredit: parseLimiteCredit(champs.limiteCredit) ?? 0,
   };
-}
-
-/** Limite de crédit saisie : entier >= 0, vide = 0. */
-export function parseLimiteCredit(brut: string): number | null {
-  const s = brut.replace(/\s/g, '');
-  if (s === '') return 0;
-  return /^\d+$/.test(s) ? Number(s) : null;
-}
-
-/** Libellé de la limite de crédit : 0, vide ou négative = sans limite (D13). */
-export function libelleLimiteCredit(limite: number | null | undefined): string {
-  return limite != null && limite > 0 ? `${formatMontant(limite)} F` : 'Sans limite';
 }

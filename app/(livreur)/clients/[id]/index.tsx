@@ -34,7 +34,6 @@ import { useClientsByLivreur, useEncoursClient } from '../../../../features/clie
 import { useLivraisonsByLivreur } from '../../../../features/livraisons/hooks';
 import { useEncaissementsByLivreur } from '../../../../features/encaissements/hooks';
 import { num } from '../../../../features/encaissements/regles';
-import { libelleLimiteCredit } from '../../../../features/clients/regles';
 import { usePrixClient } from '../../../../features/prix/hooks';
 import { useAuthStore } from '../../../../stores/authStore';
 import { callPhone, navigateTo } from '../../../../lib/linking';
@@ -80,7 +79,7 @@ export default function ClientDetail() {
   const qL = useLivraisonsByLivreur(livreurId);
   const qE = useEncaissementsByLivreur(livreurId);
   const qPrix = usePrixClient(id);
-  // Solde, limite et dépassement calculés par le serveur.
+  // Solde calculé par le serveur.
   const qEncours = useEncoursClient(id);
 
   // État accordéon — tous fermés par défaut. Le user déplie ce dont il a besoin.
@@ -319,11 +318,6 @@ export default function ClientDetail() {
                   : `${formatMontant(Math.abs(solde))} F`
               }
               tone={debt ? 'amber' : credit ? 'emerald' : undefined}
-            />
-            <KpiCard
-              label={encours?.enDepassement ? 'Limite dépassée' : 'Limite de crédit'}
-              value={encours ? libelleLimiteCredit(encours.limiteCredit) : '…'}
-              tone={encours?.enDepassement ? 'red' : undefined}
             />
           </View>
           <View className="flex-row gap-2 mt-2">
