@@ -6,7 +6,6 @@ import { livraisonsApi } from '../livraisons/api';
 import { stockKeys } from '../stock/keys';
 import { encaissementKeys } from '../encaissements/keys';
 import { clientKeys, encoursKeys } from '../clients/keys';
-import { remiseKeys } from '../remise/keys';
 import { reversementKeys } from '../reversements/keys';
 
 /**
@@ -66,7 +65,6 @@ export function useEnregistrerRetour() {
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
       qc.invalidateQueries({ queryKey: clientKeys.all });
       qc.invalidateQueries({ queryKey: encoursKeys.all });
-      qc.invalidateQueries({ queryKey: remiseKeys.all });
     },
     // Le payload est construit depuis la livraison en cache : après un échec
     // (409, livraison modifiée ailleurs…), on la recharge pour qu'une

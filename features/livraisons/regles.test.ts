@@ -8,6 +8,7 @@ import {
   montantLigneEstime,
   prixInitialLigne,
   regrouperRetours,
+  remiseLivraison,
   retoursSansDestination,
   totalLivraisonEstime,
   type LigneSaisie,
@@ -29,35 +30,39 @@ describe('estimations', () => {
     expect(montantLigneEstime(100, undefined, 3)).toBe(300);
   });
 
-  it('total : remise ignorée pour un client sans remise, lignes à 0 exclues', () => {
-    const lignes = [l({ remise: 10 }), l({ produitId: 'p-2', qte: 0, prix: 500 })];
-    expect(totalLivraisonEstime(lignes, true)).toBe(220);
-    expect(totalLivraisonEstime(lignes, false)).toBe(200);
+  it('total : remise du client incluse sur chaque ligne, lignes à 0 exclues', () => {
+    const lignes = [l({}), l({ produitId: 'p-2', qte: 0, prix: 500 })];
+    expect(totalLivraisonEstime(lignes, 10)).toBe(220);
+    expect(totalLivraisonEstime(lignes, 0)).toBe(200);
+  });
+});
+
+describe('remiseLivraison (D21)', () => {
+  it('client avec remise : sa remiseUnitaire, identique pour toutes les lignes', () => {
+    expect(remiseLivraison({ avecOuSansRemise: true, remiseUnitaire: 12.5 })).toBe(12.5);
+  });
+
+  it('client sans remise, absent ou remise nulle : 0', () => {
+    expect(remiseLivraison({ avecOuSansRemise: false, remiseUnitaire: 12.5 })).toBe(0);
+    expect(remiseLivraison({ avecOuSansRemise: true, remiseUnitaire: 0 })).toBe(0);
+    expect(remiseLivraison(undefined)).toBe(0);
   });
 });
 
 describe('erreurLignesLivraison', () => {
   it('prix > 0 obligatoire', () => {
-    expect(erreurLignesLivraison([l({ prix: 0 })], false)).toMatch(/prix/i);
-    expect(erreurLignesLivraison([l({})], false)).toBeNull();
-  });
-
-  it('remise invalide bloquante seulement pour un client avec remise', () => {
-    expect(erreurLignesLivraison([l({ remiseInvalide: true })], true)).toMatch(/remise/i);
-    expect(erreurLignesLivraison([l({ remiseInvalide: true })], false)).toBeNull();
+    expect(erreurLignesLivraison([l({ prix: 0 })])).toMatch(/prix/i);
+    expect(erreurLignesLivraison([l({})])).toBeNull();
   });
 });
 
 describe('buildCreerLivraisonPayload', () => {
-  it('client avec remise : remise saisie envoyée (0 compris), memoriserPrixClient explicite', () => {
+  it('client avec remise : aucune remiseUnitaire envoyée, memoriserPrixClient explicite', () => {
     const p = buildCreerLivraisonPayload({
       livreurId: 'l-1',
       conditionsFixables: true,
       client: { id: 'c-1', avecOuSansRemise: true },
-      lignes: [
-        l({ remise: 12.5, remiseSaisie: true, memoriserPrix: true }),
-        l({ produitId: 'p-2', remise: 0, remiseSaisie: true }),
-      ],
+      lignes: [l({ memoriserPrix: true }), l({ produitId: 'p-2' })],
     });
     expect(p).toEqual({
       livreurId: 'l-1',
@@ -71,7 +76,6 @@ describe('buildCreerLivraisonPayload', () => {
           qteRetourneeEnStock: 0,
           prixDeVente: 100,
           memoriserPrixClient: true,
-          remiseUnitaire: 12.5,
         },
         {
           produitId: 'p-2',
@@ -80,39 +84,18 @@ describe('buildCreerLivraisonPayload', () => {
           qteRetourneeEnStock: 0,
           prixDeVente: 100,
           memoriserPrixClient: false,
-          remiseUnitaire: 0,
         },
       ],
-    });
-  });
-
-  it('remise pré-remplie non modifiée : pas de remiseUnitaire (le back applique la convenue)', () => {
-    const p = buildCreerLivraisonPayload({
-      livreurId: 'l-1',
-      conditionsFixables: true,
-      client: { id: 'c-1', avecOuSansRemise: true },
-      lignes: [l({ remise: 12.5 }), l({ produitId: 'p-2', remise: 7, remiseSaisie: false })],
     });
     for (const x of p.produitsLivraison) expect(x).not.toHaveProperty('remiseUnitaire');
   });
 
-  it('remise inconnue (non chargée) : pas de remiseUnitaire, le back applique la convenue', () => {
-    const p = buildCreerLivraisonPayload({
-      livreurId: 'l-1',
-      conditionsFixables: true,
-      client: { id: 'c-1', avecOuSansRemise: true },
-      lignes: [l({})],
-    });
-    expect(p.produitsLivraison[0]).not.toHaveProperty('remiseUnitaire');
-    expect(p.produitsLivraison[0]?.memoriserPrixClient).toBe(false);
-  });
-
-  it('client sans remise : jamais de remiseUnitaire, avecRemise false', () => {
+  it('client sans remise : pas de remiseUnitaire, avecRemise false', () => {
     const p = buildCreerLivraisonPayload({
       livreurId: 'l-1',
       conditionsFixables: true,
       client: { id: 'c-1', avecOuSansRemise: false },
-      lignes: [l({ remise: 50, remiseSaisie: true })],
+      lignes: [l({})],
     });
     expect(p.avecRemise).toBe(false);
     expect(p.produitsLivraison[0]).not.toHaveProperty('remiseUnitaire');
@@ -127,17 +110,6 @@ describe('buildCreerLivraisonPayload', () => {
     });
     expect(p.produitsLivraison[0].memoriserPrixClient).toBe(false);
     expect(p.produitsLivraison[0].prixDeVente).toBe(80);
-  });
-
-  it('apprenti (conditionsFixables false) : remise saisie jamais envoyée', () => {
-    const p = buildCreerLivraisonPayload({
-      livreurId: 'l-1',
-      conditionsFixables: false,
-      client: { id: 'c-1', avecOuSansRemise: true },
-      lignes: [l({ remise: 12.5, remiseSaisie: true }), l({ produitId: 'p-2', remise: 0, remiseSaisie: true })],
-    });
-    expect(p.avecRemise).toBe(true);
-    for (const x of p.produitsLivraison) expect(x).not.toHaveProperty('remiseUnitaire');
   });
 
   it('lignes à quantité 0 non envoyées', () => {

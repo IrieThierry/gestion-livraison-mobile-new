@@ -10,15 +10,18 @@ export function peutFixerConditions(user: Pick<AuthResponse, 'profile' | 'parent
   return !!user && (user.profile === 'ADMIN' || !user.parentId);
 }
 
+export const MESSAGE_REMISE_INVALIDE =
+  'La remise doit être positive ou nulle, avec 2 décimales au plus.';
+
 /**
- * Remise unitaire saisie : nombre >= 0, 2 décimales max, virgule ou point.
- * 0 est accepté (remise nulle explicite) ; champ vide = erreur.
+ * D21 : remise unitaire du client saisie : nombre >= 0, 2 décimales max,
+ * 12 chiffres entiers max, virgule ou point. 0 est accepté ; champ vide = erreur.
  */
 export function parseRemiseUnitaire(brut: string): Resultat<number> {
   const s = brut.trim().replace(/\s/g, '').replace(',', '.');
-  if (s === '') return { ok: false, erreur: 'Saisis une remise' };
+  if (s === '') return { ok: false, erreur: MESSAGE_REMISE_INVALIDE };
   if (!/^\d{1,12}(\.\d{1,2})?$/.test(s)) {
-    return { ok: false, erreur: 'Remise invalide (nombre positif, 2 décimales maximum)' };
+    return { ok: false, erreur: MESSAGE_REMISE_INVALIDE };
   }
   return { ok: true, valeur: Number(s) };
 }

@@ -9,6 +9,8 @@ export interface ClientDraft {
   quartierId: string | null;
   categorieId: string | null;
   avecRemise: boolean;
+  /** D21 : remise unitaire (F) du client, déjà validée à l'étape 1 ; 0 si vide. */
+  remiseUnitaire: number;
 }
 
 export const EMPTY_DRAFT: ClientDraft = {
@@ -20,6 +22,7 @@ export const EMPTY_DRAFT: ClientDraft = {
   quartierId: null,
   categorieId: null,
   avecRemise: false,
+  remiseUnitaire: 0,
 };
 
 interface ClientDraftState {

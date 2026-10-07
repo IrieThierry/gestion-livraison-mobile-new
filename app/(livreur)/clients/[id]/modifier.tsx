@@ -29,6 +29,7 @@ import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { dialog } from '../../../../lib/dialog';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { peutFixerConditions } from '../../../../features/remise/regles';
+import { validerRemiseClient } from '../../../../features/clients/regles';
 import { buildModifierClientPayload } from '../../../../features/clients/regles';
 import type { ClientResponse } from '../../../../types/api';
 
@@ -76,6 +77,7 @@ export default function ModifierClient() {
   const [zoneId, setZoneId] = useState<string | null>(null);
   const [categorieId, setCategorieId] = useState<string | null>(null);
   const [avecRemise, setAvecRemise] = useState(false);
+  const [remiseTexte, setRemiseTexte] = useState('');
   const [latLng, setLatLng] = useState<{ lat: number; lng: number } | null>(null);
   const [capturing, setCapturing] = useState(false);
 
@@ -91,6 +93,7 @@ export default function ModifierClient() {
     setZoneId(client.quartier?.zone?.id ?? null);
     setCategorieId(client.categorie?.id ?? null);
     setAvecRemise(!!client.avecOuSansRemise);
+    setRemiseTexte(client.remiseUnitaire > 0 ? String(client.remiseUnitaire) : '');
     setLatLng(parseLatLng(client.latitudeLongitude));
   }, [client]);
 
@@ -168,6 +171,10 @@ export default function ModifierClient() {
       return dialog.warning('Email invalide', 'Vérifie le format de l’email.');
     }
 
+    // D21 : seule la racine/admin saisit la remise ; un apprenti ne l'envoie pas.
+    const remise = conditionsFixables && avecRemise ? validerRemiseClient(remiseTexte) : null;
+    if (remise && !remise.ok) return dialog.warning('Remise invalide', remise.erreur);
+
     const payload = buildModifierClientPayload(
       client,
       {
@@ -180,6 +187,7 @@ export default function ModifierClient() {
         quartierId,
         categorieId,
         avecOuSansRemise: avecRemise,
+        remiseUnitaire: remise?.ok ? remise.valeur : 0,
       },
       user.id,
       conditionsFixables,
@@ -345,6 +353,29 @@ export default function ModifierClient() {
                 />
               </View>
             </Pressable>
+
+            {/* D21 : remise par unité (F), identique pour tous les produits */}
+            {avecRemise ? (
+              <View>
+                <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                  Remise par unité (F)
+                </Text>
+                <TextInput
+                  value={remiseTexte}
+                  onChangeText={setRemiseTexte}
+                  editable={conditionsFixables}
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                  placeholderTextColor="#94a3b8"
+                  className={`px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-base ${conditionsFixables ? '' : 'opacity-60'}`}
+                />
+                {!conditionsFixables ? (
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    Réservé au livreur principal ou à l'administrateur
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
 
             {/* Localisation */}
             <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 mt-2">

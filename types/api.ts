@@ -176,6 +176,8 @@ export interface ClientResponse {
   /** Null pour un client créé sans prix par défaut (ex. par un apprenti). */
   prixDeVenteProduitParDefault: number | null
   avecOuSansRemise: boolean
+  /** D21 : remise unitaire (F) du client, identique pour tous les produits ; 0 par défaut, jamais null. */
+  remiseUnitaire: number
   /** @deprecated Limite de crédit abandonnée (tous les clients sont sans limite). */
   limiteCredit?: number | null
   margeParUnite: number | null
@@ -195,6 +197,8 @@ export interface CreerClientRequest {
   /** @deprecated Plus saisi à l'enrôlement : ne jamais envoyer. */
   prixDeVenteProduitParDefault?: number
   avecOuSansRemise: boolean
+  /** D21 : remise unitaire du client (>= 0, 2 décimales max) ; envoyée par la racine/admin seulement, absente = 0 (création) / valeur stockée (modification). */
+  remiseUnitaire?: number
   /** Optionnel ; sans effet sur les remises (D7). */
   margeParUnite?: number
   /** @deprecated Abandonnée : ne jamais envoyer (le back garde la valeur stockée / défaut). */
@@ -242,8 +246,6 @@ export interface ProduitLivraisonRequest {
   memoriserPrixClient?: boolean
   /** Quantité retournée remise en stock (le reste est perdu). */
   qteRetourneeEnStock?: number
-  /** Remise unitaire convenue (saisie ; mémorisée par (client, produit)). */
-  remiseUnitaire?: number
 }
 
 export interface ProduitLivraisonResponse {
@@ -350,13 +352,6 @@ export interface MargeCumuleeResponse {
   margeReversee: number
   margeDue: number
   remiseEnAttente: number
-}
-
-// ---------- Remises convenues par (client, produit) ----------
-export interface RemiseClientProduitResponse {
-  id: UUID
-  produit: ProduitResponse
-  remiseUnitaire: number
 }
 
 // ---------- Dashboard ----------
@@ -769,9 +764,3 @@ export interface SituationVersementResponse {
   nbCommandes: number
 }
 
-export interface UpsertRemiseClientRequest {
-  clientId: UUID
-  produitId: UUID
-  /** BigDecimal >= 0, 2 décimales maximum. */
-  remiseUnitaire: number
-}

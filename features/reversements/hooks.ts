@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { reversementsApi } from './api';
 import { encoursKeys } from '../clients/keys';
-import { remiseKeys } from '../remise/keys';
 import type { EnregistrerReversementRequest } from '../../types/api';
 import { reversementKeys } from './keys';
 
@@ -33,7 +32,6 @@ export function useEnregistrerReversement() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: reversementKeys.all });
       qc.invalidateQueries({ queryKey: encoursKeys.all });
-      qc.invalidateQueries({ queryKey: remiseKeys.all });
     },
   });
 }

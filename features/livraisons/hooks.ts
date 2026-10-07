@@ -10,7 +10,6 @@ import { stockKeys } from '../stock/keys';
 import { encaissementKeys } from '../encaissements/keys';
 import { clientKeys, encoursKeys } from '../clients/keys';
 import { prixKeys } from '../prix/keys';
-import { remiseKeys } from '../remise/keys';
 import { reversementKeys } from '../reversements/keys';
 
 // Le portail web n'expose pas de hooks dédiés (il appelle `useQuery` /
@@ -49,10 +48,8 @@ export function useCreerLivraison() {
       qc.invalidateQueries({ queryKey: livraisonKeys.all });
       qc.invalidateQueries({ queryKey: stockKeys.all });
       // Le back mémorise dans la même transaction le prix (memoriserPrixClient)
-      // et la remise saisie (remiseUnitaire), et le dû du client change :
-      // prix, remises, clients (soldes / encours) et encaissements.
+      // et le dû du client change : prix, clients (soldes / encours) et encaissements.
       qc.invalidateQueries({ queryKey: prixKeys.all });
-      qc.invalidateQueries({ queryKey: remiseKeys.all });
       qc.invalidateQueries({ queryKey: clientKeys.all });
       qc.invalidateQueries({ queryKey: encoursKeys.all });
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
@@ -74,7 +71,6 @@ export function useModifierLivraison() {
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
       // La remise « en attente / acquise » de la synthèse reversements change.
       qc.invalidateQueries({ queryKey: reversementKeys.all });
-      qc.invalidateQueries({ queryKey: remiseKeys.all });
     },
   });
 }

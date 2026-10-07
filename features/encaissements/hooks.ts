@@ -4,7 +4,6 @@ import { encaissementsApi, type SituationEncaissementParams } from './api';
 import { encaissementKeys } from './keys';
 import { livraisonKeys } from '../livraisons/keys';
 import { clientKeys, encoursKeys } from '../clients/keys';
-import { remiseKeys } from '../remise/keys';
 import { reversementKeys } from '../reversements/keys';
 
 export function useEncaissementsByLivreur(livreurId: UUID | undefined) {
@@ -43,7 +42,6 @@ export function useCreerEncaissement() {
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
       qc.invalidateQueries({ queryKey: encoursKeys.all });
       qc.invalidateQueries({ queryKey: clientKeys.all });
-      qc.invalidateQueries({ queryKey: remiseKeys.all });
       // Remise « en attente » → « acquise » dans la synthèse reversements.
       qc.invalidateQueries({ queryKey: reversementKeys.all });
     },
