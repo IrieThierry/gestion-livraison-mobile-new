@@ -4,7 +4,6 @@ import { Plus, Trash2, AlertCircle, Package, Tag, Save } from 'lucide-react-nati
 import { useProduits } from '../../features/produits/hooks';
 import { useStockCourant } from '../../features/stock/hooks';
 import { useResoudrePrix } from '../../features/prix/hooks';
-import { parseRemiseUnitaire } from '../../features/remise/regles';
 import { montantLigneEstime, prixInitialLigne, type LigneSaisie } from '../../features/livraisons/regles';
 import { formatFCFA } from '../../lib/format';
 import type { ProduitResponse } from '../../types/api';
@@ -19,9 +18,7 @@ export function ProduitPicker({
   clientId,
   enforceStock = false,
   onValidityChange,
-  avecRemise = false,
-  remisesConvenues,
-  remiseModifiable = true,
+  remiseClient,
   memoriserPossible = true,
   prixParProduit,
   prixModifiable = true,
@@ -34,12 +31,12 @@ export function ProduitPicker({
   clientId?: string;
   enforceStock?: boolean;
   onValidityChange?: (insufficientLignes: number) => void;
-  /** Client avec remise : affiche la remise unitaire par ligne. */
-  avecRemise?: boolean;
-  /** Remises convenues (produitId → remise) ; undefined tant que non chargées. */
-  remisesConvenues?: Map<string, number>;
-  /** Faux (apprenti, D14) : remise convenue affichée sans champ éditable. */
-  remiseModifiable?: boolean;
+  /**
+   * D21 : remise unitaire du client (F), identique pour toutes les lignes,
+   * affichée en lecture seule. Définie seulement pour un client « avec remise »
+   * (0 compris) ; undefined = pas de remise.
+   */
+  remiseClient?: number;
   /** Faux (apprenti, D20) : option « Mémoriser le prix » masquée. */
   memoriserPossible?: boolean;
   /** Prix imposé par produit (achat : prix du catalogue fournisseur), utilisé à l'ajout d'une ligne. */
@@ -177,9 +174,7 @@ export function ProduitPicker({
             clientId={clientId}
             stockDispo={stockMap.get(l.produitId) ?? 0}
             enforceStock={enforceStock}
-            avecRemise={avecRemise}
-            remisesConvenues={remisesConvenues}
-            remiseModifiable={remiseModifiable}
+            remiseClient={remiseClient}
             memoriserPossible={memoriserPossible}
             prixModifiable={prixModifiable}
             onUpdate={(patch) => updateProduit(l.produitId, patch)}
@@ -200,19 +195,16 @@ export function ProduitPicker({
  * du prix résolu : le choix est envoyé avec la livraison
  * (`memoriserPrixClient`), le back mémorise le prix dans la même transaction.
  *
- * Client avec remise : la remise unitaire est pré-remplie depuis la remise
- * convenue (0 sans valeur convenue) pour l'affichage et l'estimation ; elle
- * n'est envoyée en `remiseUnitaire` que si le livreur la saisit (le back la
- * mémorise : la dernière saisie gagne).
+ * Client avec remise (D21) : la remise unitaire du client est affichée en
+ * lecture seule et incluse dans l'estimation ; elle n'est jamais envoyée, le
+ * back l'applique.
  */
 function LigneRow({
   line,
   clientId,
   stockDispo,
   enforceStock,
-  avecRemise,
-  remisesConvenues,
-  remiseModifiable,
+  remiseClient,
   memoriserPossible,
   prixModifiable,
   onUpdate,
@@ -222,45 +214,13 @@ function LigneRow({
   clientId?: string;
   stockDispo: number;
   enforceStock: boolean;
-  avecRemise: boolean;
-  remisesConvenues?: Map<string, number>;
-  remiseModifiable: boolean;
+  remiseClient?: number;
   memoriserPossible: boolean;
   prixModifiable: boolean;
   onUpdate: (patch: Partial<Ligne>) => void;
   onRemove: () => void;
 }) {
   const { data: resolved } = useResoudrePrix(clientId, line.produitId);
-
-  // Pré-remplissage de la remise dès que les remises convenues sont connues.
-  // Tant qu'elles ne le sont pas (hors-ligne sans cache), `remise` reste
-  // undefined : rien n'est envoyé et le back applique la remise convenue.
-  useEffect(() => {
-    if (!avecRemise || line.remiseSaisie || line.remise !== undefined || !remisesConvenues) return;
-    onUpdate({ remise: remisesConvenues.get(line.produitId) ?? 0, remiseInvalide: false });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [avecRemise, remisesConvenues, line.remise, line.remiseSaisie, line.produitId]);
-
-  // Texte saisi pour la remise (null = afficher la valeur de la ligne).
-  const [remiseTexte, setRemiseTexte] = useState<string | null>(null);
-  useEffect(() => {
-    setRemiseTexte(null);
-  }, [clientId]);
-
-  // Seule une remise saisie (`remiseSaisie`) est envoyée. Champ vidé = pas de
-  // saisie : retour à l'affichage pré-rempli (remise convenue), rien n'est
-  // envoyé. « 0 » est une saisie valide.
-  const onChangeRemise = (v: string) => {
-    if (v.trim() === '') {
-      setRemiseTexte(null);
-      onUpdate({ remise: undefined, remiseSaisie: false, remiseInvalide: false });
-      return;
-    }
-    setRemiseTexte(v);
-    const r = parseRemiseUnitaire(v);
-    if (r.ok) onUpdate({ remise: r.valeur, remiseSaisie: true, remiseInvalide: false });
-    else onUpdate({ remiseSaisie: true, remiseInvalide: true });
-  };
 
   // Track le dernier prix résolu pour comparer au prix actuel et savoir
   // s'il a été modifié manuellement (cas où on doit afficher le bouton
@@ -292,7 +252,8 @@ function LigneRow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolved, clientId, line.produitId]);
 
-  const remiseLigne = avecRemise ? line.remise ?? 0 : 0;
+  const avecRemise = remiseClient !== undefined;
+  const remiseLigne = remiseClient ?? 0;
   const sousTotal = montantLigneEstime(line.prix, remiseLigne, line.qte);
   const prixZero = prixModifiable && line.prix <= 0;
   const stockInsuffisant = enforceStock && line.qte > stockDispo;
@@ -401,47 +362,18 @@ function LigneRow({
         </View>
       </View>
 
-      {/* Remise unitaire (client avec remise uniquement) */}
+      {/* D21 : remise unitaire du client, lecture seule (client avec remise uniquement) */}
       {avecRemise ? (
         <View className="mt-2">
           <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-1">
             Remise unitaire (FCFA)
           </Text>
-          {!remiseModifiable ? (
-            <View className="px-3 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 flex-row items-center justify-between">
-              <Text className="text-[12px] text-slate-500 dark:text-slate-400">Remise convenue</Text>
-              <Text className="font-extrabold text-slate-900 dark:text-white">
-                {line.remise !== undefined
-                  ? `${line.remise.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} FCFA`
-                  : 'Appliquée par le serveur'}
-              </Text>
-            </View>
-          ) : (
-          <TextInput
-            value={
-              remiseTexte ?? (line.remise !== undefined ? String(line.remise) : '')
-            }
-            onChangeText={onChangeRemise}
-            keyboardType="decimal-pad"
-            selectTextOnFocus
-            placeholder="Remise convenue"
-            placeholderTextColor="#94a3b8"
-            className={`px-3 py-2.5 rounded-md text-slate-900 dark:text-white text-base border ${
-              line.remiseInvalide
-                ? 'border-red-400 bg-red-50 dark:bg-red-500/10'
-                : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800'
-            }`}
-          />
-          )}
-          {remiseModifiable && line.remiseInvalide ? (
-            <Text className="text-[11px] text-red-500 mt-1">
-              Remise invalide (nombre positif, 2 décimales maximum)
+          <View className="px-3 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 flex-row items-center justify-between">
+            <Text className="text-[12px] text-slate-500 dark:text-slate-400">Remise du client</Text>
+            <Text className="font-extrabold text-slate-900 dark:text-white">
+              {remiseLigne.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} FCFA
             </Text>
-          ) : remiseModifiable && !remisesConvenues && !line.remiseSaisie ? (
-            <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-              Remise convenue appliquée par le serveur
-            </Text>
-          ) : null}
+          </View>
         </View>
       ) : null}
 

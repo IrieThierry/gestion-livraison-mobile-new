@@ -1,4 +1,15 @@
 import type { ClientResponse, CreerClientRequest, ModifierClientRequest, UUID } from '../../types/api';
+import type { Resultat } from '../commandes/regles';
+import { parseRemiseUnitaire } from '../remise/regles';
+
+/**
+ * D21 : valide la remise unitaire du client saisie à l'écran. Champ vide = 0 ;
+ * sinon >= 0, 2 décimales max, 12 chiffres entiers max (même message que le back).
+ */
+export function validerRemiseClient(brut: string): Resultat<number> {
+  if (brut.trim() === '') return { ok: true, valeur: 0 };
+  return parseRemiseUnitaire(brut);
+}
 
 export interface ChampsClientModifies {
   prenom: string;
@@ -10,6 +21,8 @@ export interface ChampsClientModifies {
   quartierId: UUID;
   categorieId: UUID;
   avecOuSansRemise: boolean;
+  /** D21 : remise unitaire du client (racine/admin). */
+  remiseUnitaire: number;
 }
 
 /**
@@ -31,12 +44,14 @@ export function buildModifierClientPayload(
   livreurConnecteId: UUID,
   conditionsFixables = true,
 ): ModifierClientRequest {
-  const { avecOuSansRemise, ...autresChamps } = champs;
+  const { avecOuSansRemise, remiseUnitaire, ...autresChamps } = champs;
   const payload: ModifierClientRequest = {
     id: client.id,
     livreurId: client.livreur?.id ?? livreurConnecteId,
     ...autresChamps,
     ...(conditionsFixables ? { avecOuSansRemise } : {}),
+    // D21 : remise envoyée par la racine/admin seulement, et seulement si « avec remise ».
+    ...(conditionsFixables && avecOuSansRemise ? { remiseUnitaire } : {}),
   };
   return payload;
 }
@@ -51,6 +66,8 @@ export interface ChampsClientCree {
   quartierId: UUID;
   categorieId: UUID;
   avecRemise: boolean;
+  /** D21 : remise unitaire du client (racine/admin). */
+  remiseUnitaire: number;
 }
 
 /**
@@ -75,5 +92,7 @@ export function buildCreerClientPayload(
     categorieId: champs.categorieId,
     livreurId,
     avecOuSansRemise: conditionsFixables && champs.avecRemise,
+    // D21 : jamais envoyée par un apprenti (le back l'ignorerait) ni sans remise.
+    ...(conditionsFixables && champs.avecRemise ? { remiseUnitaire: champs.remiseUnitaire } : {}),
   };
 }

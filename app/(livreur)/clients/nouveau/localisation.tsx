@@ -234,7 +234,11 @@ export default function NouveauClientStep2() {
                 icon={Percent}
                 color="#8b5cf6"
                 label="Avec remise"
-                value={conditionsFixables && draft.avecRemise ? 'Oui' : 'Non'}
+                value={
+                  conditionsFixables && draft.avecRemise
+                    ? `Oui · remise ${draft.remiseUnitaire.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} F/u`
+                    : 'Non'
+                }
                 last
               />
             </View>

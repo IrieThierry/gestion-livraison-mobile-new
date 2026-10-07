@@ -12,12 +12,6 @@ export const ligneProduitSchema = z.object({
   // Le back refuse un prix nul ou négatif.
   prixDeVente: z.coerce.number().positive('Prix > 0'),
   memoriserPrixClient: z.boolean().default(false),
-  /** Remise unitaire saisie (optionnelle) : >= 0, 2 décimales maximum. */
-  remiseUnitaire: z.coerce
-    .number()
-    .min(0, 'Remise >= 0')
-    .refine((v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6, '2 décimales maximum')
-    .optional(),
 }).refine((l) => l.qteRetournee <= l.qteLivree, {
   message: 'Retour > quantité livrée',
   path: ['qteRetournee'],

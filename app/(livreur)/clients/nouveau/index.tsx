@@ -14,6 +14,7 @@ import {
 import { useClientDraftStore } from '../../../../stores/clientDraftStore';
 import { useAuthStore } from '../../../../stores/authStore';
 import { peutFixerConditions } from '../../../../features/remise/regles';
+import { validerRemiseClient } from '../../../../features/clients/regles';
 
 export default function NouveauClientStep1() {
   const draft = useClientDraftStore((s) => s.draft);
@@ -35,6 +36,10 @@ export default function NouveauClientStep1() {
   // D20 : un apprenti ne fixe pas le statut remise (le client est créé sans remise).
   const conditionsFixables = peutFixerConditions(useAuthStore((s) => s.user));
   const [avecRemise, setAvecRemise] = useState(conditionsFixables && draft.avecRemise);
+  // D21 : remise unitaire (F) du client, fixée seulement par la racine/admin.
+  const [remiseTexte, setRemiseTexte] = useState(
+    conditionsFixables && draft.remiseUnitaire > 0 ? String(draft.remiseUnitaire) : '',
+  );
   const initialZoneId =
     quartiers.find((q) => q.id === draft.quartierId)?.zone?.id ?? null;
   const [zoneId, setZoneId] = useState<string | null>(initialZoneId);
@@ -67,6 +72,7 @@ export default function NouveauClientStep1() {
     setQuartierId(draft.quartierId);
     setCategorieId(draft.categorieId);
     setAvecRemise(conditionsFixables && draft.avecRemise);
+    setRemiseTexte(conditionsFixables && draft.remiseUnitaire > 0 ? String(draft.remiseUnitaire) : '');
   }, [draft]);
 
   // Quartiers strictement filtrés par la zone choisie. Si pas de zone,
@@ -115,6 +121,9 @@ export default function NouveauClientStep1() {
       return dialog.warning('Email invalide', 'Vérifie le format de l’email.');
     }
 
+    const remise = conditionsFixables && avecRemise ? validerRemiseClient(remiseTexte) : null;
+    if (remise && !remise.ok) return dialog.warning('Remise invalide', remise.erreur);
+
     setDraft({
       prenom: prenom.trim(),
       nom: nom.trim(),
@@ -124,6 +133,7 @@ export default function NouveauClientStep1() {
       quartierId,
       categorieId,
       avecRemise: conditionsFixables && avecRemise,
+      remiseUnitaire: remise?.ok ? remise.valeur : 0,
     });
     router.push('/(livreur)/clients/nouveau/localisation' as never);
   };
@@ -265,6 +275,17 @@ export default function NouveauClientStep1() {
             </Text>
           )}
 
+          {/* D21 : remise par unité, identique pour tous les produits (racine/admin, si avec remise) */}
+          {conditionsFixables && avecRemise ? (
+            <Field
+              label="Remise par unité (F)"
+              value={remiseTexte}
+              onChange={setRemiseTexte}
+              placeholder="0"
+              keyboardType="decimal-pad"
+            />
+          ) : null}
+
           {/* Next */}
           <Pressable
             onPress={onNext}
@@ -294,7 +315,7 @@ function Field({
   value: string;
   onChange: (s: string) => void;
   placeholder?: string;
-  keyboardType?: 'phone-pad' | 'email-address' | 'number-pad' | 'default';
+  keyboardType?: 'phone-pad' | 'email-address' | 'number-pad' | 'decimal-pad' | 'default';
 }) {
   return (
     <View>

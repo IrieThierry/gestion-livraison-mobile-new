@@ -71,18 +71,6 @@ describe('livraisonSchema', () => {
     ).toBe(false);
   });
 
-  it('remiseUnitaire : >= 0 et 2 décimales maximum', () => {
-    const avecRemise = (remiseUnitaire: number) =>
-      livraisonSchema.safeParse({
-        ...valid,
-        produitsLivraison: [{ ...valid.produitsLivraison[0], remiseUnitaire }],
-      }).success;
-    expect(avecRemise(12.5)).toBe(true);
-    expect(avecRemise(0.29)).toBe(true);
-    expect(avecRemise(-1)).toBe(false);
-    expect(avecRemise(1.234)).toBe(false);
-  });
-
   it('rejects negative prixDeVente', () => {
     expect(
       livraisonSchema.safeParse({

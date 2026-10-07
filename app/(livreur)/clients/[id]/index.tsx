@@ -436,7 +436,15 @@ export default function ClientDetail() {
                 }
               />
               <InfoRow icon={Tag} label="Catégorie" value={client.categorie?.libelle ?? '—'} />
-              <InfoRow icon={Percent} label="Avec remise" value={client.avecOuSansRemise ? 'Oui' : 'Non'} />
+              <InfoRow
+                icon={Percent}
+                label="Avec remise"
+                value={
+                  client.avecOuSansRemise
+                    ? `Oui · remise ${(Number(client.remiseUnitaire) || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} F/u`
+                    : 'Non'
+                }
+              />
             </View>
           </Section>
 

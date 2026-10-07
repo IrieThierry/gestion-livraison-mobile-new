@@ -25,7 +25,6 @@ import { qteRetournable, valeurRetour } from '../../../features/retours/api';
 import { useClientsByLivreur } from '../../../features/clients/hooks';
 import { clientKeys } from '../../../features/clients/keys';
 import { produitKeys } from '../../../features/produits/keys';
-import { useRemisesClient } from '../../../features/remise/hooks';
 import { peutFixerConditions } from '../../../features/remise/regles';
 import {
   bilanLivraisonEtRetours,
@@ -35,6 +34,7 @@ import {
   etatApresEchecPartiel,
   MESSAGE_DESTINATION_RETOUR,
   regrouperRetours,
+  remiseLivraison,
   retoursSansDestination,
   totalLivraisonEstime,
   type SaisieRetours,
@@ -80,16 +80,9 @@ export default function NouvelleLivraison() {
   const submittingRef = useRef(false);
   const avecRemise = client?.avecOuSansRemise === true;
   const conditionsFixables = peutFixerConditions(user);
-  const remisesQ = useRemisesClient(avecRemise ? client?.id : undefined);
-  const remisesConvenues = useMemo(() => {
-    if (!remisesQ.data) return undefined;
-    const map = new Map<string, number>();
-    for (const r of remisesQ.data) {
-      if (r.produit?.id) map.set(r.produit.id, Number(r.remiseUnitaire) || 0);
-    }
-    return map;
-  }, [remisesQ.data]);
-  const total = totalLivraisonEstime(lignes, avecRemise);
+  // D21 : remise unique du client, lecture seule, identique pour toutes les lignes.
+  const remise = remiseLivraison(client);
+  const total = totalLivraisonEstime(lignes, remise);
   const m = useCreerLivraison();
   const mRetour = useEnregistrerRetour();
   const qc = useQueryClient();
@@ -119,16 +112,12 @@ export default function NouvelleLivraison() {
 
   // Quand le client change, on remet à zéro les retours en attente :
   // ils sont indexés par produit-livraison, qui appartient à un client.
-  // La remise et le choix « mémoriser » appartiennent au client précédent :
-  // ils sont réinitialisés (la remise est re-pré-remplie pour le nouveau).
+  // Le choix « mémoriser » appartient au client précédent : il est réinitialisé.
   useEffect(() => {
     setRetoursAttente({});
     setLignes((ls) =>
       ls.map((l) => ({
         ...l,
-        remise: undefined,
-        remiseSaisie: false,
-        remiseInvalide: false,
         memoriserPrix: false,
       })),
     );
@@ -194,7 +183,7 @@ export default function NouvelleLivraison() {
       dialog.warning('Rien à enregistrer', 'Ajoute au moins une ligne livrée ou un retour > 0.');
       return;
     }
-    const erreurLignes = erreurLignesLivraison(validLignes, avecRemise);
+    const erreurLignes = erreurLignesLivraison(validLignes);
     if (erreurLignes) {
       dialog.warning('Ligne invalide', erreurLignes);
       return;
@@ -297,9 +286,7 @@ export default function NouvelleLivraison() {
               clientId={client?.id}
               enforceStock
               onValidityChange={setInsufficientCount}
-              avecRemise={avecRemise}
-              remisesConvenues={remisesConvenues}
-              remiseModifiable={conditionsFixables}
+              remiseClient={avecRemise ? remise : undefined}
               memoriserPossible={conditionsFixables}
             />
           </View>

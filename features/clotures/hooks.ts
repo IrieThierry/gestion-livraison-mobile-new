@@ -3,7 +3,6 @@ import { cloturesApi } from './api';
 import { livraisonKeys } from '../livraisons/keys';
 import { encaissementKeys } from '../encaissements/keys';
 import { encoursKeys } from '../clients/keys';
-import { remiseKeys } from '../remise/keys';
 import type { EnregistrerClotureRequest, UUID } from '../../types/api';
 
 const clotureKeys = {
@@ -39,7 +38,6 @@ export function useEnregistrerCloture() {
       qc.invalidateQueries({ queryKey: livraisonKeys.all });
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
       qc.invalidateQueries({ queryKey: encoursKeys.all });
-      qc.invalidateQueries({ queryKey: remiseKeys.all });
     },
   });
 }

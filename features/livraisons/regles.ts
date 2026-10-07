@@ -11,20 +11,6 @@ export interface LigneSaisie {
   designation: string;
   prix: number;
   qte: number;
-  /**
-   * Remise unitaire affichée et estimée (client avec remise) : pré-remplie
-   * depuis la remise convenue, ou saisie. `undefined` tant que les remises
-   * convenues ne sont pas chargées et que rien n'est saisi.
-   */
-  remise?: number;
-  /**
-   * Vrai seulement si le livreur a saisi la remise (« 0 » compris). Seule une
-   * remise saisie est envoyée en `remiseUnitaire` ; sinon le back applique la
-   * remise convenue pour (client, produit).
-   */
-  remiseSaisie?: boolean;
-  /** Saisie de remise invalide (bloque l'enregistrement). */
-  remiseInvalide?: boolean;
   /** Le livreur a choisi de mémoriser le prix saisi pour ce client. */
   memoriserPrix?: boolean;
 }
@@ -37,21 +23,28 @@ export function montantLigneEstime(prix: number, remise: number | undefined, qte
   return ((Number(prix) || 0) + (Number(remise) || 0)) * (Number(qte) || 0);
 }
 
+/**
+ * D21 : remise unitaire appliquée à toutes les lignes = celle du client si
+ * « avec remise », sinon 0 (lecture seule, appliquée par le back à l'enregistrement).
+ */
+export function remiseLivraison(
+  client: Pick<ClientResponse, 'avecOuSansRemise' | 'remiseUnitaire'> | undefined | null,
+): number {
+  return client?.avecOuSansRemise === true ? Number(client.remiseUnitaire) || 0 : 0;
+}
+
 /** Estimation du total de la livraison en cours de saisie. */
-export function totalLivraisonEstime(lignes: LigneSaisie[], avecRemise: boolean): number {
+export function totalLivraisonEstime(lignes: LigneSaisie[], remise: number): number {
   return lignes
     .filter((l) => l.qte > 0)
-    .reduce((acc, l) => acc + montantLigneEstime(l.prix, avecRemise ? l.remise : 0, l.qte), 0);
+    .reduce((acc, l) => acc + montantLigneEstime(l.prix, remise, l.qte), 0);
 }
 
 /** Message d'erreur bloquant pour les lignes à livrer, ou null si valides. */
-export function erreurLignesLivraison(lignes: LigneSaisie[], avecRemise: boolean): string | null {
+export function erreurLignesLivraison(lignes: LigneSaisie[]): string | null {
   const valides = lignes.filter((l) => l.qte > 0);
   if (valides.some((l) => !(l.prix > 0))) {
     return 'Définis un prix unitaire (> 0) pour chaque ligne.';
-  }
-  if (avecRemise && valides.some((l) => l.remiseInvalide || (l.remise !== undefined && !(l.remise >= 0)))) {
-    return 'Une remise est invalide (nombre positif, 2 décimales maximum).';
   }
   return null;
 }
@@ -59,16 +52,14 @@ export function erreurLignesLivraison(lignes: LigneSaisie[], avecRemise: boolean
 /**
  * Payload `POST /livraison`. Seules les lignes avec une quantité > 0 sont
  * envoyées. `memoriserPrixClient` est toujours explicite (le back mémorise le
- * prix dans la même transaction). `remiseUnitaire` n'est envoyée que pour un
- * client avec remise et une remise SAISIE par le livreur (le back la mémorise,
- * D9) ; une remise seulement pré-remplie n'est pas envoyée : le back applique
- * la remise convenue (et 0 pour un client sans remise).
+ * prix dans la même transaction). D21 : `remiseUnitaire` n'est JAMAIS envoyée,
+ * le back applique la remise du client (0 pour un client sans remise).
  */
 export function buildCreerLivraisonPayload(input: {
   livreurId: UUID;
   client: Pick<ClientResponse, 'id' | 'avecOuSansRemise'>;
   lignes: LigneSaisie[];
-  /** D14/D20 : faux pour un apprenti (le back ignore sa remise et ne mémorise rien) : remise non envoyée, memoriserPrixClient à false. */
+  /** D14/D20 : faux pour un apprenti (le back ne mémorise rien) : memoriserPrixClient à false. */
   conditionsFixables: boolean;
 }): CreerLivraisonRequest {
   const avecRemise = input.client.avecOuSansRemise === true;
@@ -85,9 +76,6 @@ export function buildCreerLivraisonPayload(input: {
         qteRetourneeEnStock: 0,
         prixDeVente: l.prix,
         memoriserPrixClient: input.conditionsFixables && l.memoriserPrix === true,
-        ...(input.conditionsFixables && avecRemise && l.remiseSaisie === true && l.remise !== undefined
-          ? { remiseUnitaire: l.remise }
-          : {}),
       })),
   };
 }
