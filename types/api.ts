@@ -458,15 +458,48 @@ export interface ModifierFournisseurRequest {
 }
 
 // ---------- Commandes (livreur -> fournisseur) ----------
-export type StatutCommande = 'ENVOYEE' | 'CONFIRMEE' | 'REFUSEE' | 'ANNULEE' | 'LIVREE'
+export type StatutCommande =
+  | 'ENVOYEE'
+  | 'CONFIRMEE'
+  | 'EN_RECEPTION'
+  | 'REFUSEE'
+  | 'ANNULEE'
+  | 'LIVREE'
+
+/** Personne citée par le back (`nom` = « prénom nom »). */
+export interface PersonneRef {
+  id: UUID
+  nom: string
+}
 
 export interface ProduitCommandeResponse {
   id: UUID
   produit: ProduitResponse
   qteCommandee: number
-  qteLivree: number | null     // renseignée à la livraison par le fournisseur
-  prixUnitaire: number | null  // figé à la livraison
-  remiseLivreurUnitaire: number | null // figée à la livraison
+  qteRecue: number             // Σ des réceptions actives
+  qteRestante: number          // max(0, commandée − reçue) ; après « Passer à Livrée » : reliquat abandonné
+  montantRecu: number          // Σ quantité × prix figé des réceptions actives
+  remiseLivreurRecue: number   // Σ quantité × remise figée des réceptions actives
+}
+
+export interface LigneReceptionCommandeResponse {
+  produit: ProduitResponse
+  quantite: number
+  prixUnitaire: number
+  remiseLivreurUnitaire: number
+}
+
+export interface ReceptionCommandeResponse {
+  id: UUID
+  reference: string            // REC-n
+  dateReception: string        // ISO
+  receptionnePar: PersonneRef
+  modifieePar: PersonneRef | null
+  dateModification: string | null
+  annulee: boolean
+  annuleePar: PersonneRef | null
+  dateAnnulation: string | null
+  lignes: LigneReceptionCommandeResponse[]
 }
 
 export interface CommandeResponse {
@@ -479,15 +512,33 @@ export interface CommandeResponse {
   dateDecision: string | null  // ISO — confirmation ou refus
   motifRefus: string | null
   dateLivraison: string | null // ISO
-  montantLivre: number | null  // Σ qteLivree × prixUnitaire (statut LIVREE)
+  montantLivre: number | null  // Σ des réceptions actives ; null tant qu'aucune réception
   remiseLivreurLivree: number | null
   versementId: UUID | null     // non nul = réglée par un versement
   produitsCommandes: ProduitCommandeResponse[]
+  apprentiAffecte: PersonneRef | null
+  affectePar: PersonneRef | null
+  dateAffectation: string | null
+  receptions: ReceptionCommandeResponse[]
+  livreeManuellement: boolean  // « Passer à Livrée »
+  livreePar: PersonneRef | null
+  dateLivree: string | null
 }
 
 export interface CreerCommandeRequest {
   fournisseurId: UUID
   produitsCommandes: Array<{ produitId: UUID; qteCommandee: number }>
+  /** Apprenti affecté dès la création (facultatif). */
+  apprentiId?: UUID | null
+}
+
+/**
+ * Réception (POST) ou modification (PUT, contenu COMPLET de la réception) :
+ * `dateReception` absente = maintenant (POST) ou inchangée (PUT).
+ */
+export interface ReceptionnerCommandeRequest {
+  dateReception?: string
+  lignes: Array<{ produitId: UUID; quantite: number }>
 }
 
 /** Ligne du catalogue d'un fournisseur (GET /produit-fournisseur?fournisseurId=). */

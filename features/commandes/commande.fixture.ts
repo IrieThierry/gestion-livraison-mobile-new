@@ -1,4 +1,8 @@
-import type { CommandeResponse } from '../../types/api';
+import type {
+  CommandeResponse,
+  ProduitCommandeResponse,
+  ReceptionCommandeResponse,
+} from '../../types/api';
 
 /** Fabrique de test : commande ENVOYEE d'une seule ligne, surchargeable. */
 export function commandeFixture(overrides: Partial<CommandeResponse> = {}): CommandeResponse {
@@ -30,16 +34,61 @@ export function commandeFixture(overrides: Partial<CommandeResponse> = {}): Comm
     montantLivre: null,
     remiseLivreurLivree: null,
     versementId: null,
+    apprentiAffecte: null,
+    affectePar: null,
+    dateAffectation: null,
+    receptions: [],
+    livreeManuellement: false,
+    livreePar: null,
+    dateLivree: null,
     produitsCommandes: [
       {
         id: 'l1',
         produit: { id: 'p1', code: 'BAG', designation: 'Baguette' },
         qteCommandee: 10,
-        qteLivree: null,
-        prixUnitaire: null,
-        remiseLivreurUnitaire: null,
+        qteRecue: 0,
+        qteRestante: 10,
+        montantRecu: 0,
+        remiseLivreurRecue: 0,
       },
     ],
+    ...overrides,
+  };
+}
+
+/** Ligne de commande : `qteRestante` = commandée − reçue (surchargeable). */
+export function ligneCommandeFixture(
+  produitId: string,
+  designation: string,
+  qteCommandee: number,
+  qteRecue = 0,
+): ProduitCommandeResponse {
+  return {
+    id: `l-${produitId}`,
+    produit: { id: produitId, code: produitId.toUpperCase(), designation },
+    qteCommandee,
+    qteRecue,
+    qteRestante: Math.max(0, qteCommandee - qteRecue),
+    montantRecu: 0,
+    remiseLivreurRecue: 0,
+  };
+}
+
+/** Réception active REC-1 reçue par le titulaire, surchargeable. */
+export function receptionFixture(
+  overrides: Partial<ReceptionCommandeResponse> = {},
+): ReceptionCommandeResponse {
+  return {
+    id: 'r-1',
+    reference: 'REC-1',
+    dateReception: '2026-10-02T09:00:00',
+    receptionnePar: { id: 'l-1', nom: 'Ahmed Koné' },
+    modifieePar: null,
+    dateModification: null,
+    annulee: false,
+    annuleePar: null,
+    dateAnnulation: null,
+    lignes: [],
     ...overrides,
   };
 }
