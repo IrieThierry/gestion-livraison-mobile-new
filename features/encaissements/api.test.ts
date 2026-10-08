@@ -14,39 +14,80 @@ beforeEach(() => {
 });
 
 describe('contrat API encaissement', () => {
-  it('situation : GET /encaissement/livraison/situation avec les 4 paramètres', async () => {
+  it('livraisons à encaisser : GET /encaissement/livraison/a-encaisser avec livreurId et clientId', async () => {
     get.mockResolvedValue({
-      data: { valeurLivraisons: 3000, margeCumulee: 150, detteAvant: 500, totalDu: 3500 },
+      data: {
+        solde: 2000,
+        avance: 0,
+        livraisons: [{ id: 'L2', reference: 'LIV12', resteDu: 500, statutEncaissement: 'ENCAISSEE' }],
+      },
     });
-    const p = {
-      livreurId: 'l-1',
-      clientId: 'c-1',
-      dateDebut: '2026-09-01T00:00:00',
-      dateFin: '2026-10-04T23:59:59',
-    };
-    const r = await encaissementsApi.situation(p);
-    expect(get).toHaveBeenCalledWith('/encaissement/livraison/situation', { params: p });
-    expect(r.totalDu).toBe(3500);
+    const r = await encaissementsApi.aEncaisser('l-1', 'c-1');
+    expect(get).toHaveBeenCalledWith('/encaissement/livraison/a-encaisser', {
+      params: { livreurId: 'l-1', clientId: 'c-1' },
+    });
+    expect(r.solde).toBe(2000);
+    expect(r.livraisons[0].resteDu).toBe(500);
   });
 
-  it("création : POST /encaissement/livraison, montant décimal au-delà du dû, mode libre ; renvoie l'encaissement créé", async () => {
+  it('aperçu : POST /encaissement/livraison/apercu avec livraisonIds, sans écriture côté client', async () => {
     post.mockResolvedValue({
-      data: { id: 'e-1', reference: 'ENC-LIV4', montantEncaisse: 12500.5, detteAvant: 10000, detteApres: -2500.5 },
+      data: {
+        duChoisi: 1500,
+        ecart: 500,
+        soldeApres: 0,
+        repartition: [{ livraisonId: 'L3', reference: 'LIV13', part: 1500, resteDuApres: 0 }],
+        surplusImpute: [{ livraisonId: 'L2', reference: 'LIV12', part: 500 }],
+      },
     });
-    const payload = { livreurId: 'l-1', clientId: 'c-1', montantEncaisse: 12500.5, libre: true };
+    const payload = {
+      livreurId: 'l-1',
+      clientId: 'c-1',
+      livraisonIds: ['L3'],
+      montantEncaisse: 2000,
+    };
+    const r = await encaissementsApi.apercu(payload);
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(post).toHaveBeenCalledWith('/encaissement/livraison/apercu', payload);
+    expect(post.mock.calls[0][1].livraisonIds).toEqual(['L3']);
+    expect(r.ecart).toBe(500);
+    expect(r.surplusImpute[0].reference).toBe('LIV12');
+  });
+
+  it("création : POST /encaissement/livraison avec livraisonIds, sans libre ni dateDebut ; renvoie l'encaissement créé", async () => {
+    post.mockResolvedValue({
+      data: { id: 'e-1', reference: 'ENC-LIV4', montantEncaisse: 3000, ecart: -500, detteApres: 2000 },
+    });
+    const payload = {
+      livreurId: 'l-1',
+      clientId: 'c-1',
+      livraisonIds: ['L1', 'L2'],
+      montantEncaisse: 3000,
+    };
     const r = await encaissementsApi.creer(payload);
     expect(post).toHaveBeenCalledTimes(1);
     expect(post).toHaveBeenCalledWith('/encaissement/livraison', payload);
+    const corps = post.mock.calls[0][1];
+    expect(corps.livraisonIds).toEqual(['L1', 'L2']);
+    expect(corps).not.toHaveProperty('libre');
+    expect(corps).not.toHaveProperty('dateDebut');
+    expect(corps).not.toHaveProperty('dateFin');
     expect(get).not.toHaveBeenCalled();
     expect(r.reference).toBe('ENC-LIV4');
-    expect(r.detteApres).toBe(-2500.5);
+    expect(r.ecart).toBe(-500);
   });
 
-  it("création : une erreur du back est propagée", async () => {
-    post.mockRejectedValue({ response: { status: 400, data: { message: 'Montant invalide' } } });
+  it('création : une erreur du back est propagée', async () => {
+    post.mockRejectedValue({
+      response: { status: 400, data: { success: false, message: 'Choisissez au moins une livraison à encaisser.' } },
+    });
     await expect(
-      encaissementsApi.creer({ livreurId: 'l-1', clientId: 'c-1', montantEncaisse: 10 }),
+      encaissementsApi.creer({ livreurId: 'l-1', clientId: 'c-1', livraisonIds: [], montantEncaisse: 10 }),
     ).rejects.toBeTruthy();
+  });
+
+  it("l'API n'expose plus la situation sur une plage", () => {
+    expect((encaissementsApi as Record<string, unknown>).situation).toBeUndefined();
   });
 });
 

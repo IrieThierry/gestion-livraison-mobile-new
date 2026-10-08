@@ -9,7 +9,11 @@ import { StatusBadge } from '../../../components/shared/StatusBadge';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { callPhone, navigateTo } from '../../../lib/linking';
 import { formatFCFA, formatMontant, formatDateShort, formatTime } from '../../../lib/format';
-import { isAEncaisser, isEncaissee } from '../../../lib/livraison-status';
+import {
+  isAEncaisser,
+  isEncaissee,
+  libelleStatutEncaissement,
+} from '../../../lib/livraison-status';
 import { num, prixUnitaireClient } from '../../../features/encaissements/regles';
 
 /**
@@ -102,8 +106,38 @@ export default function LivraisonDetail() {
                   {c.quartier?.libelle ?? 'Quartier inconnu'}
                 </Text>
               </View>
-              <StatusBadge statut={isEncaissee(livraison) ? 'ENCAISSEE' : 'NON_ENCAISSEE'} />
+              <StatusBadge
+                statut={isEncaissee(livraison) ? 'ENCAISSEE' : 'NON_ENCAISSEE'}
+                libelle={libelleStatutEncaissement(livraison)}
+              />
             </View>
+
+            {/* Payé / reste dû rejoués par le serveur (E9) */}
+            <View className="flex-row gap-4 mt-3">
+              <Text className="text-[12px] text-slate-500 dark:text-slate-400">
+                Payé{' '}
+                <Text className="font-bold text-slate-700 dark:text-slate-300">
+                  {formatMontant(num(livraison.montantPaye))} F
+                </Text>
+              </Text>
+              <Text className="text-[12px] text-slate-500 dark:text-slate-400">
+                Reste dû{' '}
+                <Text
+                  className={`font-bold ${
+                    num(livraison.resteDu) > 0
+                      ? 'text-amber-700 dark:text-amber-400'
+                      : 'text-emerald-700 dark:text-emerald-400'
+                  }`}
+                >
+                  {formatMontant(num(livraison.resteDu))} F
+                </Text>
+              </Text>
+            </View>
+            {(livraison.encaissementReferences ?? []).length > 0 ? (
+              <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                Encaissements : {(livraison.encaissementReferences ?? []).join(', ')}
+              </Text>
+            ) : null}
 
             {livraison.figee ? (
               <Text className="text-[11px] text-amber-700 dark:text-amber-400 mt-2">
@@ -169,7 +203,7 @@ export default function LivraisonDetail() {
             )}
           </View>
 
-          {/* Encaisser button — only if not already encaissée */}
+          {/* Bouton « Encaisser » tant qu'il reste un dû (pas le statut : E8) */}
           {isAEncaisser(livraison) ? (
             <Pressable
               disabled={!isOnline}

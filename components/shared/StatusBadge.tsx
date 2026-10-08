@@ -33,15 +33,20 @@ const styles: Record<string, { bg: string; text: string; label: string }> = {
   },
 };
 
-export function StatusBadge({ statut }: { statut: string }) {
+/**
+ * Badge de statut. `libelle` remplace le libellé par défaut (ex. badge
+ * d'encaissement suivi du reste dû : `libelleStatutEncaissement`).
+ */
+export function StatusBadge({ statut, libelle }: { statut: string; libelle?: string }) {
   const style = styles[statut] ?? {
     bg: 'bg-slate-100 dark:bg-slate-800',
     text: 'text-slate-600 dark:text-slate-300',
     label: statut,
   };
+  const label = libelle ?? style.label;
   return (
     <View className={`${style.bg} px-2 py-0.5 rounded-full self-start`}>
-      <Text className={`${style.text} text-[10px] font-bold`}>{style.label}</Text>
+      <Text className={`${style.text} text-[10px] font-bold`}>{label}</Text>
     </View>
   );
 }

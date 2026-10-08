@@ -39,6 +39,10 @@ function livraison(lignes: ProduitLivraisonResponse[]): LivraisonResponse {
     montantDu: 1000,
     remiseNette: 0,
     avecRemise: false,
+    montantPaye: 0,
+    resteDu: 1000,
+    entierementPayee: false,
+    encaissementReferences: [],
   };
 }
 

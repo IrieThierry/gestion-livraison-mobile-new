@@ -11,10 +11,11 @@ import { router } from 'expo-router';
 import { Search, X, ChevronLeft } from 'lucide-react-native';
 import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useAuthStore } from '../../../stores/authStore';
-import { LivraisonCard, deriveStatus } from '../../../components/livreur/LivraisonCard';
+import { LivraisonCard } from '../../../components/livreur/LivraisonCard';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { formatFCFA, formatMontant } from '../../../lib/format';
-import { totalMontantDu, totalRemiseNette } from '../../../features/encaissements/regles';
+import { isEncaissee } from '../../../lib/livraison-status';
+import { num, totalMontantDu, totalRemiseNette } from '../../../features/encaissements/regles';
 import type { LivraisonResponse } from '../../../types/api';
 
 type Period = 'today' | 'week' | 'month' | 'all';
@@ -62,19 +63,18 @@ export default function LivraisonsList() {
   }, [q.data, period, search]);
 
   const stats = useMemo(() => {
+    // Badge à deux états (E8) : « Encaissée » dès un paiement, même partiel.
     let encaissees = 0;
-    let livrees = 0;
-    let impayees = 0;
+    let nonEncaissees = 0;
     for (const l of filtered) {
-      const ds = deriveStatus(l);
-      if (ds === 'ENCAISSEE') encaissees += 1;
-      else if (ds === 'LIVREE') livrees += 1;
-      else impayees += 1;
+      if (isEncaissee(l)) encaissees += 1;
+      else nonEncaissees += 1;
     }
-    // Montants serveur uniquement : dû net (avant paiements) et remise nette.
+    // Montants serveur uniquement : dû net (avant paiements), reste dû et remise nette.
     const totalDu = totalMontantDu(filtered);
+    const resteDu = filtered.reduce((acc, l) => acc + num(l.resteDu), 0);
     const remise = totalRemiseNette(filtered);
-    return { encaissees, livrees, impayees, totalDu, remise };
+    return { encaissees, nonEncaissees, totalDu, resteDu, remise };
   }, [filtered]);
 
   if (!user) return null;
@@ -135,11 +135,18 @@ export default function LivraisonsList() {
         }
       >
         <View className="px-4">
-          {/* 3 stat cards */}
+          {/* Compteurs : badge à deux états + reste dû (serveur) */}
           <View className="flex-row gap-2 mt-1">
             <StatCount label="Encaissée" value={stats.encaissees} accent="emerald" />
-            <StatCount label="Livrée" value={stats.livrees} accent="amber" />
-            <StatCount label="Impayée" value={stats.impayees} accent="red" />
+            <StatCount label="Non encaissée" value={stats.nonEncaissees} accent="amber" />
+            <View className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-red-500 rounded-lg p-2.5">
+              <Text className="text-[9px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-extrabold">
+                Reste dû
+              </Text>
+              <Text className="text-base font-extrabold text-slate-900 dark:text-white mt-1 leading-none">
+                {formatMontant(stats.resteDu)}
+              </Text>
+            </View>
           </View>
 
           {/* Total livré (dû) + Remise (nette) banner */}

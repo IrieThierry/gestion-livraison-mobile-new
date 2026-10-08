@@ -48,7 +48,8 @@ function parseLatLng(s: string | null | undefined): { lat: number; lng: number }
 }
 
 type Periode = '7j' | '30j' | '90j' | 'all';
-type LivraisonStatut = 'all' | 'LIVREE' | 'ENCAISSEE';
+/** Badge à deux états (E8), plus « reste dû » (`entierementPayee` serveur). */
+type LivraisonStatut = 'all' | 'NON_ENCAISSEE' | 'ENCAISSEE' | 'RESTE_DU';
 
 const PERIODES: Array<{ key: Periode; label: string; days: number | null }> = [
   { key: '7j', label: '7 jours', days: 7 },
@@ -128,7 +129,8 @@ export default function ClientDetail() {
       }
       if (statutLiv === 'all') return true;
       if (statutLiv === 'ENCAISSEE') return isEncaissee(l);
-      if (statutLiv === 'LIVREE') return isAEncaisser(l);
+      if (statutLiv === 'NON_ENCAISSEE') return !isEncaissee(l);
+      if (statutLiv === 'RESTE_DU') return isAEncaisser(l);
       return true;
     });
   }, [livraisonsClient, periodeLiv, statutLiv]);
@@ -481,21 +483,26 @@ export default function ClientDetail() {
             <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
               Statut
             </Text>
-            <View className="flex-row gap-2 mb-3">
+            <View className="flex-row flex-wrap gap-2 mb-3">
               <FilterChip
                 active={statutLiv === 'all'}
                 label="Toutes"
                 onPress={() => setStatutLiv('all')}
               />
               <FilterChip
-                active={statutLiv === 'LIVREE'}
+                active={statutLiv === 'NON_ENCAISSEE'}
                 label="Non encaissée"
-                onPress={() => setStatutLiv('LIVREE')}
+                onPress={() => setStatutLiv('NON_ENCAISSEE')}
               />
               <FilterChip
                 active={statutLiv === 'ENCAISSEE'}
                 label="Encaissée"
                 onPress={() => setStatutLiv('ENCAISSEE')}
+              />
+              <FilterChip
+                active={statutLiv === 'RESTE_DU'}
+                label="Reste dû"
+                onPress={() => setStatutLiv('RESTE_DU')}
               />
             </View>
 
