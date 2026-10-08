@@ -825,3 +825,63 @@ export interface SituationVersementResponse {
   nbCommandes: number
 }
 
+// ── Retours (journal `retour_client`, GET/POST /retour) ──
+
+export type OrigineRetour = 'MENU_RETOURS' | 'MODIFICATION_LIVRAISON' | 'CREATION_LIVRAISON'
+
+export interface RetourResponse {
+  id: UUID
+  dateRetour: string
+  /** Client actuel de la livraison. */
+  client: { id: UUID; nom: string | null }
+  livraison: { id: UUID; reference: string; date: string }
+  produit: { id: UUID; designation: string }
+  /** Signée : une valeur négative est une correction. */
+  quantite: number
+  /** `true` = remis en stock, `false` = perdu. */
+  remisEnStock: boolean
+  origine: OrigineRetour
+  livreur: { id: UUID; nom: string | null }
+  auteur: { id: UUID; nom: string | null }
+  /** Indicative, signée ; nulle si la ligne a été retirée de la livraison. */
+  valeur: number | null
+}
+
+export interface PageRetoursResponse {
+  contenu: RetourResponse[]
+  /** Page appliquée, à partir de 0. */
+  page: number
+  /** Taille appliquée (défaut 50, max 200). */
+  taille: number
+  total: number
+}
+
+export interface FiltresRetours {
+  livreurId?: UUID
+  /** yyyy-MM-dd, jour inclus. */
+  debut?: string
+  /** yyyy-MM-dd, jour inclus. */
+  fin?: string
+  clientId?: UUID
+  produitId?: UUID
+  page?: number
+  taille?: number
+}
+
+export interface LigneRetourRequest {
+  produitLivraisonId: UUID
+  quantite: number
+  remisEnStock: boolean
+}
+
+export interface EnregistrerRetourRequest {
+  livraisonId: UUID
+  /** Absente = maintenant (serveur). */
+  dateRetour?: string
+  lignes: LigneRetourRequest[]
+}
+
+export interface EnregistrerRetourResponse {
+  retours: RetourResponse[]
+  livraison: LivraisonResponse
+}

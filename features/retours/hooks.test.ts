@@ -1,117 +1,93 @@
-import { QueryClient } from '@tanstack/react-query';
-import { apiClient } from '../../lib/api-client';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEnregistrerRetour, useRetours } from './hooks';
+import { retoursApi } from './api';
+import { retourKeys } from './keys';
 import { livraisonKeys } from '../livraisons/keys';
-import { enregistrerRetourSurDonneesFraiches } from './hooks';
-import type { LivraisonResponse, ProduitLivraisonResponse } from '../../types/api';
+import { stockKeys } from '../stock/keys';
+import { encaissementKeys } from '../encaissements/keys';
+import { clientKeys, encoursKeys } from '../clients/keys';
 
-jest.mock('../../lib/api-client', () => ({
-  apiClient: { get: jest.fn(), put: jest.fn() },
+jest.mock('@tanstack/react-query', () => ({
+  useInfiniteQuery: jest.fn((opts) => opts),
+  useMutation: jest.fn((opts) => opts),
+  useQueryClient: jest.fn(),
+}));
+jest.mock('./api', () => ({
+  retoursApi: { lister: jest.fn(), enregistrer: jest.fn() },
 }));
 
-const get = apiClient.get as jest.Mock;
-const put = apiClient.put as jest.Mock;
+const invalidateQueries = jest.fn();
+(useQueryClient as jest.Mock).mockReturnValue({ invalidateQueries });
 
-function ligne(over: Partial<ProduitLivraisonResponse>): ProduitLivraisonResponse {
-  return {
-    id: 'pl-1',
-    produit: { id: 'p-1' } as ProduitLivraisonResponse['produit'],
-    qteLivre: 10,
-    qteRetourne: 0,
-    prixDeVente: 100,
-    margeUnitaire: 0,
-    qteRetourneeEnStock: 0,
-    remiseUnitaire: 0,
-    ...over,
-  };
+function clesInvalidees(): unknown[] {
+  return invalidateQueries.mock.calls.map((c) => c[0].queryKey);
 }
 
-function livraison(lignes: ProduitLivraisonResponse[]): LivraisonResponse {
-  return {
-    id: 'liv-1',
-    reference: 'LIV-1',
-    client: { id: 'c-1' } as LivraisonResponse['client'],
-    livreur: { id: 'l-1' } as LivraisonResponse['livreur'],
-    date: '2026-10-01T00:00:00',
-    produitsLivraison: lignes,
-    statut: 'LIVREE',
-    statutEncaissement: 'NON_ENCAISSEE',
-    montantLivre: 1000,
-    montantDu: 1000,
-    remiseNette: 0,
-    avecRemise: false,
-    montantPaye: 0,
-    resteDu: 1000,
-    entierementPayee: false,
-    encaissementReferences: [],
-  };
-}
+describe('useEnregistrerRetour', () => {
+  beforeEach(() => jest.clearAllMocks());
 
-describe('enregistrerRetourSurDonneesFraiches', () => {
-  let qc: QueryClient;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  it('poste le payload tel quel', async () => {
+    const opts = useEnregistrerRetour() as unknown as {
+      mutationFn: (p: unknown) => Promise<unknown>;
+    };
+    (retoursApi.enregistrer as jest.Mock).mockResolvedValue('ok');
+    const payload = {
+      livraisonId: 'liv-1',
+      lignes: [{ produitLivraisonId: 'pl-1', quantite: 1, remisEnStock: false }],
+    };
+    await opts.mutationFn(payload);
+    expect(retoursApi.enregistrer).toHaveBeenCalledWith(payload);
+    expect(useMutation).toHaveBeenCalled();
   });
 
-  afterEach(() => {
-    qc.clear();
+  it('succès : invalide retours, livraisons, stock, encaissements, clients et encours', () => {
+    const opts = useEnregistrerRetour() as unknown as { onSuccess: () => void };
+    opts.onSuccess();
+    const cles = clesInvalidees();
+    expect(cles).toEqual(
+      expect.arrayContaining([
+        retourKeys.all,
+        livraisonKeys.all,
+        stockKeys.all,
+        encaissementKeys.all,
+        clientKeys.all,
+        encoursKeys.all,
+      ]),
+    );
   });
 
-  it('construit le PUT sur les quantités fraîches du serveur, pas sur le cache', async () => {
-    const enCache = livraison([ligne({ qteRetourne: 2, qteRetourneeEnStock: 2 })]);
-    qc.setQueryData(livraisonKeys.byLivreur('l-1'), [enCache]);
-    // Entre-temps, un autre retour (1 perdu) a été enregistré côté serveur.
-    get.mockResolvedValue({
-      data: [livraison([ligne({ qteRetourne: 3, qteRetourneeEnStock: 2 })])],
-    });
-    put.mockResolvedValue({ data: 'ok' });
+  it('échec (ex. 409) : recharge livraisons et journal', () => {
+    const opts = useEnregistrerRetour() as unknown as { onError: () => void };
+    opts.onError();
+    expect(clesInvalidees()).toEqual(
+      expect.arrayContaining([livraisonKeys.all, retourKeys.all]),
+    );
+  });
+});
 
-    await enregistrerRetourSurDonneesFraiches(qc, {
-      livraison: enCache,
-      request: {
-        livraisonId: 'liv-1',
-        lignes: [{ produitLivraisonId: 'pl-1', quantite: 1, remettreEnStock: true }],
-      },
-    });
+describe('useRetours', () => {
+  beforeEach(() => jest.clearAllMocks());
 
-    expect(get).toHaveBeenCalledWith('/livraison/livraison-livreur/l-1');
-    const body = put.mock.calls[0][1];
-    expect(body.produitsLivraison[0]).toMatchObject({ qteRetournee: 4, qteRetourneeEnStock: 3 });
+  it('lit la page demandée avec les filtres, à partir de 0', async () => {
+    const filtres = { debut: '2026-10-01', fin: '2026-10-08' };
+    const opts = useRetours(filtres) as unknown as {
+      queryKey: unknown;
+      initialPageParam: number;
+      queryFn: (c: { pageParam: number }) => Promise<unknown>;
+      getNextPageParam: (p: { page: number; taille: number; total: number }) => number | undefined;
+    };
+    expect(useInfiniteQuery).toHaveBeenCalled();
+    expect(opts.queryKey).toEqual(retourKeys.liste(filtres));
+    expect(opts.initialPageParam).toBe(0);
+    await opts.queryFn({ pageParam: 2 });
+    expect(retoursApi.lister).toHaveBeenCalledWith({ ...filtres, page: 2 });
   });
 
-  it('refuse si la quantité dépasse le retournable des données fraîches', async () => {
-    const enCache = livraison([ligne({ qteRetourne: 0 })]);
-    get.mockResolvedValue({ data: [livraison([ligne({ qteRetourne: 9 })])] });
-
-    await expect(
-      enregistrerRetourSurDonneesFraiches(qc, {
-        livraison: enCache,
-        request: {
-          livraisonId: 'liv-1',
-          lignes: [
-            { produitLivraisonId: 'pl-1', quantite: 1, remettreEnStock: true },
-            { produitLivraisonId: 'pl-1', quantite: 1, remettreEnStock: false },
-          ],
-        },
-      }),
-    ).rejects.toThrow('Quantité retournable dépassée');
-    expect(put).not.toHaveBeenCalled();
-  });
-
-  it('refuse si la livraison a disparu côté serveur', async () => {
-    const enCache = livraison([ligne({})]);
-    get.mockResolvedValue({ data: [] });
-
-    await expect(
-      enregistrerRetourSurDonneesFraiches(qc, {
-        livraison: enCache,
-        request: {
-          livraisonId: 'liv-1',
-          lignes: [{ produitLivraisonId: 'pl-1', quantite: 1, remettreEnStock: true }],
-        },
-      }),
-    ).rejects.toThrow('Livraison introuvable');
-    expect(put).not.toHaveBeenCalled();
+  it('page suivante tant que (page+1) × taille < total', () => {
+    const opts = useRetours({}) as unknown as {
+      getNextPageParam: (p: { page: number; taille: number; total: number }) => number | undefined;
+    };
+    expect(opts.getNextPageParam({ page: 0, taille: 50, total: 51 })).toBe(1);
+    expect(opts.getNextPageParam({ page: 1, taille: 50, total: 100 })).toBeUndefined();
   });
 });

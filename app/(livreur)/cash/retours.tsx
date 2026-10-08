@@ -5,6 +5,7 @@ import {
   Text,
   Pressable,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import {
@@ -18,63 +19,71 @@ import {
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { SelectField } from '../../../components/shared/SelectField';
-import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useClientsByLivreur } from '../../../features/clients/hooks';
+import { useRetours } from '../../../features/retours/hooks';
+import { derniersJours, moisEnCours } from '../../../features/retours/api';
 import { useAuthStore } from '../../../stores/authStore';
+import { extractApiErrorMessage } from '../../../lib/api-error';
 import { formatFCFA, formatDateShort } from '../../../lib/format';
-import { valeurRetour } from '../../../features/retours/api';
+import type { OrigineRetour } from '../../../types/api';
 
-type Periode = '7j' | '30j' | '90j' | 'all';
+type Periode = 'mois' | '30j' | '90j' | 'all';
 
-const PERIODES: Array<{ key: Periode; label: string; days: number | null }> = [
-  { key: '7j', label: '7 jours', days: 7 },
-  { key: '30j', label: '30 jours', days: 30 },
-  { key: '90j', label: '90 jours', days: 90 },
-  { key: 'all', label: 'Tout', days: null },
+const PERIODES: Array<{ key: Periode; label: string }> = [
+  { key: 'mois', label: 'Ce mois' },
+  { key: '30j', label: '30 jours' },
+  { key: '90j', label: '90 jours' },
+  { key: 'all', label: 'Tout' },
 ];
 
-interface RetourItem {
-  livraisonId: string;
-  produitLivraisonId: string;
-  date: string;
-  clientId: string;
-  clientName: string;
-  produitName: string;
-  qteRetournee: number;
-  /** Part remise en stock (le reste est perdu). */
-  qteEnStock: number;
-  /** Prix + remise unitaire : valeur d'une unité retournée. */
-  prixUnitaire: number;
-  montant: number;
+const ORIGINES: Record<OrigineRetour, string> = {
+  MENU_RETOURS: 'Menu Retours',
+  MODIFICATION_LIVRAISON: 'Modification de livraison',
+  CREATION_LIVRAISON: 'Création de livraison',
+};
+
+function bornes(periode: Periode): { debut?: string; fin?: string } {
+  switch (periode) {
+    case 'mois':
+      return moisEnCours();
+    case '30j':
+      return derniersJours(30);
+    case '90j':
+      return derniersJours(90);
+    default:
+      return {};
+  }
 }
 
 /**
- * Liste des retours client.
- *
- * Source : on dérive les retours de la liste des livraisons — chaque
- * `produitLivraison` avec `qteRetourne > 0` représente un retour. Cette
- * approche évite un endpoint dédié côté back (les retours sont stockés
- * inline sur la `ProduitLivraison`).
+ * Journal des retours client (`GET /retour`, trié du plus récent au plus
+ * ancien par le serveur, paginé).
  *
  * Filtres :
- *   - Client (dropdown, optionnel) — pré-rempli si on arrive avec
- *     `?clientId=X` (depuis la fiche client)
- *   - Période (7j / 30j / 90j / Tout)
+ *   - Période (mois en cours par défaut, 30 / 90 jours, tout)
+ *   - Client (dropdown, optionnel) — pré-rempli avec `?clientId=X`
  *
- * Tri : plus récent en premier.
+ * Pas de totaux : une correction (quantité négative) s'affiche « Correction −n ».
  */
 export default function RetoursList() {
   const params = useLocalSearchParams<{ clientId?: string }>();
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
 
-  const qLiv = useLivraisonsByLivreur(livreurId);
   const qCli = useClientsByLivreur(livreurId);
 
-  const [periode, setPeriode] = useState<Periode>('30j');
+  const [periode, setPeriode] = useState<Periode>('mois');
   const [clientFilter, setClientFilter] = useState<string | null>(
     params.clientId ?? null,
   );
+
+  const filtres = useMemo(
+    () => ({ ...bornes(periode), ...(clientFilter ? { clientId: clientFilter } : {}) }),
+    [periode, clientFilter],
+  );
+  const q = useRetours(filtres);
+  const retours = useMemo(() => (q.data?.pages ?? []).flatMap((p) => p.contenu), [q.data]);
+  const total = q.data?.pages[0]?.total ?? 0;
 
   const clientOptions = useMemo(
     () =>
@@ -85,50 +94,6 @@ export default function RetoursList() {
         .map((c) => ({ id: c.id, label: `${c.prenom} ${c.nom}`.trim() })),
     [qCli.data],
   );
-
-  // Aplatit toutes les livraisons → liste de retours individuels
-  const allRetours = useMemo<RetourItem[]>(() => {
-    const items: RetourItem[] = [];
-    for (const l of qLiv.data ?? []) {
-      for (const p of l.produitsLivraison ?? []) {
-        const qte = p.qteRetourne ?? 0;
-        if (qte <= 0) continue;
-        // Même formule que le back : (prix + remise unitaire) × quantité.
-        const prix = valeurRetour(p, 1);
-        items.push({
-          livraisonId: l.id,
-          produitLivraisonId: p.id,
-          date: l.date,
-          clientId: l.client.id,
-          clientName: `${l.client.prenom} ${l.client.nom}`.trim(),
-          produitName: p.produit?.designation ?? '—',
-          qteRetournee: qte,
-          qteEnStock: Math.min(qte, p.qteRetourneeEnStock ?? 0),
-          prixUnitaire: prix,
-          montant: valeurRetour(p, qte),
-        });
-      }
-    }
-    return items;
-  }, [qLiv.data]);
-
-  const filtered = useMemo(() => {
-    const now = Date.now();
-    const days = PERIODES.find((p) => p.key === periode)?.days ?? null;
-    return allRetours
-      .filter((r) => {
-        if (clientFilter && r.clientId !== clientFilter) return false;
-        if (days !== null && now - new Date(r.date).getTime() > days * 86_400_000) {
-          return false;
-        }
-        return true;
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [allRetours, periode, clientFilter]);
-
-  const totalQte = filtered.reduce((acc, r) => acc + r.qteRetournee, 0);
-  const totalMontant = filtered.reduce((acc, r) => acc + r.montant, 0);
-  const nbClientsConcernes = new Set(filtered.map((r) => r.clientId)).size;
 
   const clientLabel = clientFilter
     ? clientOptions.find((c) => c.id === clientFilter)?.label ?? 'Client'
@@ -154,41 +119,15 @@ export default function RetoursList() {
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={
           <RefreshControl
-            refreshing={qLiv.isFetching && !qLiv.isLoading}
-            onRefresh={() => qLiv.refetch()}
+            refreshing={q.isRefetching && !q.isFetchingNextPage}
+            onRefresh={() => q.refetch()}
             tintColor="#10b981"
           />
         }
       >
         <View className="px-4 pt-3">
-          {/* KPIs */}
-          <View className="flex-row gap-2">
-            <View className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3">
-              <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
-                Retours
-              </Text>
-              <Text className="text-base font-extrabold text-slate-900 dark:text-white mt-1">
-                {filtered.length}
-              </Text>
-              <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-                {totalQte} unité{totalQte > 1 ? 's' : ''}
-              </Text>
-            </View>
-            <View className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3">
-              <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
-                Montant déduit
-              </Text>
-              <Text className="text-base font-extrabold text-amber-700 dark:text-amber-400 mt-1">
-                {formatFCFA(totalMontant)} F
-              </Text>
-              <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-                {nbClientsConcernes} client{nbClientsConcernes > 1 ? 's' : ''}
-              </Text>
-            </View>
-          </View>
-
           {/* Filtres */}
-          <View className="flex-row items-center gap-1.5 mt-4 mb-2">
+          <View className="flex-row items-center gap-1.5 mb-2">
             <ListFilter color="#64748b" size={12} />
             <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
               Période
@@ -230,7 +169,18 @@ export default function RetoursList() {
           </View>
 
           {/* Liste */}
-          {filtered.length === 0 ? (
+          {q.isLoading ? (
+            <View className="mt-6">
+              <ActivityIndicator color="#10b981" />
+            </View>
+          ) : q.isError ? (
+            <View className="mt-3">
+              <EmptyState
+                title="Chargement impossible"
+                message={extractApiErrorMessage(q.error, 'Impossible de charger les retours.')}
+              />
+            </View>
+          ) : retours.length === 0 ? (
             <View className="mt-3">
               <EmptyState
                 title="Aucun retour"
@@ -243,55 +193,73 @@ export default function RetoursList() {
             </View>
           ) : (
             <View className="gap-2 mt-3">
-              {filtered.map((r) => (
+              {retours.map((r) => {
+                const correction = r.quantite < 0;
+                return (
+                  <Pressable
+                    key={r.id}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/(livreur)/livraisons/[id]' as never,
+                        params: { id: r.livraison.id },
+                      } as never)
+                    }
+                    className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 rounded-md p-3 flex-row items-center gap-3 active:opacity-70 ${
+                      correction ? 'border-l-slate-400' : 'border-l-amber-500'
+                    }`}
+                  >
+                    <View className="flex-1">
+                      <View className="flex-row items-center gap-1.5">
+                        <Package color="#64748b" size={11} />
+                        <Text className="font-extrabold text-slate-900 dark:text-white text-[13px]">
+                          {r.produit.designation}{' '}
+                          {correction ? `· Correction −${Math.abs(r.quantite)}` : `× ${r.quantite}`}
+                        </Text>
+                      </View>
+                      <View className="flex-row items-center gap-1.5 mt-0.5">
+                        <User color="#94a3b8" size={10} />
+                        <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                          {r.client.nom ?? '—'} · {r.livraison.reference}
+                        </Text>
+                      </View>
+                      <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                        {formatDateShort(r.dateRetour)} · {r.livreur.nom ?? '—'}
+                      </Text>
+                      <Text className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        {r.remisEnStock ? 'Remis en stock' : 'Perdu'} · {ORIGINES[r.origine] ?? r.origine}
+                      </Text>
+                    </View>
+                    {r.valeur !== null && r.valeur !== undefined ? (
+                      <View className="items-end">
+                        <Text className="font-extrabold text-amber-700 dark:text-amber-400">
+                          {r.valeur < 0 ? '+' : '−'}
+                          {formatFCFA(Math.abs(r.valeur))}
+                        </Text>
+                        <Text className="text-[9px] text-slate-400 dark:text-slate-500">
+                          FCFA
+                        </Text>
+                      </View>
+                    ) : null}
+                    <ArrowRight color="#94a3b8" size={14} />
+                  </Pressable>
+                );
+              })}
+
+              {q.hasNextPage ? (
                 <Pressable
-                  key={r.produitLivraisonId}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/(livreur)/livraisons/[id]' as never,
-                      params: { id: r.livraisonId },
-                    } as never)
-                  }
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-amber-500 rounded-md p-3 flex-row items-center gap-3 active:opacity-70"
+                  onPress={() => q.fetchNextPage()}
+                  disabled={q.isFetchingNextPage}
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md py-3 items-center active:opacity-70"
                 >
-                  <View className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-500/15 items-center justify-center">
-                    <RotateCcw color="#d97706" size={16} />
-                  </View>
-                  <View className="flex-1">
-                    <View className="flex-row items-center gap-1.5">
-                      <Package color="#64748b" size={11} />
-                      <Text className="font-extrabold text-slate-900 dark:text-white text-[13px]">
-                        {r.produitName} × {r.qteRetournee}
-                      </Text>
-                    </View>
-                    <View className="flex-row items-center gap-1.5 mt-0.5">
-                      <User color="#94a3b8" size={10} />
-                      <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                        {r.clientName}
-                      </Text>
-                    </View>
-                    <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-                      {formatDateShort(r.date)} · {formatFCFA(r.prixUnitaire)} F l'unité
+                  {q.isFetchingNextPage ? (
+                    <ActivityIndicator color="#10b981" />
+                  ) : (
+                    <Text className="text-[12px] font-bold text-slate-700 dark:text-slate-300">
+                      Charger plus ({retours.length} / {total})
                     </Text>
-                    <Text className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      {r.qteEnStock > 0 ? `${r.qteEnStock} remis en stock` : ''}
-                      {r.qteEnStock > 0 && r.qteRetournee - r.qteEnStock > 0 ? ' · ' : ''}
-                      {r.qteRetournee - r.qteEnStock > 0
-                        ? `${r.qteRetournee - r.qteEnStock} perdu${r.qteRetournee - r.qteEnStock > 1 ? 's' : ''}`
-                        : ''}
-                    </Text>
-                  </View>
-                  <View className="items-end">
-                    <Text className="font-extrabold text-amber-700 dark:text-amber-400">
-                      −{formatFCFA(r.montant)}
-                    </Text>
-                    <Text className="text-[9px] text-slate-400 dark:text-slate-500">
-                      FCFA
-                    </Text>
-                  </View>
-                  <ArrowRight color="#94a3b8" size={14} />
+                  )}
                 </Pressable>
-              ))}
+              ) : null}
             </View>
           )}
         </View>

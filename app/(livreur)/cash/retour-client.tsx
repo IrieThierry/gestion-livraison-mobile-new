@@ -40,11 +40,12 @@ import type { LivraisonResponse } from '../../../types/api';
  * saisit les quantités rapportées par ligne, choisit pour chacune « Remettre
  * en stock » ou « Perdu », puis valide.
  *
- * Côté back, `PUT /livraison` (`ModifierLivraisonUseCase`, une transaction) :
- * mise à jour de `qteRetournee` et `qteRetourneeEnStock`, ré-incrémentation
- * du stock du livreur de la seule part remise en stock, baisse du dû du
- * client de (prix + remise) × quantité. Autorisé même sur une livraison
- * entièrement payée (le surplus payé devient une avance).
+ * Côté back, `POST /retour` (une transaction, sans modifier la livraison) :
+ * écriture du journal des retours et des cumuls de la livraison,
+ * ré-incrémentation du stock du livreur de la seule part remise en stock,
+ * baisse du dû du client de (prix + remise) × quantité. Autorisé même sur une
+ * livraison entièrement payée (le surplus payé devient une avance). Un refus
+ * (400) ou un retour concurrent (409) s'affiche avec le message du back.
  */
 export default function RetourClient() {
   const user = useAuthStore((s) => s.user);
@@ -149,15 +150,12 @@ export default function RetourClient() {
     submittingRef.current = true;
     m.mutate(
       {
-        livraison: selected,
-        request: {
-          livraisonId: selected.id,
-          lignes: lignes.map((l) => ({
-            produitLivraisonId: l.produitLivraisonId,
-            quantite: l.quantite,
-            remettreEnStock: l.remettreEnStock,
-          })),
-        },
+        livraisonId: selected.id,
+        lignes: lignes.map((l) => ({
+          produitLivraisonId: l.produitLivraisonId,
+          quantite: l.quantite,
+          remisEnStock: l.remettreEnStock,
+        })),
       },
       {
         onSuccess: () => {

@@ -217,8 +217,12 @@ export default function NouvelleLivraison() {
         retours,
         enregistrerRetour: (r) =>
           mRetour.mutateAsync({
-            livraison: r.livraison,
-            request: { livraisonId: r.livraison.id, lignes: r.lignes },
+            livraisonId: r.livraison.id,
+            lignes: r.lignes.map((l) => ({
+              produitLivraisonId: l.produitLivraisonId,
+              quantite: l.quantite,
+              remisEnStock: l.remettreEnStock,
+            })),
           }),
         messageErreur: (err) => extractApiErrorMessage(err, "Échec de l'enregistrement"),
       });

@@ -1,32 +1,11 @@
 import { apiClient } from '../../lib/api-client';
 import type {
-  LivraisonResponse,
-  ModifierLivraisonRequest,
-  ProduitLivraisonRequest,
+  EnregistrerRetourRequest,
+  EnregistrerRetourResponse,
+  FiltresRetours,
+  PageRetoursResponse,
   ProduitLivraisonResponse,
-  UUID,
 } from '../../types/api';
-
-/**
- * Une ligne à incrémenter en retour : pour chaque `produitLivraisonId` (id de
- * la `ProduitLivraisonResponse` existante), combien d'unités le client
- * rapporte, et ce que le livreur en fait :
- *  - `remettreEnStock: true` : les unités reviennent dans son stock
- *    (`qteRetourneeEnStock` augmente d'autant, le back ré-incrémente le stock) ;
- *  - `remettreEnStock: false` : les unités sont perdues (invendables), le
- *    stock ne bouge pas.
- * Dans les deux cas le dû du client baisse de (prix + remise) × quantité.
- */
-export interface LigneRetour {
-  produitLivraisonId: UUID;
-  quantite: number;
-  remettreEnStock: boolean;
-}
-
-export interface CreerRetourClientRequest {
-  livraisonId: UUID;
-  lignes: LigneRetour[];
-}
 
 /** Valeur d'un retour, même formule que le back : (prix + remise unitaire) × quantité. */
 export function valeurRetour(
@@ -41,66 +20,33 @@ export function qteRetournable(p: Pick<ProduitLivraisonResponse, 'qteLivre' | 'q
   return Math.max(0, (p.qteLivre ?? 0) - (p.qteRetourne ?? 0));
 }
 
-/**
- * Construit le payload `ModifierLivraisonRequest` complet (le back attend
- * toutes les lignes, pas un patch) à partir de la livraison source et des
- * lignes à retourner.
- *
- * Chaque ligne renvoie ses valeurs existantes (`qteLivree`, `prixDeVente`,
- * `qteRetournee`, `qteRetourneeEnStock`) : `qteRetourneeEnStock` est TOUJOURS
- * explicite pour ne jamais dépendre d'une valeur par défaut côté back. Sur la
- * ligne ciblée, `qteRetournee` augmente de la quantité retournée et
- * `qteRetourneeEnStock` de la part remise en stock.
- */
-export function buildModifierPayload(
-  livraison: LivraisonResponse,
-  request: CreerRetourClientRequest,
-): ModifierLivraisonRequest {
-  const retourParLigne = new Map<UUID, number>();
-  const enStockParLigne = new Map<UUID, number>();
-  for (const ligne of request.lignes) {
-    const q = Math.max(0, Math.trunc(ligne.quantite || 0));
-    retourParLigne.set(ligne.produitLivraisonId, (retourParLigne.get(ligne.produitLivraisonId) ?? 0) + q);
-    if (ligne.remettreEnStock) {
-      enStockParLigne.set(
-        ligne.produitLivraisonId,
-        (enStockParLigne.get(ligne.produitLivraisonId) ?? 0) + q,
-      );
-    }
-  }
+function jour(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const j = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${j}`;
+}
 
-  const produitsLivraison: ProduitLivraisonRequest[] = (livraison.produitsLivraison ?? []).map(
-    (p: ProduitLivraisonResponse) => ({
-      produitId: p.produit.id,
-      qteLivree: p.qteLivre,
-      qteRetournee: (p.qteRetourne ?? 0) + (retourParLigne.get(p.id) ?? 0),
-      qteRetourneeEnStock: (p.qteRetourneeEnStock ?? 0) + (enStockParLigne.get(p.id) ?? 0),
-      prixDeVente: p.prixDeVente,
-      memoriserPrixClient: false,
-    }),
-  );
+/** Mois en cours, du 1er à aujourd'hui, en `yyyy-MM-dd` (jours inclus côté back). */
+export function moisEnCours(now: Date = new Date()): { debut: string; fin: string } {
+  return { debut: jour(new Date(now.getFullYear(), now.getMonth(), 1)), fin: jour(now) };
+}
 
-  return {
-    id: livraison.id,
-    livreurId: livraison.livreur.id,
-    clientId: livraison.client.id,
-    produitsLivraison,
-    avecRemise: livraison.avecRemise,
-  };
+/** Les `jours` derniers jours, aujourd'hui compris, en `yyyy-MM-dd`. */
+export function derniersJours(jours: number, now: Date = new Date()): { debut: string; fin: string } {
+  return { debut: jour(new Date(now.getFullYear(), now.getMonth(), now.getDate() - (jours - 1))), fin: jour(now) };
 }
 
 /**
- * API retour client mobile : un retour est une modification de la livraison
- * source (`PUT /livraison`, `ModifierLivraisonUseCase`), autorisée même sur
- * une livraison entièrement payée (seuls les retours y sont modifiables).
+ * API retours : lecture du journal (`GET /retour`, page à partir de 0) et
+ * saisie d'un retour (`POST /retour`) sans modifier la livraison.
  */
 export const retoursApi = {
-  enregistrer: async (
-    livraison: LivraisonResponse,
-    request: CreerRetourClientRequest,
-  ): Promise<void> => {
-    const payload = buildModifierPayload(livraison, request);
-    // Le back renvoie un corps texte : rien à lire.
-    await apiClient.put('/livraison', payload);
+  lister: async (params: FiltresRetours): Promise<PageRetoursResponse> => {
+    const { data } = await apiClient.get<PageRetoursResponse>('/retour', { params });
+    return data;
+  },
+  enregistrer: async (payload: EnregistrerRetourRequest): Promise<EnregistrerRetourResponse> => {
+    const { data } = await apiClient.post<EnregistrerRetourResponse>('/retour', payload);
+    return data;
   },
 };
