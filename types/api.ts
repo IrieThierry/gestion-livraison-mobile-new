@@ -555,11 +555,11 @@ export interface ProduitFournisseurResponse {
   prixParticulier: boolean
 }
 
-// ---------- Stock / Achats (Plan D — split achat / stock_courant_livreur) ----------
+// ---------- Stock (compteur par livreur, journal des mouvements) ----------
 
 /**
- * Une ligne du stock courant agrégée par produit (sommée sur tous les achats
- * du livreur, déduite des livraisons enregistrées).
+ * Une ligne du stock courant agrégée par produit (réceptions, transferts et
+ * retours remis en stock, moins les livraisons enregistrées).
  * Source : `GET /stock-livreur/me/courant`.
  */
 export interface StockCourantLigneResponse {
@@ -569,12 +569,12 @@ export interface StockCourantLigneResponse {
 }
 
 /**
- * Une ligne d'achat (= un événement d'approvisionnement chez un fournisseur).
- * Source : `GET /stock-livreur/{livreurId}/actuel` renvoie la liste des
- * achats encore présents en stock pour un livreur, ventilés par produit ET
- * par fournisseur.
+ * Une ligne du stock d'un livreur (compteur `stock_courant_livreur`), ventilée
+ * par produit. Source : `GET /stock-livreur/{livreurId}/actuel`. Les champs de
+ * prix et de fournisseur sont conservés par le back mais ne sont plus renseignés
+ * (plus d'achat manuel) : `fournisseur` et les prix sont `null`.
  */
-export interface AchatResponse {
+export interface StockLivreurResponse {
   id: UUID
   livreur: LivreurResponse
   produit: ProduitResponse
@@ -586,9 +586,6 @@ export interface AchatResponse {
   coutTotal: number
   valeurVenteTotal: number | null
 }
-
-/** @deprecated Alias historique de `AchatResponse` — conservé par parité avec le web. */
-export type StockLivreurResponse = AchatResponse
 
 /**
  * Stock courant agrégé de l'équipe (root + apprentis) — une ligne par tuple
@@ -606,25 +603,32 @@ export interface StockEquipeLigneResponse {
   valeurVenteTotal: number | null
 }
 
-/**
- * Une ligne du payload de déclaration d'achat (= entrée de stock chez un
- * fournisseur). Mirror de `LigneStockRequest` côté web/back — pas de prix
- * d'achat sur la ligne (le back lit le catalogue actif du fournisseur).
- */
-export interface LigneStockRequest {
-  produitId: UUID
-  qte: number
-}
+/** Type d'un mouvement du journal de stock (`GET /stock-livreur/{id}/historique`). */
+export type TypeMouvementStock =
+  | 'RECEPTION'
+  | 'TRANSFERT_ENTREE'
+  | 'TRANSFERT_SORTIE'
+  | 'LIVRAISON'
+  | 'RETOUR_EN_STOCK'
 
 /**
- * Payload de `POST /stock-livreur` — un livreur déclare avoir embarqué N
- * lignes de stock chez un fournisseur. Renvoie la liste des `StockLivreurResponse`
- * (= achats) créés.
+ * Un mouvement du stock d'un livreur (journal lu à la volée, trié du plus récent
+ * au plus ancien). `quantite` est signée (+ entrée, − sortie).
  */
-export interface EnregistrerStockRequest {
-  livreurId: UUID
-  fournisseurId: UUID
-  lignes: LigneStockRequest[]
+export interface MouvementStockResponse {
+  date: string  // yyyy-MM-ddTHH:mm:ss
+  type: TypeMouvementStock
+  produit: ProduitResponse
+  quantite: number
+  reference: string | null
+  contrepartie: string | null
+}
+
+/** Filtres facultatifs de l'historique du stock (période en jours entiers `yyyy-MM-dd`). */
+export interface FiltresMouvementsStock {
+  debut?: string
+  fin?: string
+  produitId?: UUID
 }
 
 // ---------- Dépenses (Plan 24) ----------

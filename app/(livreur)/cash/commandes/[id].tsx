@@ -184,8 +184,8 @@ export default function CommandeDetail() {
       title: `Annuler la réception ${r.reference} ?`,
       message:
         'Toutes ses quantités seront retirées du stock de ' +
-        `${r.receptionnePar.nom}. La réception restera visible comme « Annulée ».`,
-      confirmLabel: 'Oui, annuler',
+        `${r.receptionnePar.nom}. La réception restera visible comme annulée.`,
+      confirmLabel: 'Oui, annuler la réception',
       cancelLabel: 'Non, garder',
       destructive: true,
       onConfirm: () =>
@@ -206,13 +206,12 @@ export default function CommandeDetail() {
     const reste = reliquat(commande);
     const lignes = reste.map((l) => `• ${l.produit.designation} × ${l.qteRestante}`).join('\n');
     dialog.confirm({
-      title: 'Passer la commande à Livrée ?',
+      title: `Passer la commande ${commande.reference} à Livrée ?`,
       message:
-        reste.length > 0
-          ? `Reliquat non reçu :\n${lignes}\nLe reliquat sera abandonné.`
-          : 'Tout a été reçu.',
-      confirmLabel: 'Passer à Livrée',
-      cancelLabel: 'Annuler',
+        'La commande sera close avec les quantités déjà reçues. Le reliquat sera abandonné.' +
+        (reste.length > 0 ? `\n\nReliquat non reçu :\n${lignes}` : ''),
+      confirmLabel: 'Oui, passer à Livrée',
+      cancelLabel: 'Non, continuer la réception',
       onConfirm: () =>
         mPasserLivree.mutate(commande.id, {
           onSuccess: () => {

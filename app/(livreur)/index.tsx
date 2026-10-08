@@ -216,7 +216,7 @@ export default function Tournee() {
           <ActionCard
             icon={Package}
             label="Stock"
-            onPress={() => router.push('/(livreur)/stock/declarer' as never)}
+            onPress={() => router.push('/(livreur)/stock' as never)}
           />
           <ActionCard
             icon={Truck}

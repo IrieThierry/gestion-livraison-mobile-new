@@ -273,7 +273,7 @@ describe('construireModificationReception', () => {
     });
     expect(construireModificationReception(c, r, { p1: '0', p2: '0' })).toEqual({
       ok: false,
-      erreur: 'Saisissez au moins une quantité reçue.',
+      erreur: 'Saisissez au moins une quantité reçue ; pour tout retirer, annulez la réception.',
     });
   });
 

@@ -121,6 +121,7 @@ function construireLignesRecues(
   lignes: ProduitCommandeResponse[],
   quantites: Quantites,
   borne: (l: ProduitCommandeResponse) => number,
+  messageVide = 'Saisissez au moins une quantité reçue.',
 ): Resultat<ReceptionnerCommandeRequest['lignes']> {
   const res: ReceptionnerCommandeRequest['lignes'] = [];
   for (const l of lignes) {
@@ -136,7 +137,7 @@ function construireLignesRecues(
     if (n > max) return { ok: false, erreur: `Au plus ${max} pour ${nom}.` };
     if (n > 0) res.push({ produitId: l.produit.id, quantite: n });
   }
-  if (res.length === 0) return { ok: false, erreur: 'Saisissez au moins une quantité reçue.' };
+  if (res.length === 0) return { ok: false, erreur: messageVide };
   return { ok: true, valeur: res };
 }
 
@@ -187,6 +188,7 @@ export function construireModificationReception(
     c.produitsCommandes,
     quantites,
     (l) => l.qteRestante + quantiteDansReception(r, l.produit.id),
+    'Saisissez au moins une quantité reçue ; pour tout retirer, annulez la réception.',
   );
   if (!res.ok) return res;
   return {
