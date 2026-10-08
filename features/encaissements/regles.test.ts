@@ -1,8 +1,13 @@
 import type { EncaissementLivraisonResponse, EncoursClientResponse } from '../../types/api';
 import {
-  avanceEstimee,
+  basculerSelection,
   dateEncaissementParam,
-  suggestionBornee,
+  libelleEcart,
+  peutValiderEncaissement,
+  tonEcart,
+  totalResteDuSelection,
+  apercuAJour,
+  libelleDetteApres,
   totalRemiseNette,
   encaisseAujourdhui,
   estDuJour,
@@ -10,7 +15,6 @@ import {
   jourLocal,
   libelleSolde,
   parseMontant,
-  plageEnParams,
   totalAEncaisser,
   totalAvances,
   totalMontantDu,
@@ -68,29 +72,7 @@ describe('parseMontant (montant décimal, sans plafond)', () => {
   });
 });
 
-describe('avanceEstimee', () => {
-  it('0 quand le paiement ne dépasse pas le dû', () => {
-    expect(avanceEstimee(5000, 3000)).toBe(0);
-    expect(avanceEstimee(5000, 5000)).toBe(0);
-  });
-  it('la part au-delà du dû est une avance', () => {
-    expect(avanceEstimee(5000, 7000.5)).toBe(2000.5);
-  });
-  it('client déjà en avance (solde négatif) : tout le paiement est avance', () => {
-    expect(avanceEstimee(-1000, 2000)).toBe(2000);
-  });
-  it('tolère un BigDecimal sérialisé en chaîne', () => {
-    expect(avanceEstimee('1000.00' as unknown as number, 1500)).toBe(500);
-  });
-});
-
-describe('plage et dates envoyées au back (LocalDateTime)', () => {
-  it('étend la date de fin à la fin de journée', () => {
-    expect(plageEnParams('2026-09-01', '2026-10-04')).toEqual({
-      dateDebut: '2026-09-01T00:00:00',
-      dateFin: '2026-10-04T23:59:59',
-    });
-  });
+describe('dates envoyées au back (LocalDateTime)', () => {
   it("date d'encaissement : aujourd'hui → laissée au serveur ; autre jour → ce jour", () => {
     expect(dateEncaissementParam('2026-10-04', '2026-10-04')).toBeUndefined();
     expect(dateEncaissementParam(null, '2026-10-04')).toBeUndefined();
@@ -137,19 +119,101 @@ describe('à encaisser = Σ soldes positifs serveur', () => {
   });
 });
 
-describe('suggestionBornee (dû net d’une livraison ou d’une période, borné par le solde)', () => {
-  it('livraison déjà en partie payée : bornée par le solde restant', () => {
-    expect(suggestionBornee(5000, 1200)).toBe(1200);
+describe('libelleEcart (mêmes libellés que le web)', () => {
+  const espaces = (s: string) => s.replace(/\s/g, ' ');
+  it('−500 → Reste dû 500', () => {
+    expect(libelleEcart(-500)).toBe('Reste dû 500');
   });
-  it('solde supérieur : le dû de la livraison', () => {
-    expect(suggestionBornee(5000, 9000)).toBe(5000);
+  it('0 → Aucun écart', () => {
+    expect(libelleEcart(0)).toBe('Aucun écart');
   });
-  it('client à jour ou en avance : 0', () => {
-    expect(suggestionBornee(5000, 0)).toBe(0);
-    expect(suggestionBornee(5000, -300)).toBe(0);
+  it('350 → Surplus 350 → avance', () => {
+    expect(libelleEcart(350)).toBe('Surplus 350 → avance');
   });
-  it('tolère les chaînes BigDecimal', () => {
-    expect(suggestionBornee('3000.50' as unknown as number, '4000' as unknown as number)).toBe(3000.5);
+  it('milliers et BigDecimal en chaîne', () => {
+    expect(espaces(libelleEcart(-2150))).toBe('Reste dû 2 150');
+    expect(libelleEcart('-500.00' as unknown as number)).toBe('Reste dû 500');
+  });
+  it('tonEcart', () => {
+    expect(tonEcart(-1)).toBe('negatif');
+    expect(tonEcart(0)).toBe('nul');
+    expect(tonEcart(1)).toBe('positif');
+  });
+});
+
+describe('peutValiderEncaissement', () => {
+  it('faux sans livraison cochée', () => {
+    expect(peutValiderEncaissement([], 100)).toBe(false);
+  });
+  it('faux avec un montant ≤ 0', () => {
+    expect(peutValiderEncaissement(['l-1'], 0)).toBe(false);
+    expect(peutValiderEncaissement(['l-1'], -5)).toBe(false);
+    expect(peutValiderEncaissement(['l-1'], Number.NaN)).toBe(false);
+  });
+  it('vrai avec au moins une livraison et un montant > 0', () => {
+    expect(peutValiderEncaissement(['l-1'], 100)).toBe(true);
+  });
+});
+
+describe('basculerSelection', () => {
+  it('ajoute une livraison absente', () => {
+    expect(basculerSelection(['l-1'], 'l-2')).toEqual(['l-1', 'l-2']);
+  });
+  it('retire une livraison présente', () => {
+    expect(basculerSelection(['l-1', 'l-2'], 'l-1')).toEqual(['l-2']);
+  });
+  it('ne modifie pas le tableau reçu', () => {
+    const ids = ['l-1'];
+    basculerSelection(ids, 'l-2');
+    expect(ids).toEqual(['l-1']);
+  });
+});
+
+describe('totalResteDuSelection (arrondi)', () => {
+  it('0,1 + 0,2 → 0,3 (pas 0,30000000000000004)', () => {
+    const livs = [
+      { id: 'a', resteDu: 0.1 },
+      { id: 'b', resteDu: 0.2 },
+    ];
+    const total = totalResteDuSelection(livs, ['a', 'b']);
+    expect(total).toBe(0.3);
+    expect(parseMontant(String(total)).ok).toBe(true);
+  });
+});
+
+describe('apercuAJour (délai de 300 ms et aperçu précédent)', () => {
+  const p1 = { montantEncaisse: 1500, livraisonIds: ['l1'] };
+  it('charge utile différée identique et donnée courante → à jour', () => {
+    expect(apercuAJour(p1, { ...p1, livraisonIds: ['l1'] }, false)).toBe(true);
+  });
+  it('pendant le délai (montant modifié, différé ancien) → pas à jour', () => {
+    expect(apercuAJour({ ...p1, montantEncaisse: 2000 }, p1, false)).toBe(false);
+  });
+  it('donnée précédente conservée (keepPreviousData) → pas à jour', () => {
+    expect(apercuAJour(p1, p1, true)).toBe(false);
+  });
+  it('différé encore nul → pas à jour', () => {
+    expect(apercuAJour(p1, null, false)).toBe(false);
+  });
+});
+
+describe('libelleDetteApres (aligné sur le web)', () => {
+  it('reste dû, avance, soldé', () => {
+    expect(libelleDetteApres(500)).toContain('reste dû');
+    expect(libelleDetteApres(-600)).toContain('avance de');
+    expect(libelleDetteApres(0)).toBe('soldé');
+  });
+});
+
+describe('totalResteDuSelection', () => {
+  it('somme les restes dus serveur des seules livraisons cochées', () => {
+    const livs = [
+      { id: 'l-1', resteDu: 1750 },
+      { id: 'l-2', resteDu: '1400' as unknown as number },
+      { id: 'l-3', resteDu: 999 },
+    ];
+    expect(totalResteDuSelection(livs, ['l-1', 'l-2'])).toBe(3150);
+    expect(totalResteDuSelection(livs, [])).toBe(0);
   });
 });
 

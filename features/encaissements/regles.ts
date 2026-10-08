@@ -4,12 +4,13 @@ import type {
   UUID,
 } from '../../types/api';
 import type { Resultat } from '../commandes/regles';
+import { formatMontant } from '../../lib/format';
 
 /**
  * Règles pures de l'écran d'encaissement et des totaux cash / accueil.
- * Aucun montant dû n'est calculé ici : soldes et encours viennent du
- * serveur ; seuls l'aperçu de saisie (« dont avance ») et des sommes
- * d'affichage de valeurs serveur restent locaux.
+ * Aucun montant dû n'est calculé ici : soldes, restes dus, répartition et
+ * écart viennent du serveur ; seules des sommes d'affichage de valeurs
+ * serveur restent locales.
  */
 
 /** Montant saisi : nombre > 0, virgule ou point, 2 décimales maximum. */
@@ -31,25 +32,69 @@ export function num(v: unknown): number {
 }
 
 /**
- * Aperçu de saisie : part du paiement au-delà de ce que le client doit
- * (solde serveur). Elle devient une avance (solde négatif), jamais
- * reversée. 0 si le paiement ne dépasse pas le dû.
+ * Libellé de l'écart d'un encaissement (E10), identique au web :
+ * négatif → reste dû, positif → surplus vers l'avance, nul → aucun écart.
  */
-export function avanceEstimee(soldeServeur: number, montant: number): number {
-  const du = Math.max(0, num(soldeServeur));
-  return Math.max(0, Math.round((num(montant) - du) * 100) / 100);
+export function libelleEcart(ecart: number): string {
+  const e = num(ecart);
+  if (e < 0) return `Reste dû ${formatMontant(-e)}`;
+  if (e > 0) return `Surplus ${formatMontant(e)} → avance`;
+  return 'Aucun écart';
 }
 
 /**
- * Plage d'un encaissement « sur une période » : le back attend des
- * LocalDateTime ; une date seule vaut début de journée, donc la date de
- * fin est étendue à la fin de la journée pour inclure ses livraisons.
+ * Solde du client après le paiement (`soldeApres` serveur), identique au
+ * web : positif = reste dû, négatif = avance, nul = soldé.
  */
-export function plageEnParams(
-  dateDebut: string,
-  dateFin: string,
-): { dateDebut: string; dateFin: string } {
-  return { dateDebut: `${dateDebut}T00:00:00`, dateFin: `${dateFin}T23:59:59` };
+export function libelleDetteApres(soldeApres: number): string {
+  const s = num(soldeApres);
+  if (s > 0) return `reste dû ${formatMontant(s)} F`;
+  if (s < 0) return `avance de ${formatMontant(-s)} F`;
+  return 'soldé';
+}
+
+/** Ton d'affichage de l'écart. */
+export function tonEcart(ecart: number): 'negatif' | 'nul' | 'positif' {
+  const e = num(ecart);
+  if (e < 0) return 'negatif';
+  if (e > 0) return 'positif';
+  return 'nul';
+}
+
+/** Un encaissement exige au moins une livraison cochée et un montant > 0. */
+export function peutValiderEncaissement(livraisonIds: readonly UUID[], montant: number): boolean {
+  return livraisonIds.length > 0 && Number.isFinite(Number(montant)) && Number(montant) > 0;
+}
+
+/** Coche ou décoche une livraison (nouveau tableau, ordre conservé). */
+export function basculerSelection(ids: UUID[], id: UUID): UUID[] {
+  return ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
+}
+
+/** Σ des restes dus (serveur) des livraisons cochées. */
+export function totalResteDuSelection(
+  livraisons: readonly { id: UUID; resteDu?: number | null }[],
+  ids: readonly UUID[],
+): number {
+  const choisis = new Set(ids);
+  const somme = livraisons
+    .filter((l) => choisis.has(l.id))
+    .reduce((acc, l) => acc + num(l.resteDu), 0);
+  // Arrondi au centime : 0,1 + 0,2 ne doit pas donner 0,30000000000000004.
+  return Math.round(somme * 100) / 100;
+}
+
+/**
+ * L'aperçu affiché correspond à la saisie courante : la requête différée
+ * (300 ms) porte la même charge utile et la donnée n'est pas un reste de la
+ * requête précédente (`keepPreviousData`).
+ */
+export function apercuAJour(
+  courant: unknown,
+  differe: unknown,
+  estDonneePrecedente: boolean,
+): boolean {
+  return !estDonneePrecedente && JSON.stringify(courant) === JSON.stringify(differe);
 }
 
 /** Date locale `YYYY-MM-DD` (pas `toISOString`, qui est en UTC). */
@@ -105,15 +150,6 @@ export function indexerEncours(
   const m = new Map<UUID, EncoursClientResponse>();
   for (const e of encours ?? []) m.set(e.clientId, e);
   return m;
-}
-
-/**
- * Suggestion bornée par le solde du client : `montant` (dû net d'une
- * livraison, avant paiements, ou valeur d'une période) ne peut pas être
- * proposé au-delà de ce que le client doit encore (solde serveur > 0).
- */
-export function suggestionBornee(montant: number, soldeServeur: number): number {
-  return Math.max(0, Math.min(num(montant), Math.max(0, num(soldeServeur))));
 }
 
 /** Σ des remises nettes (serveur) d'une liste de livraisons. */

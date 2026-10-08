@@ -1,18 +1,12 @@
 import { apiClient } from '../../lib/api-client';
 import type {
+  ApercuEncaissementRequest,
+  ApercuEncaissementResponse,
   CreerEncaissementLivraisonRequest,
   EncaissementLivraisonResponse,
-  SituationEncaissementResponse,
+  LivraisonsAEncaisserResponse,
   UUID,
 } from '../../types/api';
-
-export interface SituationEncaissementParams {
-  livreurId: UUID;
-  clientId: UUID;
-  /** LocalDateTime ISO (`YYYY-MM-DDTHH:mm:ss`). */
-  dateDebut: string;
-  dateFin: string;
-}
 
 export const encaissementsApi = {
   byLivreur: async (livreurId: UUID): Promise<EncaissementLivraisonResponse[]> => {
@@ -22,20 +16,31 @@ export const encaissementsApi = {
     return data;
   },
   /**
-   * Situation (lecture seule) d'un client sur une plage :
-   * `totalDu` = solde du compte, `valeurLivraisons` / `margeCumulee` =
-   * dû et remise des livraisons de la plage, `detteAvant` = reste hors plage.
+   * Livraisons du client avec un reste dû (tous livreurs), les plus
+   * anciennes d'abord, avec le solde et l'avance du client.
    */
-  situation: async (p: SituationEncaissementParams): Promise<SituationEncaissementResponse> => {
-    const { data } = await apiClient.get<SituationEncaissementResponse>(
-      '/encaissement/livraison/situation',
-      { params: p },
+  aEncaisser: async (livreurId: UUID, clientId: UUID): Promise<LivraisonsAEncaisserResponse> => {
+    const { data } = await apiClient.get<LivraisonsAEncaisserResponse>(
+      '/encaissement/livraison/a-encaisser',
+      { params: { livreurId, clientId } },
+    );
+    return data;
+  },
+  /**
+   * Aperçu serveur (aucune écriture) : répartition du montant sur les
+   * livraisons cochées, écart et surplus imputé. Mêmes refus 400 que la
+   * création.
+   */
+  apercu: async (payload: ApercuEncaissementRequest): Promise<ApercuEncaissementResponse> => {
+    const { data } = await apiClient.post<ApercuEncaissementResponse>(
+      '/encaissement/livraison/apercu',
+      payload,
     );
     return data;
   },
   /**
    * `POST /encaissement/livraison` : le back renvoie l'encaissement créé
-   * (référence, `detteAvant`, `detteApres` calculés par le serveur).
+   * (référence, écart mémorisé, `detteAvant`, `detteApres`).
    */
   creer: async (
     payload: CreerEncaissementLivraisonRequest,

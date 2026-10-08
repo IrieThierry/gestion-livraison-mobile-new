@@ -36,6 +36,10 @@ function livraison(lignes: ProduitLivraisonResponse[]): LivraisonResponse {
     montantDu: 0,
     remiseNette: 0,
     avecRemise: true,
+    montantPaye: 0,
+    resteDu: 0,
+    entierementPayee: true,
+    encaissementReferences: ['ENC-LIV1'],
   };
 }
 

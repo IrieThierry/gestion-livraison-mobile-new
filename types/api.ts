@@ -230,10 +230,12 @@ export type StatutLivraison = 'LIVREE' | 'ENCAISSEE'
 
 /**
  * Statut d'encaissement calculé par le back :
- *   - `ENCAISSEE`     — livraison entièrement payée
- *   - `NON_ENCAISSEE` — reste un dû
+ *   - `ENCAISSEE`     — un encaissement la vise ou elle a reçu un paiement,
+ *                       même partiel (E8) : un reste dû est possible ;
+ *   - `NON_ENCAISSEE` — aucun paiement ni encaissement.
  *
- * **C'est ce champ qu'il faut afficher au livreur**, pas `statut`.
+ * **C'est ce champ qu'il faut afficher au livreur**, pas `statut`, suivi du
+ * reste dû. « Entièrement payée » se lit sur `entierementPayee` / `resteDu`.
  */
 export type StatutEncaissement = 'ENCAISSEE' | 'NON_ENCAISSEE'
 
@@ -283,6 +285,14 @@ export interface LivraisonResponse {
   /** Remise nette calculée par le back. */
   remiseNette: number
   avecRemise: boolean
+  /** Montant payé rejoué par le back (E9). */
+  montantPaye: number
+  /** Reste dû = `montantDu` − `montantPaye` (serveur). */
+  resteDu: number
+  /** Vrai quand le reste dû est nul : seule source de « entièrement payée ». */
+  entierementPayee: boolean
+  /** Références des encaissements qui visent cette livraison. */
+  encaissementReferences: string[]
 }
 
 export interface CreerLivraisonRequest {
@@ -296,17 +306,33 @@ export interface ModifierLivraisonRequest extends CreerLivraisonRequest {
   id: UUID
 }
 
-// ---------- Encaissements (v2 — paiement libre sur plage avec dette cumulative) ----------
+// ---------- Encaissements (par livraisons cochées, E1 / E4 / E10) ----------
 export interface CreerEncaissementLivraisonRequest {
   livreurId: UUID
   clientId: UUID
-  dateDebut?: string         // LocalDateTime ISO — ignoré si libre=true
-  dateFin?: string           // LocalDateTime ISO — ignoré si libre=true
-  dateEncaissement?: string  // LocalDateTime ISO — absent = maintenant (serveur)
+  /** Livraisons du client couvertes, des plus anciennes aux plus récentes. */
+  livraisonIds: UUID[]
   montantEncaisse: number
+  dateEncaissement?: string  // LocalDateTime ISO — absent = maintenant (serveur)
   commentaire?: string
-  /** Mode libre : solder la dette sans plage (valeurLivraisons=0). */
-  libre?: boolean
+}
+
+export interface ModifierEncaissementLivraisonRequest {
+  encaissementLivraisonId: UUID
+  livraisonIds: UUID[]
+  montantEncaisse: number
+  dateEncaissement?: string  // absent = inchangée
+  commentaire?: string
+}
+
+/** Livraison rattachée à un encaissement (compte actuel). */
+export interface LivraisonEncaisseeResponse {
+  livraisonId: UUID
+  reference: string
+  date: ISODate
+  part: number
+  resteDu: number
+  statutEncaissement: StatutEncaissement
 }
 
 export interface EncaissementLivraisonResponse {
@@ -314,22 +340,57 @@ export interface EncaissementLivraisonResponse {
   reference: string
   livreur: LivreurResponse
   client: ClientResponse
-  dateDebut: string | null
-  dateFin: string | null
   dateEncaissement: ISODate
-  valeurLivraisons: number
-  margeCumulee: number
   montantEncaisse: number
+  /** Photo mémorisée à l'enregistrement (E10). */
+  duChoisi: number
+  /** < 0 : reste dû ; > 0 : surplus vers l'avance (E10, figé). */
+  ecart: number
   detteAvant: number
   detteApres: number
   commentaire: string | null
+  livraisons: LivraisonEncaisseeResponse[]
 }
 
-export interface SituationEncaissementResponse {
-  valeurLivraisons: number
-  margeCumulee: number
-  detteAvant: number
-  totalDu: number
+/** Livraison d'un client avec un reste dû (`GET …/a-encaisser`). */
+export interface LivraisonAEncaisserResponse {
+  id: UUID
+  reference: string
+  date: ISODate
+  du: number
+  paye: number
+  resteDu: number
+  remise: number
+  statutEncaissement: StatutEncaissement
+}
+
+export interface LivraisonsAEncaisserResponse {
+  /** Solde du client ; négatif = avance. */
+  solde: number
+  avance: number
+  /** Les plus anciennes d'abord (date, référence, id). */
+  livraisons: LivraisonAEncaisserResponse[]
+}
+
+/** Aperçu sans écriture (`POST …/apercu`). */
+export interface ApercuEncaissementRequest {
+  livreurId: UUID
+  clientId: UUID
+  livraisonIds: UUID[]
+  montantEncaisse: number
+  dateEncaissement?: string
+  /** Aperçu d'une modification : l'encaissement est exclu du compte. */
+  encaissementId?: UUID
+}
+
+export interface ApercuEncaissementResponse {
+  duChoisi: number
+  ecart: number
+  soldeApres: number
+  /** Chaque livraison choisie (part 0 si elle ne reçoit rien). */
+  repartition: { livraisonId: UUID; reference: string; part: number; resteDuApres: number }[]
+  /** Livraisons couvertes par le surplus (choisies ou non). */
+  surplusImpute: { livraisonId: UUID; reference: string; part: number }[]
 }
 
 export interface EncoursClientResponse {
