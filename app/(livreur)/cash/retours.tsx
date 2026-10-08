@@ -22,10 +22,15 @@ import { SelectField } from '../../../components/shared/SelectField';
 import { useClientsByLivreur } from '../../../features/clients/hooks';
 import { useRetours } from '../../../features/retours/hooks';
 import { derniersJours, moisEnCours } from '../../../features/retours/api';
+import {
+  libelleDestination,
+  libelleOrigine,
+  libelleQuantite,
+  libelleValeur,
+} from '../../../features/retours/libelles';
 import { useAuthStore } from '../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../lib/api-error';
-import { formatFCFA, formatDateShort } from '../../../lib/format';
-import type { OrigineRetour } from '../../../types/api';
+import { formatDateShort } from '../../../lib/format';
 
 type Periode = 'mois' | '30j' | '90j' | 'all';
 
@@ -35,12 +40,6 @@ const PERIODES: Array<{ key: Periode; label: string }> = [
   { key: '90j', label: '90 jours' },
   { key: 'all', label: 'Tout' },
 ];
-
-const ORIGINES: Record<OrigineRetour, string> = {
-  MENU_RETOURS: 'Menu Retours',
-  MODIFICATION_LIVRAISON: 'Modification de livraison',
-  CREATION_LIVRAISON: 'Création de livraison',
-};
 
 function bornes(periode: Periode): { debut?: string; fin?: string } {
   switch (periode) {
@@ -213,7 +212,7 @@ export default function RetoursList() {
                         <Package color="#64748b" size={11} />
                         <Text className="font-extrabold text-slate-900 dark:text-white text-[13px]">
                           {r.produit.designation}{' '}
-                          {correction ? `· Correction −${Math.abs(r.quantite)}` : `× ${r.quantite}`}
+                          · {libelleQuantite(r.quantite)}
                         </Text>
                       </View>
                       <View className="flex-row items-center gap-1.5 mt-0.5">
@@ -226,20 +225,17 @@ export default function RetoursList() {
                         {formatDateShort(r.dateRetour)} · {r.livreur.nom ?? '—'}
                       </Text>
                       <Text className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        {r.remisEnStock ? 'Remis en stock' : 'Perdu'} · {ORIGINES[r.origine] ?? r.origine}
+                        {libelleDestination(r.remisEnStock)} · {libelleOrigine(r.origine)}
                       </Text>
                     </View>
-                    {r.valeur !== null && r.valeur !== undefined ? (
-                      <View className="items-end">
-                        <Text className="font-extrabold text-amber-700 dark:text-amber-400">
-                          {r.valeur < 0 ? '+' : '−'}
-                          {formatFCFA(Math.abs(r.valeur))}
-                        </Text>
-                        <Text className="text-[9px] text-slate-400 dark:text-slate-500">
-                          FCFA
-                        </Text>
-                      </View>
-                    ) : null}
+                    <View className="items-end">
+                      <Text className="font-extrabold text-slate-700 dark:text-slate-300">
+                        {libelleValeur(r.valeur)}
+                      </Text>
+                      <Text className="text-[9px] text-slate-400 dark:text-slate-500">
+                        FCFA
+                      </Text>
+                    </View>
                     <ArrowRight color="#94a3b8" size={14} />
                   </Pressable>
                 );
