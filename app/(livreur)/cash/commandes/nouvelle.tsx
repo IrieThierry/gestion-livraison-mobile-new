@@ -12,6 +12,7 @@ import { dialog } from '../../../../lib/dialog';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { SelectField } from '../../../../components/shared/SelectField';
 import { EmptyState } from '../../../../components/shared/EmptyState';
+import { ApprentiAffecteField } from '../../../../components/livreur/ApprentiAffecteField';
 import { useFournisseurs } from '../../../../features/lookups/hooks';
 import {
   useCatalogueFournisseur,
@@ -36,6 +37,7 @@ export default function NouvelleCommande() {
   const { data: fournisseurs = [] } = useFournisseurs();
   const [fournisseurId, setFournisseurId] = useState<string | null>(null);
   const [quantites, setQuantites] = useState<Quantites>({});
+  const [apprentiId, setApprentiId] = useState<string | null>(null);
   const catalogue = useCatalogueFournisseur(fournisseurId ?? undefined);
   const m = useCreerCommande();
   const lignes = useMemo(() => lignesCommandables(catalogue.data ?? []), [catalogue.data]);
@@ -65,6 +67,8 @@ export default function NouvelleCommande() {
   const changerFournisseur = (id: string | null) => {
     setFournisseurId(id);
     setQuantites({});
+    // Les apprentis affectables dépendent du fournisseur (blocages).
+    setApprentiId(null);
   };
 
   const onSubmit = () => {
@@ -73,10 +77,12 @@ export default function NouvelleCommande() {
       dialog.warning('Commande incomplète', resultat.erreur);
       return;
     }
-    m.mutate(resultat.valeur, {
+    const payload = apprentiId ? { ...resultat.valeur, apprentiId } : resultat.valeur;
+    m.mutate(payload, {
       onSuccess: () => {
         setFournisseurId(null);
         setQuantites({});
+        setApprentiId(null);
         router.back();
         dialog.success('Commande envoyée');
       },
@@ -103,8 +109,15 @@ export default function NouvelleCommande() {
 
           {fournisseurId ? (
             <>
+              <View className="mt-4">
+                <ApprentiAffecteField
+                  fournisseurId={fournisseurId}
+                  value={apprentiId}
+                  onChange={setApprentiId}
+                />
+              </View>
               <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
-                Produits (prix applicable ; le prix retenu est figé à la livraison)
+                Produits (prix applicable ; le prix retenu est figé à la réception)
               </Text>
               {catalogue.isLoading ? (
                 <Text className="text-slate-400 text-sm">Chargement…</Text>

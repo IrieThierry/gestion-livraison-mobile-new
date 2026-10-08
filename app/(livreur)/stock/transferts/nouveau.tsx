@@ -155,7 +155,7 @@ export default function NouveauTransfert() {
             onChange={setProduitId}
             options={stockOptions}
             isLoading={stockQ.isLoading}
-            emptyMessage="Aucun produit en stock. Déclare un achat fournisseur d'abord."
+            emptyMessage="Aucun produit en stock. Réceptionne d'abord une commande."
           />
 
           {/* Quantité */}

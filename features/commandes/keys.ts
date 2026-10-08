@@ -5,4 +5,8 @@ export const commandeKeys = {
   mes: () => [...commandeKeys.all, 'mes'] as const,
   aRegler: (fournisseurId: string) => [...commandeKeys.all, 'a-regler', fournisseurId] as const,
   catalogue: (fournisseurId: string) => [...commandeKeys.all, 'catalogue', fournisseurId] as const,
+  detail: (id: string) => [...commandeKeys.all, 'detail', id] as const,
+  aReceptionner: () => [...commandeKeys.all, 'a-receptionner'] as const,
+  apprentisAffectables: (fournisseurId: string) =>
+    [...commandeKeys.all, 'apprentis-affectables', fournisseurId] as const,
 };

@@ -1,6 +1,7 @@
 import { apiClient } from '../../lib/api-client';
 import type {
-  EnregistrerStockRequest,
+  FiltresMouvementsStock,
+  MouvementStockResponse,
   StockCourantLigneResponse,
   StockEquipeLigneResponse,
   StockLivreurResponse,
@@ -9,15 +10,11 @@ import type {
 
 // Port direct de gestion-livraison-front/src/features/stock/api.ts.
 // Les endpoints sont au singulier `/stock-livreur` côté backend (Plan D).
-// On expose ici uniquement les méthodes en lecture nécessaires pour la phase
-// 4 du mobile : la déclaration et la modification d'achats viendront avec
-// la Task 23.
+// Lecture seule : le stock n'entre que par une réception de commande, un
+// transfert ou un retour remis en stock (plus d'achat manuel).
 export const stockApi = {
   /**
-   * Stock embarqué par fournisseur — une ligne par (produit, fournisseur).
-   * C'est la source de vérité pour l'écran "Mon stock" mobile : un livreur
-   * peut détenir le même produit acheté chez plusieurs fournisseurs et on
-   * veut afficher chaque tuple distinct.
+   * Stock d'un livreur — une ligne par produit (compteur courant).
    */
   actuel: async (livreurId: UUID): Promise<StockLivreurResponse[]> => {
     const { data } = await apiClient.get<StockLivreurResponse[]>(
@@ -68,16 +65,16 @@ export const stockApi = {
   },
 
   /**
-   * Déclare une entrée de stock (= un "achat" chez un fournisseur). Mirror de
-   * `stockApi.enregistrer` côté web — endpoint `POST /stock-livreur`. Le back
-   * crée une ligne d'achat par produit et alimente `stock_courant_livreur`.
+   * Journal des mouvements de stock d'un livreur (`GET /stock-livreur/{id}/historique`),
+   * du plus récent au plus ancien. Filtres facultatifs : période (jours entiers) et produit.
    */
-  enregistrerAchat: async (
-    payload: EnregistrerStockRequest,
-  ): Promise<StockLivreurResponse[]> => {
-    const { data } = await apiClient.post<StockLivreurResponse[]>(
-      '/stock-livreur',
-      payload,
+  historique: async (
+    livreurId: UUID,
+    filtres: FiltresMouvementsStock = {},
+  ): Promise<MouvementStockResponse[]> => {
+    const { data } = await apiClient.get<MouvementStockResponse[]>(
+      `/stock-livreur/${livreurId}/historique`,
+      { params: filtres },
     );
     return data;
   },
