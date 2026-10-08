@@ -42,6 +42,17 @@ export function libelleEcart(ecart: number): string {
   return 'Aucun écart';
 }
 
+/**
+ * Solde du client après le paiement (`soldeApres` serveur), identique au
+ * web : positif = reste dû, négatif = avance, nul = soldé.
+ */
+export function libelleDetteApres(soldeApres: number): string {
+  const s = num(soldeApres);
+  if (s > 0) return `reste dû ${formatMontant(s)} F`;
+  if (s < 0) return `avance de ${formatMontant(-s)} F`;
+  return 'soldé';
+}
+
 /** Ton d'affichage de l'écart. */
 export function tonEcart(ecart: number): 'negatif' | 'nul' | 'positif' {
   const e = num(ecart);
@@ -66,9 +77,24 @@ export function totalResteDuSelection(
   ids: readonly UUID[],
 ): number {
   const choisis = new Set(ids);
-  return livraisons
+  const somme = livraisons
     .filter((l) => choisis.has(l.id))
     .reduce((acc, l) => acc + num(l.resteDu), 0);
+  // Arrondi au centime : 0,1 + 0,2 ne doit pas donner 0,30000000000000004.
+  return Math.round(somme * 100) / 100;
+}
+
+/**
+ * L'aperçu affiché correspond à la saisie courante : la requête différée
+ * (300 ms) porte la même charge utile et la donnée n'est pas un reste de la
+ * requête précédente (`keepPreviousData`).
+ */
+export function apercuAJour(
+  courant: unknown,
+  differe: unknown,
+  estDonneePrecedente: boolean,
+): boolean {
+  return !estDonneePrecedente && JSON.stringify(courant) === JSON.stringify(differe);
 }
 
 /** Date locale `YYYY-MM-DD` (pas `toISOString`, qui est en UTC). */

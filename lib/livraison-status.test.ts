@@ -46,6 +46,16 @@ describe('entièrement payée (entierementPayee, jamais le statut)', () => {
     expect(isAEncaisser(l)).toBe(false);
   });
 
+  it('dû nul (resteDu 0, jamais payée) → rien à encaisser', () => {
+    const l = avec('NON_ENCAISSEE', 'LIVREE', { entierementPayee: false, resteDu: 0 });
+    expect(isAEncaisser(l)).toBe(false);
+  });
+
+  it('resteDu en chaîne > 0 → à encaisser', () => {
+    const l = avec('ENCAISSEE', 'LIVREE', { entierementPayee: false, resteDu: '500.00' as never });
+    expect(isAEncaisser(l)).toBe(true);
+  });
+
   it('champ absent → à encaisser', () => {
     expect(isAEncaisser(avec('ENCAISSEE'))).toBe(true);
   });

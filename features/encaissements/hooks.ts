@@ -12,7 +12,7 @@ import type {
 } from '../../types/api';
 import { encaissementsApi } from './api';
 import { encaissementKeys } from './keys';
-import { peutValiderEncaissement } from './regles';
+import { apercuAJour, peutValiderEncaissement } from './regles';
 import { livraisonKeys } from '../livraisons/keys';
 import { clientKeys, encoursKeys } from '../clients/keys';
 import { reversementKeys } from '../reversements/keys';
@@ -53,13 +53,15 @@ function useValeurDifferee<T>(valeur: T, delaiMs: number): T {
 /**
  * Aperçu serveur de la répartition et de l'écart, rappelé après 300 ms
  * d'inactivité ; actif seulement avec au moins une livraison et un
- * montant > 0. L'aperçu précédent reste affiché pendant le rechargement.
+ * montant > 0. `aJour` vaut vrai seulement quand `data` correspond à la
+ * saisie courante (ni délai en cours, ni aperçu précédent conservé) : l'écran
+ * n'affiche l'aperçu et ne valide que dans ce cas.
  */
 export function useApercuEncaissement(payload: ApercuEncaissementRequest | null) {
   const differe = useValeurDifferee(payload, DELAI_APERCU_MS);
   const actif =
     !!differe && peutValiderEncaissement(differe.livraisonIds, differe.montantEncaisse);
-  return useQuery({
+  const q = useQuery({
     queryKey: differe
       ? encaissementKeys.apercu(differe)
       : [...encaissementKeys.all, 'apercu', 'aucun'],
@@ -68,6 +70,8 @@ export function useApercuEncaissement(payload: ApercuEncaissementRequest | null)
     placeholderData: keepPreviousData,
     retry: false,
   });
+  const aJour = !!payload && apercuAJour(payload, differe, q.isPlaceholderData);
+  return { ...q, aJour };
 }
 
 /**

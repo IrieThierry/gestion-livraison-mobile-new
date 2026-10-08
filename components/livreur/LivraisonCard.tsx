@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { formatFCFA, formatTime } from '../../lib/format';
 import {
   isEncaissee,
-  isEntierementPayee,
+  isAEncaisser,
   libelleStatutEncaissement,
 } from '../../lib/livraison-status';
 import { num } from '../../features/encaissements/regles';
@@ -38,7 +38,7 @@ const BADGE = {
  *     mobile).
  */
 export function deriveStatus(livraison: LivraisonResponse): DerivedStatus {
-  if (isEntierementPayee(livraison)) return 'SOLDEE';
+  if (!isAEncaisser(livraison)) return 'SOLDEE';
 
   const today = new Date().toDateString();
   const livDate = new Date(livraison.date).toDateString();

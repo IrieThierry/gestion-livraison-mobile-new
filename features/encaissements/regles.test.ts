@@ -6,6 +6,8 @@ import {
   peutValiderEncaissement,
   tonEcart,
   totalResteDuSelection,
+  apercuAJour,
+  libelleDetteApres,
   totalRemiseNette,
   encaisseAujourdhui,
   estDuJour,
@@ -164,6 +166,42 @@ describe('basculerSelection', () => {
     const ids = ['l-1'];
     basculerSelection(ids, 'l-2');
     expect(ids).toEqual(['l-1']);
+  });
+});
+
+describe('totalResteDuSelection (arrondi)', () => {
+  it('0,1 + 0,2 → 0,3 (pas 0,30000000000000004)', () => {
+    const livs = [
+      { id: 'a', resteDu: 0.1 },
+      { id: 'b', resteDu: 0.2 },
+    ];
+    const total = totalResteDuSelection(livs, ['a', 'b']);
+    expect(total).toBe(0.3);
+    expect(parseMontant(String(total)).ok).toBe(true);
+  });
+});
+
+describe('apercuAJour (délai de 300 ms et aperçu précédent)', () => {
+  const p1 = { montantEncaisse: 1500, livraisonIds: ['l1'] };
+  it('charge utile différée identique et donnée courante → à jour', () => {
+    expect(apercuAJour(p1, { ...p1, livraisonIds: ['l1'] }, false)).toBe(true);
+  });
+  it('pendant le délai (montant modifié, différé ancien) → pas à jour', () => {
+    expect(apercuAJour({ ...p1, montantEncaisse: 2000 }, p1, false)).toBe(false);
+  });
+  it('donnée précédente conservée (keepPreviousData) → pas à jour', () => {
+    expect(apercuAJour(p1, p1, true)).toBe(false);
+  });
+  it('différé encore nul → pas à jour', () => {
+    expect(apercuAJour(p1, null, false)).toBe(false);
+  });
+});
+
+describe('libelleDetteApres (aligné sur le web)', () => {
+  it('reste dû, avance, soldé', () => {
+    expect(libelleDetteApres(500)).toContain('reste dû');
+    expect(libelleDetteApres(-600)).toContain('avance de');
+    expect(libelleDetteApres(0)).toBe('soldé');
   });
 });
 

@@ -22,13 +22,17 @@ export function isEntierementPayee(
 }
 
 /**
- * Inverse de `isEntierementPayee` : la livraison a encore un reste dû
- * (bouton « Encaisser », filtre « à encaisser »).
+ * La livraison a encore un reste dû (bouton « Encaisser », filtre
+ * « Reste dû », bordure) : `resteDu > 0`, comme le web. Une livraison à dû
+ * nul (entièrement retournée) n'a rien à encaisser. Sans `resteDu`, repli
+ * sur `!entierementPayee`.
  */
 export function isAEncaisser(
-  l: Partial<Pick<LivraisonResponse, 'entierementPayee'>>,
+  l: Partial<Pick<LivraisonResponse, 'entierementPayee' | 'resteDu'>>,
 ): boolean {
-  return !isEntierementPayee(l);
+  if (l.resteDu === undefined || l.resteDu === null) return !isEntierementPayee(l);
+  const reste = Number(l.resteDu);
+  return Number.isFinite(reste) ? reste > 0 : !isEntierementPayee(l);
 }
 
 /**

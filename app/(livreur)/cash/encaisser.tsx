@@ -22,6 +22,7 @@ import {
   basculerSelection,
   dateEncaissementParam,
   jourLocal,
+  libelleDetteApres,
   libelleEcart,
   num,
   parseMontant,
@@ -140,7 +141,10 @@ export default function EncaisserPage() {
     [clientId, livreurId, livraisonIds, montantSaisi, dateParam],
   );
   const qApercu = useApercuEncaissement(apercuPayload);
-  const apercu = apercuPayload ? qApercu.data : undefined;
+  // L'aperçu n'est montré (et la validation permise) que s'il correspond à la
+  // saisie courante : pas pendant le délai de 300 ms ni avec l'ancien aperçu.
+  const apercuAJour = !!apercuPayload && qApercu.aJour;
+  const apercu = apercuAJour ? qApercu.data : undefined;
 
   if (!user) return null;
 
@@ -197,7 +201,7 @@ export default function EncaisserPage() {
   const onSubmit = () => {
     // Ref (pas `m.isPending`, figé dans la closure) : bloque un double appui
     // qui créerait deux encaissements.
-    if (submittingRef.current || m.isPending) return;
+    if (submittingRef.current || m.isPending || !apercuAJour) return;
     if (!clientId) {
       dialog.error('Erreur', 'Client invalide');
       return;
@@ -246,7 +250,7 @@ export default function EncaisserPage() {
 
   const solde = num(aEncaisser?.solde);
   const avance = num(aEncaisser?.avance);
-  const desactive = m.isPending || !isOnline || !peutValider;
+  const desactive = m.isPending || !isOnline || !peutValider || !apercuAJour;
   const surplus = apercu?.surplusImpute ?? [];
 
   return (
@@ -365,7 +369,9 @@ export default function EncaisserPage() {
               <Text className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 mb-2">
                 Aperçu
               </Text>
-              {qApercu.isError ? (
+              {!apercuAJour ? (
+                <ActivityIndicator color="#10b981" />
+              ) : qApercu.isError ? (
                 <Text className="text-[12px] text-red-600 dark:text-red-400">
                   {extractApiErrorMessage(qApercu.error, 'Aperçu indisponible')}
                 </Text>
@@ -391,14 +397,14 @@ export default function EncaisserPage() {
                     </View>
                   ))}
                   <View className="border-t border-slate-100 dark:border-slate-800 pt-2 mt-1">
-                    <Ligne label="Dû des livraisons cochées" valeur={`${formatMontant(num(apercu.duChoisi))} F`} />
+                    <Ligne label="Reste dû des livraisons cochées" valeur={`${formatMontant(num(apercu.duChoisi))} F`} />
                     <View className="flex-row justify-between mb-2">
                       <Text className="text-slate-500 dark:text-slate-400 text-[12px]">Écart</Text>
                       <Text className={`font-bold ${COULEUR_ECART[tonEcart(num(apercu.ecart))]}`}>
                         {libelleEcart(num(apercu.ecart))}
                       </Text>
                     </View>
-                    <Ligne label="Solde après" valeur={`${formatMontant(num(apercu.soldeApres))} F`} />
+                    <Ligne label="Solde du client après" valeur={libelleDetteApres(num(apercu.soldeApres))} />
                   </View>
                   {surplus.length > 0 ? (
                     <Text className="text-[11px] text-emerald-700 dark:text-emerald-400">
@@ -427,7 +433,7 @@ export default function EncaisserPage() {
             onPress={onSubmit}
             disabled={desactive}
             className={`rounded-md py-3.5 mt-6 items-center ${
-              !isOnline || !peutValider
+              desactive
                 ? 'bg-slate-200 dark:bg-slate-800'
                 : 'bg-emerald-500 active:opacity-80'
             }`}
@@ -437,7 +443,7 @@ export default function EncaisserPage() {
             ) : (
               <Text
                 className={`font-bold text-base ${
-                  !isOnline || !peutValider ? 'text-slate-400' : 'text-white'
+                  desactive ? 'text-slate-400' : 'text-white'
                 }`}
               >
                 {!isOnline
