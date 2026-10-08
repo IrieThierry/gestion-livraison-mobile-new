@@ -1,6 +1,6 @@
 import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
-import { ArrowLeftRight, Users, ArrowRight } from 'lucide-react-native';
+import { ArrowLeftRight, Users, ArrowRight, History } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { useStockCourant } from '../../../features/stock/hooks';
@@ -73,6 +73,25 @@ export default function StockCourant() {
             </Text>
           </View>
 
+          {/* Mouvements (journal du stock) : racine et apprenti */}
+          <Pressable
+            onPress={() => router.push('/(livreur)/stock/mouvements' as never)}
+            className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg flex-row items-center justify-between px-4 py-3 active:opacity-70"
+          >
+            <View className="flex-row items-center gap-3 flex-1">
+              <History color="#10b981" size={20} />
+              <View className="flex-1">
+                <Text className="font-extrabold text-slate-900 dark:text-white">
+                  Mouvements
+                </Text>
+                <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Réceptions, transferts, livraisons, retours
+                </Text>
+              </View>
+            </View>
+            <ArrowRight color="#94a3b8" size={16} />
+          </Pressable>
+
           {/* Submenu (root only — pas pour les apprentis) */}
           {!user.parentId ? (
             <View className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
@@ -123,7 +142,7 @@ export default function StockCourant() {
           ) : items.length === 0 ? (
             <EmptyState
               title="Stock vide"
-              message="Déclare un achat via le bouton + pour réapprovisionner."
+              message="Le stock entre par la réception d'une commande, un transfert ou un retour remis en stock."
             />
           ) : (
             <View className="gap-2">

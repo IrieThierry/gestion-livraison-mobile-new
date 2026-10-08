@@ -458,15 +458,48 @@ export interface ModifierFournisseurRequest {
 }
 
 // ---------- Commandes (livreur -> fournisseur) ----------
-export type StatutCommande = 'ENVOYEE' | 'CONFIRMEE' | 'REFUSEE' | 'ANNULEE' | 'LIVREE'
+export type StatutCommande =
+  | 'ENVOYEE'
+  | 'CONFIRMEE'
+  | 'EN_RECEPTION'
+  | 'REFUSEE'
+  | 'ANNULEE'
+  | 'LIVREE'
+
+/** Personne citée par le back (`nom` = « prénom nom »). */
+export interface PersonneRef {
+  id: UUID
+  nom: string
+}
 
 export interface ProduitCommandeResponse {
   id: UUID
   produit: ProduitResponse
   qteCommandee: number
-  qteLivree: number | null     // renseignée à la livraison par le fournisseur
-  prixUnitaire: number | null  // figé à la livraison
-  remiseLivreurUnitaire: number | null // figée à la livraison
+  qteRecue: number             // Σ des réceptions actives
+  qteRestante: number          // max(0, commandée − reçue) ; après « Passer à Livrée » : reliquat abandonné
+  montantRecu: number          // Σ quantité × prix figé des réceptions actives
+  remiseLivreurRecue: number   // Σ quantité × remise figée des réceptions actives
+}
+
+export interface LigneReceptionCommandeResponse {
+  produit: ProduitResponse
+  quantite: number
+  prixUnitaire: number
+  remiseLivreurUnitaire: number
+}
+
+export interface ReceptionCommandeResponse {
+  id: UUID
+  reference: string            // REC-n
+  dateReception: string        // ISO
+  receptionnePar: PersonneRef
+  modifieePar: PersonneRef | null
+  dateModification: string | null
+  annulee: boolean
+  annuleePar: PersonneRef | null
+  dateAnnulation: string | null
+  lignes: LigneReceptionCommandeResponse[]
 }
 
 export interface CommandeResponse {
@@ -479,15 +512,33 @@ export interface CommandeResponse {
   dateDecision: string | null  // ISO — confirmation ou refus
   motifRefus: string | null
   dateLivraison: string | null // ISO
-  montantLivre: number | null  // Σ qteLivree × prixUnitaire (statut LIVREE)
+  montantLivre: number | null  // Σ des réceptions actives ; null tant qu'aucune réception
   remiseLivreurLivree: number | null
   versementId: UUID | null     // non nul = réglée par un versement
   produitsCommandes: ProduitCommandeResponse[]
+  apprentiAffecte: PersonneRef | null
+  affectePar: PersonneRef | null
+  dateAffectation: string | null
+  receptions: ReceptionCommandeResponse[]
+  livreeManuellement: boolean  // « Passer à Livrée »
+  livreePar: PersonneRef | null
+  dateLivree: string | null
 }
 
 export interface CreerCommandeRequest {
   fournisseurId: UUID
   produitsCommandes: Array<{ produitId: UUID; qteCommandee: number }>
+  /** Apprenti affecté dès la création (facultatif). */
+  apprentiId?: UUID | null
+}
+
+/**
+ * Réception (POST) ou modification (PUT, contenu COMPLET de la réception) :
+ * `dateReception` absente = maintenant (POST) ou inchangée (PUT).
+ */
+export interface ReceptionnerCommandeRequest {
+  dateReception?: string
+  lignes: Array<{ produitId: UUID; quantite: number }>
 }
 
 /** Ligne du catalogue d'un fournisseur (GET /produit-fournisseur?fournisseurId=). */
@@ -504,11 +555,11 @@ export interface ProduitFournisseurResponse {
   prixParticulier: boolean
 }
 
-// ---------- Stock / Achats (Plan D — split achat / stock_courant_livreur) ----------
+// ---------- Stock (compteur par livreur, journal des mouvements) ----------
 
 /**
- * Une ligne du stock courant agrégée par produit (sommée sur tous les achats
- * du livreur, déduite des livraisons enregistrées).
+ * Une ligne du stock courant agrégée par produit (réceptions, transferts et
+ * retours remis en stock, moins les livraisons enregistrées).
  * Source : `GET /stock-livreur/me/courant`.
  */
 export interface StockCourantLigneResponse {
@@ -518,12 +569,12 @@ export interface StockCourantLigneResponse {
 }
 
 /**
- * Une ligne d'achat (= un événement d'approvisionnement chez un fournisseur).
- * Source : `GET /stock-livreur/{livreurId}/actuel` renvoie la liste des
- * achats encore présents en stock pour un livreur, ventilés par produit ET
- * par fournisseur.
+ * Une ligne du stock d'un livreur (compteur `stock_courant_livreur`), ventilée
+ * par produit. Source : `GET /stock-livreur/{livreurId}/actuel`. Les champs de
+ * prix et de fournisseur sont conservés par le back mais ne sont plus renseignés
+ * (plus d'achat manuel) : `fournisseur` et les prix sont `null`.
  */
-export interface AchatResponse {
+export interface StockLivreurResponse {
   id: UUID
   livreur: LivreurResponse
   produit: ProduitResponse
@@ -535,9 +586,6 @@ export interface AchatResponse {
   coutTotal: number
   valeurVenteTotal: number | null
 }
-
-/** @deprecated Alias historique de `AchatResponse` — conservé par parité avec le web. */
-export type StockLivreurResponse = AchatResponse
 
 /**
  * Stock courant agrégé de l'équipe (root + apprentis) — une ligne par tuple
@@ -555,25 +603,32 @@ export interface StockEquipeLigneResponse {
   valeurVenteTotal: number | null
 }
 
-/**
- * Une ligne du payload de déclaration d'achat (= entrée de stock chez un
- * fournisseur). Mirror de `LigneStockRequest` côté web/back — pas de prix
- * d'achat sur la ligne (le back lit le catalogue actif du fournisseur).
- */
-export interface LigneStockRequest {
-  produitId: UUID
-  qte: number
-}
+/** Type d'un mouvement du journal de stock (`GET /stock-livreur/{id}/historique`). */
+export type TypeMouvementStock =
+  | 'RECEPTION'
+  | 'TRANSFERT_ENTREE'
+  | 'TRANSFERT_SORTIE'
+  | 'LIVRAISON'
+  | 'RETOUR_EN_STOCK'
 
 /**
- * Payload de `POST /stock-livreur` — un livreur déclare avoir embarqué N
- * lignes de stock chez un fournisseur. Renvoie la liste des `StockLivreurResponse`
- * (= achats) créés.
+ * Un mouvement du stock d'un livreur (journal lu à la volée, trié du plus récent
+ * au plus ancien). `quantite` est signée (+ entrée, − sortie).
  */
-export interface EnregistrerStockRequest {
-  livreurId: UUID
-  fournisseurId: UUID
-  lignes: LigneStockRequest[]
+export interface MouvementStockResponse {
+  date: string  // yyyy-MM-ddTHH:mm:ss
+  type: TypeMouvementStock
+  produit: ProduitResponse
+  quantite: number
+  reference: string | null
+  contrepartie: string | null
+}
+
+/** Filtres facultatifs de l'historique du stock (période en jours entiers `yyyy-MM-dd`). */
+export interface FiltresMouvementsStock {
+  debut?: string
+  fin?: string
+  produitId?: UUID
 }
 
 // ---------- Dépenses (Plan 24) ----------
@@ -825,3 +880,63 @@ export interface SituationVersementResponse {
   nbCommandes: number
 }
 
+// ── Retours (journal `retour_client`, GET/POST /retour) ──
+
+export type OrigineRetour = 'MENU_RETOURS' | 'MODIFICATION_LIVRAISON' | 'CREATION_LIVRAISON'
+
+export interface RetourResponse {
+  id: UUID
+  dateRetour: string
+  /** Client actuel de la livraison. */
+  client: { id: UUID; nom: string | null }
+  livraison: { id: UUID; reference: string; date: string }
+  produit: { id: UUID; designation: string }
+  /** Signée : une valeur négative est une correction. */
+  quantite: number
+  /** `true` = remis en stock, `false` = perdu. */
+  remisEnStock: boolean
+  origine: OrigineRetour
+  livreur: { id: UUID; nom: string | null }
+  auteur: { id: UUID; nom: string | null }
+  /** Indicative, signée ; nulle si la ligne a été retirée de la livraison. */
+  valeur: number | null
+}
+
+export interface PageRetoursResponse {
+  contenu: RetourResponse[]
+  /** Page appliquée, à partir de 0. */
+  page: number
+  /** Taille appliquée (défaut 50, max 200). */
+  taille: number
+  total: number
+}
+
+export interface FiltresRetours {
+  livreurId?: UUID
+  /** yyyy-MM-dd, jour inclus. */
+  debut?: string
+  /** yyyy-MM-dd, jour inclus. */
+  fin?: string
+  clientId?: UUID
+  produitId?: UUID
+  page?: number
+  taille?: number
+}
+
+export interface LigneRetourRequest {
+  produitLivraisonId: UUID
+  quantite: number
+  remisEnStock: boolean
+}
+
+export interface EnregistrerRetourRequest {
+  livraisonId: UUID
+  /** Absente = maintenant (serveur). */
+  dateRetour?: string
+  lignes: LigneRetourRequest[]
+}
+
+export interface EnregistrerRetourResponse {
+  retours: RetourResponse[]
+  livraison: LivraisonResponse
+}

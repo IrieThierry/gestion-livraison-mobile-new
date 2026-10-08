@@ -12,6 +12,11 @@ const STYLES: Record<StatutCommande, { bg: string; text: string; label: string }
     text: 'text-blue-700 dark:text-blue-400',
     label: 'Confirmée',
   },
+  EN_RECEPTION: {
+    bg: 'bg-cyan-100 dark:bg-cyan-500/15',
+    text: 'text-cyan-800 dark:text-cyan-300',
+    label: 'En réception',
+  },
   REFUSEE: {
     bg: 'bg-red-100 dark:bg-red-500/15',
     text: 'text-red-700 dark:text-red-400',

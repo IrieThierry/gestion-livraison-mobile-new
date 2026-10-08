@@ -10,6 +10,7 @@ import {
   ArrowRight,
   RotateCcw,
   ClipboardList,
+  PackageCheck,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { StatCard } from '../../../components/shared/StatCard';
@@ -146,7 +147,17 @@ export default function CashOverview() {
                   border
                 />
               </>
-            ) : null}
+            ) : (
+              // Apprenti : commandes que le livreur principal lui a affectées.
+              <CashMenuRow
+                icon={PackageCheck}
+                color="#0ea5e9"
+                label="À réceptionner"
+                hint="Commandes qui vous sont affectées"
+                onPress={() => router.push('/(livreur)/cash/commandes/a-receptionner' as never)}
+                border
+              />
+            )}
           </View>
 
           {/* Recent list */}

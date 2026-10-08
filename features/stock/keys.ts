@@ -1,4 +1,4 @@
-import type { UUID } from '../../types/api';
+import type { FiltresMouvementsStock, UUID } from '../../types/api';
 
 // Mirror exact des clés du web (gestion-livraison-front/src/features/stock/keys.ts)
 // pour pouvoir invalider les mêmes branches du cache si on partage des hooks
@@ -6,7 +6,8 @@ import type { UUID } from '../../types/api';
 export const stockKeys = {
   all: ['stock'] as const,
   actuel: (livreurId: UUID) => [...stockKeys.all, 'actuel', livreurId] as const,
-  historique: (livreurId: UUID) => [...stockKeys.all, 'historique', livreurId] as const,
+  historique: (livreurId: UUID, filtres: FiltresMouvementsStock) =>
+    [...stockKeys.all, 'historique', livreurId, filtres] as const,
   parentActuel: (parentId: UUID) => [...stockKeys.all, 'parent-actuel', parentId] as const,
   equipe: () => [...stockKeys.all, 'equipe'] as const,
   // Le web utilise une clé inline `['stock', 'courant', dateDebut, dateFin]`

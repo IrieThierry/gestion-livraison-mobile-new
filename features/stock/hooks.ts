@@ -1,8 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { stockApi } from './api';
 import { stockKeys } from './keys';
-import { commandeKeys } from '../commandes/keys';
-import type { EnregistrerStockRequest, UUID } from '../../types/api';
+import type { FiltresMouvementsStock, UUID } from '../../types/api';
 
 // Mirror des hooks lecture du web (gestion-livraison-front/src/features/stock/hooks.ts)
 // — on n'a besoin que des deux sources de lecture pour la Task 22.
@@ -56,21 +55,13 @@ export function useStockEquipe() {
 }
 
 /**
- * Déclare un achat (entrée de stock) chez un fournisseur. Sur succès, on
- * invalide tout le sous-arbre `['stock']` du cache pour que la page "Mon
- * stock" et les agrégats `courant` se rafraîchissent automatiquement.
+ * Journal des mouvements de stock d'un livreur (réceptions, transferts,
+ * livraisons, retours remis en stock), du plus récent au plus ancien.
  */
-export function useEnregistrerAchat() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: EnregistrerStockRequest) =>
-      stockApi.enregistrerAchat(payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: stockKeys.all });
-    },
-    // Refus du back (ligne désactivée, livreur bloqué) : on rafraîchit le catalogue.
-    onError: () => {
-      qc.invalidateQueries({ queryKey: commandeKeys.all });
-    },
+export function useMouvementsStock(livreurId: UUID, filtres: FiltresMouvementsStock = {}) {
+  return useQuery({
+    queryKey: stockKeys.historique(livreurId, filtres),
+    queryFn: () => stockApi.historique(livreurId, filtres),
+    enabled: !!livreurId,
   });
 }

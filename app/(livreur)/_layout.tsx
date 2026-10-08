@@ -55,6 +55,7 @@ function popToTopOnReTap() {
 }
 
 function FabSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const user = useAuthStore((s) => s.user);
   const go = (path: string) => {
     onClose();
     router.push(path as never);
@@ -103,9 +104,15 @@ function FabSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
               icon={Package}
               iconBg="#dbeafe"
               iconColor="#1d4ed8"
-              label="Déclarer un achat"
+              label="Réceptionner une commande"
               hint="Stock entrant fournisseur"
-              onPress={() => go('/(livreur)/stock/declarer')}
+              onPress={() =>
+                go(
+                  user?.parentId
+                    ? '/(livreur)/cash/commandes/a-receptionner'
+                    : '/(livreur)/cash/commandes',
+                )
+              }
             />
             <FabAction
               icon={RotateCcw}
