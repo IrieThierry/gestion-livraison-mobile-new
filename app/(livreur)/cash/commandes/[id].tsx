@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ScrollView, View, Text, Pressable, ActivityIndicator, TextInput } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
@@ -34,6 +34,7 @@ import {
   reliquat,
   type Quantites,
 } from '../../../../features/commandes/regles';
+import { creerVerrou, lancerUneFois } from '../../../../features/commandes/verrou';
 import { jourLocal } from '../../../../features/encaissements/regles';
 import { useAuthStore } from '../../../../stores/authStore';
 import { useNetworkStore } from '../../../../stores/networkStore';
@@ -67,6 +68,8 @@ export default function CommandeDetail() {
   const mPasserLivree = usePasserLivree();
   const mApprenti = useAffecterApprenti();
   const [saisie, setSaisie] = useState<Saisie | null>(null);
+  // Verrou synchrone : un double tap part avant le rendu qui affiche isPending.
+  const verrou = useRef(creerVerrou()).current;
 
   const commande = q.data;
   const fallback = user?.parentId
@@ -109,25 +112,31 @@ export default function CommandeDetail() {
       cancelLabel: 'Non, garder',
       destructive: true,
       onConfirm: () =>
-        mAnnuler.mutate(commande.id, {
-          onSuccess: () => {
-            router.back();
-            dialog.success('Commande annulée');
-          },
-          onError: erreur('Erreur', "Impossible d'annuler la commande"),
-        }),
+        lancerUneFois(verrou, (fin) =>
+          mAnnuler.mutate(commande.id, {
+            onSuccess: () => {
+              router.back();
+              dialog.success('Commande annulée');
+            },
+            onError: erreur('Erreur', "Impossible d'annuler la commande"),
+            onSettled: fin,
+          }),
+        ),
     });
   };
 
   const onChangerApprenti = (apprentiId: string | null) => {
     if (apprentiId === (commande.apprentiAffecte?.id ?? null)) return;
-    mApprenti.mutate(
-      { id: commande.id, apprentiId },
-      {
-        onSuccess: () =>
-          dialog.success(apprentiId ? 'Apprenti affecté' : 'Apprenti retiré'),
-        onError: erreur('Affectation refusée', "Impossible de changer l'apprenti affecté"),
-      },
+    lancerUneFois(verrou, (fin) =>
+      mApprenti.mutate(
+        { id: commande.id, apprentiId },
+        {
+          onSuccess: () =>
+            dialog.success(apprentiId ? 'Apprenti affecté' : 'Apprenti retiré'),
+          onError: erreur('Affectation refusée', "Impossible de changer l'apprenti affecté"),
+          onSettled: fin,
+        },
+      ),
     );
   };
 
@@ -143,15 +152,18 @@ export default function CommandeDetail() {
         dialog.warning('Réception incomplète', r.erreur);
         return;
       }
-      mReceptionner.mutate(
-        { id: commande.id, payload: r.valeur },
-        {
-          onSuccess: () => {
-            setSaisie(null);
-            dialog.success('Réception enregistrée');
+      lancerUneFois(verrou, (fin) =>
+        mReceptionner.mutate(
+          { id: commande.id, payload: r.valeur },
+          {
+            onSuccess: () => {
+              setSaisie(null);
+              dialog.success('Réception enregistrée');
+            },
+            onError: erreur('Réception refusée', "Impossible d'enregistrer la réception"),
+            onSettled: fin,
           },
-          onError: erreur('Réception refusée', "Échec de l'enregistrement de la réception"),
-        },
+        ),
       );
       return;
     }
@@ -167,15 +179,18 @@ export default function CommandeDetail() {
       dialog.warning('Modification incomplète', r.erreur);
       return;
     }
-    mModifier.mutate(
-      { id: commande.id, receptionId: reception.id, payload: r.valeur },
-      {
-        onSuccess: () => {
-          setSaisie(null);
-          dialog.success('Réception modifiée');
+    lancerUneFois(verrou, (fin) =>
+      mModifier.mutate(
+        { id: commande.id, receptionId: reception.id, payload: r.valeur },
+        {
+          onSuccess: () => {
+            setSaisie(null);
+            dialog.success('Réception modifiée');
+          },
+          onError: erreur('Modification refusée', 'Impossible de modifier la réception'),
+          onSettled: fin,
         },
-        onError: erreur('Modification refusée', 'Échec de la modification de la réception'),
-      },
+      ),
     );
   };
 
@@ -189,15 +204,18 @@ export default function CommandeDetail() {
       cancelLabel: 'Non, garder',
       destructive: true,
       onConfirm: () =>
-        mAnnulerReception.mutate(
-          { id: commande.id, receptionId: r.id },
-          {
-            onSuccess: () => {
-              setSaisie(null);
-              dialog.success('Réception annulée');
+        lancerUneFois(verrou, (fin) =>
+          mAnnulerReception.mutate(
+            { id: commande.id, receptionId: r.id },
+            {
+              onSuccess: () => {
+                setSaisie(null);
+                dialog.success('Réception annulée');
+              },
+              onError: erreur('Annulation refusée', "Impossible d'annuler la réception"),
+              onSettled: fin,
             },
-            onError: erreur('Annulation refusée', "Impossible d'annuler la réception"),
-          },
+          ),
         ),
     });
   };
@@ -213,13 +231,16 @@ export default function CommandeDetail() {
       confirmLabel: 'Oui, passer à Livrée',
       cancelLabel: 'Non, continuer la réception',
       onConfirm: () =>
-        mPasserLivree.mutate(commande.id, {
-          onSuccess: () => {
-            setSaisie(null);
-            dialog.success('Commande passée à Livrée');
-          },
-          onError: erreur('Passage refusé', 'Impossible de passer la commande à Livrée'),
-        }),
+        lancerUneFois(verrou, (fin) =>
+          mPasserLivree.mutate(commande.id, {
+            onSuccess: () => {
+              setSaisie(null);
+              dialog.success('Commande passée à Livrée');
+            },
+            onError: erreur('Passage refusé', 'Impossible de passer la commande à Livrée'),
+            onSettled: fin,
+          }),
+        ),
     });
   };
 

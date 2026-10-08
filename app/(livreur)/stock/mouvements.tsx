@@ -10,7 +10,7 @@ import { libelleQuantiteMouvement, libelleTypeMouvement } from '../../../feature
 import { derniersJours, moisEnCours } from '../../../features/retours/api';
 import { useAuthStore } from '../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../lib/api-error';
-import { formatDateLong } from '../../../lib/format';
+import { formatDateLong, formatTime } from '../../../lib/format';
 
 type Periode = 'mois' | '30j' | '90j' | 'all';
 
@@ -155,7 +155,7 @@ export default function MouvementsStock() {
                   >
                     <View className="flex-1 pr-2">
                       <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
-                        {libelleTypeMouvement(m.type)} · {formatDateLong(m.date)}
+                        {libelleTypeMouvement(m.type)} · {formatDateLong(m.date)} {formatTime(m.date)}
                       </Text>
                       <Text className="font-extrabold text-slate-900 dark:text-white text-[13px] mt-0.5">
                         {m.produit.designation}
