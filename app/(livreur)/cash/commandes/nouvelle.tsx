@@ -13,7 +13,7 @@ import { PageHeader } from '../../../../components/shared/PageHeader';
 import { SelectField } from '../../../../components/shared/SelectField';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import { ApprentiAffecteField } from '../../../../components/livreur/ApprentiAffecteField';
-import { useFournisseurs } from '../../../../features/lookups/hooks';
+import { useFournisseursPartenaires } from '../../../../features/lookups/hooks';
 import {
   useCatalogueFournisseur,
   useCreerCommande,
@@ -28,13 +28,15 @@ import { useAuthStore } from '../../../../stores/authStore';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatFCFA } from '../../../../lib/format';
+import { MESSAGE_AUCUN_PARTENAIRE } from '../../../../features/relations/regles';
 
 export default function NouvelleCommande() {
   const user = useAuthStore((s) => s.user);
   const isOnline = useNetworkStore((s) => s.isOnline);
   const isRootLivreur = !!user && !user.parentId;
 
-  const { data: fournisseurs = [] } = useFournisseurs();
+  const { data: fournisseurs = [], isLoading: chargementFournisseurs } =
+    useFournisseursPartenaires();
   const [fournisseurId, setFournisseurId] = useState<string | null>(null);
   const [quantites, setQuantites] = useState<Quantites>({});
   const [apprentiId, setApprentiId] = useState<string | null>(null);
@@ -97,15 +99,27 @@ export default function NouvelleCommande() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         <View className="px-4">
+          {!chargementFournisseurs && fournisseurs.length === 0 ? (
+            <View className="items-center">
+              <EmptyState title="Aucun fournisseur partenaire" message={MESSAGE_AUCUN_PARTENAIRE} />
+              <Pressable
+                onPress={() => router.push('/(livreur)/profil/fournisseurs' as never)}
+                className="bg-emerald-500 rounded-md px-5 py-3 active:opacity-80"
+              >
+                <Text className="text-white font-bold">Mes fournisseurs</Text>
+              </Pressable>
+            </View>
+          ) : (
           <SelectField
             label="Fournisseur *"
             placeholder="Choisir un fournisseur"
             value={fournisseurId}
             onChange={changerFournisseur}
             options={options}
-            isLoading={fournisseurs.length === 0}
+            isLoading={chargementFournisseurs}
             emptyMessage="Aucun fournisseur disponible"
           />
+          )}
 
           {fournisseurId ? (
             <>

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { lookupsApi } from './api';
+import { lookupKeys } from './keys';
 
 /**
  * Liste plate des fournisseurs (référence). 5 minutes de stale time : la
@@ -10,6 +11,18 @@ export function useFournisseurs() {
     queryKey: ['lookups', 'fournisseurs'],
     queryFn: lookupsApi.fournisseurs,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Fournisseurs partenaires (relation acceptée, non bloqués) : création de
+ * commande uniquement. Stale time court, la liste change à l'acceptation.
+ */
+export function useFournisseursPartenaires() {
+  return useQuery({
+    queryKey: lookupKeys.partenaires,
+    queryFn: lookupsApi.fournisseursPartenaires,
+    staleTime: 30 * 1000,
   });
 }
 

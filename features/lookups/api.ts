@@ -16,6 +16,15 @@ export const lookupsApi = {
     const { data } = await apiClient.get<FournisseurResponse[]>('/fournisseur');
     return data;
   },
+  // Fournisseurs en relation acceptée et non bloqués (nouvelle commande).
+  // `fournisseurs()` reste sans paramètre : le versement doit pouvoir viser
+  // un fournisseur bloqué ou sans relation pour des commandes déjà livrées.
+  fournisseursPartenaires: async (): Promise<FournisseurResponse[]> => {
+    const { data } = await apiClient.get<FournisseurResponse[]>('/fournisseur', {
+      params: { partenaires: true },
+    });
+    return data;
+  },
   quartiers: async (): Promise<QuartierResponse[]> => {
     const { data } = await apiClient.get<QuartierResponse[]>('/quartier');
     return data;
