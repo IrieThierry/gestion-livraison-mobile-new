@@ -28,15 +28,20 @@ import { useAuthStore } from '../../../../stores/authStore';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatFCFA } from '../../../../lib/format';
-import { MESSAGE_AUCUN_PARTENAIRE } from '../../../../features/relations/regles';
+import { MESSAGE_AUCUN_PARTENAIRE, etatListePartenaires } from '../../../../features/relations/regles';
 
 export default function NouvelleCommande() {
   const user = useAuthStore((s) => s.user);
   const isOnline = useNetworkStore((s) => s.isOnline);
   const isRootLivreur = !!user && !user.parentId;
 
-  const { data: fournisseurs = [], isLoading: chargementFournisseurs } =
-    useFournisseursPartenaires();
+  const qFournisseurs = useFournisseursPartenaires();
+  const fournisseurs = useMemo(() => qFournisseurs.data ?? [], [qFournisseurs.data]);
+  const etatListe = etatListePartenaires({
+    isLoading: qFournisseurs.isLoading,
+    isError: qFournisseurs.isError,
+    nombre: fournisseurs.length,
+  });
   const [fournisseurId, setFournisseurId] = useState<string | null>(null);
   const [quantites, setQuantites] = useState<Quantites>({});
   const [apprentiId, setApprentiId] = useState<string | null>(null);
@@ -99,9 +104,21 @@ export default function NouvelleCommande() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         <View className="px-4">
-          {!chargementFournisseurs && fournisseurs.length === 0 ? (
+          {etatListe === 'erreur' ? (
+            <View className="items-center py-8">
+              <Text className="text-red-500 text-sm text-center">
+                {extractApiErrorMessage(qFournisseurs.error, 'Fournisseurs indisponibles')}
+              </Text>
+              <Pressable
+                onPress={() => qFournisseurs.refetch()}
+                className="bg-emerald-500 rounded-md px-5 py-3 mt-3 active:opacity-80"
+              >
+                <Text className="text-white font-bold">Réessayer</Text>
+              </Pressable>
+            </View>
+          ) : etatListe === 'vide' ? (
             <View className="items-center">
-              <EmptyState title="Aucun fournisseur partenaire" message={MESSAGE_AUCUN_PARTENAIRE} />
+              <EmptyState title={MESSAGE_AUCUN_PARTENAIRE} />
               <Pressable
                 onPress={() => router.push('/(livreur)/profil/fournisseurs' as never)}
                 className="bg-emerald-500 rounded-md px-5 py-3 active:opacity-80"
@@ -116,7 +133,7 @@ export default function NouvelleCommande() {
             value={fournisseurId}
             onChange={changerFournisseur}
             options={options}
-            isLoading={chargementFournisseurs}
+            isLoading={etatListe === 'chargement'}
             emptyMessage="Aucun fournisseur disponible"
           />
           )}

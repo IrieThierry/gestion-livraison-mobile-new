@@ -57,3 +57,28 @@ export function actionPermise(etat: EtatRelation, estPrincipal: boolean): Action
       return null;
   }
 }
+
+export const MESSAGE_ENTETE_APPRENTI =
+  'Fournisseurs de votre livreur principal. Seul le livreur principal peut inviter un fournisseur.';
+
+export const MESSAGES_ECHEC: Record<'inviter' | 'annuler' | 'reinviter', string> = {
+  inviter: "Impossible d'envoyer l'invitation",
+  reinviter: "Impossible d'envoyer l'invitation",
+  annuler: "Impossible d'annuler l'invitation",
+};
+
+export type EtatListePartenaires = 'chargement' | 'erreur' | 'vide' | 'liste';
+
+/**
+ * Ce que « Nouvelle commande » affiche pour la liste des partenaires. L'état
+ * vide n'est atteint que si la requête a réussi : une erreur reste une erreur.
+ */
+export function etatListePartenaires(q: {
+  isLoading: boolean;
+  isError: boolean;
+  nombre: number;
+}): EtatListePartenaires {
+  if (q.isLoading) return 'chargement';
+  if (q.isError) return 'erreur';
+  return q.nombre === 0 ? 'vide' : 'liste';
+}

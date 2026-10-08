@@ -12,6 +12,8 @@ import {
 import {
   LIBELLES_ACTION,
   LIBELLES_ETAT,
+  MESSAGES_ECHEC,
+  MESSAGE_ENTETE_APPRENTI,
   actionPermise,
   etatRelation,
   type ActionRelation,
@@ -54,7 +56,7 @@ export default function MesFournisseurs() {
           onSuccess: () =>
             dialog.success(action === 'annuler' ? 'Invitation annulée' : 'Invitation envoyée'),
           onError: (err: unknown) =>
-            dialog.error('Erreur', extractApiErrorMessage(err, "Échec de l'opération")),
+            dialog.error('Erreur', extractApiErrorMessage(err, MESSAGES_ECHEC[action])),
           onSettled: fin,
         };
         if (action === 'annuler' && f.relation) mAnnuler.mutate(f.relation.id, options);
@@ -62,10 +64,10 @@ export default function MesFournisseurs() {
       });
     if (action === 'annuler') {
       dialog.confirm({
-        title: "Annuler l'invitation ?",
-        message: `L'invitation envoyée à ${f.libelle} sera annulée.`,
-        confirmLabel: 'Oui, annuler',
-        cancelLabel: 'Non, garder',
+        title: `Annuler l'invitation envoyée à ${f.libelle} ?`,
+        message: "Le fournisseur ne pourra plus l'accepter. Vous pourrez l'inviter de nouveau.",
+        confirmLabel: "Oui, annuler l'invitation",
+        cancelLabel: 'Non',
         destructive: true,
         onConfirm: lancer,
       });
@@ -93,6 +95,11 @@ export default function MesFournisseurs() {
         refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => q.refetch()} />}
       >
         <View className="px-4 gap-2">
+          {!estPrincipal ? (
+            <Text className="text-[12px] text-slate-500 dark:text-slate-400 mb-1">
+              {MESSAGE_ENTETE_APPRENTI}
+            </Text>
+          ) : null}
           {q.isError ? (
             <Text className="text-red-500 text-sm">
               {extractApiErrorMessage(q.error, 'Fournisseurs indisponibles')}
@@ -112,6 +119,11 @@ export default function MesFournisseurs() {
                   <View className="flex-1 pr-2">
                     <Text className="font-extrabold text-slate-900 dark:text-white text-[13px]">
                       {f.libelle}
+                    </Text>
+                    <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {f.code}
+                      {f.interlocuteur ? ` · ${f.interlocuteur}` : ''}
+                      {f.contact ? ` · ${f.contact}` : ''}
                     </Text>
                     <View className={`self-start rounded-full px-2 py-0.5 mt-1 ${style.bg}`}>
                       <Text className={`text-[11px] font-bold ${style.text}`}>

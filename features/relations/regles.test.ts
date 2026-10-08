@@ -1,4 +1,4 @@
-import { actionPermise, etatRelation, LIBELLES_ACTION, LIBELLES_ETAT } from './regles';
+import { actionPermise, etatListePartenaires, etatRelation, LIBELLES_ACTION, LIBELLES_ETAT } from './regles';
 import type { StatutRelation } from '../../types/api';
 
 const f = (statut: StatutRelation | null, bloque = false) => ({
@@ -59,5 +59,17 @@ describe('libellés', () => {
       annuler: "Annuler l'invitation",
       reinviter: 'Réinviter',
     });
+  });
+});
+
+describe('etatListePartenaires', () => {
+  it('chargement, erreur, vide, liste', () => {
+    expect(etatListePartenaires({ isLoading: true, isError: false, nombre: 0 })).toBe('chargement');
+    expect(etatListePartenaires({ isLoading: false, isError: false, nombre: 0 })).toBe('vide');
+    expect(etatListePartenaires({ isLoading: false, isError: false, nombre: 2 })).toBe('liste');
+  });
+
+  it('une erreur n’est jamais un état vide', () => {
+    expect(etatListePartenaires({ isLoading: false, isError: true, nombre: 0 })).toBe('erreur');
   });
 });
