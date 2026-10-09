@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { commandesApi } from './api';
 import { commandeKeys } from './keys';
+import { lookupKeys } from '../lookups/keys';
 import { stockKeys } from '../stock/keys';
 import { versementKeys } from '../versements/keys';
 import { reversementKeys } from '../reversements/keys';
@@ -41,8 +42,10 @@ export function useCreerCommande() {
       qc.invalidateQueries({ queryKey: commandeKeys.all });
     },
     // Refus du back (ligne désactivée, livreur bloqué) : on rafraîchit le catalogue.
+    // Le fournisseur a pu bloquer le livreur entre-temps : on relit les partenaires.
     onError: () => {
       qc.invalidateQueries({ queryKey: commandeKeys.all });
+      qc.invalidateQueries({ queryKey: lookupKeys.partenaires });
     },
   });
 }

@@ -443,6 +443,31 @@ export interface FournisseurResponse {
   contact: string
 }
 
+export type StatutRelation = 'EN_ATTENTE' | 'ACCEPTEE' | 'REFUSEE' | 'ANNULEE'
+
+export interface RelationResume {
+  id: UUID
+  statut: StatutRelation
+  dateInvitation: string        // ISO
+  dateDecision: string | null   // ISO
+}
+
+/** `GET /livreur/me/fournisseurs` : annuaire avec l'état de la relation. */
+export interface FournisseurAvecRelation extends FournisseurResponse {
+  relation: RelationResume | null  // la plus récente, tous statuts ; null = jamais invité
+  bloque: boolean
+}
+
+/** Réponse de l'invitation et de l'annulation. */
+export interface RelationResponse {
+  id: UUID
+  statut: StatutRelation
+  dateInvitation: string
+  dateDecision: string | null
+  fournisseur: { id: UUID; libelle: string }
+  livreur: { id: UUID; nom: string; prenom: string }
+}
+
 export interface CreerFournisseurRequest {
   libelle: string
   interlocuteur: string
