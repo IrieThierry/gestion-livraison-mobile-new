@@ -1,6 +1,7 @@
 import type {
   BeneficiaireType,
   EnregistrerReversementRequest,
+  ReversementRecord,
   UUID,
 } from '../../types/api';
 import type { Resultat } from '../commandes/regles';
@@ -114,5 +115,25 @@ export function construireReversement(params: {
       ...(date ? { dateReversement: `${date}T00:00:00` } : {}),
       ...(commentaire ? { commentaire } : {}),
     },
+  };
+}
+
+export const MESSAGE_INFORMATIF =
+  "Information seulement : seul le fournisseur enregistre le reversement qui compte.";
+
+/**
+ * Totaux d'un mois. Un reversement informatif (« reçu » saisi par le livreur
+ * pour un fournisseur) n'est compté nulle part : il doublerait celui du fournisseur.
+ */
+export function totauxReversements(
+  rows: Array<Pick<ReversementRecord, 'type' | 'montant' | 'informatif'>>,
+): { total: number; clients: number; fournisseurs: number; nombre: number } {
+  const comptes = rows.filter((r) => !r.informatif);
+  const somme = (l: typeof comptes) => l.reduce((acc, r) => acc + num(r.montant), 0);
+  return {
+    total: somme(comptes),
+    clients: somme(comptes.filter((r) => r.type === 'CLIENT')),
+    fournisseurs: somme(comptes.filter((r) => r.type === 'FOURNISSEUR')),
+    nombre: comptes.length,
   };
 }

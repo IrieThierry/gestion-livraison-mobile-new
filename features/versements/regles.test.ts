@@ -1,4 +1,4 @@
-import { joindreIds, selectionValide, validerVersement } from './regles';
+import { joindreIds, selectionValide, validerVersement, valeurCommande } from './regles';
 import { commandeFixture } from '../commandes/commande.fixture';
 
 describe('joindreIds', () => {
@@ -48,5 +48,15 @@ describe('selectionValide', () => {
 
   it('une liste vide donne une sélection vide', () => {
     expect(selectionValide(new Set(['a']), []).size).toBe(0);
+  });
+});
+
+describe('valeurCommande', () => {
+  it('prix + remise livreur', () => {
+    expect(valeurCommande({ montantLivre: 700, remiseLivreurLivree: 75 })).toBe(775);
+  });
+  it('sans remise ni montant : 0', () => {
+    expect(valeurCommande({ montantLivre: 700, remiseLivreurLivree: null })).toBe(700);
+    expect(valeurCommande({ montantLivre: null, remiseLivreurLivree: null })).toBe(0);
   });
 });

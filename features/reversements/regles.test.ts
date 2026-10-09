@@ -1,4 +1,5 @@
 import {
+  totauxReversements,
   bornerAuMoisCourant,
   construireReversement,
   estMoisFutur,
@@ -57,6 +58,17 @@ describe('montantSuggere', () => {
     expect(montantSuggere(0)).toBe('');
     expect(montantSuggere(-3)).toBe('');
     expect(montantSuggere(null)).toBe('');
+  });
+});
+
+describe('totauxReversements', () => {
+  it('exclut les reversements informatifs de tous les totaux', () => {
+    const t = totauxReversements([
+      { type: 'FOURNISSEUR', montant: 60, informatif: false },
+      { type: 'FOURNISSEUR', montant: 60, informatif: true },
+      { type: 'CLIENT', montant: 10 },
+    ]);
+    expect(t).toEqual({ total: 70, clients: 10, fournisseurs: 60, nombre: 2 });
   });
 });
 

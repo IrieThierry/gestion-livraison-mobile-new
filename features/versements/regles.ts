@@ -33,3 +33,8 @@ export function validerVersement(p: {
   }
   return null;
 }
+
+/** Valeur d'une commande dans un versement : prix + remise livreur (F3), comme `valeurAchat`. */
+export function valeurCommande(c: Pick<CommandeResponse, 'montantLivre' | 'remiseLivreurLivree'>): number {
+  return (c.montantLivre ?? 0) + (c.remiseLivreurLivree ?? 0);
+}

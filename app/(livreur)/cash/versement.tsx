@@ -24,7 +24,7 @@ import {
   useEnregistrerVersement,
 } from '../../../features/versements/hooks';
 import { versementKeys } from '../../../features/versements/keys';
-import { selectionValide, validerVersement } from '../../../features/versements/regles';
+import { selectionValide, validerVersement, valeurCommande } from '../../../features/versements/regles';
 import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../lib/api-error';
@@ -246,7 +246,7 @@ export default function Versement() {
                           </Text>
                         </View>
                         <Text className="font-bold text-slate-700 dark:text-slate-300 text-[12px]">
-                          {formatFCFA(c.montantLivre)} F
+                          {formatFCFA(valeurCommande(c))} F
                         </Text>
                       </Pressable>
                     );
@@ -271,8 +271,8 @@ export default function Versement() {
                     Situation — {sit.data.nbCommandes} commande{sit.data.nbCommandes > 1 ? 's' : ''}
                   </Text>
                   <View className="mt-2 gap-1">
-                    <RowKV label="Valeur des commandes" value={formatFCFA(sit.data.valeurAchat)} />
-                    <RowKV label="Remise livreur cumulée" value={formatFCFA(sit.data.remiseLivreurCumulee)} />
+                    <RowKV label="Valeur des commandes (prix + remise)" value={formatFCFA(sit.data.valeurAchat)} />
+                    <RowKV label="dont remise livreur" value={formatFCFA(sit.data.remiseLivreurCumulee)} />
                     <RowKV label="Dette avant" value={formatFCFA(sit.data.detteAvant)} />
                   </View>
                   <View className="border-t border-slate-100 dark:border-slate-800 mt-3 pt-3 flex-row justify-between">

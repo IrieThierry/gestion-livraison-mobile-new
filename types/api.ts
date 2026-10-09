@@ -774,6 +774,10 @@ export interface ReversementRecord {
   periodeAnnee: number
   dateReversement: string
   commentaire: string | null
+  /** Qui a saisi le reversement. */
+  saisiPar?: 'ADMIN' | 'LIVREUR' | 'FOURNISSEUR'
+  /** true = « reçu » saisi par le livreur pour un fournisseur : jamais compté. */
+  informatif?: boolean
 }
 
 export interface EnregistrerReversementRequest {

@@ -15,6 +15,7 @@ import { DatePickerField } from '../../../../components/shared/DatePickerField';
 import { useEnregistrerReversement } from '../../../../features/reversements/hooks';
 import {
   construireReversement,
+  MESSAGE_INFORMATIF,
   periodeDepuisParams,
 } from '../../../../features/reversements/regles';
 import { jourLocal, num, parseMontant } from '../../../../features/encaissements/regles';
@@ -116,6 +117,14 @@ export default function NouveauReversement() {
               </Text>
             </View>
           </View>
+
+          {type === 'FOURNISSEUR' ? (
+            <View className="bg-slate-100 dark:bg-slate-800 rounded-md p-3">
+              <Text className="text-[12px] text-slate-700 dark:text-slate-300">
+                {MESSAGE_INFORMATIF}
+              </Text>
+            </View>
+          ) : null}
 
           {/* Montant */}
           <View>
