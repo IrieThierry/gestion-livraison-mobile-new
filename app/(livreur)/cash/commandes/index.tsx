@@ -8,12 +8,14 @@ import {
   CommandeStatusBadge,
   ReglementBadge,
 } from '../../../../components/livreur/CommandeStatusBadge';
+import { BoutonReceptions } from '../../../../components/livreur/BoutonReceptions';
 import { useMesCommandes } from '../../../../features/commandes/hooks';
 import {
   FILTRES_STATUT_COMMANDE,
   type FiltreStatutCommande,
 } from '../../../../features/commandes/regles';
 import { useAuthStore } from '../../../../stores/authStore';
+import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatDateShort, formatFCFA } from '../../../../lib/format';
 
 export default function CommandesList() {
@@ -102,6 +104,10 @@ export default function CommandesList() {
         ListEmptyComponent={
           q.isLoading ? (
             <Text className="text-slate-400 text-sm px-1 pt-4">Chargement…</Text>
+          ) : q.isError ? (
+            <Text className="text-red-600 dark:text-red-400 text-sm px-1 pt-4">
+              {extractApiErrorMessage(q.error, 'Commandes indisponibles')}
+            </Text>
           ) : (
             <EmptyState
               title="Aucune commande"
@@ -146,6 +152,7 @@ export default function CommandesList() {
                 </Text>
               ) : null}
             </View>
+            <BoutonReceptions commandeId={c.id} nombre={c.receptions.length} />
           </Pressable>
         )}
       />

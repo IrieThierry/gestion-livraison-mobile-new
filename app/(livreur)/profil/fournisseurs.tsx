@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { router } from 'expo-router';
 import { ScrollView, View, Text, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
@@ -15,7 +16,10 @@ import {
   MESSAGES_ECHEC,
   MESSAGE_ENTETE_APPRENTI,
   actionPermise,
+  afficheDuFournisseur,
   etatRelation,
+  libelleDu,
+  libelleRemiseARecevoir,
   type ActionRelation,
   type EtatRelation,
 } from '../../../features/relations/regles';
@@ -111,6 +115,7 @@ export default function MesFournisseurs() {
               const etat = etatRelation(f);
               const action = actionPermise(etat, estPrincipal);
               const style = STYLES_ETAT[etat];
+              const montants = afficheDuFournisseur(f, estPrincipal);
               return (
                 <View
                   key={f.id}
@@ -130,7 +135,36 @@ export default function MesFournisseurs() {
                         {LIBELLES_ETAT[etat]}
                       </Text>
                     </View>
+                    {montants && f.du != null ? (
+                      <Text
+                        className="text-[12px] font-bold text-slate-800 dark:text-slate-200 mt-1"
+                        accessibilityLabel={libelleDu(f.du)}
+                      >
+                        {libelleDu(f.du)}
+                      </Text>
+                    ) : null}
+                    {montants && f.remiseARecevoir != null ? (
+                      <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {libelleRemiseARecevoir(f.remiseARecevoir)}
+                      </Text>
+                    ) : null}
                   </View>
+                  {montants ? (
+                    <Pressable
+                      onPress={() =>
+                        router.push({
+                          pathname: '/(livreur)/profil/fournisseur-commandes',
+                          params: { id: f.id, libelle: f.libelle },
+                        } as never)
+                      }
+                      accessibilityLabel={`Commandes ${f.libelle}`}
+                      className="rounded-md px-3 py-2 border border-slate-300 dark:border-slate-700 active:opacity-70"
+                    >
+                      <Text className="font-bold text-[12px] text-slate-800 dark:text-slate-200">
+                        Commandes
+                      </Text>
+                    </Pressable>
+                  ) : null}
                   {action ? (
                     <Pressable
                       onPress={() => agir(f, action)}

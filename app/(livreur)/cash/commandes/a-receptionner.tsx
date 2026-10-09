@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import { CommandeStatusBadge } from '../../../../components/livreur/CommandeStatusBadge';
+import { BoutonReceptions } from '../../../../components/livreur/BoutonReceptions';
 import { useCommandesAReceptionner } from '../../../../features/commandes/hooks';
 import { useAuthStore } from '../../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
@@ -82,6 +83,7 @@ export default function CommandesAReceptionner() {
                   {restant} restant{restant > 1 ? 's' : ''} à recevoir
                 </Text>
               </View>
+              <BoutonReceptions commandeId={c.id} nombre={c.receptions.length} />
             </Pressable>
           );
         }}

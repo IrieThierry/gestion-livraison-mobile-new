@@ -21,9 +21,9 @@ import {
   moisCourant,
   moisPrecedent,
   moisSuivant,
+  totauxReversements,
   type Periode,
 } from '../../../../features/reversements/regles';
-import { num } from '../../../../features/encaissements/regles';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatMontant, formatDateShort } from '../../../../lib/format';
 
@@ -67,13 +67,13 @@ export default function ReversementsHistorique() {
   );
 
   // Sommes d'affichage de montants serveur (BigDecimal possiblement en chaîne).
-  const totalMois = reversements.reduce((acc, r) => acc + num(r.montant), 0);
-  const totalClients = reversements
-    .filter((r) => r.type === 'CLIENT')
-    .reduce((acc, r) => acc + num(r.montant), 0);
-  const totalFournisseurs = reversements
-    .filter((r) => r.type === 'FOURNISSEUR')
-    .reduce((acc, r) => acc + num(r.montant), 0);
+  // Les reversements informatifs ne sont comptés nulle part.
+  const {
+    total: totalMois,
+    clients: totalClients,
+    fournisseurs: totalFournisseurs,
+    nombre: nbComptes,
+  } = totauxReversements(reversements);
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
@@ -121,7 +121,7 @@ export default function ReversementsHistorique() {
               {formatMontant(totalMois)} <Text className="text-base">FCFA</Text>
             </Text>
             <Text className="text-[11px] text-white/85 mt-1">
-              {reversements.length} reversement{reversements.length > 1 ? 's' : ''}
+              {nbComptes} reversement{nbComptes > 1 ? 's' : ''}
             </Text>
           </View>
 
@@ -197,6 +197,13 @@ export default function ReversementsHistorique() {
                       <Text className="font-extrabold text-slate-900 dark:text-white text-[13px]">
                         {isClient ? 'Reversement client' : 'Reversement fournisseur'}
                       </Text>
+                      {r.informatif ? (
+                        <View className="self-start rounded-full px-2 py-0.5 mt-0.5 bg-slate-100 dark:bg-slate-800">
+                          <Text className="text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                            Information · non compté
+                          </Text>
+                        </View>
+                      ) : null}
                       <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                         {formatDateShort(r.dateReversement)}
                         {r.commentaire ? ` · ${r.commentaire}` : ''}

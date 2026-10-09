@@ -14,6 +14,10 @@ export const commandesApi = {
   mes: async (): Promise<CommandeResponse[]> =>
     (await apiClient.get<CommandeResponse[]>('/commande/me')).data,
 
+  /** Commandes du livreur principal connecté chez ce fournisseur (403 pour un apprenti). */
+  parFournisseur: async (fournisseurId: UUID): Promise<CommandeResponse[]> =>
+    (await apiClient.get<CommandeResponse[]>('/commande/me', { params: { fournisseurId } })).data,
+
   creer: async (payload: CreerCommandeRequest): Promise<CommandeResponse> =>
     (await apiClient.post<CommandeResponse>('/commande', payload)).data,
 

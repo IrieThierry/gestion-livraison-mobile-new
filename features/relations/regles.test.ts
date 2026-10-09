@@ -1,4 +1,14 @@
-import { actionPermise, etatListePartenaires, etatRelation, LIBELLES_ACTION, LIBELLES_ETAT } from './regles';
+import {
+  actionPermise,
+  afficheDuFournisseur,
+  etatListePartenaires,
+  etatRelation,
+  LIBELLES_ACTION,
+  LIBELLES_ETAT,
+  libelleDu,
+  libelleRemiseARecevoir,
+} from './regles';
+import { formatMontant } from '../../lib/format';
 import type { StatutRelation } from '../../types/api';
 
 const f = (statut: StatutRelation | null, bloque = false) => ({
@@ -71,5 +81,37 @@ describe('etatListePartenaires', () => {
 
   it('une erreur n’est jamais un état vide', () => {
     expect(etatListePartenaires({ isLoading: false, isError: true, nombre: 0 })).toBe('erreur');
+  });
+});
+
+describe('libelleDu', () => {
+  it('dû positif ou nul : « Dû X FCFA »', () => {
+    expect(libelleDu(275)).toBe(`Dû ${formatMontant(275)} FCFA`);
+    expect(libelleDu(0)).toBe('Dû 0 FCFA');
+  });
+
+  it('dû négatif : « Avance X FCFA » en valeur positive', () => {
+    expect(libelleDu(-100)).toBe(`Avance ${formatMontant(100)} FCFA`);
+    expect(libelleDu(-100)).not.toContain('-');
+  });
+
+  it('remise à recevoir', () => {
+    expect(libelleRemiseARecevoir(75)).toBe(`Remise à recevoir ${formatMontant(75)} FCFA`);
+  });
+});
+
+describe('afficheDuFournisseur', () => {
+  it('livreur principal, relation acceptée : oui', () => {
+    expect(afficheDuFournisseur(f('ACCEPTEE'), true)).toBe(true);
+  });
+
+  it('livreur principal, autre statut ou aucune relation : non', () => {
+    expect(afficheDuFournisseur(f('EN_ATTENTE'), true)).toBe(false);
+    expect(afficheDuFournisseur(f('REFUSEE'), true)).toBe(false);
+    expect(afficheDuFournisseur(f(null), true)).toBe(false);
+  });
+
+  it('apprenti : jamais, même avec la relation de sa racine acceptée', () => {
+    expect(afficheDuFournisseur(f('ACCEPTEE'), false)).toBe(false);
   });
 });

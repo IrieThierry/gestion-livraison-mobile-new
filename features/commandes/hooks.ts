@@ -15,6 +15,16 @@ export function useMesCommandes(enabled = true) {
   });
 }
 
+/** Commandes du livreur principal chez un fournisseur ; désactivé sans fournisseur. */
+export function useCommandesFournisseur(fournisseurId: UUID | undefined, enabled = true) {
+  return useQuery({
+    queryKey: commandeKeys.parFournisseur(fournisseurId ?? ''),
+    queryFn: () => commandesApi.parFournisseur(fournisseurId!),
+    enabled: enabled && !!fournisseurId,
+    staleTime: 0,
+  });
+}
+
 /** Désactivé tant qu'aucun fournisseur n'est choisi. */
 export function useCommandesARegler(fournisseurId: UUID | undefined) {
   return useQuery({
