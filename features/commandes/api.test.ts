@@ -22,6 +22,11 @@ describe('contrat API commandes', () => {
     expect(get).toHaveBeenCalledWith('/commande/me');
   });
 
+  it('liste les commandes du livreur chez un fournisseur : paramètre fournisseurId', async () => {
+    await commandesApi.parFournisseur('f-1');
+    expect(get).toHaveBeenCalledWith('/commande/me', { params: { fournisseurId: 'f-1' } });
+  });
+
   it('liste les commandes à régler chez un fournisseur', async () => {
     await commandesApi.aRegler('f-1');
     expect(get).toHaveBeenCalledWith('/commande/a-regler', { params: { fournisseurId: 'f-1' } });

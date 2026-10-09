@@ -1,4 +1,5 @@
 import type { FournisseurAvecRelation } from '../../types/api';
+import { formatMontant } from '../../lib/format';
 
 /** État affiché pour un fournisseur dans « Mes fournisseurs ». */
 export type EtatRelation = 'NON_INVITE' | 'ENVOYEE' | 'ACCEPTE' | 'REFUSE' | 'BLOQUE';
@@ -81,4 +82,24 @@ export function etatListePartenaires(q: {
   if (q.isLoading) return 'chargement';
   if (q.isError) return 'erreur';
   return q.nombre === 0 ? 'vide' : 'liste';
+}
+
+/** « Dû X », ou « Avance X » quand le dû est négatif (le fournisseur doit moins qu'il n'a reçu). */
+export function libelleDu(du: number): string {
+  return du < 0 ? `Avance ${formatMontant(-du)} FCFA` : `Dû ${formatMontant(du)} FCFA`;
+}
+
+export function libelleRemiseARecevoir(remise: number): string {
+  return `Remise à recevoir ${formatMontant(remise)} FCFA`;
+}
+
+/**
+ * Dû, remise et bouton « Commandes » : livreur principal et relation acceptée
+ * seulement. L'apprenti ne voit rien, même si le back renvoyait des valeurs.
+ */
+export function afficheDuFournisseur(
+  f: Pick<FournisseurAvecRelation, 'relation'>,
+  estPrincipal: boolean,
+): boolean {
+  return estPrincipal && f.relation?.statut === 'ACCEPTEE';
 }

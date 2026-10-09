@@ -456,6 +456,10 @@ export interface RelationResume {
 export interface FournisseurAvecRelation extends FournisseurResponse {
   relation: RelationResume | null  // la plus récente, tous statuts ; null = jamais invité
   bloque: boolean
+  /** Livreur principal + relation acceptée seulement ; null sinon (toujours null pour un apprenti). Négatif = avance. */
+  du: number | null
+  /** Remise que le fournisseur doit encore reverser au livreur ; mêmes règles que `du`. */
+  remiseARecevoir: number | null
 }
 
 /** Réponse de l'invitation et de l'annulation. */
