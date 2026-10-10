@@ -211,7 +211,7 @@ export default function LivraisonDetail() {
                 router.push({
                   pathname: '/(livreur)/cash/encaisser' as never,
                   params: { livraisonId: livraison.id },
-                })
+                }, { withAnchor: true })
               }
               className={`mt-5 rounded-md py-3 flex-row items-center justify-center gap-2 ${
                 isOnline ? 'bg-emerald-500 active:opacity-80' : 'bg-slate-200 dark:bg-slate-800'

@@ -178,7 +178,7 @@ export default function ClientDetail() {
     router.push({
       pathname: '/(livreur)/livraisons/nouvelle' as never,
       params: { clientId: client.id },
-    } as never);
+    } as never, { withAnchor: true });
 
   const onEncaisser = () => {
     // Mode CLIENT — la page lit le solde serveur et pré-remplit le montant.
@@ -186,7 +186,7 @@ export default function ClientDetail() {
     router.push({
       pathname: '/(livreur)/cash/encaisser' as never,
       params: { clientId: client.id },
-    } as never);
+    } as never, { withAnchor: true });
   };
 
   // Σ dû net (serveur, avant paiements) des livraisons filtrées.

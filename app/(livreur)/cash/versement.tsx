@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { router } from 'expo-router';
 import { Check } from 'lucide-react-native';
 import { dialog } from '../../../lib/dialog';
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,6 +28,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import { formatDateShort, formatFCFA } from '../../../lib/format';
+import { useRetourListe } from '../../../lib/useRetourListe';
 
 // Cible du CTA "Faire un versement" sur l'onglet Cash. Le livreur principal :
 //  1. choisit un fournisseur
@@ -71,6 +71,7 @@ export default function Versement() {
   });
 
   const m = useEnregistrerVersement();
+  const retourListe = useRetourListe('/(livreur)/cash');
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -101,7 +102,7 @@ export default function Versement() {
   if (!isRootLivreur) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader title="Faire un versement" />
+        <PageHeader retourVers="/(livreur)/cash" title="Faire un versement" />
         <EmptyState
           title="Réservé au livreur principal"
           message="Seul le livreur principal règle les commandes auprès des fournisseurs."
@@ -151,7 +152,7 @@ export default function Versement() {
           setMontant('');
           setCommentaire('');
           setDateVersement(todayIso);
-          router.back();
+          retourListe();
           dialog.success('Versement enregistré');
         },
         onError: (err: unknown) => {
@@ -165,7 +166,7 @@ export default function Versement() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Faire un versement" />
+      <PageHeader retourVers="/(livreur)/cash" title="Faire un versement" />
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: 32 }}

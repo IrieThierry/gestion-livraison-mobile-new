@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { router } from 'expo-router';
 import { dialog } from '../../../lib/dialog';
 import { X } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
@@ -31,6 +30,7 @@ import { extractApiErrorMessage } from '../../../lib/api-error';
 import { formatFCFA, formatDateShort } from '../../../lib/format';
 import { num } from '../../../features/encaissements/regles';
 import type { LivraisonResponse } from '../../../types/api';
+import { useRetourListe } from '../../../lib/useRetourListe';
 
 /**
  * Formulaire "Retour client".
@@ -53,6 +53,7 @@ export default function RetourClient() {
   const livreurId = user?.id ?? '';
   const q = useLivraisonsByLivreur(livreurId);
   const m = useEnregistrerRetour();
+  const retourListe = useRetourListe('/(livreur)/cash/retours', 'retours');
   // Garde synchrone contre le double appui.
   const submittingRef = useRef(false);
 
@@ -161,7 +162,7 @@ export default function RetourClient() {
         onSuccess: () => {
           setLivraisonId(null);
           setQtes({});
-          router.back();
+          retourListe();
           dialog.success('Retour enregistré', 'Stock et dû du client mis à jour');
         },
         onError: (err: unknown) => {
@@ -176,7 +177,7 @@ export default function RetourClient() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Retour client" />
+      <PageHeader retourVers="/(livreur)/cash/retours" title="Retour client" />
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: 32 }}

@@ -58,7 +58,9 @@ function FabSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const user = useAuthStore((s) => s.user);
   const go = (path: string) => {
     onClose();
-    router.push(path as never);
+    // withAnchor : la pile du module est construite avec sa liste dessous
+    // (unstable_settings des _layout) — retour / enregistrement => la liste.
+    router.push(path as never, { withAnchor: true });
   };
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>

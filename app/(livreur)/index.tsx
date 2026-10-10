@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native';
+import { ScrollView, View, Text, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
-import { Bell, Package, Truck, Banknote, RotateCcw } from 'lucide-react-native';
+import { Bell, Package, Truck, Banknote, RotateCcw, ShoppingBag, PackageCheck } from 'lucide-react-native';
 import { useLivraisonsByLivreur } from '../../features/livraisons/hooks';
 import { useEncaissementsByLivreur } from '../../features/encaissements/hooks';
 import { useEncoursByLivreur } from '../../features/clients/hooks';
@@ -9,9 +9,13 @@ import {
   encaisseAujourdhui,
   num,
   totalAEncaisser,
-  totalRemiseNette,
 } from '../../features/encaissements/regles';
-import { useStockCourant } from '../../features/stock/hooks';
+import { useMouvementsStock, useStockCourant } from '../../features/stock/hooks';
+import {
+  jourLocal,
+  produitsVendus,
+  receptionsParFournisseur,
+} from '../../features/accueil/regles';
 import { useAuthStore } from '../../stores/authStore';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { PendingValidationGate } from '../../components/shared/PendingValidationGate';
@@ -28,6 +32,16 @@ export default function Tournee() {
   // Stock courant (Plan D) — somme des `qteVendable` (= achats − livraisons
   // + retours sur la période). C'est ce que l'écran Stock affiche aussi.
   const qStock = useStockCourant();
+  // Mouvements de stock du jour (local) du livreur connecté — l'apprenti voit
+  // les siens : produits vendus (livraisons) et réceptions par fournisseur.
+  const jour = jourLocal();
+  const filtresMouvements = useMemo(() => ({ debut: jour, fin: jour }), [jour]);
+  const qMv = useMouvementsStock(livreurId, filtresMouvements);
+  const vendus = useMemo(() => produitsVendus(qMv.data ?? [], jour), [qMv.data, jour]);
+  const receptions = useMemo(
+    () => receptionsParFournisseur(qMv.data ?? [], jour),
+    [qMv.data, jour],
+  );
 
   const computed = useMemo(() => {
     const today = new Date().toDateString();
@@ -49,15 +63,11 @@ export default function Tournee() {
       varPct = Math.round(((totalEncaisseAujourd - totalEncaisseHier) / totalEncaisseHier) * 100);
     }
 
-    // Remise du jour : Σ remise nette (serveur) des livraisons du jour.
-    const remiseJour = totalRemiseNette(duJour);
-
     return {
       duJour,
       totalEncaisseAujourd,
       aEncaisser,
       clientsAEncaisser,
-      remiseJour,
       varPct,
     };
   }, [qLiv.data, qEnc.data, qEncours.data]);
@@ -77,6 +87,7 @@ export default function Tournee() {
     qEnc.refetch();
     qEncours.refetch();
     qStock.refetch();
+    qMv.refetch();
   };
 
   return (
@@ -155,14 +166,6 @@ export default function Tournee() {
           <View className="flex-row gap-2 mt-3">
             <View className="flex-1 bg-white/15 rounded-xl px-3 py-2">
               <Text className="text-[10px] uppercase font-bold tracking-wider text-white/90">
-                Remise du jour
-              </Text>
-              <Text className="text-white font-extrabold text-lg">
-                {formatMontant(computed.remiseJour)}
-              </Text>
-            </View>
-            <View className="flex-1 bg-white/15 rounded-xl px-3 py-2">
-              <Text className="text-[10px] uppercase font-bold tracking-wider text-white/90">
                 Livraisons
               </Text>
               <Text className="text-white font-extrabold text-lg">{computed.duJour.length}</Text>
@@ -221,7 +224,7 @@ export default function Tournee() {
           <ActionCard
             icon={Truck}
             label="Livrer"
-            onPress={() => router.push('/(livreur)/livraisons/nouvelle' as never)}
+            onPress={() => router.push('/(livreur)/livraisons/nouvelle' as never, { withAnchor: true })}
           />
           <ActionCard
             icon={Banknote}
@@ -231,9 +234,44 @@ export default function Tournee() {
           <ActionCard
             icon={RotateCcw}
             label="Retour"
-            onPress={() => router.push('/(livreur)/cash/retour-client' as never)}
+            onPress={() => router.push('/(livreur)/cash/retour-client' as never, { withAnchor: true })}
           />
         </View>
+
+        {/* Produits vendus aujourd'hui (livré seulement, retours non déduits) */}
+        <BlocJour
+          titre="Produits vendus"
+          icon={ShoppingBag}
+          isLoading={qMv.isLoading}
+          erreur={qMv.isError ? extractApiErrorMessage(qMv.error, 'Ventes indisponibles') : null}
+          vide={vendus.length === 0}
+          messageVide="Aucune vente aujourd'hui"
+        >
+          {vendus.map((l, i) => (
+            <LigneQuantite key={l.produitId} libelle={l.designation} quantite={l.quantite} premiere={i === 0} />
+          ))}
+        </BlocJour>
+
+        {/* Réceptions du jour, groupées par fournisseur */}
+        <BlocJour
+          titre="Réceptions"
+          icon={PackageCheck}
+          isLoading={qMv.isLoading}
+          erreur={qMv.isError ? extractApiErrorMessage(qMv.error, 'Réceptions indisponibles') : null}
+          vide={receptions.length === 0}
+          messageVide="Aucune réception aujourd'hui"
+        >
+          {receptions.map((g, gi) => (
+            <View key={g.fournisseur} className={gi > 0 ? 'mt-3' : ''}>
+              <Text className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1">
+                {g.fournisseur}
+              </Text>
+              {g.produits.map((l, i) => (
+                <LigneQuantite key={l.produitId} libelle={l.designation} quantite={l.quantite} premiere={i === 0} />
+              ))}
+            </View>
+          ))}
+        </BlocJour>
 
         {/* Tournée du jour */}
         <View className="flex-row items-center justify-between mt-5 mb-2">
@@ -268,6 +306,73 @@ export default function Tournee() {
       </View>
     </ScrollView>
     </PendingValidationGate>
+  );
+}
+
+function BlocJour({
+  titre,
+  icon: Icon,
+  isLoading,
+  erreur,
+  vide,
+  messageVide,
+  children,
+}: {
+  titre: string;
+  icon: React.ComponentType<{ color: string; size: number }>;
+  isLoading: boolean;
+  erreur: string | null;
+  vide: boolean;
+  messageVide: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View className="mt-5">
+      <View className="flex-row items-center gap-1.5 mb-2">
+        <Icon color="#64748b" size={13} />
+        <Text className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 dark:text-slate-400">
+          {titre} · aujourd'hui
+        </Text>
+      </View>
+      <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5">
+        {isLoading ? (
+          <View className="py-2 items-center">
+            <ActivityIndicator color="#10b981" />
+          </View>
+        ) : erreur ? (
+          <Text className="text-[12px] text-red-600 dark:text-red-400 py-1">{erreur}</Text>
+        ) : vide ? (
+          <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center py-1">
+            {messageVide}
+          </Text>
+        ) : (
+          children
+        )}
+      </View>
+    </View>
+  );
+}
+
+function LigneQuantite({
+  libelle,
+  quantite,
+  premiere,
+}: {
+  libelle: string;
+  quantite: number;
+  premiere: boolean;
+}) {
+  return (
+    <View
+      className={`flex-row items-center justify-between py-1.5 ${
+        premiere ? '' : 'border-t border-slate-100 dark:border-slate-800'
+      }`}
+    >
+      <Text className="flex-1 text-[13px] text-slate-800 dark:text-slate-200 pr-2" numberOfLines={2}>
+        {libelle}
+      </Text>
+      <Text className="text-[13px] font-extrabold text-slate-900 dark:text-white">{quantite}</Text>
+    </View>
   );
 }
 

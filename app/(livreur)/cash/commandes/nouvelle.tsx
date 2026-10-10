@@ -29,6 +29,7 @@ import { useNetworkStore } from '../../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatFCFA } from '../../../../lib/format';
 import { MESSAGE_AUCUN_PARTENAIRE, etatListePartenaires } from '../../../../features/relations/regles';
+import { useRetourListe } from '../../../../lib/useRetourListe';
 
 export default function NouvelleCommande() {
   const user = useAuthStore((s) => s.user);
@@ -47,6 +48,7 @@ export default function NouvelleCommande() {
   const [apprentiId, setApprentiId] = useState<string | null>(null);
   const catalogue = useCatalogueFournisseur(fournisseurId ?? undefined);
   const m = useCreerCommande();
+  const retourListe = useRetourListe('/(livreur)/cash/commandes');
   const lignes = useMemo(() => lignesCommandables(catalogue.data ?? []), [catalogue.data]);
 
   const options = useMemo(
@@ -62,7 +64,7 @@ export default function NouvelleCommande() {
   if (!isRootLivreur) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader title="Nouvelle commande" fallback="/(livreur)/cash/commandes" />
+        <PageHeader retourVers="/(livreur)/cash/commandes" title="Nouvelle commande" />
         <EmptyState
           title="Réservé au livreur principal"
           message="Seul le livreur principal peut passer des commandes."
@@ -90,7 +92,7 @@ export default function NouvelleCommande() {
         setFournisseurId(null);
         setQuantites({});
         setApprentiId(null);
-        router.back();
+        retourListe();
         dialog.success('Commande envoyée');
       },
       onError: (err: unknown) =>
@@ -100,7 +102,7 @@ export default function NouvelleCommande() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Nouvelle commande" fallback="/(livreur)/cash/commandes" />
+      <PageHeader retourVers="/(livreur)/cash/commandes" title="Nouvelle commande" />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         <View className="px-4">

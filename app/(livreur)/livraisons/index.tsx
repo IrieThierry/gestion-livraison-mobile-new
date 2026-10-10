@@ -7,7 +7,8 @@ import {
   RefreshControl,
   TextInput,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
+import type { EtatPile } from '../../../lib/navigation';
 import { Search, X, ChevronLeft } from 'lucide-react-native';
 import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useAuthStore } from '../../../stores/authStore';
@@ -42,6 +43,7 @@ export default function LivraisonsList() {
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
   const q = useLivraisonsByLivreur(livreurId);
+  const navigation = useNavigation();
   const [period, setPeriod] = useState<Period>('today');
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -89,8 +91,11 @@ export default function LivraisonsList() {
       <View className="flex-row items-center px-4 pt-3 pb-2 gap-3">
         <Pressable
           onPress={() => {
-            if (router.canGoBack()) router.back();
-            else router.push('/(livreur)' as never);
+            // Liste racine de l'onglet : écran précédent de la pile s'il y en
+            // a un, sinon la Tournée (onglet d'accueil), explicitement.
+            const etat = navigation.getState() as EtatPile | undefined;
+            if (etat && etat.index > 0) router.back();
+            else router.navigate('/(livreur)' as never);
           }}
           hitSlop={8}
           className="w-10 h-10 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 items-center justify-center active:opacity-70"

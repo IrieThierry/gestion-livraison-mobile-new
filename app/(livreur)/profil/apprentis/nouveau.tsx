@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { router } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import {
   Eye,
@@ -25,6 +24,7 @@ import {
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { useCreerApprenti } from '../../../../features/apprentis/hooks';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
+import { useRetourListe } from '../../../../lib/useRetourListe';
 
 /**
  * Formulaire de création d'un apprenti. Mirror simplifié de
@@ -39,6 +39,7 @@ import { extractApiErrorMessage } from '../../../../lib/api-error';
  */
 export default function NouveauApprenti() {
   const m = useCreerApprenti();
+  const retourListe = useRetourListe('/(livreur)/profil/apprentis');
 
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
@@ -85,11 +86,11 @@ export default function NouveauApprenti() {
       },
       {
         onSuccess: () => {
+          retourListe();
           dialog.success(
             'Apprenti créé',
             `${prenom} ${nom} peut maintenant se connecter avec son nom d'utilisateur et le mot de passe que tu lui as fourni.`,
           );
-          router.back();
         },
         onError: (err: unknown) => {
           dialog.error(
@@ -103,7 +104,7 @@ export default function NouveauApprenti() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Nouvel apprenti" subtitle="Crée un compte rattaché à toi" />
+      <PageHeader retourVers="/(livreur)/profil/apprentis" title="Nouvel apprenti" subtitle="Crée un compte rattaché à toi" />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

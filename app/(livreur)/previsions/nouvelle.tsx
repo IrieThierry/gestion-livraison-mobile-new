@@ -7,7 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { dialog } from '../../../lib/dialog';
 import { Plus } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
@@ -17,6 +17,7 @@ import { useClientsByLivreur } from '../../../features/clients/hooks';
 import { useProduits } from '../../../features/produits/hooks';
 import { useCreerPrevision } from '../../../features/previsions/hooks';
 import { useAuthStore } from '../../../stores/authStore';
+import { useRetourListe } from '../../../lib/useRetourListe';
 
 /**
  * Formulaire « Nouvelle prévision » multi-produits par client. Le livreur
@@ -41,6 +42,7 @@ export default function NouvellePrevision() {
   const clientsQ = useClientsByLivreur(livreurId);
   const produitsQ = useProduits();
   const m = useCreerPrevision();
+  const retourListe = useRetourListe('/(livreur)/previsions');
 
   const clientOptions = useMemo(
     () =>
@@ -91,7 +93,7 @@ export default function NouvellePrevision() {
           }),
         ),
       );
-      router.back();
+      retourListe();
       dialog.success(
         `${lignesAvecQte.length} prévision${lignesAvecQte.length > 1 ? 's' : ''} créée${lignesAvecQte.length > 1 ? 's' : ''}`,
       );
@@ -105,7 +107,7 @@ export default function NouvellePrevision() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Nouvelle prévision" subtitle="Multi-produits par client" />
+      <PageHeader retourVers="/(livreur)/previsions" title="Nouvelle prévision" subtitle="Multi-produits par client" />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="px-4 pt-3 gap-3">

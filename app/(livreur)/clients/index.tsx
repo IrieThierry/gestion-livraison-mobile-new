@@ -58,7 +58,7 @@ export default function ClientsList() {
     router.push({
       pathname: '/(livreur)/livraisons/nouvelle' as never,
       params: { clientId: client.id },
-    } as never);
+    } as never, { withAnchor: true });
   };
 
   const onEncaisser = (client: ClientResponse) => {
@@ -67,7 +67,7 @@ export default function ClientsList() {
     router.push({
       pathname: '/(livreur)/cash/encaisser' as never,
       params: { clientId: client.id },
-    } as never);
+    } as never, { withAnchor: true });
   };
 
   return (

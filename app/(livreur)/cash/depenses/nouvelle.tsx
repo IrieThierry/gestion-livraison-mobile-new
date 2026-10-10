@@ -7,7 +7,6 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { parseMontant } from '../../../../features/encaissements/regles';
@@ -16,6 +15,7 @@ import { PageHeader } from '../../../../components/shared/PageHeader';
 import { DatePickerField } from '../../../../components/shared/DatePickerField';
 import { useCreateDepense } from '../../../../features/depenses/hooks';
 import type { DepenseCategorie } from '../../../../types/api';
+import { useRetourListe } from '../../../../lib/useRetourListe';
 
 const CATEGORIES: Array<{
   key: DepenseCategorie;
@@ -31,6 +31,7 @@ const CATEGORIES: Array<{
 
 export default function NouvelleDepense() {
   const m = useCreateDepense();
+  const retourListe = useRetourListe('/(livreur)/cash/depenses');
   const today = new Date().toISOString().slice(0, 10);
 
   const [libelle, setLibelle] = useState('');
@@ -64,7 +65,7 @@ export default function NouvelleDepense() {
       },
       {
         onSuccess: () => {
-          router.back();
+          retourListe();
           dialog.success('Dépense enregistrée');
         },
         onError: (err: unknown) => {
@@ -76,7 +77,7 @@ export default function NouvelleDepense() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Nouvelle dépense" />
+      <PageHeader retourVers="/(livreur)/cash/depenses" title="Nouvelle dépense" />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="px-4 gap-3 pt-3">

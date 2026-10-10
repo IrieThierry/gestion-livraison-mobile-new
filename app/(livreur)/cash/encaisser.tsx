@@ -7,7 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { Check } from 'lucide-react-native';
 import { dialog } from '../../../lib/dialog';
 import { extractApiErrorMessage } from '../../../lib/api-error';
@@ -41,6 +41,7 @@ import type {
   EncaissementLivraisonResponse,
   UUID,
 } from '../../../types/api';
+import { useRetourListe } from '../../../lib/useRetourListe';
 
 const COULEUR_ECART: Record<ReturnType<typeof tonEcart>, string> = {
   negatif: 'text-amber-700 dark:text-amber-400',
@@ -74,6 +75,7 @@ export default function EncaisserPage() {
   const qLiv = useLivraisonsByLivreur(livreurId);
   const qCli = useClientsByLivreur(livreurId);
   const m = useCreerEncaissement();
+  const retourListe = useRetourListe('/(livreur)/cash');
   const submittingRef = useRef(false);
 
   const todayIso = jourLocal(new Date());
@@ -159,7 +161,7 @@ export default function EncaisserPage() {
   if (mode === 'livraison' && !livraisonOrigine) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader title="Encaisser" />
+        <PageHeader retourVers="/(livreur)/cash" title="Encaisser" />
         <EmptyState
           title="Livraison introuvable"
           message="Reviens à la tournée et choisis une livraison."
@@ -170,7 +172,7 @@ export default function EncaisserPage() {
   if (mode === 'client' && !client) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader title="Encaisser" />
+        <PageHeader retourVers="/(livreur)/cash" title="Encaisser" />
         <EmptyState
           title="Client introuvable"
           message="Ce client n'est plus dans ta liste."
@@ -238,7 +240,7 @@ export default function EncaisserPage() {
           submittingRef.current = false;
         },
         onSuccess: (enc) => {
-          router.back();
+          retourListe();
           dialog.success('Encaissement enregistré', messageApres(enc), { autoDismissMs: 4000 });
         },
         onError: (err: unknown) => {
@@ -255,7 +257,7 @@ export default function EncaisserPage() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Encaisser" subtitle={clientName} />
+      <PageHeader retourVers="/(livreur)/cash" title="Encaisser" subtitle={clientName} />
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="px-4 pt-3">
           {/* Solde et avance (serveur) */}
