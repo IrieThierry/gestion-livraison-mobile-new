@@ -20,36 +20,28 @@ import { OfflineBanner } from '../../components/shared/OfflineBanner';
 import { useNetworkStore } from '../../stores/networkStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useThemeStore } from '../../stores/themeStore';
+import { actionRacineOnglet } from '../../lib/onglets';
 
 /**
- * Quand l'utilisateur tape un onglet déjà actif, par défaut Expo Router
- * ne fait rien — on reste coincé sur la sous-route. On dispatche ici
- * `POP_TO_TOP` sur la **pile interne** de l'onglet (qui gère cette
- * action), pas sur le Tabs navigator (qui ne la gère pas et déclenche
- * un warning).
- *
- * On ne fait RIEN si l'onglet n'a pas de sous-route empilée (pour ne
- * pas déclencher le warning). On évite aussi `router.replace(path)` qui
- * peut casser le navigation context pendant l'unmount d'un écran enfant.
+ * Un appui sur un onglet (actif ou non) ouvre toujours sa page principale :
+ * si la pile interne de l'onglet a des sous-routes, on la ramène à sa racine
+ * (`actionRacineOnglet`, action ciblée sur la **pile interne**, qui la gère —
+ * pas sur le Tabs navigator, qui déclencherait un warning). Rien n'est envoyé
+ * quand la pile est déjà sur sa racine. Onglet inactif : l'appui garde son
+ * comportement par défaut (afficher l'onglet), la pile étant déjà vidée.
+ * Cas couvert : Accueil → avatar → Mes infos, puis onglet Accueil, puis
+ * onglet Moi ⇒ menu Moi (et non plus « Mes infos »).
+ * On évite `router.replace(path)` qui peut casser le navigation context
+ * pendant l'unmount d'un écran enfant.
  */
-function popToTopOnReTap() {
-  return ({ navigation }: { navigation: any }) => ({
+function ouvrirRacineOnglet() {
+  return ({ navigation, route }: { navigation: any; route: { key: string } }) => ({
     tabPress: (e: { preventDefault: () => void }) => {
-      if (!navigation?.isFocused?.()) return;
-      const state = navigation.getState?.();
-      if (!state) return;
-      const tabRoute = state.routes?.[state.index];
-      const innerRoutes = tabRoute?.state?.routes ?? [];
-      // S'il y a > 1 routes dans la pile de l'onglet courant, on a une
-      // sous-route empilée → on pop. Sinon on laisse le comportement par
-      // défaut (no-op pour un re-tap au root).
-      if (innerRoutes.length > 1) {
-        e.preventDefault();
-        navigation.dispatch?.({
-          type: 'POP_TO_TOP',
-          target: tabRoute.state.key,
-        });
-      }
+      const action = actionRacineOnglet(navigation?.getState?.(), route.key);
+      if (!action) return;
+      // Onglet déjà actif : seule la pile change (pas de re-navigation vers l'onglet).
+      if (navigation.isFocused?.()) e.preventDefault();
+      navigation.dispatch?.(action);
     },
   });
 }
@@ -244,7 +236,7 @@ export default function LivreurLayout() {
             title: 'Tournée',
             tabBarIcon: ({ color }) => <TrendingUp color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={popToTopOnReTap()}
+          listeners={ouvrirRacineOnglet()}
         />
         <Tabs.Screen
           name="clients"
@@ -252,7 +244,7 @@ export default function LivreurLayout() {
             title: 'Clients',
             tabBarIcon: ({ color }) => <Users color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={popToTopOnReTap()}
+          listeners={ouvrirRacineOnglet()}
         />
         <Tabs.Screen
           name="fab"
@@ -291,7 +283,7 @@ export default function LivreurLayout() {
             title: 'Livraisons',
             tabBarIcon: ({ color }) => <Truck color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={popToTopOnReTap()}
+          listeners={ouvrirRacineOnglet()}
         />
         <Tabs.Screen
           name="profil"
@@ -299,7 +291,7 @@ export default function LivreurLayout() {
             title: 'Moi',
             tabBarIcon: ({ color }) => <User color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={popToTopOnReTap()}
+          listeners={ouvrirRacineOnglet()}
         />
         {/* Hidden routes — accessible via FAB sheet, stat cards, links, or programmatic push */}
         <Tabs.Screen name="cash" options={{ href: null }} />
