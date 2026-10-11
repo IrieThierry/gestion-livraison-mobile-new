@@ -1,9 +1,10 @@
 import {
+  chiffreAccueil,
   filtresDuJour,
-  FOURNISSEUR_INCONNU,
   jourLocal,
   produitsVendus,
-  receptionsParFournisseur,
+  quantiteRecue,
+  quantiteVendue,
 } from './regles';
 import type { MouvementStockResponse, TypeMouvementStock } from '../../types/api';
 
@@ -69,40 +70,34 @@ describe('produitsVendus', () => {
   });
 });
 
-describe('receptionsParFournisseur', () => {
-  it('groupe par fournisseur puis par produit', () => {
-    const res = receptionsParFournisseur([
-      mv('RECEPTION', 'Pain', 20, 'Boulangerie Kouassi'),
-      mv('RECEPTION', 'Croissant', 30, 'Boulangerie Kouassi'),
-      mv('RECEPTION', 'Pain', 10, 'Boulangerie Kouassi'),
-      mv('RECEPTION', 'Lait', 24, 'Laiterie Abidjan'),
-      mv('LIVRAISON', 'Pain', -5),
-      mv('TRANSFERT_ENTREE', 'Lait', 6, 'Apprenti'),
-    ]);
-    expect(res).toEqual([
-      {
-        fournisseur: 'Boulangerie Kouassi',
-        produits: [
-          { produitId: 'id-Croissant', designation: 'Croissant', quantite: 30 },
-          { produitId: 'id-Pain', designation: 'Pain', quantite: 30 },
-        ],
-        total: 60,
-      },
-      {
-        fournisseur: 'Laiterie Abidjan',
-        produits: [{ produitId: 'id-Lait', designation: 'Lait', quantite: 24 }],
-        total: 24,
-      },
-    ]);
+describe('quantiteVendue / quantiteRecue', () => {
+  const mouvements = [
+    mv('LIVRAISON', 'Pain', -5),
+    mv('LIVRAISON', 'Lait', -12),
+    mv('RETOUR_EN_STOCK', 'Pain', 4),
+    mv('RECEPTION', 'Pain', 20, 'Boulangerie Kouassi'),
+    mv('RECEPTION', 'Lait', 24, 'Laiterie Abidjan'),
+    mv('TRANSFERT_ENTREE', 'Lait', 6, 'Apprenti'),
+    mv('RECEPTION', 'Pain', 9, 'Boulangerie Kouassi', '2026-10-09T08:00:00'),
+  ];
+
+  it('vendus : somme des livraisons (retours non déduits)', () => {
+    expect(quantiteVendue(mouvements)).toBe(17);
+    expect(quantiteVendue([])).toBe(0);
   });
 
-  it('fournisseur absent : groupe dédié', () => {
-    const res = receptionsParFournisseur([mv('RECEPTION', 'Pain', 3, null)]);
-    expect(res[0].fournisseur).toBe(FOURNISSEUR_INCONNU);
+  it('réceptionnés : somme des réceptions du jour, transferts exclus', () => {
+    expect(quantiteRecue(mouvements, '2026-10-10')).toBe(44);
+    expect(quantiteRecue(mouvements)).toBe(53);
+    expect(quantiteRecue([mv('LIVRAISON', 'Pain', -1)])).toBe(0);
   });
+});
 
-  it('liste vide sans réception', () => {
-    expect(receptionsParFournisseur([mv('LIVRAISON', 'Pain', -1)])).toEqual([]);
+describe('chiffreAccueil', () => {
+  it('… en chargement, — en erreur, sinon le nombre', () => {
+    expect(chiffreAccueil({ isLoading: true, isError: false }, 3)).toBe('…');
+    expect(chiffreAccueil({ isLoading: false, isError: true }, 3)).toBe('—');
+    expect(chiffreAccueil({ isLoading: false, isError: false }, 0)).toBe('0');
   });
 });
 
@@ -119,13 +114,7 @@ describe('mise à zéro (AJUSTEMENT)', () => {
   });
 
   it("n'apparaît pas dans les réceptions", () => {
-    expect(receptionsParFournisseur(mouvements)).toEqual([
-      {
-        fournisseur: 'Fournisseur A',
-        produits: [{ produitId: 'id-Lait', designation: 'Lait', quantite: 4 }],
-        total: 4,
-      },
-    ]);
+    expect(quantiteRecue(mouvements)).toBe(4);
   });
 });
 

@@ -27,14 +27,6 @@ export interface LigneProduitQuantite {
   quantite: number;
 }
 
-export interface GroupeReception {
-  fournisseur: string;
-  produits: LigneProduitQuantite[];
-  total: number;
-}
-
-export const FOURNISSEUR_INCONNU = 'Fournisseur non renseigné';
-
 /** Vrai si le mouvement est du jour `jour` (`yyyy-MM-dd`) ; sans jour, tout passe. */
 function duJour(m: MouvementStockResponse, jour?: string): boolean {
   return !jour || (m.date ?? '').slice(0, 10) === jour;
@@ -78,28 +70,27 @@ export function produitsVendus(
   );
 }
 
+/** Quantité totale vendue : Σ des quantités de `produitsVendus` (livré seulement). */
+export function quantiteVendue(mouvements: MouvementStockResponse[], jour?: string): number {
+  return produitsVendus(mouvements, jour).reduce((a, l) => a + l.quantite, 0);
+}
+
 /**
- * Réceptions : mouvements RECEPTION groupés par fournisseur (contrepartie),
- * puis par produit (Σ quantité). Fournisseurs triés par nom, produits par
- * quantité décroissante.
+ * Quantité totale réceptionnée : Σ des quantités des mouvements RECEPTION
+ * (entrées fournisseur). Ni les transferts reçus ni les retours ne comptent.
  */
-export function receptionsParFournisseur(
-  mouvements: MouvementStockResponse[],
-  jour?: string,
-): GroupeReception[] {
-  const parFournisseur = new Map<string, MouvementStockResponse[]>();
-  for (const m of mouvements) {
-    if (m.type !== 'RECEPTION' || !duJour(m, jour)) continue;
-    const fournisseur = m.contrepartie?.trim() || FOURNISSEUR_INCONNU;
-    const liste = parFournisseur.get(fournisseur) ?? [];
-    liste.push(m);
-    parFournisseur.set(fournisseur, liste);
-  }
-  return [...parFournisseur.entries()]
-    .map(([fournisseur, ms]) => {
-      const produits = cumulerParProduit(ms, (m) => m.quantite);
-      return { fournisseur, produits, total: produits.reduce((a, p) => a + p.quantite, 0) };
-    })
-    .filter((g) => g.produits.length > 0)
-    .sort((a, b) => a.fournisseur.localeCompare(b.fournisseur, 'fr'));
+export function quantiteRecue(mouvements: MouvementStockResponse[], jour?: string): number {
+  return mouvements
+    .filter((m) => m.type === 'RECEPTION' && duJour(m, jour) && m.quantite > 0)
+    .reduce((a, m) => a + m.quantite, 0);
+}
+
+/** Chiffre d'une sous-carte de l'accueil : `…` en chargement, `—` en erreur. */
+export function chiffreAccueil(
+  lecture: { isLoading: boolean; isError: boolean },
+  valeur: number,
+): string {
+  if (lecture.isLoading) return '…';
+  if (lecture.isError) return '—';
+  return String(valeur);
 }
