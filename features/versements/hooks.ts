@@ -5,6 +5,15 @@ import { commandeKeys } from '../commandes/keys';
 import type { UUID } from '../../types/api';
 import { etatsKeys } from '../etats/keys';
 
+/** Versements du livreur (liste « Mes versements »), invalidés à chaque enregistrement. */
+export function useVersementsLivreur(livreurId: UUID | undefined) {
+  return useQuery({
+    queryKey: versementKeys.livreur(livreurId ?? ''),
+    queryFn: () => versementsApi.parLivreur(livreurId!),
+    enabled: !!livreurId,
+  });
+}
+
 /**
  * Situation du versement à venir pour le couple (livreurId, fournisseurId) et la
  * sélection de commandes (liste vide = versement libre). Activé dès que le livreur

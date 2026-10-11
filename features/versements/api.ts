@@ -7,10 +7,16 @@ import type {
 } from '../../types/api';
 import { joindreIds } from './regles';
 
-// Pour le mobile on n'expose que `situation` (calcul en lecture) et `enregistrer`
-// (création) — les listings restent côté web. Le versement règle des commandes
-// livrées (`commandeIds`) ; aucune commande = versement libre.
+// Lecture de la liste du livreur (`parLivreur`), `situation` (calcul en lecture)
+// et `enregistrer` (création). Le versement règle des commandes livrées
+// (`commandeIds`) ; aucune commande = versement libre.
 export const versementsApi = {
+  /** Versements du livreur à ses fournisseurs (`GET /versement/livreur/{id}`, sans filtre de période). */
+  parLivreur: async (livreurId: UUID): Promise<VersementResponse[]> => {
+    const { data } = await apiClient.get<VersementResponse[]>(`/versement/livreur/${livreurId}`);
+    return data;
+  },
+
   /**
    * Situation du couple (livreur, fournisseur) pour la sélection de commandes :
    * `valeurAchat`, `remiseLivreurCumulee`, `detteAvant`, `totalDu` (= detteAvant + valeurAchat),

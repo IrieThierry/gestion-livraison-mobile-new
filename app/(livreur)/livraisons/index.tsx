@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { router, useNavigation } from 'expo-router';
 import type { EtatPile } from '../../../lib/navigation';
-import { Search, X, ChevronLeft } from 'lucide-react-native';
+import { Search, X, ChevronLeft, Plus } from 'lucide-react-native';
 import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useAuthStore } from '../../../stores/authStore';
 import { LivraisonCard } from '../../../components/livreur/LivraisonCard';
@@ -106,6 +106,15 @@ export default function LivraisonsList() {
           <Text className="font-extrabold text-slate-900 dark:text-white text-lg">Livraisons</Text>
           <Text className="text-[11px] text-slate-500 dark:text-slate-400">{subtitle}</Text>
         </View>
+        <Pressable
+          onPress={() => router.push('/(livreur)/livraisons/nouvelle' as never)}
+          accessibilityRole="button"
+          accessibilityLabel="Nouvelle livraison"
+          className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
+        >
+          <Plus color="#fff" size={14} />
+          <Text className="text-white text-xs font-bold">Nouvelle</Text>
+        </Pressable>
         <Pressable
           onPress={() => setSearchOpen((v) => !v)}
           hitSlop={8}

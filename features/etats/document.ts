@@ -6,6 +6,8 @@ import type { EtatFournisseurs } from './calculs/fournisseurs';
 import type { EtatStock } from './calculs/stock';
 import type { EtatVentes } from './calculs/ventes';
 import { formatJour } from './periode';
+import { entitesFichier, lignesFiltres, type ChoixFiltres, type LigneFiltre } from './filtres';
+import { ENTITE_EQUIPE, nomFichierEtat } from './nomFichier';
 
 /**
  * Modèle d'un état mis en forme, commun à l'aperçu à l'écran et au PDF :
@@ -39,6 +41,10 @@ export interface DocumentEtat {
   livreur: string;
   periode: Periode;
   editeLe: Date;
+  /** Filtres actifs, une ligne chacun dans l'en-tête (ex. « Client : Kouassi Jean »). */
+  filtres: LigneFiltre[];
+  /** Nom du fichier partagé, sans extension. */
+  nomFichier: string;
   syntheses: SyntheseEtat[];
   sections: SectionEtat[];
 }
@@ -49,6 +55,8 @@ export interface EnteteEtat {
   editeLe: Date;
   /** Vue équipe : une colonne « Livreur » est ajoutée. */
   equipe: boolean;
+  /** Filtres d'entité choisis (absents : aucun). */
+  filtres?: ChoixFiltres;
 }
 
 const m = (n: number | null | undefined): string => (n == null ? '—' : formatMontant(n));
@@ -62,6 +70,13 @@ function base(famille: FamilleEtat, e: EnteteEtat) {
     livreur: e.livreur,
     periode: e.periode,
     editeLe: e.editeLe,
+    filtres: e.filtres ? lignesFiltres(e.filtres) : [],
+    nomFichier: nomFichierEtat({
+      famille,
+      periode: e.periode,
+      entites: e.filtres ? entitesFichier(e.filtres) : [],
+      livreur: e.equipe ? ENTITE_EQUIPE : e.livreur,
+    }),
   };
 }
 
@@ -72,6 +87,9 @@ function avecLivreur<T>(equipe: boolean, cellules: T[], livreur: T): T[] {
 
 export function documentVentes(etat: EtatVentes, e: EnteteEtat): DocumentEtat {
   const t = etat.totaux;
+  const produit = e.filtres?.produit;
+  // Filtre produit : les montants des livraisons et des clients ne portent que sur ses lignes.
+  const noteProduit = produit ? `Montants limités au produit ${produit.label}` : undefined;
   return {
     ...base('ventes', e),
     syntheses: [
@@ -83,6 +101,7 @@ export function documentVentes(etat: EtatVentes, e: EnteteEtat): DocumentEtat {
     sections: [
       {
         titre: 'Par livraison',
+        note: noteProduit,
         colonnes: avecLivreur(
           e.equipe,
           [
@@ -110,6 +129,7 @@ export function documentVentes(etat: EtatVentes, e: EnteteEtat): DocumentEtat {
       },
       {
         titre: 'Par client',
+        note: noteProduit,
         colonnes: [
           { libelle: 'Client' },
           { libelle: 'Livraisons', droite: true },

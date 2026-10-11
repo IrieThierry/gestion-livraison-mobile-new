@@ -137,3 +137,56 @@ describe('genererHtmlEtat', () => {
     expect(genererHtmlEtat(d)).toContain('y compris hors période');
   });
 });
+
+describe('filtres dans le document et le PDF', () => {
+  const filtres = {
+    client: { id: 'c1', label: 'Kouassi Jean' },
+    produit: { id: 'p1', label: 'Eau 1,5 L' },
+    fournisseur: null,
+    typeMouvement: null,
+  };
+
+  it('une ligne par filtre actif dans l’en-tête, nom de fichier avec les entités', () => {
+    const doc = documentVentes(calculerEtatVentes(livraisons, P), { ...entete, filtres });
+    expect(doc.filtres).toEqual([
+      { libelle: 'Client', valeur: 'Kouassi Jean' },
+      { libelle: 'Produit', valeur: 'Eau 1,5 L' },
+    ]);
+    expect(doc.nomFichier).toBe('Ventes_Kouassi-Jean_Eau-1-5-L_2026-10-01_au_2026-10-31');
+    const html = genererHtmlEtat(doc);
+    expect(html).toContain('<div>Client : <b>Kouassi Jean</b></div>');
+    expect(html).toContain('<div>Produit : <b>Eau 1,5 L</b></div>');
+  });
+
+  it('filtre produit : note « Montants limités au produit X » par livraison et par client', () => {
+    const doc = documentVentes(calculerEtatVentes(livraisons, P), { ...entete, filtres });
+    const notes = doc.sections.map((s) => s.note);
+    expect(notes).toEqual([
+      'Montants limités au produit Eau 1,5 L',
+      'Montants limités au produit Eau 1,5 L',
+      undefined,
+    ]);
+  });
+
+  it('sans filtre : aucune ligne, nom du livreur ; vue équipe : « Equipe »', () => {
+    const doc = documentVentes(calculerEtatVentes(livraisons, P), entete);
+    expect(doc.filtres).toEqual([]);
+    expect(doc.nomFichier).toBe('Ventes_Awa-Kone_2026-10-01_au_2026-10-31');
+    expect(doc.sections[0].note).toBeUndefined();
+    const equipe = documentStock(calculerEtatStock([], [], P), {
+      ...entete,
+      livreur: 'Équipe de Awa Kone',
+      equipe: true,
+    });
+    expect(equipe.nomFichier).toBe('Stock-Mouvements_Equipe_2026-10-01_au_2026-10-31');
+  });
+
+  it('le type de mouvement figure dans l’en-tête mais pas dans le nom du fichier', () => {
+    const doc = documentStock(calculerEtatStock([], [], P), {
+      ...entete,
+      filtres: { client: null, produit: null, fournisseur: null, typeMouvement: { id: 'RETOUR_EN_STOCK', label: 'Retour en stock' } },
+    });
+    expect(doc.filtres).toEqual([{ libelle: 'Type de mouvement', valeur: 'Retour en stock' }]);
+    expect(doc.nomFichier).toBe('Stock-Mouvements_Awa-Kone_2026-10-01_au_2026-10-31');
+  });
+});

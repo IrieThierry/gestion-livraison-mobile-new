@@ -1,3 +1,5 @@
+import type { TypeMouvementStock } from '../../../types/api';
+
 /**
  * Outils communs aux calculs des états. Fonctions pures : les mêmes
  * résultats alimentent l'aperçu à l'écran et le PDF.
@@ -62,4 +64,20 @@ export function parDate<T>(date: (x: T) => string | null | undefined) {
 export function nomPersonne(p: { prenom?: string | null; nom?: string | null } | null | undefined): string {
   if (!p) return '';
   return `${p.prenom ?? ''} ${p.nom ?? ''}`.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Filtres d'entité des états (en plus de la période et du livreur). Absent
+ * ou null = « Tous ». Chaque famille n'utilise que les siens.
+ */
+export interface FiltresEtat {
+  clientId?: string | null;
+  produitId?: string | null;
+  fournisseurId?: string | null;
+  typeMouvement?: TypeMouvementStock | null;
+}
+
+/** Vrai si le filtre est vide (« Tous ») ou correspond à l'identifiant. */
+export function retenu(filtre: string | null | undefined, id: string | null | undefined): boolean {
+  return !filtre || filtre === id;
 }

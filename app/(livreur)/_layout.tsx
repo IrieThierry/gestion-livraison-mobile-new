@@ -1,193 +1,17 @@
 import { useEffect, useState } from 'react';
-import { View, Pressable, Text, Modal, ScrollView } from 'react-native';
+import { View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Tabs, router } from 'expo-router';
-import {
-  TrendingUp,
-  Truck,
-  User,
-  Plus,
-  Package,
-  RotateCcw,
-  Users,
-  Wallet,
-  X,
-  Receipt,
-  CalendarClock,
-  ClipboardCheck,
-} from 'lucide-react-native';
+import { Tabs } from 'expo-router';
+import { TrendingUp, Truck, User, Plus, Users } from 'lucide-react-native';
 import { OfflineBanner } from '../../components/shared/OfflineBanner';
+import { FabSheet } from '../../components/livreur/FabSheet';
 import { useNetworkStore } from '../../stores/networkStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useThemeStore } from '../../stores/themeStore';
-
-/**
- * Quand l'utilisateur tape un onglet déjà actif, par défaut Expo Router
- * ne fait rien — on reste coincé sur la sous-route. On dispatche ici
- * `POP_TO_TOP` sur la **pile interne** de l'onglet (qui gère cette
- * action), pas sur le Tabs navigator (qui ne la gère pas et déclenche
- * un warning).
- *
- * On ne fait RIEN si l'onglet n'a pas de sous-route empilée (pour ne
- * pas déclencher le warning). On évite aussi `router.replace(path)` qui
- * peut casser le navigation context pendant l'unmount d'un écran enfant.
- */
-function popToTopOnReTap() {
-  return ({ navigation }: { navigation: any }) => ({
-    tabPress: (e: { preventDefault: () => void }) => {
-      if (!navigation?.isFocused?.()) return;
-      const state = navigation.getState?.();
-      if (!state) return;
-      const tabRoute = state.routes?.[state.index];
-      const innerRoutes = tabRoute?.state?.routes ?? [];
-      // S'il y a > 1 routes dans la pile de l'onglet courant, on a une
-      // sous-route empilée → on pop. Sinon on laisse le comportement par
-      // défaut (no-op pour un re-tap au root).
-      if (innerRoutes.length > 1) {
-        e.preventDefault();
-        navigation.dispatch?.({
-          type: 'POP_TO_TOP',
-          target: tabRoute.state.key,
-        });
-      }
-    },
-  });
-}
-
-function FabSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const user = useAuthStore((s) => s.user);
-  const go = (path: string) => {
-    onClose();
-    // withAnchor : la pile du module est construite avec sa liste dessous
-    // (unstable_settings des _layout) — retour / enregistrement => la liste.
-    router.push(path as never, { withAnchor: true });
-  };
-  return (
-    <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable className="flex-1 bg-black/40" onPress={onClose}>
-        <Pressable
-          onPress={() => {}}
-          className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-900 rounded-t-3xl pt-5 pb-10 px-5"
-        >
-          <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-lg font-extrabold text-slate-900 dark:text-white">
-              Créer
-            </Text>
-            <Pressable onPress={onClose} hitSlop={10}>
-              <X color="#64748b" size={20} />
-            </Pressable>
-          </View>
-          <ScrollView className="gap-2" contentContainerStyle={{ gap: 8 }}>
-            <FabAction
-              icon={Truck}
-              iconBg="#d1fae5"
-              iconColor="#059669"
-              label="Nouvelle livraison"
-              hint="Sélectionner client + produits"
-              onPress={() => go('/(livreur)/livraisons/nouvelle')}
-            />
-            <FabAction
-              icon={Users}
-              iconBg="#d1fae5"
-              iconColor="#059669"
-              label="Nouveau client"
-              hint="Avec capture géoloc"
-              onPress={() => go('/(livreur)/clients/nouveau')}
-            />
-            <FabAction
-              icon={Wallet}
-              iconBg="#fef3c7"
-              iconColor="#b45309"
-              label="Nouveau versement"
-              hint="Verser à un fournisseur"
-              onPress={() => go('/(livreur)/cash/versement')}
-            />
-            <FabAction
-              icon={Package}
-              iconBg="#dbeafe"
-              iconColor="#1d4ed8"
-              label="Réceptionner une commande"
-              hint="Stock entrant fournisseur"
-              onPress={() =>
-                go(
-                  user?.parentId
-                    ? '/(livreur)/cash/commandes/a-receptionner'
-                    : '/(livreur)/cash/commandes',
-                )
-              }
-            />
-            <FabAction
-              icon={RotateCcw}
-              iconBg="#fce7f3"
-              iconColor="#be185d"
-              label="Retour produit"
-              hint="Remise en stock ou perdu · déduit du dû"
-              onPress={() => go('/(livreur)/cash/retour-client')}
-            />
-            <FabAction
-              icon={Receipt}
-              iconBg="#fee2e2"
-              iconColor="#dc2626"
-              label="Nouvelle dépense"
-              hint="Carburant, entretien, autre"
-              onPress={() => go('/(livreur)/cash/depenses/nouvelle')}
-            />
-            <FabAction
-              icon={CalendarClock}
-              iconBg="#dbeafe"
-              iconColor="#3b82f6"
-              label="Nouvelle prévision"
-              hint="Prévisions multi-produits par client"
-              onPress={() => go('/(livreur)/previsions/nouvelle')}
-            />
-            <FabAction
-              icon={ClipboardCheck}
-              iconBg="#fef3c7"
-              iconColor="#d97706"
-              label="Clôturer la journée"
-              hint="Récap CA + écart de caisse"
-              onPress={() => go('/(livreur)/clotures/nouvelle')}
-            />
-          </ScrollView>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
-function FabAction({
-  icon: Icon,
-  iconBg,
-  iconColor,
-  label,
-  hint,
-  onPress,
-}: {
-  icon: React.ComponentType<{ color: string; size: number }>;
-  iconBg: string;
-  iconColor: string;
-  label: string;
-  hint: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      className="flex-row items-center gap-3 bg-slate-50 dark:bg-slate-800 p-3.5 rounded-xl active:opacity-70"
-    >
-      <View
-        className="w-10 h-10 rounded-lg items-center justify-center"
-        style={{ backgroundColor: iconBg }}
-      >
-        <Icon color={iconColor} size={20} />
-      </View>
-      <View className="flex-1">
-        <Text className="font-extrabold text-slate-900 dark:text-white">{label}</Text>
-        <Text className="text-[11px] text-slate-500 dark:text-slate-400">{hint}</Text>
-      </View>
-    </Pressable>
-  );
-}
+// Un appui sur un onglet (actif ou non) ouvre toujours sa page principale
+// (cf. lib/onglets.ts) : Accueil → avatar → Mes infos, puis onglet Accueil,
+// puis onglet Moi ⇒ menu Moi.
+import { listenersRacineOnglet } from '../../lib/onglets';
 
 export default function LivreurLayout() {
   const [fabOpen, setFabOpen] = useState(false);
@@ -244,7 +68,7 @@ export default function LivreurLayout() {
             title: 'Tournée',
             tabBarIcon: ({ color }) => <TrendingUp color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={popToTopOnReTap()}
+          listeners={listenersRacineOnglet()}
         />
         <Tabs.Screen
           name="clients"
@@ -252,7 +76,7 @@ export default function LivreurLayout() {
             title: 'Clients',
             tabBarIcon: ({ color }) => <Users color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={popToTopOnReTap()}
+          listeners={listenersRacineOnglet()}
         />
         <Tabs.Screen
           name="fab"
@@ -291,7 +115,7 @@ export default function LivreurLayout() {
             title: 'Livraisons',
             tabBarIcon: ({ color }) => <Truck color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={popToTopOnReTap()}
+          listeners={listenersRacineOnglet()}
         />
         <Tabs.Screen
           name="profil"
@@ -299,9 +123,9 @@ export default function LivreurLayout() {
             title: 'Moi',
             tabBarIcon: ({ color }) => <User color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={popToTopOnReTap()}
+          listeners={listenersRacineOnglet()}
         />
-        {/* Hidden routes — accessible via FAB sheet, stat cards, links, or programmatic push */}
+        {/* Hidden routes — accessible via le menu « Accéder à » (FAB), stat cards, links, or programmatic push */}
         <Tabs.Screen name="cash" options={{ href: null }} />
         <Tabs.Screen name="stock" options={{ href: null }} />
         <Tabs.Screen name="previsions" options={{ href: null }} />

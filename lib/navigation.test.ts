@@ -28,6 +28,9 @@ describe('actionApresEnregistrement', () => {
   });
 
   it("nom d'écran de liste personnalisé", () => {
+    // Versement : la liste « Mes versements » est l'écran 'versements/index' de la pile cash.
+    expect(actionApresEnregistrement(pile('index', 'versements/index', 'versement'), 'versements/index')).toBe('back');
+    expect(actionApresEnregistrement(pile('index', 'versement'), 'versements/index')).toBe('liste');
     expect(actionApresEnregistrement(pile('index', 'retours', 'retour-client'), 'retours')).toBe('back');
     expect(actionApresEnregistrement(pile('index', 'retour-client'), 'retours')).toBe('liste');
   });

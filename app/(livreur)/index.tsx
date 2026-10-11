@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { ScrollView, View, Text, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
-import { Bell, Package, Truck, Banknote, RotateCcw, ShoppingBag, PackageCheck } from 'lucide-react-native';
+import { Bell, Package, Truck, Banknote, RotateCcw } from 'lucide-react-native';
 import { useLivraisonsByLivreur } from '../../features/livraisons/hooks';
 import { useEncaissementsByLivreur } from '../../features/encaissements/hooks';
 import { useEncoursByLivreur } from '../../features/clients/hooks';
@@ -12,15 +12,15 @@ import {
 } from '../../features/encaissements/regles';
 import { useMouvementsStock, useStockCourant } from '../../features/stock/hooks';
 import {
+  chiffreAccueil,
   jourLocal,
-  produitsVendus,
-  receptionsParFournisseur,
+  quantiteRecue,
+  quantiteVendue,
 } from '../../features/accueil/regles';
 import { useCommandesAReceptionner } from '../../features/commandes/hooks';
 import { useAuthStore } from '../../stores/authStore';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Avatar } from '../../components/shared/Avatar';
-import { ProduitVignette } from '../../components/shared/ProduitVignette';
 import { PendingValidationGate } from '../../components/shared/PendingValidationGate';
 import { LivraisonCard } from '../../components/livreur/LivraisonCard';
 import { formatMontant } from '../../lib/format';
@@ -37,15 +37,12 @@ export default function Tournee() {
   const qStock = useStockCourant();
   const qARecep = useCommandesAReceptionner(!!user);
   // Mouvements de stock du jour (local) du livreur connecté — l'apprenti voit
-  // les siens : produits vendus (livraisons) et réceptions par fournisseur.
+  // les siens : quantités vendues (livraisons) et réceptionnées du jour.
   const jour = jourLocal();
   const filtresMouvements = useMemo(() => ({ debut: jour, fin: jour }), [jour]);
   const qMv = useMouvementsStock(livreurId, filtresMouvements);
-  const vendus = useMemo(() => produitsVendus(qMv.data ?? [], jour), [qMv.data, jour]);
-  const receptions = useMemo(
-    () => receptionsParFournisseur(qMv.data ?? [], jour),
-    [qMv.data, jour],
-  );
+  const vendus = useMemo(() => quantiteVendue(qMv.data ?? [], jour), [qMv.data, jour]);
+  const recus = useMemo(() => quantiteRecue(qMv.data ?? [], jour), [qMv.data, jour]);
 
   const computed = useMemo(() => {
     const today = new Date().toDateString();
@@ -180,13 +177,30 @@ export default function Tournee() {
             <Text className="text-base"> FCFA</Text>
           </Text>
 
+          {/* Chiffres du jour, cliquables : liste des livraisons, détail des produits vendus, réceptions */}
           <View className="flex-row gap-2 mt-3">
-            <View className="flex-1 bg-white/15 rounded-xl px-3 py-2">
-              <Text className="text-[10px] uppercase font-bold tracking-wider text-white/90">
-                Livraisons
-              </Text>
-              <Text className="text-white font-extrabold text-lg">{computed.duJour.length}</Text>
-            </View>
+            <SousCarte
+              libelle="Livraisons"
+              valeur={chiffreAccueil(qLiv, computed.duJour.length)}
+              onPress={() => router.push('/(livreur)/livraisons' as never)}
+            />
+            <SousCarte
+              libelle="Produits vendus"
+              valeur={chiffreAccueil(qMv, vendus)}
+              onPress={() => router.push('/(livreur)/livraisons/produits-vendus' as never)}
+            />
+            <SousCarte
+              libelle="Réceptionnés"
+              valeur={chiffreAccueil(qMv, recus)}
+              // Commandes (et leurs réceptions) ; apprenti : commandes à réceptionner, comme le menu « Accéder à ».
+              onPress={() =>
+                router.push(
+                  (user.parentId
+                    ? '/(livreur)/cash/commandes/a-receptionner'
+                    : '/(livreur)/cash/commandes') as never,
+                )
+              }
+            />
           </View>
         </View>
 
@@ -255,41 +269,6 @@ export default function Tournee() {
           />
         </View>
 
-        {/* Produits vendus aujourd'hui (livré seulement, retours non déduits) */}
-        <BlocJour
-          titre="Produits vendus"
-          icon={ShoppingBag}
-          isLoading={qMv.isLoading}
-          erreur={qMv.isError ? extractApiErrorMessage(qMv.error, 'Ventes indisponibles') : null}
-          vide={vendus.length === 0}
-          messageVide="Aucune vente aujourd'hui"
-        >
-          {vendus.map((l, i) => (
-            <LigneQuantite key={l.produitId} libelle={l.designation} photoUrl={l.photoUrl} quantite={l.quantite} premiere={i === 0} />
-          ))}
-        </BlocJour>
-
-        {/* Réceptions du jour, groupées par fournisseur */}
-        <BlocJour
-          titre="Réceptions"
-          icon={PackageCheck}
-          isLoading={qMv.isLoading}
-          erreur={qMv.isError ? extractApiErrorMessage(qMv.error, 'Réceptions indisponibles') : null}
-          vide={receptions.length === 0}
-          messageVide="Aucune réception aujourd'hui"
-        >
-          {receptions.map((g, gi) => (
-            <View key={g.fournisseur} className={gi > 0 ? 'mt-3' : ''}>
-              <Text className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1">
-                {g.fournisseur}
-              </Text>
-              {g.produits.map((l, i) => (
-                <LigneQuantite key={l.produitId} libelle={l.designation} photoUrl={l.photoUrl} quantite={l.quantite} premiere={i === 0} />
-              ))}
-            </View>
-          ))}
-        </BlocJour>
-
         {/* Tournée du jour */}
         <View className="flex-row items-center justify-between mt-5 mb-2">
           <Text className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 dark:text-slate-400">
@@ -326,75 +305,33 @@ export default function Tournee() {
   );
 }
 
-function BlocJour({
-  titre,
-  icon: Icon,
-  isLoading,
-  erreur,
-  vide,
-  messageVide,
-  children,
-}: {
-  titre: string;
-  icon: React.ComponentType<{ color: string; size: number }>;
-  isLoading: boolean;
-  erreur: string | null;
-  vide: boolean;
-  messageVide: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <View className="mt-5">
-      <View className="flex-row items-center gap-1.5 mb-2">
-        <Icon color="#64748b" size={13} />
-        <Text className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 dark:text-slate-400">
-          {titre} · aujourd'hui
-        </Text>
-      </View>
-      <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5">
-        {isLoading ? (
-          <View className="py-2 items-center">
-            <ActivityIndicator color="#10b981" />
-          </View>
-        ) : erreur ? (
-          <Text className="text-[12px] text-red-600 dark:text-red-400 py-1">{erreur}</Text>
-        ) : vide ? (
-          <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center py-1">
-            {messageVide}
-          </Text>
-        ) : (
-          children
-        )}
-      </View>
-    </View>
-  );
-}
-
-function LigneQuantite({
+/** Sous-carte de la carte verte : un chiffre du jour, cliquable. */
+function SousCarte({
   libelle,
-  photoUrl,
-  quantite,
-  premiere,
+  valeur,
+  onPress,
 }: {
   libelle: string;
-  photoUrl?: string;
-  quantite: number;
-  premiere: boolean;
+  valeur: string;
+  onPress: () => void;
 }) {
   return (
-    <View
-      className={`flex-row items-center justify-between py-1.5 ${
-        premiere ? '' : 'border-t border-slate-100 dark:border-slate-800'
-      }`}
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${libelle} : ${valeur}`}
+      className="flex-1 bg-white/15 rounded-xl px-3 py-2 active:opacity-70"
     >
-      <View className="mr-2">
-        <ProduitVignette designation={libelle} photoUrl={photoUrl} size={28} />
-      </View>
-      <Text className="flex-1 text-[13px] text-slate-800 dark:text-slate-200 pr-2" numberOfLines={2}>
+      <Text
+        className="text-[10px] uppercase font-bold tracking-wide text-white/90"
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.8}
+      >
         {libelle}
       </Text>
-      <Text className="text-[13px] font-extrabold text-slate-900 dark:text-white">{quantite}</Text>
-    </View>
+      <Text className="text-white font-extrabold text-lg">{valeur}</Text>
+    </Pressable>
   );
 }
 
