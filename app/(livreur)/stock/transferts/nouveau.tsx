@@ -7,7 +7,6 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import { ArrowRight } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
@@ -17,6 +16,7 @@ import { useStockCourant } from '../../../../features/stock/hooks';
 import { useEffectuerTransfert } from '../../../../features/transferts/hooks';
 import { useAuthStore } from '../../../../stores/authStore';
 import { formatFCFA } from '../../../../lib/format';
+import { useRetourListe } from '../../../../lib/useRetourListe';
 
 /**
  * Formulaire de transfert root → apprenti. Le livreur connecté est la
@@ -31,6 +31,7 @@ export default function NouveauTransfert() {
   const apprentisQ = useApprentis();
   const stockQ = useStockCourant();
   const m = useEffectuerTransfert();
+  const retourListe = useRetourListe('/(livreur)/stock/transferts');
 
   const [destinataireId, setDestinataireId] = useState<string | null>(null);
   const [produitId, setProduitId] = useState<string | null>(null);
@@ -96,7 +97,7 @@ export default function NouveauTransfert() {
       },
       {
         onSuccess: () => {
-          router.back();
+          retourListe();
           dialog.success('Transfert enregistré');
         },
         onError: (err: unknown) => {
@@ -111,7 +112,7 @@ export default function NouveauTransfert() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Nouveau transfert" subtitle="Vers un apprenti" />
+      <PageHeader retourVers="/(livreur)/stock/transferts" title="Nouveau transfert" subtitle="Vers un apprenti" />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="px-4 pt-3 gap-3">

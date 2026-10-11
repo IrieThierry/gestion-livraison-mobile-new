@@ -7,7 +7,6 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
 import { dialog } from '../../../lib/dialog';
 import { CheckCircle2, AlertTriangle } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
@@ -29,6 +28,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import { formatMontant } from '../../../lib/format';
+import { useRetourListe } from '../../../lib/useRetourListe';
 
 /**
  * Formulaire « Nouvelle clôture journalière ».
@@ -51,6 +51,7 @@ export default function NouvelleCloture() {
   const livQ = useLivraisonsByLivreur(livreurId);
   const encQ = useEncaissementsByLivreur(livreurId);
   const m = useEnregistrerCloture();
+  const retourListe = useRetourListe('/(livreur)/clotures');
   const submittingRef = useRef(false);
 
   const estimation = useMemo(
@@ -85,7 +86,7 @@ export default function NouvelleCloture() {
         submittingRef.current = false;
       },
       onSuccess: (cloture) => {
-        router.back();
+        retourListe();
         dialog.success('Clôture enregistrée', messageClotureEnregistree(cloture));
       },
       onError: (err: unknown) => {
@@ -100,7 +101,7 @@ export default function NouvelleCloture() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Nouvelle clôture" subtitle="Fin de journée" />
+      <PageHeader retourVers="/(livreur)/clotures" title="Nouvelle clôture" subtitle="Fin de journée" />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="px-4 pt-3 gap-3">

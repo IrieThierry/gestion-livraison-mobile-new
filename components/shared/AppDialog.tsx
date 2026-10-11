@@ -4,11 +4,14 @@ import {
   Easing,
   Modal,
   Pressable,
+  ScrollView,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { CheckCircle2, XCircle, AlertTriangle, Info } from 'lucide-react-native';
 import { useDialogStore, type DialogVariant } from '../../stores/dialogStore';
+import { dispositionBoutons, ordreBoutons } from '../../lib/dialog-layout';
 
 /**
  * Catalogue visuel par variante.
@@ -70,6 +73,7 @@ const VARIANTS: Record<
 export function AppDialog() {
   const { open, variant, title, message, actions, autoDismissMs, hide } =
     useDialogStore();
+  const { height: hauteurEcran } = useWindowDimensions();
 
   // Animations
   const fade = useRef(new Animated.Value(0)).current;
@@ -114,6 +118,15 @@ export function AppDialog() {
     actions && actions.length > 0
       ? actions
       : [{ label: 'OK', style: 'primary' as const }];
+
+  // Deux libellés longs ne tiennent pas côte à côte : on empile en
+  // pleine largeur, bouton principal en premier.
+  const disposition = dispositionBoutons(buttons.map((b) => b.label));
+  const ordre = ordreBoutons(
+    buttons.map((b) => b.style),
+    disposition,
+  );
+  const enLigne = buttons.length > 1 && disposition === 'ligne';
 
   const handlePress = (idx: number) => () => {
     const action = buttons[idx];
@@ -176,20 +189,23 @@ export function AppDialog() {
             {title}
           </Text>
 
-          {/* Message */}
+          {/* Message : défilant au-delà d'une hauteur max pour que les
+              boutons restent toujours visibles (ex. liste de reliquats). */}
           {message ? (
-            <Text className="text-sm text-slate-600 dark:text-slate-400 text-center mt-2 leading-5">
-              {message}
-            </Text>
+            <ScrollView
+              style={{ maxHeight: Math.round(hauteurEcran * 0.4), marginTop: 8 }}
+              showsVerticalScrollIndicator
+            >
+              <Text className="text-sm text-slate-600 dark:text-slate-400 text-center leading-5">
+                {message}
+              </Text>
+            </ScrollView>
           ) : null}
 
-          {/* Boutons */}
-          <View
-            className={`mt-5 ${
-              buttons.length > 1 ? 'flex-row gap-2' : ''
-            }`}
-          >
-            {buttons.map((b, idx) => {
+          {/* Boutons : côte à côte si les libellés tiennent, sinon empilés */}
+          <View className={`mt-5 gap-2 ${enLigne ? 'flex-row' : ''}`}>
+            {ordre.map((idx) => {
+              const b = buttons[idx];
               const isPrimary = (b.style ?? 'primary') === 'primary';
               const isDestructive = b.style === 'destructive';
               const isSecondary = b.style === 'secondary';
@@ -204,7 +220,9 @@ export function AppDialog() {
                 <Pressable
                   key={`${b.label}-${idx}`}
                   onPress={handlePress(idx)}
-                  className={`flex-1 py-3 rounded-xl items-center active:opacity-80 ${
+                  className={`${
+                    enLigne ? 'flex-1' : 'w-full'
+                  } py-3 px-3 rounded-xl items-center justify-center active:opacity-80 ${
                     isSecondary
                       ? 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700'
                       : ''
@@ -223,6 +241,7 @@ export function AppDialog() {
                   }
                 >
                   <Text
+                    style={{ textAlign: 'center', flexShrink: 1 }}
                     className={`font-extrabold text-[15px] ${
                       isSecondary
                         ? 'text-slate-700 dark:text-slate-200'

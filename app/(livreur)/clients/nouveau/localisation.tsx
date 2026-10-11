@@ -96,8 +96,10 @@ export default function NouveauClientStep2() {
       },
       onSuccess: () => {
         reset();
-        // Pop step 2 + step 1 to land back on the clients list
-        router.dismissAll();
+        // Le formulaire (étapes 1 et 2, pile imbriquée « nouveau ») sort de la
+        // pile : on arrive sur la liste des clients (dismissAll ne dépilait
+        // que la pile « nouveau » et laissait l'étape 1 affichée).
+        router.dismissTo('/(livreur)/clients' as never);
         dialog.success('Client créé');
       },
       onError: (err: unknown) => {

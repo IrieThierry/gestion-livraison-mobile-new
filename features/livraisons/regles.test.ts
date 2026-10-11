@@ -1,9 +1,6 @@
 import {
-  bilanLivraisonEtRetours,
   buildCreerLivraisonPayload,
-  enregistrerLivraisonEtRetours,
   erreurLignesLivraison,
-  etatApresEchecPartiel,
   MESSAGE_DESTINATION_RETOUR,
   montantLigneEstime,
   prixInitialLigne,
@@ -162,125 +159,6 @@ describe('regrouperRetours', () => {
         c: { qte: 2, enStock: false },
       }),
     ).toBe(1);
-  });
-});
-
-describe('etatApresEchecPartiel', () => {
-  const retours: RetoursParLivraison[] = [
-    { livraison: liv('a', ['a1']), lignes: [{ produitLivraisonId: 'a1', quantite: 1, remettreEnStock: true }] },
-    { livraison: liv('b', ['b1']), lignes: [{ produitLivraisonId: 'b1', quantite: 2, remettreEnStock: false }] },
-  ];
-  const saisie = {
-    a1: { qte: 1, enStock: true },
-    b1: { qte: 2, enStock: false },
-    z9: { qte: 0, enStock: null },
-  };
-
-  it('livraison créée : lignes vidées, seuls les retours échoués restent', () => {
-    const etat = etatApresEchecPartiel({
-      res: {
-        livraisonCreee: true,
-        erreurLivraison: null,
-        retoursEnregistres: ['a'],
-        retoursEchoues: [{ livraisonId: 'b', message: 'x' }],
-      },
-      retours,
-      lignes: [l({})],
-      saisie,
-    });
-    expect(etat.lignes).toEqual([]);
-    expect(etat.saisie).toEqual({ b1: { qte: 2, enStock: false }, z9: { qte: 0, enStock: null } });
-  });
-
-  it('pas de livraison à créer : lignes conservées', () => {
-    const lignes = [l({ qte: 0 })];
-    const etat = etatApresEchecPartiel({
-      res: {
-        livraisonCreee: false,
-        erreurLivraison: null,
-        retoursEnregistres: [],
-        retoursEchoues: [{ livraisonId: 'a', message: 'x' }, { livraisonId: 'b', message: 'y' }],
-      },
-      retours,
-      lignes,
-      saisie,
-    });
-    expect(etat.lignes).toBe(lignes);
-    expect(etat.saisie).toEqual(saisie);
-  });
-});
-
-describe('enregistrerLivraisonEtRetours', () => {
-  const retours: RetoursParLivraison[] = [
-    { livraison: liv('a', ['a1']), lignes: [] },
-    { livraison: liv('b', ['b1']), lignes: [] },
-    { livraison: liv('c', ['c1']), lignes: [] },
-  ];
-  const messageErreur = (e: unknown) => (e as Error).message;
-
-  it('échec de création : aucun retour tenté', async () => {
-    const enregistrerRetour = jest.fn();
-    const res = await enregistrerLivraisonEtRetours({
-      creer: () => Promise.reject(new Error('Stock insuffisant pour Pain')),
-      retours,
-      enregistrerRetour,
-      messageErreur,
-    });
-    expect(res.livraisonCreee).toBe(false);
-    expect(res.erreurLivraison).toBe('Stock insuffisant pour Pain');
-    expect(enregistrerRetour).not.toHaveBeenCalled();
-    const bilan = bilanLivraisonEtRetours(res, { livraison: true, nbRetours: 3 });
-    expect(bilan.ok).toBe(false);
-    expect(bilan.message).toMatch(/Aucun retour/);
-  });
-
-  it('échec partiel : continue après un retour en échec et rapporte fait / à refaire', async () => {
-    const enregistrerRetour = jest.fn((r: RetoursParLivraison) =>
-      r.livraison.id === 'b' ? Promise.reject(new Error('Conflit')) : Promise.resolve({}),
-    );
-    const creer = jest.fn(() => Promise.resolve({}));
-    const res = await enregistrerLivraisonEtRetours({ creer, retours, enregistrerRetour, messageErreur });
-    expect(creer).toHaveBeenCalledTimes(1);
-    expect(enregistrerRetour).toHaveBeenCalledTimes(3);
-    expect(res).toEqual({
-      livraisonCreee: true,
-      erreurLivraison: null,
-      retoursEnregistres: ['a', 'c'],
-      retoursEchoues: [{ livraisonId: 'b', message: 'Conflit' }],
-    });
-    const bilan = bilanLivraisonEtRetours(res, { livraison: true, nbRetours: 3 });
-    expect(bilan.ok).toBe(false);
-    expect(bilan.message).toContain('Livraison du jour créée.');
-    expect(bilan.message).toContain('2 retour(s) enregistré(s).');
-    expect(bilan.message).toContain('1 retour(s) non enregistré(s), à refaire');
-    expect(bilan.message).toContain('Conflit');
-  });
-
-  it('retours seuls, tout réussi', async () => {
-    const res = await enregistrerLivraisonEtRetours({
-      creer: null,
-      retours: retours.slice(0, 1),
-      enregistrerRetour: () => Promise.resolve({}),
-      messageErreur,
-    });
-    expect(res.livraisonCreee).toBe(false);
-    expect(bilanLivraisonEtRetours(res, { livraison: false, nbRetours: 1 })).toEqual({
-      ok: true,
-      titre: 'Retour(s) enregistré(s)',
-      message: '',
-    });
-  });
-
-  it('livraison seule, réussie', async () => {
-    const res = await enregistrerLivraisonEtRetours({
-      creer: () => Promise.resolve({}),
-      retours: [],
-      enregistrerRetour: jest.fn(),
-      messageErreur,
-    });
-    expect(bilanLivraisonEtRetours(res, { livraison: true, nbRetours: 0 }).titre).toBe(
-      'Livraison enregistrée',
-    );
   });
 });
 

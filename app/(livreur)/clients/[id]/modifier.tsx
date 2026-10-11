@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { MapPin, Save, RefreshCw, User, IdCard, Phone, Mail } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { PageHeader } from '../../../../components/shared/PageHeader';
@@ -32,6 +32,7 @@ import { peutFixerConditions } from '../../../../features/remise/regles';
 import { validerRemiseClient } from '../../../../features/clients/regles';
 import { buildModifierClientPayload } from '../../../../features/clients/regles';
 import type { ClientResponse } from '../../../../types/api';
+import { useRetourListe } from '../../../../lib/useRetourListe';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
   if (!s) return null;
@@ -61,6 +62,7 @@ export default function ModifierClient() {
   const quartiersQ = useQuartiers();
   const categoriesQ = useCategories();
   const m = useModifierClient();
+  const retourListe = useRetourListe('/(livreur)/clients');
 
   const client = useMemo<ClientResponse | undefined>(
     () => (qC.data ?? []).find((c) => c.id === id),
@@ -195,7 +197,7 @@ export default function ModifierClient() {
 
     m.mutate(payload, {
       onSuccess: () => {
-        router.back();
+        retourListe();
         dialog.success('Client mis à jour');
       },
       onError: (err: unknown) => {
@@ -217,7 +219,7 @@ export default function ModifierClient() {
   if (!client) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader title="Modifier le client" />
+        <PageHeader retourVers="/(livreur)/clients" title="Modifier le client" />
         <View className="px-4 py-6">
           <Text className="text-slate-500 dark:text-slate-400 text-center">
             Client introuvable.
@@ -230,6 +232,7 @@ export default function ModifierClient() {
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
+        retourVers="/(livreur)/clients"
         title="Modifier le client"
         subtitle={`${client.prenom} ${client.nom}`.trim()}
       />

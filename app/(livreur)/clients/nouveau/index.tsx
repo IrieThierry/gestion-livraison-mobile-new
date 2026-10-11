@@ -140,7 +140,11 @@ export default function NouveauClientStep1() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Nouveau client" subtitle="Étape 1 / 2 — Informations" />
+      <PageHeader
+        title="Nouveau client"
+        subtitle="Étape 1 / 2 — Informations"
+        retourVers="/(livreur)/clients"
+      />
 
       {/* Step indicator */}
       <View className="px-4 pb-2 flex-row items-center gap-2">

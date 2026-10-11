@@ -1,16 +1,19 @@
 import { View, Text, Pressable } from 'react-native';
 import { ChevronLeft } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import type { ReactNode } from 'react';
+import { actionRetourEnTete, type EtatPile } from '../../lib/navigation';
 
 /**
  * Header standard avec titre, sous-titre, bouton back et slot droit.
  *
- * Comportement back :
- *  - si la stack peut reculer → router.back()
- *  - sinon, on tombe sur `fallback` (par défaut Tournée) — ça évite que le
- *    bouton soit silencieusement no-op quand on a ouvert l'écran via une
- *    Modal sheet ou un router.replace
+ * Comportement back (règle unique de navigation, cf. lib/navigation.ts) :
+ *  - si la pile du module a un écran précédent → router.back()
+ *  - sinon, si `retourVers` (liste du module) est fourni → on y va
+ *    (jamais de retombée sur le premier onglet)
+ *  - sinon comportement historique : back() si possible, ou `fallback`
+ *    (par défaut Tournée) — ça évite que le bouton soit silencieusement
+ *    no-op quand on a ouvert l'écran via une Modal sheet ou un replace
  */
 export function PageHeader({
   title,
@@ -18,19 +21,28 @@ export function PageHeader({
   showBack = true,
   right,
   fallback = '/(livreur)' as const,
+  retourVers,
 }: {
   title: string;
   subtitle?: string;
   showBack?: boolean;
   right?: ReactNode;
   fallback?: string;
+  /** Liste du module, cible du retour quand la pile n'a pas d'écran précédent. */
+  retourVers?: string;
 }) {
+  const navigation = useNavigation();
   const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace(fallback as never);
-    }
+    const action = actionRetourEnTete({
+      etat: navigation.getState() as EtatPile | undefined,
+      retourVers,
+      peutReculer: router.canGoBack(),
+    });
+    if (action === 'back') router.back();
+    // POP_TO : remonte à la liste si elle est plus bas dans la pile,
+    // sinon la liste remplace l'écran courant (pas de doublon).
+    else if (action === 'retourVers') router.dismissTo(retourVers as never);
+    else router.replace(fallback as never);
   };
 
   return (

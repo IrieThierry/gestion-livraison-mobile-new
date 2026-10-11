@@ -7,7 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import { Building2, Users } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
@@ -23,6 +23,7 @@ import { useNetworkStore } from '../../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatMontant } from '../../../../lib/format';
 import type { BeneficiaireType } from '../../../../types/api';
+import { useRetourListe } from '../../../../lib/useRetourListe';
 
 export default function NouveauReversement() {
   const params = useLocalSearchParams<{
@@ -35,6 +36,7 @@ export default function NouveauReversement() {
   }>();
 
   const m = useEnregistrerReversement();
+  const retourListe = useRetourListe('/(livreur)/cash/reversements');
   const submittingRef = useRef(false);
   const isOnline = useNetworkStore((s) => s.isOnline);
   const today = jourLocal(new Date());
@@ -78,7 +80,7 @@ export default function NouveauReversement() {
         submittingRef.current = false;
       },
       onSuccess: (r) => {
-        router.back();
+        retourListe();
         dialog.success(
           'Reversement enregistré',
           `${formatMontant(num(r.montant))} FCFA — période ${String(r.periodeMois).padStart(2, '0')}/${r.periodeAnnee}`,
@@ -99,7 +101,7 @@ export default function NouveauReversement() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Nouveau reversement" subtitle={beneficiaireLabel} />
+      <PageHeader retourVers="/(livreur)/cash/reversements" title="Nouveau reversement" subtitle={beneficiaireLabel} />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="px-4 pt-3 gap-3">
