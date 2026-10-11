@@ -159,6 +159,8 @@ export interface ProduitResponse {
   designation: string
   /** Renseigné quand le produit a été créé par un fournisseur. */
   creeParFournisseurId?: UUID | null
+  /** Chemin de la photo (`/uploads/produit/…`), null sans photo. */
+  photoUrl?: string | null
 }
 
 // ---------- Clients ----------
@@ -639,6 +641,7 @@ export type TypeMouvementStock =
   | 'TRANSFERT_SORTIE'
   | 'LIVRAISON'
   | 'RETOUR_EN_STOCK'
+  | 'AJUSTEMENT'
 
 /**
  * Un mouvement du stock d'un livreur (journal lu à la volée, trié du plus récent
@@ -651,6 +654,28 @@ export interface MouvementStockResponse {
   quantite: number
   reference: string | null
   contrepartie: string | null
+}
+
+/** Motif d'une mise à zéro du stock d'un produit. */
+export type MotifAjustementStock = 'PERTE' | 'PERIME' | 'CASSE' | 'INVENTAIRE' | 'AUTRE'
+
+/** Corps de `POST /stock-livreur/{livreurId}/produits/{produitId}/mise-a-zero`. */
+export interface MiseAZeroStockRequest {
+  motif: MotifAjustementStock
+  /** Obligatoire pour AUTRE ; 500 caractères au plus. */
+  commentaire?: string
+}
+
+/** Réponse d'une mise à zéro : le stock du produit vaut désormais 0. */
+export interface AjustementStockResponse {
+  id: UUID
+  livreurId: UUID
+  produitId: UUID
+  quantiteRetiree: number
+  motif: MotifAjustementStock
+  motifLibelle: string
+  commentaire: string | null
+  dateAjustement: string
 }
 
 /** Filtres facultatifs de l'historique du stock (période en jours entiers `yyyy-MM-dd`). */

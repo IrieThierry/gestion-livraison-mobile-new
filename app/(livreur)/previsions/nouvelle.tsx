@@ -21,6 +21,7 @@ import { useProduits } from '../../../features/produits/hooks';
 import { useCreerPrevision } from '../../../features/previsions/hooks';
 import { useAuthStore } from '../../../stores/authStore';
 import { useRetourListe } from '../../../lib/useRetourListe';
+import { ProduitVignette } from '../../../components/shared/ProduitVignette';
 
 /**
  * Formulaire « Nouvelle prévision » multi-produits par client. Le livreur
@@ -157,6 +158,7 @@ export default function NouvellePrevision() {
                 key={p.id}
                 className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 flex-row items-center gap-2"
               >
+                <ProduitVignette designation={p.designation} photoUrl={p.photoUrl} size={36} />
                 <View className="flex-1">
                   <Text className="font-bold text-slate-900 dark:text-white">
                     {p.designation}

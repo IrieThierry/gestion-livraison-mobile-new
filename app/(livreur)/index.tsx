@@ -20,6 +20,7 @@ import { useCommandesAReceptionner } from '../../features/commandes/hooks';
 import { useAuthStore } from '../../stores/authStore';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Avatar } from '../../components/shared/Avatar';
+import { ProduitVignette } from '../../components/shared/ProduitVignette';
 import { PendingValidationGate } from '../../components/shared/PendingValidationGate';
 import { LivraisonCard } from '../../components/livreur/LivraisonCard';
 import { formatMontant } from '../../lib/format';
@@ -264,7 +265,7 @@ export default function Tournee() {
           messageVide="Aucune vente aujourd'hui"
         >
           {vendus.map((l, i) => (
-            <LigneQuantite key={l.produitId} libelle={l.designation} quantite={l.quantite} premiere={i === 0} />
+            <LigneQuantite key={l.produitId} libelle={l.designation} photoUrl={l.photoUrl} quantite={l.quantite} premiere={i === 0} />
           ))}
         </BlocJour>
 
@@ -283,7 +284,7 @@ export default function Tournee() {
                 {g.fournisseur}
               </Text>
               {g.produits.map((l, i) => (
-                <LigneQuantite key={l.produitId} libelle={l.designation} quantite={l.quantite} premiere={i === 0} />
+                <LigneQuantite key={l.produitId} libelle={l.designation} photoUrl={l.photoUrl} quantite={l.quantite} premiere={i === 0} />
               ))}
             </View>
           ))}
@@ -371,10 +372,12 @@ function BlocJour({
 
 function LigneQuantite({
   libelle,
+  photoUrl,
   quantite,
   premiere,
 }: {
   libelle: string;
+  photoUrl?: string;
   quantite: number;
   premiere: boolean;
 }) {
@@ -384,6 +387,9 @@ function LigneQuantite({
         premiere ? '' : 'border-t border-slate-100 dark:border-slate-800'
       }`}
     >
+      <View className="mr-2">
+        <ProduitVignette designation={libelle} photoUrl={photoUrl} size={28} />
+      </View>
       <Text className="flex-1 text-[13px] text-slate-800 dark:text-slate-200 pr-2" numberOfLines={2}>
         {libelle}
       </Text>

@@ -9,6 +9,7 @@ import { formatFCFA } from '../../lib/format';
 import { AUCUN_RESULTAT, filtrerRecherche } from '../../lib/recherche';
 import { SearchInput } from '../shared/SearchInput';
 import type { ProduitResponse } from '../../types/api';
+import { ProduitVignette } from '../shared/ProduitVignette';
 
 export type Ligne = LigneSaisie;
 
@@ -44,6 +45,10 @@ export function ProduitPicker({
     [referentiel, recherche],
   );
   const stockQ = useStockCourant();
+  const photos = useMemo(
+    () => new Map(referentiel.map((p) => [p.id, p.photoUrl ?? null] as const)),
+    [referentiel],
+  );
 
   // Map produitId → qteVendable pour lookup O(1) sur chaque ligne
   const stockMap = useMemo(() => {
@@ -142,6 +147,7 @@ export function ProduitPicker({
                   : 'border-slate-200 dark:border-slate-800'
               }`}
             >
+              <ProduitVignette designation={item.designation} photoUrl={item.photoUrl} size={22} />
               <Plus
                 color={already ? '#94a3b8' : noStock ? '#ef4444' : '#10b981'}
                 size={14}
@@ -182,6 +188,7 @@ export function ProduitPicker({
             key={l.produitId}
             line={l}
             clientId={clientId}
+            photoUrl={photos.get(l.produitId) ?? null}
             stockDispo={stockMap.get(l.produitId) ?? 0}
             enforceStock={enforceStock}
             remiseClient={remiseClient}
@@ -211,6 +218,7 @@ export function ProduitPicker({
 function LigneRow({
   line,
   clientId,
+  photoUrl,
   stockDispo,
   enforceStock,
   remiseClient,
@@ -220,6 +228,7 @@ function LigneRow({
 }: {
   line: Ligne;
   clientId?: string;
+  photoUrl: string | null;
   stockDispo: number;
   enforceStock: boolean;
   remiseClient?: number;
@@ -288,6 +297,9 @@ function LigneRow({
     >
       {/* Header: designation + remove */}
       <View className="flex-row items-center justify-between mb-2">
+        <View className="mr-2">
+          <ProduitVignette designation={line.designation} photoUrl={photoUrl} size={32} />
+        </View>
         <Text className="font-extrabold text-slate-900 dark:text-white flex-1 pr-2">
           {line.designation}
         </Text>

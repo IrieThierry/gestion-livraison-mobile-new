@@ -15,6 +15,7 @@ import {
   libelleStatutEncaissement,
 } from '../../../lib/livraison-status';
 import { num, prixUnitaireClient } from '../../../features/encaissements/regles';
+import { ProduitVignette } from '../../../components/shared/ProduitVignette';
 
 /**
  * The backend stores client coords as a single string "lat,lng".
@@ -191,6 +192,13 @@ export default function LivraisonDetail() {
                     i > 0 ? 'border-t border-slate-100 dark:border-slate-800' : ''
                   }`}
                 >
+                  <View className="mr-3">
+                    <ProduitVignette
+                      designation={ligne.produit.designation}
+                      photoUrl={ligne.produit.photoUrl}
+                      size={32}
+                    />
+                  </View>
                   <Text className="text-slate-900 dark:text-white flex-1 pr-2">
                     {ligne.produit.designation}
                   </Text>

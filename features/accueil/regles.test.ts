@@ -105,3 +105,34 @@ describe('receptionsParFournisseur', () => {
     expect(receptionsParFournisseur([mv('LIVRAISON', 'Pain', -1)])).toEqual([]);
   });
 });
+
+describe('mise à zéro (AJUSTEMENT)', () => {
+  const mouvements = [
+    mv('LIVRAISON', 'Pain', -2),
+    mv('AJUSTEMENT', 'Pain', -7, 'Sac percé'),
+    mv('AJUSTEMENT', 'Lait', -3),
+    mv('RECEPTION', 'Lait', 4, 'Fournisseur A'),
+  ];
+
+  it("n'est pas comptée comme une vente", () => {
+    expect(produitsVendus(mouvements)).toEqual([{ produitId: 'id-Pain', designation: 'Pain', quantite: 2 }]);
+  });
+
+  it("n'apparaît pas dans les réceptions", () => {
+    expect(receptionsParFournisseur(mouvements)).toEqual([
+      {
+        fournisseur: 'Fournisseur A',
+        produits: [{ produitId: 'id-Lait', designation: 'Lait', quantite: 4 }],
+        total: 4,
+      },
+    ]);
+  });
+});
+
+describe('photo des produits', () => {
+  it('reprend la photo du produit pour la vignette', () => {
+    const m = mv('LIVRAISON', 'Pain', -2);
+    m.produit.photoUrl = '/uploads/produit/p_1.jpg';
+    expect(produitsVendus([m])[0].photoUrl).toBe('/uploads/produit/p_1.jpg');
+  });
+});

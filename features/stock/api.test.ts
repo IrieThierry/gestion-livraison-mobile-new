@@ -38,3 +38,26 @@ describe('stockApi.historique', () => {
     expect(post).not.toHaveBeenCalled();
   });
 });
+
+describe('stockApi.mettreAZero', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('envoie le motif et le commentaire sur la route du livreur et du produit', async () => {
+    const reponse = { id: 'aj-1', quantiteRetiree: 7, motif: 'PERTE', motifLibelle: 'Perte' };
+    post.mockResolvedValue({ data: reponse });
+
+    const res = await stockApi.mettreAZero('app-1', 'p-1', { motif: 'PERTE', commentaire: 'Sac percé' });
+
+    expect(res).toBe(reponse);
+    expect(post).toHaveBeenCalledWith('/stock-livreur/app-1/produits/p-1/mise-a-zero', {
+      motif: 'PERTE',
+      commentaire: 'Sac percé',
+    });
+  });
+
+  it('propage le refus du back (400 { message })', async () => {
+    const erreur = { response: { status: 400, data: { message: 'Le stock de ce produit est déjà à zéro.' } } };
+    post.mockRejectedValue(erreur);
+    await expect(stockApi.mettreAZero('liv-1', 'p-1', { motif: 'CASSE' })).rejects.toBe(erreur);
+  });
+});

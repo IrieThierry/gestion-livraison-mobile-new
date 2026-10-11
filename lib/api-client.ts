@@ -6,8 +6,9 @@ import axios, {
 import { router } from "expo-router";
 import { SecureStorage } from "./secure-storage";
 import { useAuthStore } from "../stores/authStore";
+import { API_BASE_URL } from "./api-url";
 
-const baseURL = process.env.EXPO_PUBLIC_API_URL ?? "http://10.112.1.143:8089";
+const baseURL = API_BASE_URL;
 
 export const apiClient = axios.create({ baseURL, timeout: 15000 });
 

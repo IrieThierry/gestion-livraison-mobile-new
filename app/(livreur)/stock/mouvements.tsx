@@ -4,6 +4,7 @@ import { ListFilter, X } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { SelectField } from '../../../components/shared/SelectField';
+import { ProduitVignette } from '../../../components/shared/ProduitVignette';
 import { useProduits } from '../../../features/produits/hooks';
 import { useMouvementsStock } from '../../../features/stock/hooks';
 import { libelleQuantiteMouvement, libelleTypeMouvement } from '../../../features/stock/regles';
@@ -153,6 +154,13 @@ export default function MouvementsStock() {
                       entree ? 'border-l-emerald-500' : sortie ? 'border-l-red-500' : 'border-l-slate-300'
                     } rounded-lg p-3 flex-row items-start justify-between`}
                   >
+                    <View className="mr-3">
+                      <ProduitVignette
+                        designation={m.produit.designation}
+                        photoUrl={m.produit.photoUrl}
+                        size={36}
+                      />
+                    </View>
                     <View className="flex-1 pr-2">
                       <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
                         {libelleTypeMouvement(m.type)} · {formatDateLong(m.date)} {formatTime(m.date)}
@@ -160,7 +168,11 @@ export default function MouvementsStock() {
                       <Text className="font-extrabold text-slate-900 dark:text-white text-[13px] mt-0.5">
                         {m.produit.designation}
                       </Text>
-                      {m.reference ? (
+                      {m.type === 'AJUSTEMENT' && m.reference ? (
+                        <Text className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
+                          Motif : {m.reference}
+                        </Text>
+                      ) : m.reference ? (
                         <Text className="font-mono text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
                           {m.reference}
                         </Text>

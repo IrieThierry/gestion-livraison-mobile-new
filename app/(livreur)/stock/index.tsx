@@ -6,7 +6,10 @@ import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { SearchInput } from '../../../components/shared/SearchInput';
 import { AUCUN_RESULTAT, filtrerRecherche } from '../../../lib/recherche';
+import { ProduitVignette } from '../../../components/shared/ProduitVignette';
+import { MiseAZeroDialog, type CibleMiseAZero } from '../../../components/livreur/MiseAZeroDialog';
 import { useStockCourant } from '../../../features/stock/hooks';
+import { peutMettreAZero } from '../../../features/stock/regles';
 import { useAuthStore } from '../../../stores/authStore';
 
 /**
@@ -26,6 +29,7 @@ export default function StockCourant() {
   const user = useAuthStore((s) => s.user);
   const q = useStockCourant();
   const [recherche, setRecherche] = useState('');
+  const [cible, setCible] = useState<CibleMiseAZero | null>(null);
   // Tri stable alphabétique par désignation produit
   const items = [...(q.data ?? [])].sort((a, b) =>
     (a.produit?.designation ?? '').localeCompare(
@@ -40,6 +44,9 @@ export default function StockCourant() {
   ]);
 
   if (!user) return null;
+
+  // « Mettre à zéro » : livreur principal seulement (jamais l'apprenti).
+  const miseAZeroPossible = peutMettreAZero(user, user.id);
 
   // Total unités vendables sur tout le stock (somme des qteVendable).
   const totalUnites = items.reduce((acc, s) => acc + (s.qteVendable ?? 0), 0);
@@ -96,7 +103,7 @@ export default function StockCourant() {
                   Mouvements
                 </Text>
                 <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Réceptions, transferts, livraisons, retours
+                  Réceptions, transferts, livraisons, retours, ajustements
                 </Text>
               </View>
             </View>
@@ -186,6 +193,13 @@ export default function StockCourant() {
                     key={it.produit?.id ?? code}
                     className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 ${borderColor} rounded-lg p-3 flex-row items-start justify-between`}
                   >
+                    <View className="mr-3">
+                      <ProduitVignette
+                        designation={it.produit?.designation}
+                        photoUrl={it.produit?.photoUrl}
+                        size={40}
+                      />
+                    </View>
                     <View className="flex-1 pr-2">
                       <Text className="font-extrabold text-slate-900 dark:text-white text-[13px]">
                         {designation}
@@ -216,6 +230,20 @@ export default function StockCourant() {
                       <Text className="text-[10px] text-slate-500 dark:text-slate-400">
                         unité{qte > 1 ? 's' : ''}
                       </Text>
+                      {miseAZeroPossible && qte > 0 && it.produit ? (
+                        <Pressable
+                          onPress={() =>
+                            setCible({ livreurId: user.id, produit: it.produit, quantite: qte })
+                          }
+                          hitSlop={6}
+                          accessibilityLabel={`Mettre à zéro ${designation}`}
+                          className="mt-1.5 px-2 py-1 rounded-md bg-red-50 dark:bg-red-500/10 active:opacity-70"
+                        >
+                          <Text className="text-[11px] font-bold text-red-600 dark:text-red-400">
+                            Mettre à zéro
+                          </Text>
+                        </Pressable>
+                      ) : null}
                     </View>
                   </View>
                 );
@@ -224,6 +252,12 @@ export default function StockCourant() {
           )}
         </View>
       </ScrollView>
+
+      <MiseAZeroDialog
+        key={cible ? `${cible.livreurId}-${cible.produit.id}` : 'aucune'}
+        cible={cible}
+        onClose={() => setCible(null)}
+      />
     </View>
   );
 }
