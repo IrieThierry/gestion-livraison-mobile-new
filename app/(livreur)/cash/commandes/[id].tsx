@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { ScrollView, View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import { PageHeader } from '../../../../components/shared/PageHeader';
+import { FormScreen } from '../../../../components/shared/FormScreen';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import {
   CommandeStatusBadge,
@@ -179,7 +180,7 @@ export default function CommandeDetail() {
         fallback={fallback}
       />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+      <FormScreen>
         <View className="px-4">
           <View className="flex-row items-center gap-2">
             <CommandeStatusBadge statut={commande.statut} />
@@ -284,7 +285,7 @@ export default function CommandeDetail() {
             />
           ) : null}
         </View>
-      </ScrollView>
+      </FormScreen>
     </View>
   );
 }

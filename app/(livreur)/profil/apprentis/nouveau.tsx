@@ -1,13 +1,10 @@
 import { useState } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
   Pressable,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { dialog } from '../../../../lib/dialog';
 import {
@@ -22,6 +19,7 @@ import {
   IdCard,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
+import { FormScreen } from '../../../../components/shared/FormScreen';
 import { useCreerApprenti } from '../../../../features/apprentis/hooks';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { useRetourListe } from '../../../../lib/useRetourListe';
@@ -34,7 +32,7 @@ import { useRetourListe } from '../../../../lib/useRetourListe';
  * UX :
  *  - Icônes lucide à gauche de chaque champ pour identifier rapidement
  *  - Œil sur le champ mot de passe pour basculer visible/masqué
- *  - KeyboardAvoidingView + keyboardShouldPersistTaps pour que le clavier
+ *  - FormScreen (KeyboardAvoidingView + keyboardShouldPersistTaps) pour que le clavier
  *    ne masque pas le champ en cours d'édition (ex : password en bas)
  */
 export default function NouveauApprenti() {
@@ -106,17 +104,7 @@ export default function NouveauApprenti() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader retourVers="/(livreur)/profil/apprentis" title="Nouvel apprenti" subtitle="Crée un compte rattaché à toi" />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-        // Sur Android, soustrait la hauteur du header pour que le clavier
-        // calcule correctement. iOS gère ça via le SafeAreaView au-dessus.
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
-      >
-        <ScrollView
-          contentContainerStyle={{ paddingBottom: 32 }}
-          keyboardShouldPersistTaps="handled"
-        >
+      <FormScreen>
           <View className="px-4 pt-3 gap-3">
             {/* Identité */}
             <View className="flex-row gap-3">
@@ -237,8 +225,7 @@ export default function NouveauApprenti() {
               * Champs obligatoires
             </Text>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </FormScreen>
     </View>
   );
 }

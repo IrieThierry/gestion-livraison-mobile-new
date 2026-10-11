@@ -1,18 +1,16 @@
 import { useState, useMemo, useEffect } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
   Pressable,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { MapPin, Save, RefreshCw, User, IdCard, Phone, Mail } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { PageHeader } from '../../../../components/shared/PageHeader';
+import { FormScreen } from '../../../../components/shared/FormScreen';
 import { SelectField } from '../../../../components/shared/SelectField';
 import { MapPreview } from '../../../../components/livreur/MapPreview';
 import {
@@ -237,15 +235,7 @@ export default function ModifierClient() {
         subtitle={`${client.prenom} ${client.nom}`.trim()}
       />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
-      >
-        <ScrollView
-          contentContainerStyle={{ paddingBottom: 32 }}
-          keyboardShouldPersistTaps="handled"
-        >
+      <FormScreen>
           <View className="px-4 pt-3 gap-3">
             {/* Identité */}
             <View className="flex-row gap-3">
@@ -436,8 +426,7 @@ export default function ModifierClient() {
               )}
             </Pressable>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </FormScreen>
     </View>
   );
 }

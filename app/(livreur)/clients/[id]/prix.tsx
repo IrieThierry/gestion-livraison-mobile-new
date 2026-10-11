@@ -1,19 +1,19 @@
 import { useMemo, useState } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
   Pressable,
   ActivityIndicator,
   RefreshControl,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Save, Trash2, Tag, User } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
+import { FormScreen } from '../../../../components/shared/FormScreen';
+import { SearchInput } from '../../../../components/shared/SearchInput';
+import { AUCUN_RESULTAT, filtrerRecherche } from '../../../../lib/recherche';
 import { useClientsByLivreur } from '../../../../features/clients/hooks';
 import { useProduits } from '../../../../features/produits/hooks';
 import {
@@ -59,6 +59,12 @@ export default function PrixClientPage() {
   const isOnline = useNetworkStore((s) => s.isOnline);
 
   const [draftPrix, setDraftPrix] = useState<Record<string, string>>({});
+  const [recherche, setRecherche] = useState('');
+
+  const produitsAffiches = useMemo(
+    () => filtrerRecherche(qProduits.data ?? [], recherche, (p) => [p.designation, p.code]),
+    [qProduits.data, recherche],
+  );
 
   const client = useMemo(
     () => (qC.data ?? []).find((c) => c.id === id),
@@ -151,15 +157,8 @@ export default function PrixClientPage() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader title="Prix personnalisés" subtitle={fullName} />
 
-      {/* KeyboardAvoidingView : empêche le clavier de masquer les inputs.
-          paddingBottom large dans le ScrollView pour laisser respirer. */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 320 }}
-        keyboardShouldPersistTaps="handled"
+      {/* FormScreen : le clavier ne masque pas les champs prix. */}
+      <FormScreen
         refreshControl={
           <RefreshControl
             refreshing={qPrixClient.isFetching && !qPrixClient.isLoading}
@@ -183,14 +182,27 @@ export default function PrixClientPage() {
             </Text>
           </View>
 
+          {produits.length > 0 ? (
+            <SearchInput
+              value={recherche}
+              onChangeText={setRecherche}
+              placeholder="Rechercher un produit…"
+              className="mb-3"
+            />
+          ) : null}
+
           {produits.length === 0 ? (
             <EmptyState
               title="Aucun produit"
               message="Demande à l'admin de créer des produits dans le référentiel."
             />
+          ) : produitsAffiches.length === 0 ? (
+            <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center py-4">
+              {AUCUN_RESULTAT}
+            </Text>
           ) : (
             <View className="gap-2">
-              {produits.map((produit) => {
+              {produitsAffiches.map((produit) => {
                 const prixCustom = prixClientMap.get(produit.id);
                 const prixDefaut = prixLivreurMap.get(produit.id);
                 const draft = draftPrix[produit.id] ?? '';
@@ -333,8 +345,7 @@ export default function PrixClientPage() {
             </View>
           )}
         </View>
-      </ScrollView>
-      </KeyboardAvoidingView>
+      </FormScreen>
     </View>
   );
 }

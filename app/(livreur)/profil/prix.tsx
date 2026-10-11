@@ -1,18 +1,18 @@
 import { useMemo, useState } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
   Pressable,
   ActivityIndicator,
   RefreshControl,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { Save, Trash2, Tag } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
+import { FormScreen } from '../../../components/shared/FormScreen';
+import { SearchInput } from '../../../components/shared/SearchInput';
+import { AUCUN_RESULTAT, filtrerRecherche } from '../../../lib/recherche';
 import { useProduits } from '../../../features/produits/hooks';
 import {
   useMesPrix,
@@ -41,12 +41,18 @@ export default function MesPrixPage() {
   const deleteMut = useSupprimerPrixLivreur();
 
   const [draftPrix, setDraftPrix] = useState<Record<string, string>>({});
+  const [recherche, setRecherche] = useState('');
 
   const prixMap = useMemo(() => {
     const m = new Map<string, number>();
     for (const p of qPrix.data ?? []) m.set(p.produit.id, p.prix);
     return m;
   }, [qPrix.data]);
+
+  const produitsAffiches = useMemo(
+    () => filtrerRecherche(qProduits.data ?? [], recherche, (p) => [p.designation, p.code]),
+    [qProduits.data, recherche],
+  );
 
   if (qProduits.isLoading || qPrix.isLoading) {
     return (
@@ -96,24 +102,8 @@ export default function MesPrixPage() {
         subtitle="Barème par défaut"
       />
 
-      {/*
-        KeyboardAvoidingView : sans ça, sur Android le clavier numérique
-        recouvre les inputs en bas de la liste. iOS gère mieux nativement
-        mais on applique le pattern uniformément.
-        - iOS : behavior=padding (le contenu remonte avec animation)
-        - Android : behavior=height (Android remonte la window de lui-même
-          en mode adjustResize, mais sans ce wrapper le focus de l'input
-          ne scroll pas l'item visé jusqu'à la zone visible).
-      */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-      <ScrollView
-        // paddingBottom large pour qu'un input cliqué proche du bas reste
-        // visible une fois le clavier ouvert (~280 dp de hauteur clavier).
-        contentContainerStyle={{ paddingBottom: 320 }}
-        keyboardShouldPersistTaps="handled"
+      {/* FormScreen : le clavier numérique ne recouvre pas les prix du bas. */}
+      <FormScreen
         refreshControl={
           <RefreshControl
             refreshing={qPrix.isFetching && !qPrix.isLoading}
@@ -136,14 +126,27 @@ export default function MesPrixPage() {
             </Text>
           </View>
 
+          {produits.length > 0 ? (
+            <SearchInput
+              value={recherche}
+              onChangeText={setRecherche}
+              placeholder="Rechercher un produit…"
+              className="mb-3"
+            />
+          ) : null}
+
           {produits.length === 0 ? (
             <EmptyState
               title="Aucun produit"
               message="Demande à l'admin de créer des produits dans le référentiel."
             />
+          ) : produitsAffiches.length === 0 ? (
+            <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center py-4">
+              {AUCUN_RESULTAT}
+            </Text>
           ) : (
             <View className="gap-2">
-              {produits.map((produit) => {
+              {produitsAffiches.map((produit) => {
                 const prixActuel = prixMap.get(produit.id);
                 const draft = draftPrix[produit.id] ?? '';
                 const hasPrix = prixActuel !== undefined;
@@ -235,8 +238,7 @@ export default function MesPrixPage() {
             </View>
           )}
         </View>
-      </ScrollView>
-      </KeyboardAvoidingView>
+      </FormScreen>
     </View>
   );
 }

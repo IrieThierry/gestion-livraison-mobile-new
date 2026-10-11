@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
@@ -12,6 +11,7 @@ import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { parseMontant } from '../../../../features/encaissements/regles';
 import { Fuel, Wrench, FileText, MoreHorizontal } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
+import { FormScreen } from '../../../../components/shared/FormScreen';
 import { DatePickerField } from '../../../../components/shared/DatePickerField';
 import { useCreateDepense } from '../../../../features/depenses/hooks';
 import type { DepenseCategorie } from '../../../../types/api';
@@ -79,7 +79,7 @@ export default function NouvelleDepense() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader retourVers="/(livreur)/cash/depenses" title="Nouvelle dépense" />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <FormScreen>
         <View className="px-4 gap-3 pt-3">
           {/* Libellé */}
           <View>
@@ -179,7 +179,7 @@ export default function NouvelleDepense() {
             )}
           </Pressable>
         </View>
-      </ScrollView>
+      </FormScreen>
     </View>
   );
 }

@@ -16,8 +16,10 @@ import {
   produitsVendus,
   receptionsParFournisseur,
 } from '../../features/accueil/regles';
+import { useCommandesAReceptionner } from '../../features/commandes/hooks';
 import { useAuthStore } from '../../stores/authStore';
 import { EmptyState } from '../../components/shared/EmptyState';
+import { Avatar } from '../../components/shared/Avatar';
 import { PendingValidationGate } from '../../components/shared/PendingValidationGate';
 import { LivraisonCard } from '../../components/livreur/LivraisonCard';
 import { formatMontant } from '../../lib/format';
@@ -32,6 +34,7 @@ export default function Tournee() {
   // Stock courant (Plan D) — somme des `qteVendable` (= achats − livraisons
   // + retours sur la période). C'est ce que l'écran Stock affiche aussi.
   const qStock = useStockCourant();
+  const qARecep = useCommandesAReceptionner(!!user);
   // Mouvements de stock du jour (local) du livreur connecté — l'apprenti voit
   // les siens : produits vendus (livraisons) et réceptions par fournisseur.
   const jour = jourLocal();
@@ -79,10 +82,11 @@ export default function Tournee() {
 
   if (!user) return null;
 
-  const initials = `${user.prenom?.[0] ?? ''}${user.nom?.[0] ?? ''}`.toUpperCase();
-  const notifCount = 0; // wire to real notifications endpoint later
+  // Clochette = nombre de commandes à réceptionner pour l'utilisateur courant.
+  const notifCount = qARecep.data?.length ?? 0;
 
   const onRefresh = () => {
+    qARecep.refetch();
     qLiv.refetch();
     qEnc.refetch();
     qEncours.refetch();
@@ -117,20 +121,32 @@ export default function Tournee() {
           <View className="flex-row items-center gap-2">
             <Pressable
               hitSlop={6}
+              onPress={() => router.push('/(livreur)/cash/commandes/a-receptionner' as never)}
+              accessibilityRole="button"
+              accessibilityLabel="Commandes à réceptionner"
               className="w-10 h-10 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 items-center justify-center active:opacity-70"
             >
               <Bell color="#475569" size={18} />
               {notifCount > 0 ? (
-                <View className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 items-center justify-center">
-                  <Text className="text-white text-[9px] font-bold">{notifCount}</Text>
+                <View
+                  className="absolute -top-1 -right-1 h-4 px-1 rounded-full bg-red-500 items-center justify-center"
+                  style={{ minWidth: 16 }}
+                >
+                  <Text className="text-white text-[9px] font-bold">
+                    {notifCount > 99 ? '99+' : notifCount}
+                  </Text>
                 </View>
               ) : null}
             </Pressable>
-            <View className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
-              <Text className="text-emerald-700 dark:text-emerald-400 font-extrabold text-xs">
-                {initials || '?'}
-              </Text>
-            </View>
+            <Pressable
+              hitSlop={6}
+              onPress={() => router.push('/(livreur)/profil/infos' as never)}
+              accessibilityRole="button"
+              accessibilityLabel="Modifier mes infos"
+              className="active:opacity-70"
+            >
+              <Avatar prenom={user.prenom} nom={user.nom} photoUrl={user.photoUrl} size={40} />
+            </Pressable>
           </View>
         </View>
 
@@ -233,7 +249,7 @@ export default function Tournee() {
           />
           <ActionCard
             icon={RotateCcw}
-            label="Retour"
+            label="Retour produit"
             onPress={() => router.push('/(livreur)/cash/retour-client' as never, { withAnchor: true })}
           />
         </View>

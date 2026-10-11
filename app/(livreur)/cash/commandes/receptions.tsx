@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { ScrollView, View, Text } from 'react-native';
+import { View, Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import { PageHeader } from '../../../../components/shared/PageHeader';
+import { FormScreen } from '../../../../components/shared/FormScreen';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import {
   CarteReception,
@@ -142,7 +143,7 @@ export default function ReceptionsCommande() {
         subtitle={`${commande.reference} · ${commande.fournisseur.libelle}`}
         fallback={fallback}
       />
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+      <FormScreen>
         <View className="px-4 pt-2 gap-2">
           {commande.receptions.length === 0 ? (
             <EmptyState title="Aucune réception" />
@@ -174,7 +175,7 @@ export default function ReceptionsCommande() {
             )
           )}
         </View>
-      </ScrollView>
+      </FormScreen>
     </View>
   );
 }

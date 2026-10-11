@@ -4,6 +4,8 @@ import { router } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
+import { SearchInput } from '../../../../components/shared/SearchInput';
+import { AUCUN_RESULTAT, filtrerRecherche } from '../../../../lib/recherche';
 import {
   CommandeStatusBadge,
   ReglementBadge,
@@ -23,14 +25,17 @@ export default function CommandesList() {
   const isRootLivreur = !!user && !user.parentId;
   const q = useMesCommandes(isRootLivreur);
   const [filtre, setFiltre] = useState<FiltreStatutCommande>('TOUTES');
+  const [recherche, setRecherche] = useState('');
 
   // Plus récentes d'abord, puis filtre par statut.
   const visibles = useMemo(() => {
     const triees = [...(q.data ?? [])].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );
-    return filtre === 'TOUTES' ? triees : triees.filter((c) => c.statut === filtre);
-  }, [q.data, filtre]);
+    const parStatut = filtre === 'TOUTES' ? triees : triees.filter((c) => c.statut === filtre);
+    // Recherche par référence ou fournisseur.
+    return filtrerRecherche(parStatut, recherche, (c) => [c.reference, c.fournisseur?.libelle]);
+  }, [q.data, filtre, recherche]);
 
   if (!user) return null;
 
@@ -90,7 +95,17 @@ export default function CommandesList() {
         ))}
       </ScrollView>
 
+      <View className="px-4 pt-2">
+        <SearchInput
+          value={recherche}
+          onChangeText={setRecherche}
+          placeholder="Référence ou fournisseur…"
+        />
+      </View>
+
       <FlatList
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         data={visibles}
         keyExtractor={(c) => c.id}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}
@@ -107,6 +122,10 @@ export default function CommandesList() {
           ) : q.isError ? (
             <Text className="text-red-600 dark:text-red-400 text-sm px-1 pt-4">
               {extractApiErrorMessage(q.error, 'Commandes indisponibles')}
+            </Text>
+          ) : recherche.trim() ? (
+            <Text className="text-slate-400 dark:text-slate-500 text-sm text-center pt-6">
+              {AUCUN_RESULTAT}
             </Text>
           ) : (
             <EmptyState

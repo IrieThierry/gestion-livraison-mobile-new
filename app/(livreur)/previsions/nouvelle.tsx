@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
@@ -12,8 +11,12 @@ import { dialog } from '../../../lib/dialog';
 import { Plus } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { SelectField } from '../../../components/shared/SelectField';
+import { FormScreen } from '../../../components/shared/FormScreen';
+import { SearchInput } from '../../../components/shared/SearchInput';
 import { DatePickerField } from '../../../components/shared/DatePickerField';
-import { useClientsByLivreur } from '../../../features/clients/hooks';
+import { useClientsByLivreur, useEncoursByLivreur } from '../../../features/clients/hooks';
+import { optionsClients, soldesParClient } from '../../../features/clients/affichage';
+import { AUCUN_RESULTAT, filtrerRecherche } from '../../../lib/recherche';
 import { useProduits } from '../../../features/produits/hooks';
 import { useCreerPrevision } from '../../../features/previsions/hooks';
 import { useAuthStore } from '../../../stores/authStore';
@@ -38,19 +41,24 @@ export default function NouvellePrevision() {
   const [date, setDate] = useState<string | null>(params.date ?? tomorrow);
   const [qtes, setQtes] = useState<Record<string, string>>({});
   const [commentaire, setCommentaire] = useState('');
+  const [rechercheProduit, setRechercheProduit] = useState('');
 
   const clientsQ = useClientsByLivreur(livreurId);
+  const encoursQ = useEncoursByLivreur(livreurId);
   const produitsQ = useProduits();
   const m = useCreerPrevision();
   const retourListe = useRetourListe('/(livreur)/previsions');
 
   const clientOptions = useMemo(
     () =>
-      (clientsQ.data ?? []).map((c) => ({
-        id: c.id,
-        label: `${c.prenom} ${c.nom}`,
-      })),
-    [clientsQ.data],
+      optionsClients(clientsQ.data ?? [], soldesParClient(encoursQ.data)),
+    [clientsQ.data, encoursQ.data],
+  );
+
+  // Filtre d'affichage seulement : les quantités déjà saisies restent comptées.
+  const produitsAffiches = useMemo(
+    () => filtrerRecherche(produitsQ.data ?? [], rechercheProduit, (p) => [p.designation, p.code]),
+    [produitsQ.data, rechercheProduit],
   );
 
   const lignesAvecQte = useMemo(() => {
@@ -109,7 +117,7 @@ export default function NouvellePrevision() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader retourVers="/(livreur)/previsions" title="Nouvelle prévision" subtitle="Multi-produits par client" />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <FormScreen>
         <View className="px-4 pt-3 gap-3">
           {/* Client */}
           <SelectField
@@ -133,8 +141,18 @@ export default function NouvellePrevision() {
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-2">
             Quantités estimées
           </Text>
+          <SearchInput
+            value={rechercheProduit}
+            onChangeText={setRechercheProduit}
+            placeholder="Rechercher un produit…"
+          />
           <View className="gap-2">
-            {(produitsQ.data ?? []).map((p) => (
+            {produitsAffiches.length === 0 && rechercheProduit.trim() ? (
+              <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center py-3">
+                {AUCUN_RESULTAT}
+              </Text>
+            ) : null}
+            {produitsAffiches.map((p) => (
               <View
                 key={p.id}
                 className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 flex-row items-center gap-2"
@@ -212,7 +230,7 @@ export default function NouvellePrevision() {
             )}
           </Pressable>
         </View>
-      </ScrollView>
+      </FormScreen>
     </View>
   );
 }

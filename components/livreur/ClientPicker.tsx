@@ -1,10 +1,23 @@
-import { useState } from 'react';
-import { View, Text, TextInput, Pressable, Modal, FlatList } from 'react-native';
+import { useMemo, useState } from 'react';
+import { View, Text, Pressable, Modal, FlatList } from 'react-native';
 import { X } from 'lucide-react-native';
-import { useClientsByLivreur } from '../../features/clients/hooks';
+import { useClientsByLivreur, useEncoursByLivreur } from '../../features/clients/hooks';
+import {
+  champsRechercheClient,
+  indiceClient,
+  nomClient,
+  soldesParClient,
+} from '../../features/clients/affichage';
+import { AUCUN_RESULTAT, filtrerRecherche } from '../../lib/recherche';
 import { useAuthStore } from '../../stores/authStore';
+import { SearchInput } from '../shared/SearchInput';
 import type { ClientResponse } from '../../types/api';
 
+/**
+ * Choix d'un client : nom, puis « quartier · contact · Dû X FCFA » (solde
+ * serveur, « Avance » si négatif, omis si nul ou non chargé). Recherche sur
+ * nom, prénom, quartier et contact. Ordre alphabétique du back conservé.
+ */
 export function ClientPicker({
   value,
   onChange,
@@ -17,12 +30,13 @@ export function ClientPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const { data = [], isLoading } = useClientsByLivreur(livreurId);
+  const qEncours = useEncoursByLivreur(livreurId);
+  const soldes = useMemo(() => soldesParClient(qEncours.data), [qEncours.data]);
 
-  const filtered = query
-    ? data.filter((c) =>
-        `${c.prenom} ${c.nom}`.toLowerCase().includes(query.toLowerCase()),
-      )
-    : data;
+  const filtered = useMemo(
+    () => filtrerRecherche(data, query, champsRechercheClient),
+    [data, query],
+  );
 
   return (
     <>
@@ -37,8 +51,13 @@ export function ClientPicker({
               : 'text-slate-400 text-base'
           }
         >
-          {value ? `${value.prenom} ${value.nom}` : 'Choisir un client'}
+          {value ? nomClient(value) : 'Choisir un client'}
         </Text>
+        {value ? (
+          <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            {indiceClient(value, soldes.get(value.id)) || '—'}
+          </Text>
+        ) : null}
       </Pressable>
 
       <Modal
@@ -57,40 +76,43 @@ export function ClientPicker({
             </Pressable>
           </View>
 
-          <TextInput
+          <SearchInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Rechercher…"
-            placeholderTextColor="#94a3b8"
+            placeholder="Nom, quartier, contact…"
             autoFocus
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2.5 text-slate-900 dark:text-white text-base"
           />
 
           <FlatList
             data={filtered}
             keyExtractor={(c) => c.id}
             className="mt-3"
+            keyboardShouldPersistTaps="handled"
             ListEmptyComponent={
               <Text className="text-slate-500 dark:text-slate-400 text-center mt-12">
-                {isLoading ? 'Chargement…' : 'Aucun client'}
+                {isLoading ? 'Chargement…' : query.trim() ? AUCUN_RESULTAT : 'Aucun client'}
               </Text>
             }
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => {
-                  onChange(item);
-                  setOpen(false);
-                }}
-                className="py-3 border-b border-slate-200 dark:border-slate-800 active:opacity-60"
-              >
-                <Text className="font-extrabold text-slate-900 dark:text-white">
-                  {item.prenom} {item.nom}
-                </Text>
-                <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {item.quartier?.libelle ?? '—'}
-                </Text>
-              </Pressable>
-            )}
+            renderItem={({ item }) => {
+              const hint = indiceClient(item, soldes.get(item.id));
+              return (
+                <Pressable
+                  onPress={() => {
+                    onChange(item);
+                    setOpen(false);
+                    setQuery('');
+                  }}
+                  className="py-3 border-b border-slate-200 dark:border-slate-800 active:opacity-60"
+                >
+                  <Text className="font-extrabold text-slate-900 dark:text-white">
+                    {nomClient(item)}
+                  </Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {hint || '—'}
+                  </Text>
+                </Pressable>
+              );
+            }}
           />
         </View>
       </Modal>

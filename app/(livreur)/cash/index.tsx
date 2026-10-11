@@ -122,8 +122,8 @@ export default function CashOverview() {
             <CashMenuRow
               icon={RotateCcw}
               color="#f59e0b"
-              label="Retours"
-              hint="Liste des retours par client + filtres"
+              label="Retours produits"
+              hint="Liste des retours produits par client + filtres"
               onPress={() => router.push('/(livreur)/cash/retours' as never)}
               border
             />

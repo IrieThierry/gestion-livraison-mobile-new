@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   Pressable,
@@ -12,6 +11,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
+import { FormScreen } from '../../../components/shared/FormScreen';
 import { ClientPicker } from '../../../components/livreur/ClientPicker';
 import { ProduitPicker, type Ligne } from '../../../components/livreur/ProduitPicker';
 import { useCreerLivraison } from '../../../features/livraisons/hooks';
@@ -157,8 +157,7 @@ export default function NouvelleLivraison() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader title="Nouvelle livraison" retourVers={LISTE_LIVRAISONS} />
 
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 32 }}
+      <FormScreen
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -232,7 +231,7 @@ export default function NouvelleLivraison() {
             )}
           </Pressable>
         </View>
-      </ScrollView>
+      </FormScreen>
     </View>
   );
 }

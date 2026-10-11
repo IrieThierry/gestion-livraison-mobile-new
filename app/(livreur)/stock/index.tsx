@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowLeftRight, Users, ArrowRight, History } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
+import { SearchInput } from '../../../components/shared/SearchInput';
+import { AUCUN_RESULTAT, filtrerRecherche } from '../../../lib/recherche';
 import { useStockCourant } from '../../../features/stock/hooks';
 import { useAuthStore } from '../../../stores/authStore';
 
@@ -22,6 +25,7 @@ import { useAuthStore } from '../../../stores/authStore';
 export default function StockCourant() {
   const user = useAuthStore((s) => s.user);
   const q = useStockCourant();
+  const [recherche, setRecherche] = useState('');
   // Tri stable alphabétique par désignation produit
   const items = [...(q.data ?? [])].sort((a, b) =>
     (a.produit?.designation ?? '').localeCompare(
@@ -29,6 +33,11 @@ export default function StockCourant() {
       'fr',
     ),
   );
+
+  const itemsAffiches = filtrerRecherche(items, recherche, (s) => [
+    s.produit?.designation,
+    s.produit?.code,
+  ]);
 
   if (!user) return null;
 
@@ -50,6 +59,8 @@ export default function StockCourant() {
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: 32 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
@@ -69,7 +80,7 @@ export default function StockCourant() {
             </Text>
             <Text className="text-xs text-white/90 mt-1">
               {items.length} produit{items.length > 1 ? 's' : ''}
-              {totalRetours > 0 ? ` · ${totalRetours} retours sur période` : ''}
+              {totalRetours > 0 ? ` · ${totalRetours} retours produits sur période` : ''}
             </Text>
           </View>
 
@@ -136,6 +147,14 @@ export default function StockCourant() {
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
             Par produit
           </Text>
+          {items.length > 0 ? (
+            <SearchInput
+              value={recherche}
+              onChangeText={setRecherche}
+              placeholder="Rechercher un produit…"
+              className="mb-2"
+            />
+          ) : null}
 
           {q.isLoading ? (
             <Text className="text-slate-400 text-sm">Chargement…</Text>
@@ -144,9 +163,13 @@ export default function StockCourant() {
               title="Stock vide"
               message="Le stock entre par la réception d'une commande, un transfert ou un retour remis en stock."
             />
+          ) : itemsAffiches.length === 0 ? (
+            <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center py-4">
+              {AUCUN_RESULTAT}
+            </Text>
           ) : (
             <View className="gap-2">
-              {items.map((it) => {
+              {itemsAffiches.map((it) => {
                 const designation = it.produit?.designation ?? '—';
                 const code = it.produit?.code ?? '';
                 const qte = it.qteVendable ?? 0;

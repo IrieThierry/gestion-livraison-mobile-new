@@ -1,8 +1,10 @@
-import { useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { ScrollView, View, Text, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
+import { SearchInput } from '../../../components/shared/SearchInput';
+import { AUCUN_RESULTAT, filtrerRecherche } from '../../../lib/recherche';
 import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import {
@@ -52,6 +54,11 @@ export default function MesFournisseurs() {
   const mInviter = useInviterFournisseur();
   const mAnnuler = useAnnulerInvitation();
   const verrou = useRef(creerVerrou()).current;
+  const [recherche, setRecherche] = useState('');
+  const fournisseursAffiches = useMemo(
+    () => filtrerRecherche(q.data ?? [], recherche, (f) => [f.libelle, f.code, f.interlocuteur]),
+    [q.data, recherche],
+  );
 
   const agir = (f: FournisseurAvecRelation, action: ActionRelation) => {
     const lancer = () =>
@@ -96,6 +103,8 @@ export default function MesFournisseurs() {
       <PageHeader title="Mes fournisseurs" fallback="/(livreur)/profil" />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 32 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => q.refetch()} />}
       >
         <View className="px-4 gap-2">
@@ -104,14 +113,25 @@ export default function MesFournisseurs() {
               {MESSAGE_ENTETE_APPRENTI}
             </Text>
           ) : null}
+          {fournisseurs.length > 0 ? (
+            <SearchInput
+              value={recherche}
+              onChangeText={setRecherche}
+              placeholder="Rechercher un fournisseur…"
+            />
+          ) : null}
           {q.isError ? (
             <Text className="text-red-500 text-sm">
               {extractApiErrorMessage(q.error, 'Fournisseurs indisponibles')}
             </Text>
           ) : fournisseurs.length === 0 ? (
             <EmptyState title="Aucun fournisseur" />
+          ) : fournisseursAffiches.length === 0 ? (
+            <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center py-4">
+              {AUCUN_RESULTAT}
+            </Text>
           ) : (
-            fournisseurs.map((f) => {
+            fournisseursAffiches.map((f) => {
               const etat = etatRelation(f);
               const action = actionPermise(etat, estPrincipal);
               const style = STYLES_ETAT[etat];
