@@ -4,7 +4,7 @@ import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { ProduitVignette } from '../../../components/shared/ProduitVignette';
 import { useMouvementsStock } from '../../../features/stock/hooks';
-import { filtresDuJour, produitsVendus } from '../../../features/accueil/regles';
+import { jourLocal, produitsVendus } from '../../../features/accueil/regles';
 import { useAuthStore } from '../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 
@@ -17,7 +17,9 @@ import { extractApiErrorMessage } from '../../../lib/api-error';
 export default function ProduitsVendusAujourdhui() {
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
-  const filtres = useMemo(() => filtresDuJour(), []);
+  // Jour recalculé à chaque rendu (comme l'accueil) : la page reste juste après minuit.
+  const jour = jourLocal();
+  const filtres = useMemo(() => ({ debut: jour, fin: jour }), [jour]);
   const q = useMouvementsStock(livreurId, filtres);
   const lignes = useMemo(() => produitsVendus(q.data ?? [], filtres.debut), [q.data, filtres.debut]);
   const total = lignes.reduce((a, l) => a + l.quantite, 0);

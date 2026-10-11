@@ -9,10 +9,10 @@ jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), dismissTo: jest.fn(), canGoBack: () => true },
   useNavigation: () => ({ getState: () => undefined }),
 }));
-jest.mock('../../stores/authStore', () => {
-  const user = { id: 'liv-1', prenom: 'Awa', nom: 'Kone', parentId: null, statut: 'ACTIF' };
-  return { useAuthStore: (sel: (s: unknown) => unknown) => sel({ user }) };
-});
+let mockUser: Record<string, unknown> = { id: 'liv-1', prenom: 'Awa', nom: 'Kone', parentId: null, statut: 'ACTIF' };
+jest.mock('../../stores/authStore', () => ({
+  useAuthStore: (sel: (s: unknown) => unknown) => sel({ user: mockUser }),
+}));
 const lecture = (data: unknown, etat: Record<string, unknown> = {}) => ({
   data,
   isLoading: false,
@@ -56,6 +56,7 @@ const mv = (type: TypeMouvementStock, designation: string, quantite: number): Mo
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockUser = { id: 'liv-1', prenom: 'Awa', nom: 'Kone', parentId: null, statut: 'ACTIF' };
   livraisons.mockReturnValue(lecture([]));
 });
 
@@ -88,7 +89,15 @@ describe('Accueil : chiffres cliquables de la carte verte', () => {
     fireEvent.press(screen.getByLabelText('Produits vendus : 0'));
     expect(router.push).toHaveBeenLastCalledWith('/(livreur)/livraisons/produits-vendus');
     fireEvent.press(screen.getByLabelText('Réceptionnés : 0'));
-    expect(router.push).toHaveBeenLastCalledWith('/(livreur)/cash/commandes/receptions');
+    expect(router.push).toHaveBeenLastCalledWith('/(livreur)/cash/commandes');
+  });
+
+  it('apprenti : Réceptionnés ouvre les commandes à réceptionner', () => {
+    mockUser = { ...mockUser, parentId: 'p' };
+    mouvements.mockReturnValue(lecture([]));
+    render(<Tournee />);
+    fireEvent.press(screen.getByLabelText('Réceptionnés : 0'));
+    expect(router.push).toHaveBeenLastCalledWith('/(livreur)/cash/commandes/a-receptionner');
   });
 
   it('chargement : « … » ; erreur : « — »', () => {

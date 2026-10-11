@@ -184,9 +184,9 @@ describe('filtres dans le document et le PDF', () => {
   it('le type de mouvement figure dans l’en-tête mais pas dans le nom du fichier', () => {
     const doc = documentStock(calculerEtatStock([], [], P), {
       ...entete,
-      filtres: { client: null, produit: null, fournisseur: null, typeMouvement: { id: 'RETOUR_EN_STOCK', label: 'Retour produit' } },
+      filtres: { client: null, produit: null, fournisseur: null, typeMouvement: { id: 'RETOUR_EN_STOCK', label: 'Retour en stock' } },
     });
-    expect(doc.filtres).toEqual([{ libelle: 'Type de mouvement', valeur: 'Retour produit' }]);
+    expect(doc.filtres).toEqual([{ libelle: 'Type de mouvement', valeur: 'Retour en stock' }]);
     expect(doc.nomFichier).toBe('Stock-Mouvements_Awa-Kone_2026-10-01_au_2026-10-31');
   });
 });

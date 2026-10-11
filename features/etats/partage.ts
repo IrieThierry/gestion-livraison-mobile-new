@@ -10,16 +10,21 @@ export const MESSAGE_PARTAGE_INDISPONIBLE = 'Le partage n’est pas disponible s
  * Renomme le PDF produit par `expo-print` (nom aléatoire) en
  * `<cache>/<nomFichier>.pdf`, pour que WhatsApp, l'e-mail ou les Fichiers
  * montrent un nom parlant. Un fichier du même nom est écrasé. Sans dossier
- * de cache connu, le fichier d'origine est gardé.
+ * de cache connu, ou si le renommage échoue (stockage plein, droits…), le
+ * fichier d'origine est gardé : le partage ne doit pas échouer pour un nom.
  */
 export async function renommerPdf(uri: string, nomFichier: string): Promise<string> {
   const dossier = FileSystem.cacheDirectory;
   if (!dossier || !nomFichier) return uri;
   const destination = `${dossier.endsWith('/') ? dossier : `${dossier}/`}${nomFichier}.pdf`;
   if (destination === uri) return uri;
-  await FileSystem.deleteAsync(destination, { idempotent: true });
-  await FileSystem.moveAsync({ from: uri, to: destination });
-  return destination;
+  try {
+    await FileSystem.deleteAsync(destination, { idempotent: true });
+    await FileSystem.moveAsync({ from: uri, to: destination });
+    return destination;
+  } catch {
+    return uri;
+  }
 }
 
 /**

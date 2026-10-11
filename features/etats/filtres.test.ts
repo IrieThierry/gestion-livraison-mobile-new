@@ -52,9 +52,9 @@ describe('options des filtres', () => {
     expect(OPTIONS_TYPES_MOUVEMENT.map((t) => t.label)).toEqual([
       'Réception',
       'Livraison',
-      'Retour produit',
-      'Transfert entrée',
-      'Transfert sortie',
+      'Retour en stock',
+      'Transfert reçu',
+      'Transfert envoyé',
       'Ajustement',
     ]);
     expect(o.typesMouvement).toBe(OPTIONS_TYPES_MOUVEMENT);

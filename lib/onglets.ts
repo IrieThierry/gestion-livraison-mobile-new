@@ -51,3 +51,28 @@ export function actionRacineOnglet(
   if (routes.length > 1) return { type: 'POP_TO_TOP', target: pile.key };
   return null;
 }
+
+/** Sous-ensemble de la `navigation` d'un écran d'onglet utilisé par le listener. */
+export interface NavigationOnglet {
+  getState?: () => EtatOnglets | undefined;
+  isFocused?: () => boolean;
+  dispatch?: (action: ActionRacineOnglet) => void;
+}
+
+/**
+ * Fabrique des `listeners` d'un `Tabs.Screen` : sur `tabPress`, ramène la
+ * pile de l'onglet à sa racine (`actionRacineOnglet`).
+ *  - onglet déjà actif : `preventDefault` (seule la pile change) ;
+ *  - onglet inactif : le comportement par défaut affiche l'onglet, pile vidée ;
+ *  - rien à faire : ni dispatch ni `preventDefault`.
+ */
+export function listenersRacineOnglet() {
+  return ({ navigation, route }: { navigation: NavigationOnglet; route: { key: string } }) => ({
+    tabPress: (e: { preventDefault: () => void }) => {
+      const action = actionRacineOnglet(navigation?.getState?.(), route.key);
+      if (!action) return;
+      if (navigation.isFocused?.()) e.preventDefault();
+      navigation.dispatch?.(action);
+    },
+  });
+}

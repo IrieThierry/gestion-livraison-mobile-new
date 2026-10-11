@@ -28,7 +28,7 @@ export const ENTITE_TOUS = 'Tous-les-livreurs';
 export function assainirSegment(texte: string | null | undefined): string {
   return String(texte ?? '')
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^A-Za-z0-9-]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '');

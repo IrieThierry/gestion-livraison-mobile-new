@@ -65,6 +65,16 @@ describe('partagerPdfEtat', () => {
 describe('renommerPdf', () => {
   beforeEach(() => jest.clearAllMocks());
 
+  it('renommage en échec : partage du fichier d’origine', async () => {
+    disponible.mockResolvedValue(true);
+    printToFile.mockResolvedValue({ uri: 'file:///cache/Print/abc.pdf', numberOfPages: 1 });
+    supprimer.mockResolvedValue(undefined);
+    deplacer.mockRejectedValue(new Error('Stockage plein'));
+    partager.mockResolvedValue(undefined);
+    await expect(partagerPdfEtat(doc)).resolves.toBe('file:///cache/Print/abc.pdf');
+    expect(partager.mock.calls[0][0]).toBe('file:///cache/Print/abc.pdf');
+  });
+
   it('sans nom : fichier d’origine gardé', async () => {
     await expect(renommerPdf('file:///cache/x.pdf', '')).resolves.toBe('file:///cache/x.pdf');
     expect(deplacer).not.toHaveBeenCalled();

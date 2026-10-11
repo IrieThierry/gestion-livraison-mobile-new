@@ -8,31 +8,10 @@ import { FabSheet } from '../../components/livreur/FabSheet';
 import { useNetworkStore } from '../../stores/networkStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useThemeStore } from '../../stores/themeStore';
-import { actionRacineOnglet } from '../../lib/onglets';
-
-/**
- * Un appui sur un onglet (actif ou non) ouvre toujours sa page principale :
- * si la pile interne de l'onglet a des sous-routes, on la ramène à sa racine
- * (`actionRacineOnglet`, action ciblée sur la **pile interne**, qui la gère —
- * pas sur le Tabs navigator, qui déclencherait un warning). Rien n'est envoyé
- * quand la pile est déjà sur sa racine. Onglet inactif : l'appui garde son
- * comportement par défaut (afficher l'onglet), la pile étant déjà vidée.
- * Cas couvert : Accueil → avatar → Mes infos, puis onglet Accueil, puis
- * onglet Moi ⇒ menu Moi (et non plus « Mes infos »).
- * On évite `router.replace(path)` qui peut casser le navigation context
- * pendant l'unmount d'un écran enfant.
- */
-function ouvrirRacineOnglet() {
-  return ({ navigation, route }: { navigation: any; route: { key: string } }) => ({
-    tabPress: (e: { preventDefault: () => void }) => {
-      const action = actionRacineOnglet(navigation?.getState?.(), route.key);
-      if (!action) return;
-      // Onglet déjà actif : seule la pile change (pas de re-navigation vers l'onglet).
-      if (navigation.isFocused?.()) e.preventDefault();
-      navigation.dispatch?.(action);
-    },
-  });
-}
+// Un appui sur un onglet (actif ou non) ouvre toujours sa page principale
+// (cf. lib/onglets.ts) : Accueil → avatar → Mes infos, puis onglet Accueil,
+// puis onglet Moi ⇒ menu Moi.
+import { listenersRacineOnglet } from '../../lib/onglets';
 
 export default function LivreurLayout() {
   const [fabOpen, setFabOpen] = useState(false);
@@ -89,7 +68,7 @@ export default function LivreurLayout() {
             title: 'Tournée',
             tabBarIcon: ({ color }) => <TrendingUp color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={ouvrirRacineOnglet()}
+          listeners={listenersRacineOnglet()}
         />
         <Tabs.Screen
           name="clients"
@@ -97,7 +76,7 @@ export default function LivreurLayout() {
             title: 'Clients',
             tabBarIcon: ({ color }) => <Users color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={ouvrirRacineOnglet()}
+          listeners={listenersRacineOnglet()}
         />
         <Tabs.Screen
           name="fab"
@@ -136,7 +115,7 @@ export default function LivreurLayout() {
             title: 'Livraisons',
             tabBarIcon: ({ color }) => <Truck color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={ouvrirRacineOnglet()}
+          listeners={listenersRacineOnglet()}
         />
         <Tabs.Screen
           name="profil"
@@ -144,7 +123,7 @@ export default function LivreurLayout() {
             title: 'Moi',
             tabBarIcon: ({ color }) => <User color={color} size={23} strokeWidth={2.2} />,
           }}
-          listeners={ouvrirRacineOnglet()}
+          listeners={listenersRacineOnglet()}
         />
         {/* Hidden routes — accessible via le menu « Accéder à » (FAB), stat cards, links, or programmatic push */}
         <Tabs.Screen name="cash" options={{ href: null }} />

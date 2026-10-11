@@ -1,4 +1,4 @@
-import { actionRacineOnglet, type EtatOnglets } from './onglets';
+import { actionRacineOnglet, listenersRacineOnglet, type EtatOnglets } from './onglets';
 
 /** Navigateur d'onglets : Tournée (écran simple), Moi (pile), Livraisons (pile). */
 function onglets(pileMoi?: string[], pileLivraisons?: string[]): EtatOnglets {
@@ -55,5 +55,34 @@ describe('actionRacineOnglet', () => {
 
   it("n'agit que sur l'onglet appuyé", () => {
     expect(actionRacineOnglet(onglets(['index', 'infos'], ['index']), 'livraisons-k')).toBeNull();
+  });
+});
+
+describe('listenersRacineOnglet (tabPress)', () => {
+  const appui = (etat: EtatOnglets, routeKey: string, actif: boolean) => {
+    const navigation = { getState: () => etat, isFocused: () => actif, dispatch: jest.fn() };
+    const e = { preventDefault: jest.fn() };
+    listenersRacineOnglet()({ navigation, route: { key: routeKey } }).tabPress(e);
+    return { dispatch: navigation.dispatch, preventDefault: e.preventDefault };
+  };
+
+  it('onglet inactif avec sous-routes : pile vidée, onglet affiché par défaut', () => {
+    const { dispatch, preventDefault } = appui(onglets(['index', 'infos']), 'profil-k', false);
+    expect(dispatch).toHaveBeenCalledWith({ type: 'POP_TO_TOP', target: 'pile-moi' });
+    expect(preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('onglet actif avec sous-routes : pile vidée sans re-navigation', () => {
+    const { dispatch, preventDefault } = appui(onglets(['index', 'infos']), 'profil-k', true);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it('pile déjà sur la racine : ni dispatch ni preventDefault', () => {
+    for (const actif of [true, false]) {
+      const { dispatch, preventDefault } = appui(onglets(['index']), 'profil-k', actif);
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(preventDefault).not.toHaveBeenCalled();
+    }
   });
 });

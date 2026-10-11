@@ -192,7 +192,14 @@ export default function Tournee() {
             <SousCarte
               libelle="Réceptionnés"
               valeur={chiffreAccueil(qMv, recus)}
-              onPress={() => router.push('/(livreur)/cash/commandes/receptions' as never)}
+              // Commandes (et leurs réceptions) ; apprenti : commandes à réceptionner, comme le menu « Accéder à ».
+              onPress={() =>
+                router.push(
+                  (user.parentId
+                    ? '/(livreur)/cash/commandes/a-receptionner'
+                    : '/(livreur)/cash/commandes') as never,
+                )
+              }
             />
           </View>
         </View>
@@ -315,7 +322,12 @@ function SousCarte({
       accessibilityLabel={`${libelle} : ${valeur}`}
       className="flex-1 bg-white/15 rounded-xl px-3 py-2 active:opacity-70"
     >
-      <Text className="text-[10px] uppercase font-bold tracking-wider text-white/90">
+      <Text
+        className="text-[10px] uppercase font-bold tracking-wide text-white/90"
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.8}
+      >
         {libelle}
       </Text>
       <Text className="text-white font-extrabold text-lg">{valeur}</Text>

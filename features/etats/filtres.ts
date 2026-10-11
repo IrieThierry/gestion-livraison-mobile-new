@@ -11,6 +11,7 @@ import type {
 import type { FamilleEtat } from './acces';
 import { nomPersonne, type FiltresEtat } from './calculs/commun';
 import { ORDRE_TYPES, type LigneStockSource } from './calculs/stock';
+import { libelleTypeMouvement } from '../stock/regles';
 
 /**
  * Filtres d'entité des états : options des listes (tirées des données déjà
@@ -51,19 +52,13 @@ export const AUCUN_FILTRE: ChoixFiltres = {
 export const ID_TOUS = '__tous__';
 export const OPTION_TOUS: OptionFiltre = { id: ID_TOUS, label: 'Tous' };
 
-/** Libellés des types de mouvement dans le filtre et l'en-tête des états. */
-export const LIBELLES_TYPE_FILTRE: Record<TypeMouvementStock, string> = {
-  RECEPTION: 'Réception',
-  LIVRAISON: 'Livraison',
-  RETOUR_EN_STOCK: 'Retour produit',
-  TRANSFERT_ENTREE: 'Transfert entrée',
-  TRANSFERT_SORTIE: 'Transfert sortie',
-  AJUSTEMENT: 'Ajustement',
-};
-
+/**
+ * Types de mouvement du filtre : mêmes libellés que les tableaux de l'état,
+ * la page Stock et le web (`libelleTypeMouvement`).
+ */
 export const OPTIONS_TYPES_MOUVEMENT: OptionFiltre[] = ORDRE_TYPES.map((t) => ({
   id: t,
-  label: LIBELLES_TYPE_FILTRE[t],
+  label: libelleTypeMouvement(t),
 }));
 
 /** Options uniques (par identifiant), triées par libellé ; sans identifiant ni libellé : écartées. */
