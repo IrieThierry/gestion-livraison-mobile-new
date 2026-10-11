@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
@@ -12,6 +11,7 @@ import { Check } from 'lucide-react-native';
 import { dialog } from '../../../lib/dialog';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../../../components/shared/PageHeader';
+import { FormScreen } from '../../../components/shared/FormScreen';
 import { SelectField } from '../../../components/shared/SelectField';
 import { DatePickerField } from '../../../components/shared/DatePickerField';
 import { EmptyState } from '../../../components/shared/EmptyState';
@@ -168,9 +168,7 @@ export default function Versement() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader retourVers="/(livreur)/cash" title="Faire un versement" />
 
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 32 }}
-        keyboardShouldPersistTaps="handled"
+      <FormScreen
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10b981" />
         }
@@ -353,7 +351,7 @@ export default function Versement() {
             )}
           </Pressable>
         </View>
-      </ScrollView>
+      </FormScreen>
     </View>
   );
 }

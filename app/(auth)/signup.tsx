@@ -5,10 +5,8 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
 } from 'react-native';
+import { FormScreen } from '../../components/shared/FormScreen';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
@@ -93,15 +91,7 @@ export default function Signup() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1 }}
-          keyboardShouldPersistTaps="handled"
-          className="flex-1"
-        >
+      <FormScreen contentContainerStyle={{ flexGrow: 1 }} className="flex-1">
           <View className="px-6 pt-4 pb-8">
             {/* Back button */}
             <Pressable
@@ -315,8 +305,7 @@ export default function Signup() {
               </Text>
             </Pressable>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </FormScreen>
     </SafeAreaView>
   );
 }

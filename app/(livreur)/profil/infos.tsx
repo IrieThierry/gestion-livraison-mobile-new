@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
@@ -13,6 +12,7 @@ import { dialog } from '../../../lib/dialog';
 import { useMutation } from '@tanstack/react-query';
 import { Save, Camera, Trash2 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
+import { FormScreen } from '../../../components/shared/FormScreen';
 import { authApi } from '../../../features/auth/api';
 import { updateProfileSchema } from '../../../features/auth/schemas';
 import {
@@ -113,7 +113,7 @@ export default function ModifierInfos() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader title="Modifier mes infos" />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <FormScreen>
         <View className="px-4 gap-3 pt-3">
           {/* Photo de profil */}
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 items-center">
@@ -238,7 +238,7 @@ export default function ModifierInfos() {
             )}
           </Pressable>
         </View>
-      </ScrollView>
+      </FormScreen>
     </View>
   );
 }

@@ -196,7 +196,7 @@ export default function LivraisonDetail() {
                   </Text>
                   <Text className="text-slate-700 dark:text-slate-300 font-semibold">
                     {ligne.qteLivre} × {formatMontant(prixUnitaireClient(ligne))}
-                    {(ligne.qteRetourne ?? 0) > 0 ? ` · retour ${ligne.qteRetourne}` : ''}
+                    {(ligne.qteRetourne ?? 0) > 0 ? ` · retour produit ${ligne.qteRetourne}` : ''}
                   </Text>
                 </View>
               ))

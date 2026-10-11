@@ -1,6 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
@@ -10,6 +9,7 @@ import {
 import { dialog } from '../../../lib/dialog';
 import { CheckCircle2, AlertTriangle } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
+import { FormScreen } from '../../../components/shared/FormScreen';
 import { DatePickerField } from '../../../components/shared/DatePickerField';
 import { useEnregistrerCloture } from '../../../features/clotures/hooks';
 import {
@@ -103,7 +103,7 @@ export default function NouvelleCloture() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader retourVers="/(livreur)/clotures" title="Nouvelle clôture" subtitle="Fin de journée" />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <FormScreen>
         <View className="px-4 pt-3 gap-3">
           {/* Date */}
           <DatePickerField
@@ -236,7 +236,7 @@ export default function NouvelleCloture() {
             )}
           </Pressable>
         </View>
-      </ScrollView>
+      </FormScreen>
     </View>
   );
 }

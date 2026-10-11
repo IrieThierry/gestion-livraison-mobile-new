@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
@@ -12,6 +11,7 @@ import { dialog } from '../../../lib/dialog';
 import { useMutation } from '@tanstack/react-query';
 import { Eye, EyeOff, KeyRound } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
+import { FormScreen } from '../../../components/shared/FormScreen';
 import { authApi } from '../../../features/auth/api';
 import { changePasswordSchema } from '../../../features/auth/schemas';
 
@@ -65,7 +65,7 @@ export default function ChangerMotDePasse() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader title="Changer le mot de passe" />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <FormScreen>
         <View className="px-4 gap-3 pt-3">
           <PasswordField
             label="Mot de passe actuel *"
@@ -111,7 +111,7 @@ export default function ChangerMotDePasse() {
             )}
           </Pressable>
         </View>
-      </ScrollView>
+      </FormScreen>
     </View>
   );
 }

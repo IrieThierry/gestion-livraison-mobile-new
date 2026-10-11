@@ -19,7 +19,10 @@ import {
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { SelectField } from '../../../components/shared/SelectField';
-import { useClientsByLivreur } from '../../../features/clients/hooks';
+import { SearchInput } from '../../../components/shared/SearchInput';
+import { AUCUN_RESULTAT, filtrerRecherche } from '../../../lib/recherche';
+import { useClientsByLivreur, useEncoursByLivreur } from '../../../features/clients/hooks';
+import { optionsClients, soldesParClient } from '../../../features/clients/affichage';
 import { useRetours } from '../../../features/retours/hooks';
 import { derniersJours, moisEnCours } from '../../../features/retours/api';
 import {
@@ -70,6 +73,7 @@ export default function RetoursList() {
   const livreurId = user?.id ?? '';
 
   const qCli = useClientsByLivreur(livreurId);
+  const qEncours = useEncoursByLivreur(livreurId);
 
   const [periode, setPeriode] = useState<Periode>('mois');
   const [clientFilter, setClientFilter] = useState<string | null>(
@@ -83,15 +87,23 @@ export default function RetoursList() {
   const q = useRetours(filtres);
   const retours = useMemo(() => (q.data?.pages ?? []).flatMap((p) => p.contenu), [q.data]);
   const total = q.data?.pages[0]?.total ?? 0;
+  // Recherche locale sur les retours chargés : client, produit, réf. livraison.
+  const [recherche, setRecherche] = useState('');
+  const retoursAffiches = useMemo(
+    () =>
+      filtrerRecherche(retours, recherche, (r) => [
+        r.client.nom,
+        r.produit.designation,
+        r.livraison.reference,
+      ]),
+    [retours, recherche],
+  );
 
   const clientOptions = useMemo(
     () =>
-      [...(qCli.data ?? [])]
-        .sort((a, b) =>
-          `${a.prenom} ${a.nom}`.localeCompare(`${b.prenom} ${b.nom}`, 'fr'),
-        )
-        .map((c) => ({ id: c.id, label: `${c.prenom} ${c.nom}`.trim() })),
-    [qCli.data],
+      // Ordre alphabétique renvoyé par le back.
+      optionsClients(qCli.data ?? [], soldesParClient(qEncours.data)),
+    [qCli.data, qEncours.data],
   );
 
   const clientLabel = clientFilter
@@ -101,7 +113,7 @@ export default function RetoursList() {
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
-        title="Retours"
+        title="Retours produits"
         subtitle={clientLabel ?? 'Tous clients'}
         right={
           <Pressable
@@ -116,6 +128,8 @@ export default function RetoursList() {
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: 32 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl
             refreshing={q.isRefetching && !q.isFetchingNextPage}
@@ -167,6 +181,13 @@ export default function RetoursList() {
             ) : null}
           </View>
 
+          <SearchInput
+            value={recherche}
+            onChangeText={setRecherche}
+            placeholder="Client, produit, réf. livraison…"
+            className="mt-3"
+          />
+
           {/* Liste */}
           {q.isLoading ? (
             <View className="mt-6">
@@ -192,7 +213,12 @@ export default function RetoursList() {
             </View>
           ) : (
             <View className="gap-2 mt-3">
-              {retours.map((r) => {
+              {retoursAffiches.length === 0 ? (
+                <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center py-4">
+                  {AUCUN_RESULTAT}
+                </Text>
+              ) : null}
+              {retoursAffiches.map((r) => {
                 const correction = r.quantite < 0;
                 return (
                   <Pressable

@@ -61,7 +61,8 @@ const PERIODES: Array<{ key: Periode; label: string; days: number | null }> = [
 /**
  * Fiche client — design accordéon.
  *
- * Toujours visible : Hero + CTAs + KPIs + carte Prix.
+ * Toujours visible : Hero + CTAs (Livraison, Encaissement, Retour produit,
+ * puis Appeler / Y aller) + KPIs + carte Prix.
  * Sections pliables (collapsed par défaut, indépendantes les unes des
  * autres) :
  *   - 🏠 Info (carte GPS + infos perso : email, adresse, quartier, …)
@@ -189,6 +190,13 @@ export default function ClientDetail() {
     } as never, { withAnchor: true });
   };
 
+  // Retour produit : formulaire limité aux livraisons de ce client.
+  const onRetourProduit = () =>
+    router.push({
+      pathname: '/(livreur)/cash/retour-client' as never,
+      params: { clientId: client.id },
+    } as never, { withAnchor: true });
+
   // Σ dû net (serveur, avant paiements) des livraisons filtrées.
   const totalLivFiltrees = livFiltrees.reduce((acc, l) => acc + num(l.montantDu), 0);
   const totalEncFiltres = encFiltres.reduce(
@@ -278,8 +286,28 @@ export default function ClientDetail() {
             ) : null}
           </View>
 
-          {/* CTAs */}
+          {/* CTAs — actions métier d'abord, puis contact */}
           <View className="flex-row gap-2 mt-3">
+            <ActionBtn
+              label="Livraison"
+              icon={Truck}
+              color="#10b981"
+              onPress={onLivrer}
+            />
+            <ActionBtn
+              label="Encaissement"
+              icon={Banknote}
+              color="#f59e0b"
+              onPress={onEncaisser}
+            />
+            <ActionBtn
+              label="Retour produit"
+              icon={RotateCcw}
+              color="#d97706"
+              onPress={onRetourProduit}
+            />
+          </View>
+          <View className="flex-row gap-2 mt-2">
             <ActionBtn
               label="Appeler"
               icon={Phone}
@@ -293,18 +321,6 @@ export default function ClientDetail() {
               color="#3b82f6"
               disabled={!geo}
               onPress={() => geo && navigateTo(geo.lat, geo.lng, fullName)}
-            />
-            <ActionBtn
-              label="Livrer"
-              icon={Truck}
-              color="#10b981"
-              onPress={onLivrer}
-            />
-            <ActionBtn
-              label="Encaisser"
-              icon={Banknote}
-              color="#f59e0b"
-              onPress={onEncaisser}
             />
           </View>
 
@@ -355,7 +371,7 @@ export default function ClientDetail() {
             <ArrowRight color="#94a3b8" size={16} />
           </Pressable>
 
-          {/* Retours du client — raccourci vers la liste filtrée */}
+          {/* Retours produits du client — raccourci vers la liste filtrée */}
           {(() => {
             const nbRetours = livraisonsClient.reduce(
               (acc, l) =>
@@ -383,11 +399,11 @@ export default function ClientDetail() {
                 </View>
                 <View className="flex-1">
                   <Text className="font-extrabold text-slate-900 dark:text-white">
-                    Retours
+                    Retours produits
                   </Text>
                   <Text className="text-[11px] text-slate-500 dark:text-slate-400">
                     {nbRetours === 0
-                      ? 'Aucun retour enregistré'
+                      ? 'Aucun retour produit enregistré'
                       : `${nbRetours} ligne${nbRetours > 1 ? 's' : ''} · ${formatMontant(totalRetours)} F`}
                   </Text>
                 </View>

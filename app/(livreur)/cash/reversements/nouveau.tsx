@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
@@ -11,6 +10,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import { Building2, Users } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
+import { FormScreen } from '../../../../components/shared/FormScreen';
 import { DatePickerField } from '../../../../components/shared/DatePickerField';
 import { useEnregistrerReversement } from '../../../../features/reversements/hooks';
 import {
@@ -103,7 +103,7 @@ export default function NouveauReversement() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader retourVers="/(livreur)/cash/reversements" title="Nouveau reversement" subtitle={beneficiaireLabel} />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <FormScreen>
         <View className="px-4 pt-3 gap-3">
           {/* Bénéficiaire */}
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 flex-row items-center gap-3">
@@ -220,7 +220,7 @@ export default function NouveauReversement() {
             )}
           </Pressable>
         </View>
-      </ScrollView>
+      </FormScreen>
     </View>
   );
 }

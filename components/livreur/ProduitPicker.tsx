@@ -6,6 +6,8 @@ import { useStockCourant } from '../../features/stock/hooks';
 import { useResoudrePrix } from '../../features/prix/hooks';
 import { montantLigneEstime, prixInitialLigne, type LigneSaisie } from '../../features/livraisons/regles';
 import { formatFCFA } from '../../lib/format';
+import { AUCUN_RESULTAT, filtrerRecherche } from '../../lib/recherche';
+import { SearchInput } from '../shared/SearchInput';
 import type { ProduitResponse } from '../../types/api';
 
 export type Ligne = LigneSaisie;
@@ -36,7 +38,11 @@ export function ProduitPicker({
   memoriserPossible?: boolean;
 }) {
   const { data: referentiel = [] } = useProduits();
-  const catalogue = referentiel;
+  const [recherche, setRecherche] = useState('');
+  const catalogue = useMemo(
+    () => filtrerRecherche(referentiel, recherche, (p) => [p.designation, p.code]),
+    [referentiel, recherche],
+  );
   const stockQ = useStockCourant();
 
   // Map produitId → qteVendable pour lookup O(1) sur chaque ligne
@@ -103,6 +109,19 @@ export function ProduitPicker({
       <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-2">
         Catalogue
       </Text>
+      {referentiel.length > 0 ? (
+        <SearchInput
+          value={recherche}
+          onChangeText={setRecherche}
+          placeholder="Rechercher un produit…"
+          className="mb-2"
+        />
+      ) : null}
+      {catalogue.length === 0 && recherche.trim() ? (
+        <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center py-2">
+          {AUCUN_RESULTAT}
+        </Text>
+      ) : null}
       <View className="flex-row flex-wrap gap-2">
         {catalogue.map((item) => {
           const already = lignes.some((l) => l.produitId === item.id);

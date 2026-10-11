@@ -5,10 +5,8 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
 } from 'react-native';
+import { FormScreen } from '../../components/shared/FormScreen';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
@@ -78,15 +76,10 @@ export default function Login() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <FormScreen
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingBottom: 24 }}
         className="flex-1"
       >
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
-          keyboardShouldPersistTaps="handled"
-          className="flex-1"
-        >
           <View className="px-6 py-8">
             {/* Logo — large, centered hero */}
             <View className="items-center">
@@ -183,8 +176,7 @@ export default function Login() {
               </Text>
             </Pressable>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </FormScreen>
     </SafeAreaView>
   );
 }

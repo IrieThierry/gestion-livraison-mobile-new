@@ -1,6 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
@@ -10,9 +9,11 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { dialog } from '../../../lib/dialog';
 import { X } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
+import { FormScreen } from '../../../components/shared/FormScreen';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useEnregistrerRetour } from '../../../features/retours/hooks';
@@ -33,9 +34,10 @@ import type { LivraisonResponse } from '../../../types/api';
 import { useRetourListe } from '../../../lib/useRetourListe';
 
 /**
- * Formulaire "Retour client".
+ * Formulaire « Retour produit ».
  *
- * Cible du raccourci "Retour client" du FAB de l'écran tournée. L'utilisateur
+ * Cible du raccourci « Retour produit » du FAB et de la fiche client
+ * (`?clientId=X` : seules les livraisons de ce client sont proposées). L'utilisateur
  * choisit une livraison récente (30j, ayant encore des lignes retournables),
  * saisit les quantités rapportées par ligne, choisit pour chacune « Remettre
  * en stock » ou « Perdu », puis valide.
@@ -48,6 +50,8 @@ import { useRetourListe } from '../../../lib/useRetourListe';
  * (400) ou un retour concurrent (409) s'affiche avec le message du back.
  */
 export default function RetourClient() {
+  const params = useLocalSearchParams<{ clientId?: string }>();
+  const clientIdFiltre = params.clientId || null;
   const user = useAuthStore((s) => s.user);
   const isOnline = useNetworkStore((s) => s.isOnline);
   const livreurId = user?.id ?? '';
@@ -74,11 +78,19 @@ export default function RetourClient() {
     const cutoff = new Date(now.getTime() - 30 * 86400000);
     return (q.data ?? [])
       .filter((l) => new Date(l.date) >= cutoff)
+      .filter((l) => !clientIdFiltre || l.client.id === clientIdFiltre)
       .filter((l) => (l.produitsLivraison ?? []).some((p) => qteRetournable(p) > 0))
       .sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       );
-  }, [q.data]);
+  }, [q.data, clientIdFiltre]);
+
+  // Nom du client pré-sélectionné (depuis la fiche client), si connu.
+  const clientFiltreNom = useMemo(() => {
+    if (!clientIdFiltre) return null;
+    const l = (q.data ?? []).find((x) => x.client.id === clientIdFiltre);
+    return l ? `${l.client.prenom} ${l.client.nom}`.trim() : null;
+  }, [q.data, clientIdFiltre]);
 
   const selected: LivraisonResponse | undefined = useMemo(
     () => (q.data ?? []).find((l) => l.id === livraisonId),
@@ -163,7 +175,7 @@ export default function RetourClient() {
           setLivraisonId(null);
           setQtes({});
           retourListe();
-          dialog.success('Retour enregistré', 'Stock et dû du client mis à jour');
+          dialog.success('Retour produit enregistré', 'Stock et dû du client mis à jour');
         },
         onError: (err: unknown) => {
           dialog.error('Erreur', extractApiErrorMessage(err, 'Échec de l’enregistrement'));
@@ -177,10 +189,13 @@ export default function RetourClient() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader retourVers="/(livreur)/cash/retours" title="Retour client" />
+      <PageHeader
+        retourVers="/(livreur)/cash/retours"
+        title="Retour produit"
+        subtitle={clientFiltreNom ?? undefined}
+      />
 
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 32 }}
+      <FormScreen
         refreshControl={
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
@@ -310,7 +325,7 @@ export default function RetourClient() {
             </>
           ) : null}
         </View>
-      </ScrollView>
+      </FormScreen>
 
       {/* Picker modal */}
       <Modal
@@ -322,7 +337,7 @@ export default function RetourClient() {
         <View className="flex-1 bg-slate-50 dark:bg-slate-950 pt-4 px-4">
           <View className="flex-row items-center justify-between mb-3">
             <Text className="text-lg font-extrabold text-slate-900 dark:text-white">
-              Livraisons récentes (30j)
+              {clientFiltreNom ? `Livraisons de ${clientFiltreNom} (30j)` : 'Livraisons récentes (30j)'}
             </Text>
             <Pressable onPress={() => setPickerOpen(false)} hitSlop={10}>
               <X color="#64748b" size={22} />

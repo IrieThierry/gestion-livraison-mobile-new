@@ -120,7 +120,7 @@ function FabSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
               icon={RotateCcw}
               iconBg="#fce7f3"
               iconColor="#be185d"
-              label="Retour client"
+              label="Retour produit"
               hint="Remise en stock ou perdu · déduit du dû"
               onPress={() => go('/(livreur)/cash/retour-client')}
             />
@@ -136,7 +136,7 @@ function FabSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
               icon={CalendarClock}
               iconBg="#dbeafe"
               iconColor="#3b82f6"
-              label="Planifier J+1"
+              label="Nouvelle prévision"
               hint="Prévisions multi-produits par client"
               onPress={() => go('/(livreur)/previsions/nouvelle')}
             />

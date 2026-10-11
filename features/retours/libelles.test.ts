@@ -2,7 +2,7 @@ import { libelleDestination, libelleOrigine, libelleQuantite, libelleValeur } fr
 
 describe('libellés des retours (alignés sur le web)', () => {
   it('origine', () => {
-    expect(libelleOrigine('MENU_RETOURS')).toBe('Menu Retours');
+    expect(libelleOrigine('MENU_RETOURS')).toBe('Menu Retours produits');
     expect(libelleOrigine('MODIFICATION_LIVRAISON')).toBe('Modification de la livraison');
     expect(libelleOrigine('CREATION_LIVRAISON')).toBe('Création de la livraison');
   });

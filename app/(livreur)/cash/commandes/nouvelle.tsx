@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
@@ -10,6 +9,7 @@ import {
 import { router } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import { PageHeader } from '../../../../components/shared/PageHeader';
+import { FormScreen } from '../../../../components/shared/FormScreen';
 import { SelectField } from '../../../../components/shared/SelectField';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import { ApprentiAffecteField } from '../../../../components/livreur/ApprentiAffecteField';
@@ -104,7 +104,7 @@ export default function NouvelleCommande() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader retourVers="/(livreur)/cash/commandes" title="Nouvelle commande" />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+      <FormScreen>
         <View className="px-4">
           {etatListe === 'erreur' ? (
             <View className="items-center py-8">
@@ -227,7 +227,7 @@ export default function NouvelleCommande() {
             )}
           </Pressable>
         </View>
-      </ScrollView>
+      </FormScreen>
     </View>
   );
 }

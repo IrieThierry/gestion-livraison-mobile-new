@@ -4,15 +4,18 @@ import {
   Text,
   Pressable,
   Modal,
-  TextInput,
   FlatList,
 } from 'react-native';
 import { ChevronDown, X, Check } from 'lucide-react-native';
+import { SearchInput } from './SearchInput';
+import { AUCUN_RESULTAT, filtrerRecherche, type ChampRecherche } from '../../lib/recherche';
 
 export interface SelectOption {
   id: string;
   label: string;
   hint?: string;
+  /** Champs de recherche supplémentaires (en plus du libellé et de l'indice). */
+  motsCles?: ChampRecherche[];
 }
 
 /**
@@ -44,15 +47,10 @@ export function SelectField({
 
   const selected = options.find((o) => o.id === value) ?? null;
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return options;
-    const needle = search.toLowerCase();
-    return options.filter(
-      (o) =>
-        o.label.toLowerCase().includes(needle) ||
-        (o.hint ?? '').toLowerCase().includes(needle),
-    );
-  }, [options, search]);
+  const filtered = useMemo(
+    () => filtrerRecherche(options, search, (o) => [o.label, o.hint, ...(o.motsCles ?? [])]),
+    [options, search],
+  );
 
   return (
     <View>
@@ -100,15 +98,7 @@ export function SelectField({
             </Pressable>
           </View>
 
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Rechercher…"
-            placeholderTextColor="#94a3b8"
-            autoCorrect={false}
-            autoCapitalize="none"
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2.5 text-slate-900 dark:text-white text-base"
-          />
+          <SearchInput value={search} onChangeText={setSearch} />
 
           {optional && value ? (
             <Pressable
@@ -128,9 +118,10 @@ export function SelectField({
             data={filtered}
             keyExtractor={(o) => o.id}
             className="mt-2"
+            keyboardShouldPersistTaps="handled"
             ListEmptyComponent={
               <Text className="text-slate-500 dark:text-slate-400 text-center mt-8">
-                Aucun résultat
+                {AUCUN_RESULTAT}
               </Text>
             }
             renderItem={({ item }) => {

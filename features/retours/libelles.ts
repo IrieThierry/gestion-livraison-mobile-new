@@ -3,7 +3,7 @@ import { formatFCFA } from '../../lib/format';
 
 // Mêmes libellés que le web (features/retours/libelles.ts).
 const LIBELLES_ORIGINE: Record<OrigineRetour, string> = {
-  MENU_RETOURS: 'Menu Retours',
+  MENU_RETOURS: 'Menu Retours produits',
   MODIFICATION_LIVRAISON: 'Modification de la livraison',
   CREATION_LIVRAISON: 'Création de la livraison',
 };

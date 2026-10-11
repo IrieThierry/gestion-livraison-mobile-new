@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
@@ -33,6 +32,7 @@ import {
 import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import { PageHeader } from '../../../components/shared/PageHeader';
+import { FormScreen } from '../../../components/shared/FormScreen';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { DatePickerField } from '../../../components/shared/DatePickerField';
 import { formatMontant, formatDateShort } from '../../../lib/format';
@@ -258,7 +258,7 @@ export default function EncaisserPage() {
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader retourVers="/(livreur)/cash" title="Encaisser" subtitle={clientName} />
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <FormScreen>
         <View className="px-4 pt-3">
           {/* Solde et avance (serveur) */}
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-4">
@@ -459,7 +459,7 @@ export default function EncaisserPage() {
             )}
           </Pressable>
         </View>
-      </ScrollView>
+      </FormScreen>
     </View>
   );
 }

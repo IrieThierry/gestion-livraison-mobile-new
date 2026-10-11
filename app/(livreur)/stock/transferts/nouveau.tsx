@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
@@ -10,6 +9,7 @@ import {
 import { dialog } from '../../../../lib/dialog';
 import { ArrowRight } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
+import { FormScreen } from '../../../../components/shared/FormScreen';
 import { SelectField } from '../../../../components/shared/SelectField';
 import { useApprentis } from '../../../../features/apprentis/hooks';
 import { useStockCourant } from '../../../../features/stock/hooks';
@@ -114,7 +114,7 @@ export default function NouveauTransfert() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader retourVers="/(livreur)/stock/transferts" title="Nouveau transfert" subtitle="Vers un apprenti" />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <FormScreen>
         <View className="px-4 pt-3 gap-3">
           {/* Source visualisée */}
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 flex-row items-center gap-2">
@@ -222,7 +222,7 @@ export default function NouveauTransfert() {
             )}
           </Pressable>
         </View>
-      </ScrollView>
+      </FormScreen>
     </View>
   );
 }

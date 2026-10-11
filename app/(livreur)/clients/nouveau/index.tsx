@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ScrollView, View, Text, TextInput, Pressable, RefreshControl } from 'react-native';
+import { View, Text, TextInput, Pressable, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import { ArrowRight } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../../../../components/shared/PageHeader';
+import { FormScreen } from '../../../../components/shared/FormScreen';
 import { SelectField } from '../../../../components/shared/SelectField';
 import {
   useQuartiers,
@@ -152,8 +153,7 @@ export default function NouveauClientStep1() {
         <View className="flex-1 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800" />
       </View>
 
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 32 }}
+      <FormScreen
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -303,7 +303,7 @@ export default function NouveauClientStep1() {
             * Champs obligatoires. Étape suivante : géolocalisation et confirmation.
           </Text>
         </View>
-      </ScrollView>
+      </FormScreen>
     </View>
   );
 }
