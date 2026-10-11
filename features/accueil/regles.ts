@@ -22,6 +22,8 @@ export function filtresDuJour(now: Date = new Date()): { debut: string; fin: str
 export interface LigneProduitQuantite {
   produitId: UUID;
   designation: string;
+  /** Photo du produit (vignette), absente sans photo. */
+  photoUrl?: string;
   quantite: number;
 }
 
@@ -49,6 +51,7 @@ function cumulerParProduit(
     const ligne = parProduit.get(id) ?? {
       produitId: id,
       designation: m.produit.designation ?? '—',
+      photoUrl: m.produit.photoUrl ?? undefined,
       quantite: 0,
     };
     ligne.quantite += quantite(m);
@@ -62,7 +65,8 @@ function cumulerParProduit(
 /**
  * Produits vendus : Σ des quantités livrées (mouvements LIVRAISON, sortie
  * de stock donc quantité négative) par produit. Les retours ne sont PAS
- * déduits. Tri par quantité décroissante.
+ * déduits, et une mise à zéro (AJUSTEMENT) n'est pas une vente. Tri par
+ * quantité décroissante.
  */
 export function produitsVendus(
   mouvements: MouvementStockResponse[],

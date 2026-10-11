@@ -3,6 +3,7 @@ import { DatePickerField } from '../shared/DatePickerField';
 import type { Quantites } from '../../features/commandes/regles';
 import { formatDateLong, formatFCFA } from '../../lib/format';
 import type { ProduitCommandeResponse, ReceptionCommandeResponse } from '../../types/api';
+import { ProduitVignette } from '../shared/ProduitVignette';
 
 /** Saisie en cours : nouvelle réception, ou modification d'une réception existante. */
 export type Saisie =
@@ -39,12 +40,17 @@ export function CarteReception({
         Reçu par {r.receptionnePar.nom}
       </Text>
       {r.lignes.map((l) => (
-        <Text key={l.produit.id} className="text-[12px] text-slate-700 dark:text-slate-300 mt-1">
-          {l.produit.designation} : {l.quantite} × {formatFCFA(l.prixUnitaire)} F
-          {l.remiseLivreurUnitaire > 0
-            ? ` · remise ${formatFCFA(l.remiseLivreurUnitaire)} F / unité`
-            : ''}
-        </Text>
+        <View key={l.produit.id} className="flex-row items-center mt-1">
+          <View className="mr-2">
+            <ProduitVignette designation={l.produit.designation} photoUrl={l.produit.photoUrl} size={24} />
+          </View>
+          <Text className="flex-1 text-[12px] text-slate-700 dark:text-slate-300">
+            {l.produit.designation} : {l.quantite} × {formatFCFA(l.prixUnitaire)} F
+            {l.remiseLivreurUnitaire > 0
+              ? ` · remise ${formatFCFA(l.remiseLivreurUnitaire)} F / unité`
+              : ''}
+          </Text>
+        </View>
       ))}
       {r.modifieePar ? (
         <Text className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
@@ -114,6 +120,9 @@ export function SaisieQuantites({
         <View className="gap-2">
           {lignes.map((l) => (
             <View key={l.id} className="flex-row items-center justify-between">
+              <View className="mr-2">
+                <ProduitVignette designation={l.produit.designation} photoUrl={l.produit.photoUrl} size={32} />
+              </View>
               <View className="flex-1 pr-2">
                 <Text className="font-bold text-slate-900 dark:text-white text-[13px]">
                   {l.produit.designation}

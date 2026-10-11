@@ -11,6 +11,7 @@ import {
   RotateCcw,
   ClipboardList,
   PackageCheck,
+  FileText,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { StatCard } from '../../../components/shared/StatCard';
@@ -110,6 +111,14 @@ export default function CashOverview() {
               label="Mes dépenses"
               hint="Carburant, entretien, divers"
               onPress={() => router.push('/(livreur)/cash/depenses' as never)}
+            />
+            <CashMenuRow
+              icon={FileText}
+              color="#10b981"
+              label="États"
+              hint="Ventes, encaissements, stock : PDF à partager"
+              onPress={() => router.push('/(livreur)/profil/etats' as never)}
+              border
             />
             <CashMenuRow
               icon={Coins}

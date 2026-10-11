@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { dialog } from '../../../lib/dialog';
+import { urlAbsolue } from '../../../lib/api-url';
 import { useMutation } from '@tanstack/react-query';
 import { Save, Camera, Trash2 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
@@ -91,7 +92,9 @@ export default function ModifierInfos() {
   if (!user) return null;
 
   const initials = `${user.prenom?.[0] ?? ''}${user.nom?.[0] ?? ''}`.toUpperCase();
-  const hasPhoto = !!user.photoUrl;
+  // Chemin relatif du back (`/uploads/utilisateur/…`) résolu à l'affichage.
+  const photoUri = urlAbsolue(user.photoUrl);
+  const hasPhoto = !!photoUri;
 
   const onSubmit = () => {
     const parsed = updateProfileSchema.safeParse({ prenom, nom, contact, email });
@@ -128,7 +131,7 @@ export default function ModifierInfos() {
               >
                 {hasPhoto ? (
                   <Image
-                    source={{ uri: user.photoUrl ?? undefined }}
+                    source={{ uri: photoUri ?? undefined }}
                     style={{ width: '100%', height: '100%' }}
                     resizeMode="cover"
                   />

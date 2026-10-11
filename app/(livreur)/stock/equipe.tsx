@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, View, Text, RefreshControl } from 'react-native';
+import { ScrollView, View, Text, RefreshControl, Pressable } from 'react-native';
 import { Package } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { SelectField } from '../../../components/shared/SelectField';
+import { ProduitVignette } from '../../../components/shared/ProduitVignette';
+import { MiseAZeroDialog, type CibleMiseAZero } from '../../../components/livreur/MiseAZeroDialog';
 import { useStockEquipe } from '../../../features/stock/hooks';
+import { peutMettreAZero } from '../../../features/stock/regles';
 import { useAuthStore } from '../../../stores/authStore';
 import { formatFCFA } from '../../../lib/format';
 
@@ -20,6 +23,7 @@ export default function StockEquipe() {
   const user = useAuthStore((s) => s.user);
   const q = useStockEquipe();
   const [livreurFilter, setLivreurFilter] = useState<string | null>(null);
+  const [cible, setCible] = useState<CibleMiseAZero | null>(null);
 
   // Liste des livreurs ayant du stock (pour le filtre)
   const livreurs = useMemo(() => {
@@ -51,6 +55,7 @@ export default function StockEquipe() {
       produitId: string;
       designation: string;
       code: string;
+      photoUrl: string | null;
       qte: number;
       coutTotal: number;
       valeurVenteTotal: number | null;
@@ -79,6 +84,7 @@ export default function StockEquipe() {
           produitId: ligne.produit.id,
           designation: ligne.produit.designation,
           code: ligne.produit.code ?? '',
+          photoUrl: ligne.produit.photoUrl ?? null,
           qte: qteLigne,
           coutTotal: coutLigne,
           valeurVenteTotal: valVenteLigne,
@@ -122,6 +128,13 @@ export default function StockEquipe() {
       : (livreurs.find((l) => l.id === livreurFilter)?.label ?? '—');
 
   if (!user) return null;
+
+  // « Mettre à zéro » : sur un livreur précis (filtre), pour le livreur
+  // principal sur son stock ou celui d'un de ses apprentis (membres de l'équipe).
+  const apprentiIds = livreurs.map((l) => l.id).filter((id) => id !== user.id);
+  const miseAZeroPossible = peutMettreAZero(user, livreurFilter, apprentiIds);
+  const livreurFiltreNom =
+    livreurFilter && livreurFilter !== user.id ? livreurFilterLabel : undefined;
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
@@ -216,6 +229,9 @@ export default function StockEquipe() {
                   key={l.produitId}
                   className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 flex-row items-center justify-between"
                 >
+                  <View className="mr-3">
+                    <ProduitVignette designation={l.designation} photoUrl={l.photoUrl} size={36} />
+                  </View>
                   <View className="flex-1 pr-2">
                     <Text className="font-bold text-slate-900 dark:text-white text-[13px]">
                       {l.designation}
@@ -230,15 +246,52 @@ export default function StockEquipe() {
                         : ''}
                     </Text>
                   </View>
-                  <Text className="text-lg font-extrabold text-slate-900 dark:text-white">
-                    {l.qte}
-                  </Text>
+                  <View className="items-end">
+                    <Text className="text-lg font-extrabold text-slate-900 dark:text-white">
+                      {l.qte}
+                    </Text>
+                    {miseAZeroPossible && livreurFilter && l.qte > 0 ? (
+                      <Pressable
+                        onPress={() =>
+                          setCible({
+                            livreurId: livreurFilter,
+                            livreurNom: livreurFiltreNom,
+                            produit: {
+                              id: l.produitId,
+                              designation: l.designation,
+                              code: l.code,
+                              photoUrl: l.photoUrl,
+                            },
+                            quantite: l.qte,
+                          })
+                        }
+                        hitSlop={6}
+                        accessibilityLabel={`Mettre à zéro ${l.designation}`}
+                        className="mt-1 px-2 py-1 rounded-md bg-red-50 dark:bg-red-500/10 active:opacity-70"
+                      >
+                        <Text className="text-[11px] font-bold text-red-600 dark:text-red-400">
+                          Mettre à zéro
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
                 </View>
               ))}
+              {!livreurFilter && !user.parentId ? (
+                <Text className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                  Choisis un livreur dans le filtre pour mettre à zéro le stock d’un produit.
+                </Text>
+              ) : null}
             </View>
           )}
         </View>
       </ScrollView>
+
+      <MiseAZeroDialog
+        key={cible ? `${cible.livreurId}-${cible.produit.id}` : 'aucune'}
+        cible={cible}
+        onClose={() => setCible(null)}
+      />
     </View>
   );
 }

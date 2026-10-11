@@ -22,6 +22,7 @@ import {
 import { formatFCFA } from '../../../lib/format';
 import { dialog } from '../../../lib/dialog';
 import type { ProduitResponse } from '../../../types/api';
+import { ProduitVignette } from '../../../components/shared/ProduitVignette';
 
 /**
  * « Mes prix de vente » — barème par défaut du livreur.
@@ -156,8 +157,15 @@ export default function MesPrixPage() {
                     key={produit.id}
                     className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3"
                   >
-                    {/* Header: designation + statut */}
+                    {/* Header: vignette + designation + statut */}
                     <View className="flex-row items-center justify-between mb-2">
+                      <View className="mr-3">
+                        <ProduitVignette
+                          designation={produit.designation}
+                          photoUrl={produit.photoUrl}
+                          size={40}
+                        />
+                      </View>
                       <View className="flex-1 pr-2">
                         <Text className="font-extrabold text-slate-900 dark:text-white">
                           {produit.designation}

@@ -18,6 +18,7 @@ import {
   ClipboardCheck,
   History,
   Store,
+  FileText,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { Avatar } from '../../../components/shared/Avatar';
@@ -201,8 +202,25 @@ export default function Profil() {
           </Text>
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
             <Pressable
-              onPress={() => router.push('/(livreur)/previsions' as never)}
+              onPress={() => router.push('/(livreur)/profil/etats' as never)}
               className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
+            >
+              <View className="flex-row items-center gap-3">
+                <FileText color="#10b981" size={20} />
+                <View>
+                  <Text className="font-extrabold text-slate-900 dark:text-white">
+                    États
+                  </Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Ventes, encaissements, stock : aperçu et PDF à partager
+                  </Text>
+                </View>
+              </View>
+              <ChevronRight color="#94a3b8" size={18} />
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/(livreur)/previsions' as never)}
+              className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
             >
               <View className="flex-row items-center gap-3">
                 <CalendarClock color="#3b82f6" size={20} />

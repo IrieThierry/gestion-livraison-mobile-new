@@ -35,6 +35,7 @@ import { useNetworkStore } from '../../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatDateLong, formatFCFA } from '../../../../lib/format';
 import type { CommandeResponse, ProduitCommandeResponse } from '../../../../types/api';
+import { ProduitVignette } from '../../../../components/shared/ProduitVignette';
 
 const SECTION =
   'text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2';
@@ -331,9 +332,14 @@ function ApprentiBloc({
 function LigneProduit({ ligne: l, first }: { ligne: ProduitCommandeResponse; first: boolean }) {
   return (
     <View className={`px-4 py-3 ${first ? '' : 'border-t border-slate-100 dark:border-slate-800'}`}>
-      <Text className="font-extrabold text-slate-900 dark:text-white text-[13px]">
-        {l.produit.designation}
-      </Text>
+      <View className="flex-row items-center">
+        <View className="mr-2">
+          <ProduitVignette designation={l.produit.designation} photoUrl={l.produit.photoUrl} size={28} />
+        </View>
+        <Text className="flex-1 font-extrabold text-slate-900 dark:text-white text-[13px]">
+          {l.produit.designation}
+        </Text>
+      </View>
       <View className="flex-row justify-between mt-1">
         <Text className="text-[12px] text-slate-500 dark:text-slate-400">
           Commandé : {l.qteCommandee} · Reçu : {l.qteRecue} · Restant : {l.qteRestante}

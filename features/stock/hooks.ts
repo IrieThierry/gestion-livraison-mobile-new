@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { stockApi } from './api';
 import { stockKeys } from './keys';
-import type { FiltresMouvementsStock, UUID } from '../../types/api';
+import type { FiltresMouvementsStock, MiseAZeroStockRequest, UUID } from '../../types/api';
+import { etatsKeys } from '../etats/keys';
 
 // Mirror des hooks lecture du web (gestion-livraison-front/src/features/stock/hooks.ts)
 // — on n'a besoin que des deux sources de lecture pour la Task 22.
@@ -63,5 +64,29 @@ export function useMouvementsStock(livreurId: UUID, filtres: FiltresMouvementsSt
     queryKey: stockKeys.historique(livreurId, filtres),
     queryFn: () => stockApi.historique(livreurId, filtres),
     enabled: !!livreurId,
+  });
+}
+
+/**
+ * Mise à zéro du stock d'un produit. Après succès, tout le cache du stock
+ * est invalidé : stock courant, stock d'équipe et historique (mouvement
+ * AJUSTEMENT), ce qui rafraîchit aussi les blocs de l'accueil.
+ */
+export function useMettreAZeroStock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      livreurId,
+      produitId,
+      payload,
+    }: {
+      livreurId: UUID;
+      produitId: UUID;
+      payload: MiseAZeroStockRequest;
+    }) => stockApi.mettreAZero(livreurId, produitId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: stockKeys.all });
+      qc.invalidateQueries({ queryKey: etatsKeys.all });
+    },
   });
 }

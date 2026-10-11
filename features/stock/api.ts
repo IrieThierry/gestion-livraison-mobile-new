@@ -1,6 +1,8 @@
 import { apiClient } from '../../lib/api-client';
 import type {
+  AjustementStockResponse,
   FiltresMouvementsStock,
+  MiseAZeroStockRequest,
   MouvementStockResponse,
   StockCourantLigneResponse,
   StockEquipeLigneResponse,
@@ -10,8 +12,9 @@ import type {
 
 // Port direct de gestion-livraison-front/src/features/stock/api.ts.
 // Les endpoints sont au singulier `/stock-livreur` côté backend (Plan D).
-// Lecture seule : le stock n'entre que par une réception de commande, un
-// transfert ou un retour remis en stock (plus d'achat manuel).
+// Le stock n'entre que par une réception de commande, un transfert ou un
+// retour remis en stock (plus d'achat manuel). Seule écriture : la mise à
+// zéro tracée d'un produit par le livreur principal.
 export const stockApi = {
   /**
    * Stock d'un livreur — une ligne par produit (compteur courant).
@@ -75,6 +78,22 @@ export const stockApi = {
     const { data } = await apiClient.get<MouvementStockResponse[]>(
       `/stock-livreur/${livreurId}/historique`,
       { params: filtres },
+    );
+    return data;
+  },
+
+  /**
+   * Met à zéro le stock d'un produit (livreur principal, sur son stock ou
+   * celui d'un de ses apprentis). Trace un ajustement : mouvement AJUSTEMENT.
+   */
+  mettreAZero: async (
+    livreurId: UUID,
+    produitId: UUID,
+    payload: MiseAZeroStockRequest,
+  ): Promise<AjustementStockResponse> => {
+    const { data } = await apiClient.post<AjustementStockResponse>(
+      `/stock-livreur/${livreurId}/produits/${produitId}/mise-a-zero`,
+      payload,
     );
     return data;
   },

@@ -18,6 +18,7 @@ import {
   useSupprimerPrevision,
 } from '../../../features/previsions/hooks';
 import { useAuthStore } from '../../../stores/authStore';
+import { ProduitVignette } from '../../../components/shared/ProduitVignette';
 
 /**
  * Liste des prévisions pour une date donnée + cumul commande fournisseur.
@@ -109,9 +110,16 @@ export default function PrevisionsList() {
               {(cumulQ.data ?? []).map((c) => (
                 <View
                   key={c.produit.id}
-                  className="flex-row justify-between py-1"
+                  className="flex-row items-center justify-between py-1"
                 >
-                  <Text className="text-[13px] text-blue-700 dark:text-blue-300">
+                  <View className="mr-2">
+                    <ProduitVignette
+                      designation={c.produit.designation}
+                      photoUrl={c.produit.photoUrl}
+                      size={28}
+                    />
+                  </View>
+                  <Text className="flex-1 text-[13px] text-blue-700 dark:text-blue-300">
                     {c.produit.designation}
                   </Text>
                   <Text className="text-[13px] font-bold text-blue-700 dark:text-blue-300">
@@ -153,6 +161,11 @@ export default function PrevisionsList() {
                   key={p.id}
                   className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3 flex-row items-center gap-2"
                 >
+                  <ProduitVignette
+                    designation={p.produit.designation}
+                    photoUrl={p.produit.photoUrl}
+                    size={36}
+                  />
                   <View className="flex-1">
                     <Text className="font-extrabold text-slate-900 dark:text-white">
                       {p.client.prenom} {p.client.nom}
