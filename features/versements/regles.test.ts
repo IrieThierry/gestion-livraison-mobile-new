@@ -1,4 +1,13 @@
-import { joindreIds, selectionValide, validerVersement, valeurCommande } from './regles';
+import {
+  joindreIds,
+  rechercherVersements,
+  selectionValide,
+  totalVerse,
+  trierVersements,
+  validerVersement,
+  valeurCommande,
+} from './regles';
+import type { VersementResponse } from '../../types/api';
 import { commandeFixture } from '../commandes/commande.fixture';
 
 describe('joindreIds', () => {
@@ -58,5 +67,36 @@ describe('valeurCommande', () => {
   it('sans remise ni montant : 0', () => {
     expect(valeurCommande({ montantLivre: 700, remiseLivreurLivree: null })).toBe(700);
     expect(valeurCommande({ montantLivre: null, remiseLivreurLivree: null })).toBe(0);
+  });
+});
+
+describe('liste Mes versements', () => {
+  const v = (id: string, date: string, fournisseur: string, montant: number | string, commentaire: string | null = null) =>
+    ({
+      id,
+      dateVersement: date,
+      fournisseur: { id: `f-${fournisseur}`, libelle: fournisseur },
+      montantVerse: montant,
+      commentaire,
+    }) as unknown as VersementResponse;
+  const liste = [
+    v('1', '2026-10-02T09:00:00', 'Brasserie du Sud', 15000),
+    v('2', '2026-10-05T09:00:00', 'Laiterie Abidjan', '2500.50', 'Solde septembre'),
+    v('3', '2026-09-28T09:00:00', 'Brasserie du Sud', 4000),
+  ];
+
+  it('tri du plus récent au plus ancien', () => {
+    expect(trierVersements(liste).map((x) => x.id)).toEqual(['2', '1', '3']);
+  });
+
+  it('recherche sur le fournisseur et le commentaire, sans accents ni casse', () => {
+    expect(rechercherVersements(liste, 'brasserie').map((x) => x.id)).toEqual(['1', '3']);
+    expect(rechercherVersements(liste, 'SEPTEMBRE').map((x) => x.id)).toEqual(['2']);
+    expect(rechercherVersements(liste, '')).toHaveLength(3);
+  });
+
+  it('total versé, montants en chaîne compris', () => {
+    expect(totalVerse(liste)).toBe(21500.5);
+    expect(totalVerse([])).toBe(0);
   });
 });

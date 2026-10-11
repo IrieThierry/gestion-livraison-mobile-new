@@ -50,3 +50,11 @@ describe('contrat API versement par commandes', () => {
     expect(corps).not.toHaveProperty('libre');
   });
 });
+
+describe('liste des versements du livreur', () => {
+  it('GET /versement/livreur/{id}', async () => {
+    get.mockResolvedValue({ data: [{ id: 'v-1' }] });
+    await expect(versementsApi.parLivreur('l-1')).resolves.toEqual([{ id: 'v-1' }]);
+    expect(get).toHaveBeenCalledWith('/versement/livreur/l-1');
+  });
+});

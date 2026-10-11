@@ -5,6 +5,7 @@ import type { UUID } from '../../types/api';
 // provoque pas de refetch).
 export const versementKeys = {
   all: ['versements'] as const,
+  livreur: (livreurId: UUID) => [...versementKeys.all, 'livreur', livreurId] as const,
   situation: (params: { livreurId: UUID; fournisseurId: UUID; commandeIds: UUID[] }) =>
     [
       ...versementKeys.all,

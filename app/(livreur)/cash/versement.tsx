@@ -71,7 +71,9 @@ export default function Versement() {
   });
 
   const m = useEnregistrerVersement();
-  const retourListe = useRetourListe('/(livreur)/cash');
+  // Après enregistrement : la liste « Mes versements » (dépilée si elle est juste
+  // dessous, sinon elle remplace le formulaire) ; la requête est invalidée par la mutation.
+  const retourListe = useRetourListe('/(livreur)/cash/versements', 'versements/index');
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
 

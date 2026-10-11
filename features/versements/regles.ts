@@ -1,4 +1,5 @@
-import type { CommandeResponse, UUID } from '../../types/api';
+import type { CommandeResponse, UUID, VersementResponse } from '../../types/api';
+import { filtrerRecherche } from '../../lib/recherche';
 
 /**
  * Paramètre de requête `commandeIds` : identifiants séparés par des virgules, absent si la
@@ -37,4 +38,29 @@ export function validerVersement(p: {
 /** Valeur d'une commande dans un versement : prix + remise livreur (F3), comme `valeurAchat`. */
 export function valeurCommande(c: Pick<CommandeResponse, 'montantLivre' | 'remiseLivreurLivree'>): number {
   return (c.montantLivre ?? 0) + (c.remiseLivreurLivree ?? 0);
+}
+
+// ---------- Liste « Mes versements » ----------
+
+/** Plus récent en premier (date de versement, ISO comparable en texte). */
+export function trierVersements(versements: readonly VersementResponse[]): VersementResponse[] {
+  return [...versements].sort((a, b) => (b.dateVersement ?? '').localeCompare(a.dateVersement ?? ''));
+}
+
+/** Recherche (fournisseur, commentaire, montant) insensible à la casse et aux accents. */
+export function rechercherVersements(
+  versements: readonly VersementResponse[],
+  requete: string,
+): VersementResponse[] {
+  return filtrerRecherche(versements, requete, (v) => [
+    v.fournisseur?.libelle,
+    v.commentaire,
+    v.montantVerse,
+  ]);
+}
+
+/** Total versé d'une liste (montants BigDecimal éventuellement en chaîne). */
+export function totalVerse(versements: readonly VersementResponse[]): number {
+  const total = versements.reduce((acc, v) => acc + (Number(v.montantVerse) || 0), 0);
+  return Math.round(total * 100) / 100;
 }
