@@ -6,6 +6,7 @@ import { stockKeys } from '../stock/keys';
 import { versementKeys } from '../versements/keys';
 import { reversementKeys } from '../reversements/keys';
 import type { ReceptionnerCommandeRequest, UUID } from '../../types/api';
+import { etatsKeys } from '../etats/keys';
 
 export function useMesCommandes(enabled = true) {
   return useQuery({
@@ -107,6 +108,7 @@ export function useApprentisAffectables(fournisseurId: UUID | undefined, enabled
 function invaliderApresReception(qc: QueryClient) {
   qc.invalidateQueries({ queryKey: commandeKeys.all });
   qc.invalidateQueries({ queryKey: stockKeys.all });
+  qc.invalidateQueries({ queryKey: etatsKeys.all });
   qc.invalidateQueries({ queryKey: versementKeys.all });
   qc.invalidateQueries({ queryKey: reversementKeys.all });
 }

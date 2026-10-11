@@ -19,6 +19,17 @@ const P = { debut: '2026-10-01', fin: '2026-10-31' };
 const user = { id: 'p', prenom: 'Awa', nom: 'Kone', parentId: null };
 const apprentis = [{ id: 'a1', prenom: 'Moussa', nom: 'Sy' }] as unknown as ParamsEtat['apprentis'];
 
+const lecture = (etat: Partial<ParamsEtat['lectureApprentis']> = {}): ParamsEtat['lectureApprentis'] => ({
+  isSuccess: true,
+  isLoading: false,
+  isError: false,
+  error: null,
+  isRefetching: false,
+  refetch: jest.fn(),
+  ...etat,
+});
+const APPRENTIS_LUS = lecture();
+
 function wrapper({ children }: { children: ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
@@ -29,7 +40,7 @@ beforeEach(() => jest.clearAllMocks());
 describe('hooks des états', () => {
   it('période invalide : aucune lecture, aucun document', () => {
     const { result } = renderHook(
-      () => useEtatVentes({ user, choix: { type: 'moi' }, periode: null, libelleLivreur: 'Awa Kone', apprentis: [] }),
+      () => useEtatVentes({ user, choix: { type: 'moi' }, periode: null, libelleLivreur: 'Awa Kone', apprentis: [], lectureApprentis: APPRENTIS_LUS }),
       { wrapper },
     );
     expect(api.livraisons).not.toHaveBeenCalled();
@@ -39,7 +50,7 @@ describe('hooks des états', () => {
   it('ventes : document construit sur la période, en-tête du livreur', async () => {
     api.livraisons.mockResolvedValue([]);
     const { result } = renderHook(
-      () => useEtatVentes({ user, choix: { type: 'moi' }, periode: P, libelleLivreur: 'Awa Kone', apprentis: [] }),
+      () => useEtatVentes({ user, choix: { type: 'moi' }, periode: P, libelleLivreur: 'Awa Kone', apprentis: [], lectureApprentis: APPRENTIS_LUS }),
       { wrapper },
     );
     await waitFor(() => expect(result.current.document).not.toBeNull());
@@ -63,6 +74,7 @@ describe('hooks des états', () => {
           periode: P,
           libelleLivreur: 'Équipe de Awa Kone',
           apprentis,
+          lectureApprentis: APPRENTIS_LUS,
         }),
       { wrapper },
     );
@@ -73,5 +85,71 @@ describe('hooks des états', () => {
     expect(detail.colonnes.map((c) => c.libelle)).toContain('Livreur');
     expect(detail.lignes.map((l) => l[1])).toEqual(['Awa Kone', 'Moussa Sy']);
     expect(detail.lignes[1]).toContain('Ajustement');
+  });
+  const paramsEquipe = (lectureApprentis: ParamsEtat['lectureApprentis']): ParamsEtat => ({
+    user,
+    choix: { type: 'equipe' },
+    periode: P,
+    libelleLivreur: 'Équipe de Awa Kone',
+    apprentis: [],
+    lectureApprentis,
+  });
+
+  it('stock en vue équipe : apprentis en cours de lecture → chargement, aucune lecture, rien à partager', () => {
+    const { result } = renderHook(() => useEtatStock(paramsEquipe(lecture({ isSuccess: false, isLoading: true }))), {
+      wrapper,
+    });
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.document).toBeNull();
+    expect(api.stockEquipe).not.toHaveBeenCalled();
+    expect(api.mouvements).not.toHaveBeenCalled();
+  });
+
+  it('stock en vue équipe : lecture des apprentis en échec → erreur remontée, aucun document partiel', async () => {
+    const erreur = new Error('Réseau indisponible');
+    const refetch = jest.fn();
+    api.stockEquipe.mockResolvedValue([]);
+    api.mouvements.mockResolvedValue([]);
+    const { result } = renderHook(
+      () => useEtatStock(paramsEquipe(lecture({ isSuccess: false, isError: true, error: erreur, refetch }))),
+      { wrapper },
+    );
+    expect(result.current.isError).toBe(true);
+    expect(result.current.error).toBe(erreur);
+    expect(result.current.document).toBeNull();
+    expect(api.mouvements).not.toHaveBeenCalled();
+    result.current.refetch();
+    expect(refetch).toHaveBeenCalled();
+  });
+
+  it('stock en vue équipe : l’historique d’un membre en échec → erreur, pas de document', async () => {
+    api.stockEquipe.mockResolvedValue([]);
+    api.mouvements.mockImplementation(async (id) => {
+      if (id === 'a1') throw new Error('500');
+      return [];
+    });
+    const { result } = renderHook(
+      () => useEtatStock({ ...paramsEquipe(APPRENTIS_LUS), apprentis }),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.document).toBeNull();
+  });
+
+  it('vue « moi » : la lecture des apprentis ne bloque pas', async () => {
+    api.stockLivreur.mockResolvedValue([]);
+    api.mouvements.mockResolvedValue([]);
+    const { result } = renderHook(
+      () =>
+        useEtatStock({
+          ...paramsEquipe(lecture({ isSuccess: false, isError: true, error: new Error('x') })),
+          choix: { type: 'moi' },
+          libelleLivreur: 'Awa Kone',
+        }),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.document).not.toBeNull());
+    expect(result.current.isError).toBe(false);
+    expect(api.mouvements).toHaveBeenCalledWith('p', P);
   });
 });

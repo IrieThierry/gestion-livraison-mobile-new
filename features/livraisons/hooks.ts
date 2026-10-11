@@ -12,6 +12,7 @@ import { clientKeys, encoursKeys } from '../clients/keys';
 import { prixKeys } from '../prix/keys';
 import { reversementKeys } from '../reversements/keys';
 import { retourKeys } from '../retours/keys';
+import { etatsKeys } from '../etats/keys';
 
 // Le portail web n'expose pas de hooks dédiés (il appelle `useQuery` /
 // `useMutation` inline avec `livraisonsApi`). On les expose ici pour
@@ -48,6 +49,7 @@ export function useCreerLivraison() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: livraisonKeys.all });
       qc.invalidateQueries({ queryKey: stockKeys.all });
+      qc.invalidateQueries({ queryKey: etatsKeys.all });
       // Le back mémorise dans la même transaction le prix (memoriserPrixClient)
       // et le dû du client change : prix, clients (soldes / encours) et encaissements.
       qc.invalidateQueries({ queryKey: prixKeys.all });
@@ -69,6 +71,7 @@ export function useModifierLivraison() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: livraisonKeys.all });
       qc.invalidateQueries({ queryKey: stockKeys.all });
+      qc.invalidateQueries({ queryKey: etatsKeys.all });
       qc.invalidateQueries({ queryKey: encoursKeys.all });
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
       // La remise « en attente / acquise » de la synthèse reversements change.
@@ -85,6 +88,7 @@ export function useSupprimerLivraison() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: livraisonKeys.all });
       qc.invalidateQueries({ queryKey: stockKeys.all });
+      qc.invalidateQueries({ queryKey: etatsKeys.all });
       qc.invalidateQueries({ queryKey: encoursKeys.all });
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
       // La remise « en attente / acquise » de la synthèse reversements change.

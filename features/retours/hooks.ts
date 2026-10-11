@@ -7,6 +7,7 @@ import { stockKeys } from '../stock/keys';
 import { encaissementKeys } from '../encaissements/keys';
 import { clientKeys, encoursKeys } from '../clients/keys';
 import { reversementKeys } from '../reversements/keys';
+import { etatsKeys } from '../etats/keys';
 
 /** Journal des retours, paginé (page à partir de 0) ; les filtres excluent `page`. */
 export function useRetours(filtres: Omit<FiltresRetours, 'page'>) {
@@ -33,6 +34,7 @@ export function useEnregistrerRetour() {
       qc.invalidateQueries({ queryKey: retourKeys.all });
       qc.invalidateQueries({ queryKey: livraisonKeys.all });
       qc.invalidateQueries({ queryKey: stockKeys.all });
+      qc.invalidateQueries({ queryKey: etatsKeys.all });
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
       qc.invalidateQueries({ queryKey: clientKeys.all });
       qc.invalidateQueries({ queryKey: encoursKeys.all });

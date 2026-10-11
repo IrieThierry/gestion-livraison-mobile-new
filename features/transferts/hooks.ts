@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { transfertsApi } from './api';
 import { stockKeys } from '../stock/keys';
 import type { EffectuerTransfertRequest, UUID } from '../../types/api';
+import { etatsKeys } from '../etats/keys';
 
 const transfertKeys = {
   all: ['transferts'] as const,
@@ -32,6 +33,7 @@ export function useEffectuerTransfert() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: transfertKeys.all });
       qc.invalidateQueries({ queryKey: stockKeys.all });
+      qc.invalidateQueries({ queryKey: etatsKeys.all });
     },
   });
 }

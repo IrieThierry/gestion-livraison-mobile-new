@@ -126,4 +126,14 @@ describe('genererHtmlEtat', () => {
     expect(f).toContain('Aucune commande sur la période.');
     expect(f).toContain('Aucun versement sur la période.');
   });
+
+  it('fournisseurs : « Reçu » a un seul sens par colonne (période vs total commande)', () => {
+    const d = documentFournisseurs(calculerEtatFournisseurs([], [], [], P), entete);
+    const colonnes = d.sections.flatMap((x) => x.colonnes.map((c) => c.libelle));
+    expect(colonnes).not.toContain('Reçu');
+    expect(colonnes).toContain('Reçu sur la période');
+    expect(colonnes).toContain('Reçu (total commande)');
+    expect(d.syntheses.map((x) => x.libelle)).toContain('Reçu sur la période');
+    expect(genererHtmlEtat(d)).toContain('y compris hors période');
+  });
 });

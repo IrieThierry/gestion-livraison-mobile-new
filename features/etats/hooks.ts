@@ -25,6 +25,18 @@ export interface ParamsEtat {
   periode: Periode | null;
   libelleLivreur: string;
   apprentis: readonly LivreurResponse[];
+  /** Lecture de la liste des apprentis (vue équipe : chargement et erreur remontés). */
+  lectureApprentis: LectureApprentis;
+}
+
+/** État de la lecture des apprentis (`useApprentis`). */
+export interface LectureApprentis {
+  isSuccess: boolean;
+  isLoading: boolean;
+  isError: boolean;
+  error: unknown;
+  isRefetching: boolean;
+  refetch: () => unknown;
 }
 
 export interface ResultatEtat {
@@ -116,6 +128,9 @@ export function useEtatEncaissements(p: ParamsEtat): ResultatEtat {
 export function useEtatStock(p: ParamsEtat): ResultatEtat {
   const periode = p.periode;
   const equipe = p.choix.type === 'equipe';
+  // Vue équipe : la liste des apprentis doit être lue avant tout calcul, sinon
+  // les mouvements des apprentis manqueraient en silence (PDF faux).
+  const membresConnus = !equipe || p.lectureApprentis.isSuccess;
   const cible = cibleLecture(p.user, p.choix);
   const livreurId = cible.mode === 'livreur' ? cible.livreurId : p.user.id;
 
@@ -133,13 +148,13 @@ export function useEtatStock(p: ParamsEtat): ResultatEtat {
       equipe
         ? lignesDepuisEquipe(await etatsApi.stockEquipe())
         : lignesDepuisActuel(await etatsApi.stockLivreur(livreurId)),
-    enabled: !!periode,
+    enabled: !!periode && membresConnus,
   });
   const qMouvements = useQueries({
     queries: membres.map((mb) => ({
       queryKey: etatsKeys.mouvements(mb.id, periode),
       queryFn: () => etatsApi.mouvements(mb.id, periode!),
-      enabled: !!periode,
+      enabled: !!periode && membresConnus,
     })),
   });
 
@@ -150,16 +165,16 @@ export function useEtatStock(p: ParamsEtat): ResultatEtat {
   const document = useMemo(
     () => {
       const donnees = qMouvements.map((q) => q.data);
-      if (!periode || !qStock.data || !donnees.every((d) => !!d)) return null;
+      if (!periode || !membresConnus || !qStock.data || !donnees.every((d) => !!d)) return null;
       const mouvements = donnees.flatMap((d, i) =>
         (d ?? []).map((mv) => ({ ...mv, livreur: equipe ? membres[i].nom : undefined })),
       );
       return documentStock(calculerEtatStock(qStock.data, mouvements, periode), entete(p, periode));
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [qStock.data, cleMouvements, periode, p.libelleLivreur, p.choix.type],
+    [qStock.data, cleMouvements, membresConnus, periode, p.libelleLivreur, p.choix.type],
   );
-  return combiner([qStock, ...qMouvements], document);
+  return combiner(equipe ? [p.lectureApprentis, qStock, ...qMouvements] : [qStock, ...qMouvements], document);
 }
 
 export function useEtatFournisseurs(p: ParamsEtat): ResultatEtat {

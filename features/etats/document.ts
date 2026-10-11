@@ -262,7 +262,7 @@ export function documentFournisseurs(etat: EtatFournisseurs, e: EnteteEtat): Doc
     ...base('fournisseurs', e),
     syntheses: [
       { libelle: 'Commandes', valeur: q(t.nbCommandes) },
-      { libelle: 'Reçu', valeur: m(t.montantRecu) },
+      { libelle: 'Reçu sur la période', valeur: m(t.montantRecu) },
       { libelle: 'Versé', valeur: m(t.montantVerse) },
       { libelle: 'Dû aux fournisseurs', valeur: m(t.du) },
     ],
@@ -273,7 +273,7 @@ export function documentFournisseurs(etat: EtatFournisseurs, e: EnteteEtat): Doc
         colonnes: [
           { libelle: 'Fournisseur' },
           { libelle: 'Commandes', droite: true },
-          { libelle: 'Reçu', droite: true },
+          { libelle: 'Reçu sur la période', droite: true },
           { libelle: 'Versé', droite: true },
           { libelle: 'Dû', droite: true },
           { libelle: 'Remise à recevoir', droite: true },
@@ -291,12 +291,13 @@ export function documentFournisseurs(etat: EtatFournisseurs, e: EnteteEtat): Doc
       },
       {
         titre: 'Commandes de la période',
+        note: 'Reçu (total commande) : toutes les réceptions actives de la commande, y compris hors période.',
         colonnes: [
           { libelle: 'Date' },
           { libelle: 'Référence' },
           { libelle: 'Fournisseur' },
           { libelle: 'Statut' },
-          { libelle: 'Reçu', droite: true },
+          { libelle: 'Reçu (total commande)', droite: true },
         ],
         lignes: etat.commandes.map((c) => [
           formatJour(c.date),

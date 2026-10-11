@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { stockApi } from './api';
 import { stockKeys } from './keys';
 import type { FiltresMouvementsStock, MiseAZeroStockRequest, UUID } from '../../types/api';
+import { etatsKeys } from '../etats/keys';
 
 // Mirror des hooks lecture du web (gestion-livraison-front/src/features/stock/hooks.ts)
 // — on n'a besoin que des deux sources de lecture pour la Task 22.
@@ -85,6 +86,7 @@ export function useMettreAZeroStock() {
     }) => stockApi.mettreAZero(livreurId, produitId, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: stockKeys.all });
+      qc.invalidateQueries({ queryKey: etatsKeys.all });
     },
   });
 }

@@ -103,6 +103,7 @@ function Apercu({ famille }: { famille: FamilleEtat }) {
     periode,
     libelleLivreur: libelleChoix(user, choix, apprentis),
     apprentis,
+    lectureApprentis: qApprentis,
   };
 
   const filtres = (
@@ -170,7 +171,8 @@ function Corps({
 }) {
   const verrou = useRef(creerVerrou()).current;
   const [partageEnCours, setPartageEnCours] = useState(false);
-  const doc = resultat.document;
+  // Rien à partager tant qu'une lecture charge ou a échoué : jamais de PDF incomplet.
+  const doc = resultat.isLoading || resultat.isError ? null : resultat.document;
 
   const onPartager = () => {
     if (!doc) return;

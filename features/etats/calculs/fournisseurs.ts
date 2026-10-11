@@ -26,7 +26,7 @@ export interface LigneCommande {
   reference: string;
   fournisseur: string;
   statut: string;
-  /** Σ des réceptions actives (0 tant qu'aucune réception). */
+  /** Σ de toutes les réceptions actives de la commande, y compris hors période (« Reçu (total commande) »). */
   montantRecu: number;
 }
 

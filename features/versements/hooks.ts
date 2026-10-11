@@ -3,6 +3,7 @@ import { versementsApi } from './api';
 import { versementKeys } from './keys';
 import { commandeKeys } from '../commandes/keys';
 import type { UUID } from '../../types/api';
+import { etatsKeys } from '../etats/keys';
 
 /**
  * Situation du versement à venir pour le couple (livreurId, fournisseurId) et la
@@ -32,6 +33,7 @@ export function useEnregistrerVersement() {
     mutationFn: versementsApi.enregistrer,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: versementKeys.all });
+      qc.invalidateQueries({ queryKey: etatsKeys.all });
       qc.invalidateQueries({ queryKey: commandeKeys.all });
     },
   });

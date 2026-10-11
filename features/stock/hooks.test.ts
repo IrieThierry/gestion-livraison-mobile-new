@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useMettreAZeroStock } from './hooks';
 import { stockApi } from './api';
 import { stockKeys } from './keys';
+import { etatsKeys } from '../etats/keys';
 
 jest.mock('@tanstack/react-query', () => ({
   useQuery: jest.fn((opts) => opts),
@@ -33,6 +34,8 @@ describe('useMettreAZeroStock', () => {
     const opts = useMettreAZeroStock() as unknown as Opts;
     opts.onSuccess();
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: stockKeys.all });
+    // Les états (stock courant, mouvements) relisent l'ajustement.
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: etatsKeys.all });
     // Les clés courant, équipe et historique sont toutes sous `stockKeys.all`.
     for (const cle of [stockKeys.courant(), stockKeys.equipe(), stockKeys.historique('liv-1', {})]) {
       expect(cle.slice(0, stockKeys.all.length)).toEqual([...stockKeys.all]);

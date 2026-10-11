@@ -16,6 +16,7 @@ import { apercuAJour, peutValiderEncaissement } from './regles';
 import { livraisonKeys } from '../livraisons/keys';
 import { clientKeys, encoursKeys } from '../clients/keys';
 import { reversementKeys } from '../reversements/keys';
+import { etatsKeys } from '../etats/keys';
 
 /** Délai d'inactivité avant de rappeler l'aperçu serveur. */
 export const DELAI_APERCU_MS = 300;
@@ -90,6 +91,7 @@ export function useCreerEncaissement() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: livraisonKeys.all });
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
+      qc.invalidateQueries({ queryKey: etatsKeys.all });
       qc.invalidateQueries({ queryKey: encoursKeys.all });
       qc.invalidateQueries({ queryKey: clientKeys.all });
       // Remise « en attente » → « acquise » dans la synthèse reversements.
