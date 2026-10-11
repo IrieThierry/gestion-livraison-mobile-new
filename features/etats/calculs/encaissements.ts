@@ -3,7 +3,17 @@ import type {
   EncoursClientResponse,
   UUID,
 } from '../../../types/api';
-import { arrondi, dansPeriode, nomPersonne, num, parDate, somme, type Periode } from './commun';
+import {
+  arrondi,
+  dansPeriode,
+  nomPersonne,
+  num,
+  parDate,
+  retenu,
+  somme,
+  type FiltresEtat,
+  type Periode,
+} from './commun';
 
 /** Un encaissement de la période. */
 export interface LigneEncaissement {
@@ -49,14 +59,17 @@ export interface EtatEncaissements {
  *   `dateEncaissement` tombe dans la période.
  * - Créances : solde ACTUEL de chaque client non soldé (« Solde actuel »),
  *   l'encours n'ayant pas d'historique à une date passée.
+ * - Filtre `clientId` : encaissements et créances de ce seul client.
  */
 export function calculerEtatEncaissements(
   encaissements: readonly EncaissementLivraisonResponse[],
   encours: readonly EncoursClientResponse[],
   periode: Periode,
+  filtres: FiltresEtat = {},
 ): EtatEncaissements {
   const lignes: LigneEncaissement[] = encaissements
     .filter((e) => dansPeriode(e.dateEncaissement, periode))
+    .filter((e) => retenu(filtres.clientId, e.client?.id))
     .sort(parDate((e) => e.dateEncaissement))
     .map((e) => ({
       id: e.id,
@@ -70,6 +83,7 @@ export function calculerEtatEncaissements(
 
   const creances: LigneCreance[] = encours
     .filter((c) => arrondi(num(c.solde)) !== 0)
+    .filter((c) => retenu(filtres.clientId, c.clientId))
     .map((c) => ({
       clientId: c.clientId,
       client: c.nomClient ?? '',

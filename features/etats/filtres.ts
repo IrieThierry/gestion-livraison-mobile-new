@@ -1,0 +1,182 @@
+import type {
+  CommandeResponse,
+  EncaissementLivraisonResponse,
+  EncoursClientResponse,
+  FournisseurAvecRelation,
+  LivraisonResponse,
+  MouvementStockResponse,
+  TypeMouvementStock,
+  VersementResponse,
+} from '../../types/api';
+import type { FamilleEtat } from './acces';
+import { nomPersonne, type FiltresEtat } from './calculs/commun';
+import { ORDRE_TYPES, type LigneStockSource } from './calculs/stock';
+
+/**
+ * Filtres d'entité des états : options des listes (tirées des données déjà
+ * chargées pour l'état) et libellés de l'en-tête. Fonctions pures.
+ */
+
+export interface OptionFiltre {
+  id: string;
+  label: string;
+}
+
+/** Listes proposées par l'écran ; une liste absente n'est pas affichée. */
+export interface OptionsFiltres {
+  clients?: OptionFiltre[];
+  produits?: OptionFiltre[];
+  fournisseurs?: OptionFiltre[];
+  typesMouvement?: OptionFiltre[];
+}
+
+/** Choix de l'écran : identifiant et libellé (pour l'en-tête et le nom du fichier). */
+export type ChoixFiltre = OptionFiltre | null;
+
+export interface ChoixFiltres {
+  client: ChoixFiltre;
+  produit: ChoixFiltre;
+  fournisseur: ChoixFiltre;
+  typeMouvement: ChoixFiltre;
+}
+
+export const AUCUN_FILTRE: ChoixFiltres = {
+  client: null,
+  produit: null,
+  fournisseur: null,
+  typeMouvement: null,
+};
+
+/** Identifiant de l'option « Tous » (valeur par défaut des listes). */
+export const ID_TOUS = '__tous__';
+export const OPTION_TOUS: OptionFiltre = { id: ID_TOUS, label: 'Tous' };
+
+/** Libellés des types de mouvement dans le filtre et l'en-tête des états. */
+export const LIBELLES_TYPE_FILTRE: Record<TypeMouvementStock, string> = {
+  RECEPTION: 'Réception',
+  LIVRAISON: 'Livraison',
+  RETOUR_EN_STOCK: 'Retour produit',
+  TRANSFERT_ENTREE: 'Transfert entrée',
+  TRANSFERT_SORTIE: 'Transfert sortie',
+  AJUSTEMENT: 'Ajustement',
+};
+
+export const OPTIONS_TYPES_MOUVEMENT: OptionFiltre[] = ORDRE_TYPES.map((t) => ({
+  id: t,
+  label: LIBELLES_TYPE_FILTRE[t],
+}));
+
+/** Options uniques (par identifiant), triées par libellé ; sans identifiant ni libellé : écartées. */
+function options(paires: Iterable<[string | null | undefined, string | null | undefined]>): OptionFiltre[] {
+  const parId = new Map<string, string>();
+  for (const [id, label] of paires) {
+    const l = (label ?? '').trim();
+    if (!id || !l || parId.has(id)) continue;
+    parId.set(id, l);
+  }
+  return [...parId.entries()]
+    .map(([id, label]) => ({ id, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+}
+
+/** Ventes : clients et produits des livraisons chargées. */
+export function optionsVentes(livraisons: readonly LivraisonResponse[]): OptionsFiltres {
+  return {
+    clients: options(livraisons.map((l) => [l.client?.id, nomPersonne(l.client)])),
+    produits: options(
+      livraisons.flatMap((l) =>
+        (l.produitsLivraison ?? []).map((p) => [p.produit?.id, p.produit?.designation] as [string, string]),
+      ),
+    ),
+  };
+}
+
+/** Encaissements et créances : clients des encaissements et des soldes. */
+export function optionsEncaissements(
+  encaissements: readonly EncaissementLivraisonResponse[],
+  encours: readonly EncoursClientResponse[],
+): OptionsFiltres {
+  return {
+    clients: options([
+      ...encaissements.map((e) => [e.client?.id, nomPersonne(e.client)] as [string, string]),
+      ...encours.map((c) => [c.clientId, c.nomClient] as [string, string]),
+    ]),
+  };
+}
+
+/** Stock et mouvements : produits du stock et des mouvements, types de mouvement. */
+export function optionsStock(
+  stock: readonly LigneStockSource[],
+  mouvements: readonly MouvementStockResponse[],
+): OptionsFiltres {
+  return {
+    produits: options([
+      ...stock.map((l) => [l.produit?.id, l.produit?.designation] as [string, string]),
+      ...mouvements.map((m) => [m.produit?.id, m.produit?.designation] as [string, string]),
+    ]),
+    typesMouvement: OPTIONS_TYPES_MOUVEMENT,
+  };
+}
+
+/** Fournisseurs et versements : partenaires, fournisseurs des commandes et des versements. */
+export function optionsFournisseurs(
+  partenaires: readonly FournisseurAvecRelation[],
+  commandes: readonly CommandeResponse[],
+  versements: readonly VersementResponse[],
+): OptionsFiltres {
+  return {
+    fournisseurs: options([
+      ...partenaires
+        .filter((p) => p.relation?.statut === 'ACCEPTEE')
+        .map((p) => [p.id, p.libelle] as [string, string]),
+      ...commandes.map((c) => [c.fournisseur?.id, c.fournisseur?.libelle] as [string, string]),
+      ...versements.map((v) => [v.fournisseur?.id, v.fournisseur?.libelle] as [string, string]),
+    ]),
+  };
+}
+
+/** Filtres utiles à une famille (les autres sont ignorés). */
+export function filtresDeFamille(famille: FamilleEtat, c: ChoixFiltres): ChoixFiltres {
+  switch (famille) {
+    case 'ventes':
+      return { ...AUCUN_FILTRE, client: c.client, produit: c.produit };
+    case 'encaissements':
+      return { ...AUCUN_FILTRE, client: c.client };
+    case 'stock':
+      return { ...AUCUN_FILTRE, produit: c.produit, typeMouvement: c.typeMouvement };
+    default:
+      return { ...AUCUN_FILTRE, fournisseur: c.fournisseur };
+  }
+}
+
+/** Identifiants passés aux calculs. */
+export function idsFiltres(c: ChoixFiltres): FiltresEtat {
+  return {
+    clientId: c.client?.id ?? null,
+    produitId: c.produit?.id ?? null,
+    fournisseurId: c.fournisseur?.id ?? null,
+    typeMouvement: (c.typeMouvement?.id as TypeMouvementStock | undefined) ?? null,
+  };
+}
+
+/** Ligne d'en-tête d'un filtre actif : `Client : Kouassi Jean`. */
+export interface LigneFiltre {
+  libelle: string;
+  valeur: string;
+}
+
+/** Lignes d'en-tête des filtres actifs, dans l'ordre client, produit, fournisseur, type. */
+export function lignesFiltres(c: ChoixFiltres): LigneFiltre[] {
+  const lignes: Array<[string, ChoixFiltre]> = [
+    ['Client', c.client],
+    ['Produit', c.produit],
+    ['Fournisseur', c.fournisseur],
+    ['Type de mouvement', c.typeMouvement],
+  ];
+  return lignes.filter(([, v]) => !!v).map(([libelle, v]) => ({ libelle, valeur: v!.label }));
+}
+
+/** Entités du nom de fichier (client, produit, fournisseur ; jamais le type de mouvement). */
+export function entitesFichier(c: ChoixFiltres): string[] {
+  return [c.client, c.produit, c.fournisseur].filter((v): v is OptionFiltre => !!v).map((v) => v.label);
+}

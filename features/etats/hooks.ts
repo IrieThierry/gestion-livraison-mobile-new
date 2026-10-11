@@ -16,6 +16,16 @@ import {
   documentVentes,
   type DocumentEtat,
 } from './document';
+import {
+  AUCUN_FILTRE,
+  idsFiltres,
+  optionsEncaissements,
+  optionsFournisseurs,
+  optionsStock,
+  optionsVentes,
+  type ChoixFiltres,
+  type OptionsFiltres,
+} from './filtres';
 
 /** Paramètres communs : utilisateur, livreur choisi (déjà autorisé), période valide ou null. */
 export interface ParamsEtat {
@@ -27,6 +37,8 @@ export interface ParamsEtat {
   apprentis: readonly LivreurResponse[];
   /** Lecture de la liste des apprentis (vue équipe : chargement et erreur remontés). */
   lectureApprentis: LectureApprentis;
+  /** Filtres d'entité choisis (client, produit, fournisseur, type de mouvement). */
+  filtres?: ChoixFiltres;
 }
 
 /** État de la lecture des apprentis (`useApprentis`). */
@@ -41,6 +53,8 @@ export interface LectureApprentis {
 
 export interface ResultatEtat {
   document: DocumentEtat | null;
+  /** Options des filtres d'entité, tirées des données chargées (non filtrées). */
+  options: OptionsFiltres;
   isLoading: boolean;
   isError: boolean;
   error: unknown;
@@ -56,10 +70,15 @@ type QueryLike = {
   refetch: () => unknown;
 };
 
-function combiner(queries: QueryLike[], document: DocumentEtat | null): ResultatEtat {
+function combiner(
+  queries: QueryLike[],
+  document: DocumentEtat | null,
+  options: OptionsFiltres,
+): ResultatEtat {
   const enErreur = queries.find((q) => q.isError);
   return {
     document,
+    options,
     isLoading: queries.some((q) => q.isLoading),
     isError: !!enErreur,
     error: enErreur?.error ?? null,
@@ -76,7 +95,14 @@ function entete(p: ParamsEtat, periode: Periode) {
     periode,
     editeLe: new Date(),
     equipe: p.choix.type === 'equipe',
+    filtres: p.filtres ?? AUCUN_FILTRE,
   };
+}
+
+/** Clé stable des filtres choisis (dépendance des calculs). */
+function cleFiltres(p: ParamsEtat): string {
+  const f = p.filtres ?? AUCUN_FILTRE;
+  return [f.client, f.produit, f.fournisseur, f.typeMouvement].map((c) => c?.id ?? '').join('|');
 }
 
 export function useEtatVentes(p: ParamsEtat): ResultatEtat {
@@ -90,12 +116,13 @@ export function useEtatVentes(p: ParamsEtat): ResultatEtat {
   const document = useMemo(
     () =>
       periode && q.data
-        ? documentVentes(calculerEtatVentes(q.data, periode), entete(p, periode))
+        ? documentVentes(calculerEtatVentes(q.data, periode, idsFiltres(p.filtres ?? AUCUN_FILTRE)), entete(p, periode))
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [q.data, periode, p.libelleLivreur, p.choix.type],
+    [q.data, periode, p.libelleLivreur, p.choix.type, cleFiltres(p)],
   );
-  return combiner([q], document);
+  const options = useMemo(() => optionsVentes(q.data ?? []), [q.data]);
+  return combiner([q], document, options);
 }
 
 export function useEtatEncaissements(p: ParamsEtat): ResultatEtat {
@@ -115,14 +142,18 @@ export function useEtatEncaissements(p: ParamsEtat): ResultatEtat {
     () =>
       periode && qE.data && qC.data
         ? documentEncaissements(
-            calculerEtatEncaissements(qE.data, qC.data, periode),
+            calculerEtatEncaissements(qE.data, qC.data, periode, idsFiltres(p.filtres ?? AUCUN_FILTRE)),
             entete(p, periode),
           )
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [qE.data, qC.data, periode, p.libelleLivreur, p.choix.type],
+    [qE.data, qC.data, periode, p.libelleLivreur, p.choix.type, cleFiltres(p)],
   );
-  return combiner([qE, qC], document);
+  const options = useMemo(
+    () => optionsEncaissements(qE.data ?? [], qC.data ?? []),
+    [qE.data, qC.data],
+  );
+  return combiner([qE, qC], document, options);
 }
 
 export function useEtatStock(p: ParamsEtat): ResultatEtat {
@@ -169,12 +200,21 @@ export function useEtatStock(p: ParamsEtat): ResultatEtat {
       const mouvements = donnees.flatMap((d, i) =>
         (d ?? []).map((mv) => ({ ...mv, livreur: equipe ? membres[i].nom : undefined })),
       );
-      return documentStock(calculerEtatStock(qStock.data, mouvements, periode), entete(p, periode));
+      return documentStock(calculerEtatStock(qStock.data, mouvements, periode, idsFiltres(p.filtres ?? AUCUN_FILTRE)), entete(p, periode));
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [qStock.data, cleMouvements, membresConnus, periode, p.libelleLivreur, p.choix.type],
+    [qStock.data, cleMouvements, membresConnus, periode, p.libelleLivreur, p.choix.type, cleFiltres(p)],
   );
-  return combiner(equipe ? [p.lectureApprentis, qStock, ...qMouvements] : [qStock, ...qMouvements], document);
+  const options = useMemo(
+    () => optionsStock(qStock.data ?? [], qMouvements.flatMap((q) => q.data ?? [])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [qStock.data, cleMouvements],
+  );
+  return combiner(
+    equipe ? [p.lectureApprentis, qStock, ...qMouvements] : [qStock, ...qMouvements],
+    document,
+    options,
+  );
 }
 
 export function useEtatFournisseurs(p: ParamsEtat): ResultatEtat {
@@ -191,12 +231,16 @@ export function useEtatFournisseurs(p: ParamsEtat): ResultatEtat {
     () =>
       periode && qP.data && qC.data && qV.data
         ? documentFournisseurs(
-            calculerEtatFournisseurs(qP.data, qC.data, qV.data, periode),
+            calculerEtatFournisseurs(qP.data, qC.data, qV.data, periode, idsFiltres(p.filtres ?? AUCUN_FILTRE)),
             entete(p, periode),
           )
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [qP.data, qC.data, qV.data, periode, p.libelleLivreur],
+    [qP.data, qC.data, qV.data, periode, p.libelleLivreur, cleFiltres(p)],
   );
-  return combiner([qP, qC, qV], document);
+  const options = useMemo(
+    () => optionsFournisseurs(qP.data ?? [], qC.data ?? [], qV.data ?? []),
+    [qP.data, qC.data, qV.data],
+  );
+  return combiner([qP, qC, qV], document, options);
 }

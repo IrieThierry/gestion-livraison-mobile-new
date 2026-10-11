@@ -5,7 +5,16 @@ import type {
   UUID,
   VersementResponse,
 } from '../../../types/api';
-import { arrondi, dansPeriode, num, parDate, somme, type Periode } from './commun';
+import {
+  arrondi,
+  dansPeriode,
+  num,
+  parDate,
+  retenu,
+  somme,
+  type FiltresEtat,
+  type Periode,
+} from './commun';
 
 const LIBELLES_STATUT: Record<StatutCommande, string> = {
   ENVOYEE: 'Envoyée',
@@ -88,13 +97,20 @@ export interface EtatFournisseurs {
  *   date de la commande ;
  * - versements de la période ;
  * - par fournisseur, le dû et la remise à recevoir ACTUELS (`/livreur/me/fournisseurs`).
+ * Filtre `fournisseurId` : tout l'état est limité à ce fournisseur.
  */
 export function calculerEtatFournisseurs(
-  partenaires: readonly FournisseurAvecRelation[],
-  commandes: readonly CommandeResponse[],
-  versements: readonly VersementResponse[],
+  tousPartenaires: readonly FournisseurAvecRelation[],
+  toutesCommandes: readonly CommandeResponse[],
+  tousVersements: readonly VersementResponse[],
   periode: Periode,
+  filtres: FiltresEtat = {},
 ): EtatFournisseurs {
+  const f = filtres.fournisseurId;
+  const partenaires = tousPartenaires.filter((p) => retenu(f, p.id));
+  const commandes = toutesCommandes.filter((c) => retenu(f, c.fournisseur?.id));
+  const versements = tousVersements.filter((v) => retenu(f, v.fournisseur?.id));
+
   const lignesCommandes: LigneCommande[] = commandes
     .filter((c) => dansPeriode(c.date, periode))
     .sort(parDate((c) => c.date))

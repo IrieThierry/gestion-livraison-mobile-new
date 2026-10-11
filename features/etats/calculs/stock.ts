@@ -7,7 +7,7 @@ import type {
   UUID,
 } from '../../../types/api';
 import { libelleTypeMouvement } from '../../stock/regles';
-import { dansPeriode, num, type Periode } from './commun';
+import { dansPeriode, num, retenu, type FiltresEtat, type Periode } from './commun';
 
 /** Ligne de stock à agréger (une source par livreur ou par équipe). */
 export interface LigneStockSource {
@@ -91,15 +91,18 @@ export function detailMouvement(m: Pick<MouvementStockResponse, 'type' | 'refere
  * État « Stock et mouvements » : stock courant par produit (cumulé si
  * plusieurs lignes) et mouvements de la période, détaillés puis cumulés par
  * type. Un ajustement (mise à zéro) est une sortie, jamais une vente.
+ * Filtres : `produitId` (stock et mouvements), `typeMouvement` (mouvements).
  */
 export function calculerEtatStock(
   stock: readonly LigneStockSource[],
   mouvements: readonly MouvementSource[],
   periode: Periode,
+  filtres: FiltresEtat = {},
 ): EtatStock {
   const produits = new Map<UUID, LigneStockProduit>();
   for (const l of stock) {
     const id = l.produit?.id ?? '';
+    if (!retenu(filtres.produitId, id)) continue;
     const p = produits.get(id) ?? {
       produitId: id,
       designation: l.produit?.designation ?? '',
@@ -114,6 +117,8 @@ export function calculerEtatStock(
 
   const lignes: LigneMouvement[] = mouvements
     .filter((m) => dansPeriode(m.date, periode))
+    .filter((m) => retenu(filtres.produitId, m.produit?.id))
+    .filter((m) => retenu(filtres.typeMouvement, m.type))
     .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
     .map((m) => ({
       date: m.date,

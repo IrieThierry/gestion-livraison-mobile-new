@@ -96,7 +96,7 @@ export function genererHtmlEtat(doc: DocumentEtat): string {
 <h1>${echapperHtml(doc.titre)}</h1>
 <div class="meta">
 <div>Livreur : <b>${echapperHtml(doc.livreur)}</b></div>
-<div>Période : <b>${echapperHtml(libellePeriode(doc.periode))}</b></div>
+${(doc.filtres ?? []).map((f) => `<div>${echapperHtml(f.libelle)} : <b>${echapperHtml(f.valeur)}</b></div>\n`).join('')}<div>Période : <b>${echapperHtml(libellePeriode(doc.periode))}</b></div>
 <div>Édité le ${echapperHtml(edition)}</div>
 </div>
 ${syntheses}

@@ -44,6 +44,16 @@ import {
   type ResultatEtat,
 } from '../../../../features/etats/hooks';
 import { partagerPdfEtat } from '../../../../features/etats/partage';
+import {
+  AUCUN_FILTRE,
+  filtresDeFamille,
+  ID_TOUS,
+  OPTION_TOUS,
+  type ChoixFiltre,
+  type ChoixFiltres,
+  type OptionFiltre,
+  type OptionsFiltres,
+} from '../../../../features/etats/filtres';
 import { creerVerrou, lancerUneFois } from '../../../../features/commandes/verrou';
 import { useApprentis } from '../../../../features/apprentis/hooks';
 import { useAuthStore } from '../../../../stores/authStore';
@@ -51,8 +61,8 @@ import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { dialog } from '../../../../lib/dialog';
 
 /**
- * Aperçu d'un état (tableaux à l'écran) avec les filtres de période et de
- * livreur, et le bouton « Partager le PDF ». L'aperçu et le PDF sont produits
+ * Aperçu d'un état (tableaux à l'écran) avec les filtres de période, de
+ * livreur et d'entité (client, produit, fournisseur, type de mouvement), et le bouton « Partager le PDF ». L'aperçu et le PDF sont produits
  * à partir du même document : mêmes lignes, mêmes totaux.
  */
 export default function ApercuEtat() {
@@ -85,6 +95,8 @@ function Apercu({ famille }: { famille: FamilleEtat }) {
   const [debut, setDebut] = useState<string | null>(() => periodeParDefaut().debut);
   const [fin, setFin] = useState<string | null>(() => periodeParDefaut().fin);
   const [choixSaisi, setChoixSaisi] = useState<ChoixLivreur>(CHOIX_MOI);
+  const [filtresSaisis, setFiltresSaisis] = useState<ChoixFiltres>(AUCUN_FILTRE);
+  const filtresEntite = filtresDeFamille(famille, filtresSaisis);
 
   const erreur = erreurPeriode({ debut, fin });
   const periode = useMemo(
@@ -104,9 +116,10 @@ function Apercu({ famille }: { famille: FamilleEtat }) {
     libelleLivreur: libelleChoix(user, choix, apprentis),
     apprentis,
     lectureApprentis: qApprentis,
+    filtres: filtresEntite,
   };
 
-  const filtres = (
+  const filtres = (options: OptionsFiltres) => (
     <Filtres
       debut={debut}
       fin={fin}
@@ -116,10 +129,17 @@ function Apercu({ famille }: { famille: FamilleEtat }) {
       }}
       erreur={erreur}
       choix={choix}
-      onChoix={setChoixSaisi}
+      onChoix={(c) => {
+        setChoixSaisi(c);
+        // Changer de livreur réinitialise les filtres d'entité.
+        setFiltresSaisis(AUCUN_FILTRE);
+      }}
       options={optionsLivreur(user, apprentis)}
       afficheLivreur={afficheFiltreLivreur(user, famille)}
       chargementLivreurs={qApprentis.isLoading}
+      optionsEntites={options}
+      entites={filtresEntite}
+      onEntites={setFiltresSaisis}
     />
   );
 
@@ -141,7 +161,7 @@ function Apercu({ famille }: { famille: FamilleEtat }) {
   );
 }
 
-type PropsEtat = { params: ParamsEtat; filtres: ReactNode };
+type PropsEtat = { params: ParamsEtat; filtres: (options: OptionsFiltres) => ReactNode };
 
 function EtatVentes({ params, filtres }: PropsEtat) {
   return <Corps resultat={useEtatVentes(params)} filtres={filtres} periodeValide={!!params.periode} />;
@@ -166,7 +186,7 @@ function Corps({
   periodeValide,
 }: {
   resultat: ResultatEtat;
-  filtres: ReactNode;
+  filtres: (options: OptionsFiltres) => ReactNode;
   periodeValide: boolean;
 }) {
   const verrou = useRef(creerVerrou()).current;
@@ -206,7 +226,7 @@ function Corps({
         }
       >
         <View className="px-4 pt-3">
-          {filtres}
+          {filtres(resultat.options)}
           {!periodeValide ? null : resultat.isLoading ? (
             <View className="mt-6">
               <ActivityIndicator color="#10b981" />
@@ -239,6 +259,11 @@ function Corps({
               <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-3">
                 Livreur : {doc.livreur}
               </Text>
+              {doc.filtres.map((f) => (
+                <Text key={f.libelle} className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {f.libelle} : {f.valeur}
+                </Text>
+              ))}
               {doc.sections.map((s) => (
                 <TableauEtat key={s.titre} section={s} />
               ))}
@@ -275,6 +300,9 @@ function Filtres({
   options,
   afficheLivreur,
   chargementLivreurs,
+  optionsEntites,
+  entites,
+  onEntites,
 }: {
   debut: string | null;
   fin: string | null;
@@ -285,7 +313,16 @@ function Filtres({
   options: Array<{ id: string; label: string }>;
   afficheLivreur: boolean;
   chargementLivreurs: boolean;
+  optionsEntites: OptionsFiltres;
+  entites: ChoixFiltres;
+  onEntites: (c: ChoixFiltres) => void;
 }) {
+  const listes: Array<{ cle: keyof ChoixFiltres; label: string; liste?: OptionFiltre[] }> = [
+    { cle: 'client', label: 'Client', liste: optionsEntites.clients },
+    { cle: 'produit', label: 'Produit', liste: optionsEntites.produits },
+    { cle: 'fournisseur', label: 'Fournisseur', liste: optionsEntites.fournisseurs },
+    { cle: 'typeMouvement', label: 'Type de mouvement', liste: optionsEntites.typesMouvement },
+  ];
   return (
     <View>
       <View className="flex-row items-center gap-1.5 mb-2">
@@ -342,6 +379,46 @@ function Filtres({
           />
         </View>
       ) : null}
+      {listes.map(({ cle, label, liste }) =>
+        liste ? (
+          <View key={cle} className="mt-3">
+            <FiltreEntite
+              label={label}
+              liste={liste}
+              valeur={entites[cle]}
+              onChange={(v) => onEntites({ ...entites, [cle]: v })}
+            />
+          </View>
+        ) : null,
+      )}
     </View>
+  );
+}
+
+/** Liste avec recherche, « Tous » par défaut. */
+function FiltreEntite({
+  label,
+  liste,
+  valeur,
+  onChange,
+}: {
+  label: string;
+  liste: OptionFiltre[];
+  valeur: ChoixFiltre;
+  onChange: (v: ChoixFiltre) => void;
+}) {
+  // Un choix absent des données de la période reste affiché (et sélectionnable).
+  const options = [
+    OPTION_TOUS,
+    ...liste,
+    ...(valeur && !liste.some((o) => o.id === valeur.id) ? [valeur] : []),
+  ];
+  return (
+    <SelectField
+      label={label}
+      value={valeur?.id ?? ID_TOUS}
+      options={options}
+      onChange={(id) => onChange(!id || id === ID_TOUS ? null : (options.find((o) => o.id === id) ?? null))}
+    />
   );
 }

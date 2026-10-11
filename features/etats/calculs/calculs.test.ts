@@ -301,3 +301,114 @@ describe('calculerEtatFournisseurs', () => {
     expect(etat.totaux.montantRecu).toBe(0);
   });
 });
+
+describe('filtres des états', () => {
+  const livraisons = [
+    livraison({
+      id: '1',
+      date: '2026-10-02T09:00:00',
+      clientId: 'c1',
+      client: 'Ali Traore',
+      montantDu: 5000,
+      remiseNette: -500,
+      lignes: [ligneLivraison('p1', 'Eau', 10, 2, 300, -50), ligneLivraison('p2', 'Jus', 5, 0, 600)],
+    }),
+    livraison({
+      id: '2',
+      date: '2026-10-03T09:00:00',
+      clientId: 'c2',
+      client: 'Binta Diallo',
+      montantDu: 1200,
+      lignes: [ligneLivraison('p2', 'Jus', 2, 0, 600)],
+    }),
+  ];
+
+  it('ventes, client : seules les livraisons de ce client', () => {
+    const e = calculerEtatVentes(livraisons, P, { clientId: 'c2' });
+    expect(e.livraisons.map((l) => l.id)).toEqual(['2']);
+    expect(e.parClient.map((c) => c.clientId)).toEqual(['c2']);
+    expect(e.parProduit.map((p) => p.produitId)).toEqual(['p2']);
+    expect(e.totaux.montantDu).toBe(1200);
+  });
+
+  it('ventes, produit : livraisons contenant le produit, montants limités à ses lignes', () => {
+    const e = calculerEtatVentes(livraisons, P, { produitId: 'p1' });
+    expect(e.livraisons.map((l) => l.id)).toEqual(['1']);
+    // (300 − 50) × (10 − 2) = 2000 ; remise −50 × 8 = −400
+    expect(e.livraisons[0]).toMatchObject({ montantDu: 2000, remise: -400 });
+    expect(e.parClient).toEqual([
+      { clientId: 'c1', client: 'Ali Traore', nbLivraisons: 1, montantDu: 2000, remise: -400 },
+    ]);
+    expect(e.parProduit.map((p) => p.produitId)).toEqual(['p1']);
+    expect(e.totaux).toMatchObject({ nbLivraisons: 1, montantDu: 2000, remise: -400, qteVendue: 8, montantProduits: 2000 });
+  });
+
+  it('ventes, client et produit combinés', () => {
+    expect(calculerEtatVentes(livraisons, P, { clientId: 'c2', produitId: 'p1' }).livraisons).toEqual([]);
+    const e = calculerEtatVentes(livraisons, P, { clientId: 'c1', produitId: 'p2' });
+    expect(e.totaux).toMatchObject({ nbLivraisons: 1, montantDu: 3000, qteVendue: 5 });
+  });
+
+  it('encaissements, client : encaissements et créances de ce client', () => {
+    const e = calculerEtatEncaissements(
+      [
+        encaissement({ id: 'e1', date: '2026-10-02T10:00:00', client: 'Ali Traore', montant: 1000 }),
+        encaissement({ id: 'e2', date: '2026-10-03T10:00:00', client: 'Binta Diallo', montant: 700 }),
+      ],
+      [encours('c-Ali Traore', 'Ali Traore', 500), encours('c-Binta Diallo', 'Binta Diallo', 300)],
+      P,
+      { clientId: 'c-Binta Diallo' },
+    );
+    expect(e.encaissements.map((x) => x.id)).toEqual(['e2']);
+    expect(e.creances.map((c) => c.clientId)).toEqual(['c-Binta Diallo']);
+    expect(e.totaux).toMatchObject({ montantEncaisse: 700, totalDu: 300 });
+  });
+
+  it('stock, produit et type de mouvement', () => {
+    const stock = lignesDepuisActuel([
+      { produit: { id: 'p-Eau 1,5 L', designation: 'Eau 1,5 L' }, qte: 10 },
+      { produit: { id: 'p-Jus', designation: 'Jus' }, qte: 4 },
+    ] as unknown as StockLivreurResponse[]);
+    const mvts = [
+      mouvement('RECEPTION', '2026-10-02T08:00:00', 20),
+      mouvement('LIVRAISON', '2026-10-02T10:00:00', -5),
+      mouvement('LIVRAISON', '2026-10-02T11:00:00', -3, 'Jus'),
+    ];
+    const parProduit = calculerEtatStock(stock, mvts, P, { produitId: 'p-Jus' });
+    expect(parProduit.stock.map((s) => s.produitId)).toEqual(['p-Jus']);
+    expect(parProduit.mouvements.map((m) => m.produit)).toEqual(['Jus']);
+
+    const parType = calculerEtatStock(stock, mvts, P, { typeMouvement: 'LIVRAISON' });
+    expect(parType.stock).toHaveLength(2);
+    expect(parType.mouvements.map((m) => m.type)).toEqual(['LIVRAISON', 'LIVRAISON']);
+    expect(parType.totaux).toMatchObject({ nbMouvements: 2, entrees: 0, sorties: 8 });
+
+    const combines = calculerEtatStock(stock, mvts, P, { produitId: 'p-Eau 1,5 L', typeMouvement: 'RECEPTION' });
+    expect(combines.mouvements.map((m) => m.quantite)).toEqual([20]);
+  });
+
+  it('fournisseurs, fournisseur : tout l’état limité à ce fournisseur', () => {
+    const e = calculerEtatFournisseurs(
+      [partenaire('f1', 'Brasserie', 1000, 0), partenaire('f2', 'Laiterie', 500, 0)],
+      [
+        commande({ id: 'k1', date: '2026-10-02T08:00:00', fournisseurId: 'f1', fournisseur: 'Brasserie', receptions: [{ date: '2026-10-03T08:00:00', lignes: [[2, 100, 0]] }] }),
+        commande({ id: 'k2', date: '2026-10-02T08:00:00', fournisseurId: 'f2', fournisseur: 'Laiterie' }),
+      ],
+      [
+        versement({ id: 'v1', date: '2026-10-04T08:00:00', fournisseurId: 'f1', fournisseur: 'Brasserie', montant: 150 }),
+        versement({ id: 'v2', date: '2026-10-04T08:00:00', fournisseurId: 'f2', fournisseur: 'Laiterie', montant: 90 }),
+      ],
+      P,
+      { fournisseurId: 'f2' },
+    );
+    expect(e.parFournisseur.map((f) => f.fournisseurId)).toEqual(['f2']);
+    expect(e.commandes.map((c) => c.id)).toEqual(['k2']);
+    expect(e.receptions).toEqual([]);
+    expect(e.versements.map((v) => v.id)).toEqual(['v2']);
+    expect(e.totaux).toMatchObject({ nbCommandes: 1, montantVerse: 90, du: 500 });
+  });
+
+  it('sans filtre : résultat inchangé', () => {
+    expect(calculerEtatVentes(livraisons, P, {})).toEqual(calculerEtatVentes(livraisons, P));
+  });
+});

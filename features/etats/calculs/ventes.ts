@@ -1,5 +1,15 @@
 import type { LivraisonResponse, UUID } from '../../../types/api';
-import { arrondi, dansPeriode, nomPersonne, num, parDate, somme, type Periode } from './commun';
+import {
+  arrondi,
+  dansPeriode,
+  nomPersonne,
+  num,
+  parDate,
+  retenu,
+  somme,
+  type FiltresEtat,
+  type Periode,
+} from './commun';
 
 /** Une livraison de l'état « Ventes / livraisons ». */
 export interface LigneVenteLivraison {
@@ -54,24 +64,50 @@ export interface EtatVentes {
  * État « Ventes / livraisons » : par livraison, par client (cumul) et par
  * produit. Les livraisons hors période sont écartées (le back filtre déjà,
  * le contrôle garantit le même résultat quelle que soit la source).
+ *
+ * Filtres : `clientId` ne garde que les livraisons de ce client ;
+ * `produitId` ne garde que les livraisons contenant ce produit et limite
+ * tous les montants (livraison, client, produit) aux lignes de ce produit.
  */
 export function calculerEtatVentes(
   livraisons: readonly LivraisonResponse[],
   periode: Periode,
+  filtres: FiltresEtat = {},
 ): EtatVentes {
+  const produitId = filtres.produitId || null;
+  const lignesDe = (l: LivraisonResponse) =>
+    (l.produitsLivraison ?? []).filter((p) => retenu(produitId, p.produit?.id));
+
   const retenues = livraisons
     .filter((l) => dansPeriode(l.date, periode))
+    .filter((l) => retenu(filtres.clientId, l.client?.id))
+    .filter((l) => !produitId || lignesDe(l).length > 0)
     .sort(parDate((l) => l.date));
 
-  const lignes: LigneVenteLivraison[] = retenues.map((l) => ({
-    id: l.id,
-    date: l.date,
-    reference: l.reference ?? '',
-    client: nomPersonne(l.client),
-    livreur: nomPersonne(l.livreur),
-    montantDu: arrondi(num(l.montantDu)),
-    remise: arrondi(num(l.remiseNette)),
-  }));
+  // Montants d'une livraison : ceux du serveur, ou limités aux lignes du produit filtré
+  // (même formule que le back : (prix + remise) × (livré − retourné)).
+  const montants = (l: LivraisonResponse): { du: number; remise: number } => {
+    if (!produitId) return { du: arrondi(num(l.montantDu)), remise: arrondi(num(l.remiseNette)) };
+    const lignes = lignesDe(l);
+    const vendue = (p: (typeof lignes)[number]) => num(p.qteLivre) - num(p.qteRetourne);
+    return {
+      du: somme(lignes, (p) => (num(p.prixDeVente) + num(p.remiseUnitaire)) * vendue(p)),
+      remise: somme(lignes, (p) => num(p.remiseUnitaire) * vendue(p)),
+    };
+  };
+
+  const lignes: LigneVenteLivraison[] = retenues.map((l) => {
+    const mt = montants(l);
+    return {
+      id: l.id,
+      date: l.date,
+      reference: l.reference ?? '',
+      client: nomPersonne(l.client),
+      livreur: nomPersonne(l.livreur),
+      montantDu: mt.du,
+      remise: mt.remise,
+    };
+  });
 
   const clients = new Map<UUID, LigneVenteClient>();
   for (const l of retenues) {
@@ -83,15 +119,16 @@ export function calculerEtatVentes(
       montantDu: 0,
       remise: 0,
     };
+    const mt = montants(l);
     c.nbLivraisons += 1;
-    c.montantDu = arrondi(c.montantDu + num(l.montantDu));
-    c.remise = arrondi(c.remise + num(l.remiseNette));
+    c.montantDu = arrondi(c.montantDu + mt.du);
+    c.remise = arrondi(c.remise + mt.remise);
     clients.set(id, c);
   }
 
   const produits = new Map<UUID, LigneVenteProduit>();
   for (const l of retenues) {
-    for (const p of l.produitsLivraison ?? []) {
+    for (const p of lignesDe(l)) {
       const id = p.produit?.id ?? '';
       const ligne = produits.get(id) ?? {
         produitId: id,

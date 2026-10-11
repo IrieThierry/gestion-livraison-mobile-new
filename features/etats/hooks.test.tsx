@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { etatsApi } from './api';
 import { useEtatStock, useEtatVentes, type ParamsEtat } from './hooks';
-import { mouvement } from './calculs/etats.fixture';
+import { ligneLivraison, livraison, mouvement } from './calculs/etats.fixture';
 
 jest.mock('./api', () => ({
   etatsApi: {
@@ -151,5 +151,30 @@ describe('hooks des états', () => {
     await waitFor(() => expect(result.current.document).not.toBeNull());
     expect(result.current.isError).toBe(false);
     expect(api.mouvements).toHaveBeenCalledWith('p', P);
+  });
+  it('ventes filtrées : calcul limité au client, options tirées des données non filtrées', async () => {
+    api.livraisons.mockResolvedValue([
+      livraison({ id: '1', date: '2026-10-02T09:00:00', clientId: 'c1', client: 'Ali Traore', montantDu: 100, lignes: [ligneLivraison('p1', 'Eau', 1, 0, 100)] }),
+      livraison({ id: '2', date: '2026-10-03T09:00:00', clientId: 'c2', client: 'Binta Diallo', montantDu: 200 }),
+    ]);
+    const { result } = renderHook(
+      () =>
+        useEtatVentes({
+          user,
+          choix: { type: 'moi' },
+          periode: P,
+          libelleLivreur: 'Awa Kone',
+          apprentis: [],
+          lectureApprentis: APPRENTIS_LUS,
+          filtres: { client: { id: 'c2', label: 'Binta Diallo' }, produit: null, fournisseur: null, typeMouvement: null },
+        }),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.document).not.toBeNull());
+    expect(result.current.document?.sections[0].lignes).toHaveLength(1);
+    expect(result.current.document?.filtres).toEqual([{ libelle: 'Client', valeur: 'Binta Diallo' }]);
+    expect(result.current.document?.nomFichier).toBe('Ventes_Binta-Diallo_2026-10-01_au_2026-10-31');
+    expect(result.current.options.clients?.map((c) => c.id)).toEqual(['c1', 'c2']);
+    expect(result.current.options.produits).toEqual([{ id: 'p1', label: 'Eau' }]);
   });
 });
