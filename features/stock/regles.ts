@@ -93,3 +93,18 @@ export function peutMettreAZero(
   if (!utilisateur || utilisateur.parentId || !livreurCibleId) return false;
   return livreurCibleId === utilisateur.id || apprentiIds.includes(livreurCibleId);
 }
+
+/**
+ * Message de succès d'une mise à zéro : la quantité retirée vient de la
+ * réponse du back (le stock a pu changer depuis l'affichage), avec repli sur
+ * la quantité affichée.
+ */
+export function messageMiseAZero(
+  designation: string,
+  reponse: { quantiteRetiree?: number | null } | null | undefined,
+  quantiteAffichee: number,
+): string {
+  const q = typeof reponse?.quantiteRetiree === 'number' ? reponse.quantiteRetiree : quantiteAffichee;
+  const s = q > 1 ? 's' : '';
+  return `${designation} : ${q} unité${s} retirée${s}.`;
+}

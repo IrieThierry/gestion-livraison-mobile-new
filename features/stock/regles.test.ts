@@ -3,6 +3,7 @@ import {
   libelleQuantiteMouvement,
   libelleTypeMouvement,
   MESSAGES_MISE_A_ZERO,
+  messageMiseAZero,
   MOTIFS_AJUSTEMENT,
   peutMettreAZero,
 } from './regles';
@@ -113,5 +114,17 @@ describe('peutMettreAZero', () => {
   it('sans utilisateur ou sans cible : non', () => {
     expect(peutMettreAZero(null, 'root')).toBe(false);
     expect(peutMettreAZero(racine, null)).toBe(false);
+  });
+});
+
+describe('messageMiseAZero', () => {
+  it('prend la quantité retirée de la réponse du back', () => {
+    expect(messageMiseAZero('Pain', { quantiteRetiree: 9 }, 7)).toBe('Pain : 9 unités retirées.');
+    expect(messageMiseAZero('Pain', { quantiteRetiree: 1 }, 7)).toBe('Pain : 1 unité retirée.');
+  });
+
+  it('repli sur la quantité affichée sans réponse exploitable', () => {
+    expect(messageMiseAZero('Lait', undefined, 3)).toBe('Lait : 3 unités retirées.');
+    expect(messageMiseAZero('Lait', { quantiteRetiree: null }, 1)).toBe('Lait : 1 unité retirée.');
   });
 });

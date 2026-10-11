@@ -16,6 +16,7 @@ import { useMettreAZeroStock } from '../../features/stock/hooks';
 import {
   COMMENTAIRE_AJUSTEMENT_MAX,
   construireMiseAZero,
+  messageMiseAZero,
   MOTIFS_AJUSTEMENT,
 } from '../../features/stock/regles';
 import { creerVerrou, lancerUneFois } from '../../features/commandes/verrou';
@@ -69,11 +70,11 @@ export function MiseAZeroDialog({
       mutation.mutate(
         { livreurId: cible.livreurId, produitId: cible.produit.id, payload: r.valeur },
         {
-          onSuccess: () => {
+          onSuccess: (res) => {
             onClose();
             dialog.success(
               'Stock mis à zéro',
-              `${cible.produit.designation} : ${cible.quantite} unité${cible.quantite > 1 ? 's' : ''} retirée${cible.quantite > 1 ? 's' : ''}.`,
+              messageMiseAZero(cible.produit.designation, res, cible.quantite),
             );
           },
           onError: (e) => setErreur(extractApiErrorMessage(e, 'Impossible de mettre le stock à zéro')),
