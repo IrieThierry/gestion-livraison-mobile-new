@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MESSAGES_COMPTE } from '../../../../features/auth/schemas';
+import { apprentiSchema } from '../../../../features/auth/schemas';
 import {
   View,
   Text,
@@ -49,40 +49,15 @@ export default function NouveauApprenti() {
   const [showPassword, setShowPassword] = useState(false);
 
   const onSubmit = () => {
-    if (prenom.trim().length < 2) {
-      dialog.warning('Champ invalide', 'Prénom trop court');
-      return;
-    }
-    if (nom.trim().length < 2) {
-      dialog.warning('Champ invalide', 'Nom trop court');
-      return;
-    }
-    if (!/^[0-9]{10}$/.test(contact.trim())) {
-      dialog.warning('Champ invalide', MESSAGES_COMPTE.contact);
-      return;
-    }
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      dialog.warning('Champ invalide', 'Email invalide');
-      return;
-    }
-    if (username.trim().length < 3) {
-      dialog.warning('Champ invalide', "Nom d'utilisateur min 3 caractères");
-      return;
-    }
-    if (password.length < 6) {
-      dialog.warning('Champ invalide', MESSAGES_COMPTE.motDePasse);
+    // Mêmes règles et messages A7 que l'inscription (apprentiSchema).
+    const parsed = apprentiSchema.safeParse({ prenom, nom, contact, email, username, password });
+    if (!parsed.success) {
+      dialog.warning('Champ invalide', parsed.error.issues[0]?.message);
       return;
     }
 
     m.mutate(
-      {
-        prenom: prenom.trim(),
-        nom: nom.trim(),
-        contact: contact.trim(),
-        email: email.trim(),
-        username: username.trim(),
-        password,
-      },
+      parsed.data,
       {
         onSuccess: () => {
           retourListe();
@@ -166,7 +141,7 @@ export default function NouveauApprenti() {
               onChange={setUsername}
               placeholder="paul"
               autoCapitalize="none"
-              hint="Min 3 caractères, sans espaces"
+              hint="3 à 50 caractères, sans espaces"
               icon={AtSign}
             />
 

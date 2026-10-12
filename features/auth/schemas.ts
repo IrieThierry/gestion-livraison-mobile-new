@@ -64,6 +64,20 @@ export const signupSchema = z
 
 export type SignupInput = z.infer<typeof signupSchema>;
 
+/**
+ * Création d'un apprenti (Profil → Apprentis → Nouveau) : mêmes règles et
+ * messages A7 que l'inscription (prénom, nom, contact, email, username, mot de passe).
+ */
+export const apprentiSchema = z.object({
+  prenom: nomPersonne(MESSAGES_COMPTE.prenomLongueur, MESSAGES_COMPTE.prenomFormat),
+  nom: nomPersonne(MESSAGES_COMPTE.nomLongueur, MESSAGES_COMPTE.nomFormat),
+  contact,
+  email,
+  username: z.string().trim().min(3, MESSAGES_COMPTE.usernameLongueur).max(50, MESSAGES_COMPTE.usernameLongueur),
+  password: motDePasse,
+});
+export type ApprentiInput = z.infer<typeof apprentiSchema>;
+
 export const updateProfileSchema = z.object({
   prenom: nomPersonne(MESSAGES_COMPTE.prenomLongueur, MESSAGES_COMPTE.prenomFormat),
   nom: nomPersonne(MESSAGES_COMPTE.nomLongueur, MESSAGES_COMPTE.nomFormat),

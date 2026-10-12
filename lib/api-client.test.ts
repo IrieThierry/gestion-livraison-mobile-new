@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { apiClient } from './api-client';
 import { useAuthStore } from '../stores/authStore';
 import { SecureStorage } from './secure-storage';
+import { queryClient } from './query-client';
 
 jest.mock('expo-router', () => ({ router: { replace: jest.fn() } }));
 jest.mock('./secure-storage', () => ({
@@ -65,5 +66,38 @@ describe('intercepteur 401', () => {
     expect(post).toHaveBeenCalledWith(expect.stringMatching(/\/auth\/refresh$/), { refreshToken: 'refresh-1' });
     expect(logout).not.toHaveBeenCalled();
     post.mockRestore();
+  });
+});
+
+describe('intercepteur 403 abonnement expiré', () => {
+  function adaptateur403(message: string) {
+    return (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
+      const response = {
+        data: { success: false, message },
+        status: 403,
+        statusText: 'Forbidden',
+        headers: {},
+        config,
+      } as AxiosResponse;
+      return Promise.reject(new AxiosError('Request failed with status code 403', 'ERR_BAD_REQUEST', config, {}, response));
+    };
+  }
+
+  it('invalide les requêtes ["abonnement"] (bandeau immédiat) et rend l’erreur d’origine', async () => {
+    const invalider = jest.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
+    apiClient.defaults.adapter = adaptateur403('Abonnement expiré : consultation seule.');
+    const err = await apiClient.post('/livraison', {}).catch((e) => e);
+    expect(err.response.status).toBe(403);
+    expect(invalider).toHaveBeenCalledWith({ queryKey: ['abonnement'] });
+    expect(logout).not.toHaveBeenCalled();
+    invalider.mockRestore();
+  });
+
+  it('autre 403 : pas d’invalidation', async () => {
+    const invalider = jest.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
+    apiClient.defaults.adapter = adaptateur403('Accès refusé');
+    await apiClient.post('/livraison', {}).catch(() => undefined);
+    expect(invalider).not.toHaveBeenCalled();
+    invalider.mockRestore();
   });
 });
