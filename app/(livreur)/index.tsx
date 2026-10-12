@@ -13,8 +13,8 @@ import { useMouvementsStock, useStockCourant } from '../../features/stock/hooks'
 import {
   chiffreAccueil,
   jourLocal,
-  quantiteRecue,
-  quantiteVendue,
+  nbProduitsRecus,
+  nbProduitsVendus,
 } from '../../features/accueil/regles';
 import { useCommandesAReceptionner } from '../../features/commandes/hooks';
 import { useAuthStore } from '../../stores/authStore';
@@ -43,8 +43,9 @@ export default function Tournee() {
   const jour = jourLocal();
   const filtresMouvements = useMemo(() => ({ debut: jour, fin: jour }), [jour]);
   const qMv = useMouvementsStock(livreurId, filtresMouvements);
-  const vendus = useMemo(() => quantiteVendue(qMv.data ?? [], jour), [qMv.data, jour]);
-  const recus = useMemo(() => quantiteRecue(qMv.data ?? [], jour), [qMv.data, jour]);
+  // Nombre de produits différents (pas de quantités) ; le détail reste sur les pages ouvertes.
+  const vendus = useMemo(() => nbProduitsVendus(qMv.data ?? [], jour), [qMv.data, jour]);
+  const recus = useMemo(() => nbProduitsRecus(qMv.data ?? [], jour), [qMv.data, jour]);
 
   const computed = useMemo(() => {
     const today = new Date().toDateString();

@@ -16,6 +16,7 @@ import {
   FileText,
 } from 'lucide-react-native';
 import { usePartagerRecu } from '../../../../features/reversements/useRecu';
+import { useRecuStore } from '../../../../stores/recuStore';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import { useReversementsListe } from '../../../../features/reversements/hooks';
@@ -47,6 +48,8 @@ export default function ReversementsHistorique() {
 
   const q = useReversementsListe(annee, mois);
   const partagerRecu = usePartagerRecu();
+  // Reçu en préparation (détail de la période en lecture) : bouton occupé.
+  const preparation = useRecuStore((s) => s.preparation);
 
   const moisLabel = useMemo(() => {
     const date = new Date(annee, mois - 1, 1);
@@ -224,12 +227,18 @@ export default function ReversementsHistorique() {
                       </Text>
                       <Pressable
                         onPress={() => partagerRecu(r)}
+                        disabled={preparation === r.id}
                         accessibilityRole="button"
                         accessibilityLabel="Partager le reçu"
+                        accessibilityState={{ busy: preparation === r.id }}
                         hitSlop={6}
                         className="flex-row items-center gap-1 mt-1 px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 active:opacity-70"
                       >
-                        <FileText color="#475569" size={11} />
+                        {preparation === r.id ? (
+                          <ActivityIndicator color="#475569" size="small" style={{ transform: [{ scale: 0.6 }] }} />
+                        ) : (
+                          <FileText color="#475569" size={11} />
+                        )}
                         <Text className="text-[10px] font-bold text-slate-600 dark:text-slate-300">Reçu</Text>
                       </Pressable>
                     </View>

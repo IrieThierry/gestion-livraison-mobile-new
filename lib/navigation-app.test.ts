@@ -99,14 +99,14 @@ describe('parcours de navigation (règle du parent logique)', () => {
     expect(retourParent()).toBe(false); // Accueil : le système quitte l'application
   });
 
-  it('formulaire → sa liste ; liste → Accueil', () => {
+  it('formulaire → sa liste ; Dépenses → Moi', () => {
     const ref = navigateur('index');
     ouvrir('/(livreur)/cash/depenses/nouvelle');
     expect(affiche(ref).pile).toEqual(['depenses>index,nouvelle']);
     retourParent();
     expect(affiche(ref)).toEqual({ onglet: 'cash', pile: ['depenses>index'] });
     retourParent();
-    expect(affiche(ref).onglet).toBe('index');
+    expect(affiche(ref).onglet).toBe('profil');
   });
 
   it('Encaisser depuis la liste des clients (sans origine) → [Mes encaissements, Encaisser] ; après enregistrement : la liste', () => {

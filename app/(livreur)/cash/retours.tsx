@@ -10,7 +10,6 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import {
   RotateCcw,
-  ListFilter,
   User,
   Package,
   ArrowRight,
@@ -24,7 +23,14 @@ import { AUCUN_RESULTAT, filtrerRecherche } from '../../../lib/recherche';
 import { useClientsByLivreur, useEncoursByLivreur } from '../../../features/clients/hooks';
 import { optionsClients, soldesParClient } from '../../../features/clients/affichage';
 import { useRetours } from '../../../features/retours/hooks';
-import { derniersJours, moisEnCours } from '../../../features/retours/api';
+import { FiltrePeriode } from '../../../components/shared/FiltrePeriode';
+import {
+  bornesPeriode,
+  derniersJours,
+  moisEnCours,
+  type OptionPeriode,
+  type ValeurPeriode,
+} from '../../../lib/periode';
 import {
   libelleDestination,
   libelleOrigine,
@@ -38,34 +44,21 @@ import { extractApiErrorMessage } from '../../../lib/api-error';
 import { formatDateShort } from '../../../lib/format';
 import { naviguer } from '../../../lib/navigation-app';
 
-type Periode = 'mois' | '30j' | '90j' | 'all';
+type Raccourci = 'mois' | '30j' | '90j';
 
-const PERIODES: Array<{ key: Periode; label: string }> = [
-  { key: 'mois', label: 'Ce mois' },
-  { key: '30j', label: '30 jours' },
-  { key: '90j', label: '90 jours' },
-  { key: 'all', label: 'Tout' },
+/** Raccourcis de période (mois en cours par défaut) ; « Période… » : Du / Au (FiltrePeriode). */
+const PERIODES: ReadonlyArray<OptionPeriode<Raccourci>> = [
+  { cle: 'mois', label: 'Ce mois', bornes: moisEnCours },
+  { cle: '30j', label: '30 jours', bornes: (n) => derniersJours(30, n) },
+  { cle: '90j', label: '90 jours', bornes: (n) => derniersJours(90, n) },
 ];
-
-function bornes(periode: Periode): { debut?: string; fin?: string } {
-  switch (periode) {
-    case 'mois':
-      return moisEnCours();
-    case '30j':
-      return derniersJours(30);
-    case '90j':
-      return derniersJours(90);
-    default:
-      return {};
-  }
-}
 
 /**
  * Journal des retours client (`GET /retour`, trié du plus récent au plus
  * ancien par le serveur, paginé).
  *
  * Filtres :
- *   - Période (mois en cours par défaut, 30 / 90 jours, tout)
+ *   - Période (mois en cours par défaut, 30 / 90 jours, « Période… » Du / Au)
  *   - Client (dropdown, optionnel) — pré-rempli avec `?clientId=X`
  *
  * Une correction (quantité négative) s'affiche « Correction −n ». Au-dessus de
@@ -79,13 +72,13 @@ export default function RetoursList() {
   const qCli = useClientsByLivreur(livreurId);
   const qEncours = useEncoursByLivreur(livreurId);
 
-  const [periode, setPeriode] = useState<Periode>('mois');
+  const [periode, setPeriode] = useState<ValeurPeriode<Raccourci>>({ cle: 'mois' });
   const [clientFilter, setClientFilter] = useState<string | null>(
     params.clientId ?? null,
   );
 
   const filtres = useMemo(
-    () => ({ ...bornes(periode), ...(clientFilter ? { clientId: clientFilter } : {}) }),
+    () => ({ ...bornesPeriode(periode, PERIODES), ...(clientFilter ? { clientId: clientFilter } : {}) }),
     [periode, clientFilter],
   );
   const q = useRetours(filtres);
@@ -151,21 +144,8 @@ export default function RetoursList() {
       >
         <View className="px-4 pt-3">
           {/* Filtres */}
-          <View className="flex-row items-center gap-1.5 mb-2">
-            <ListFilter color="#64748b" size={12} />
-            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
-              Période
-            </Text>
-          </View>
-          <View className="flex-row gap-2 mb-3">
-            {PERIODES.map((p) => (
-              <FilterChip
-                key={p.key}
-                active={periode === p.key}
-                label={p.label}
-                onPress={() => setPeriode(p.key)}
-              />
-            ))}
+          <View className="mb-3">
+            <FiltrePeriode options={PERIODES} valeur={periode} defaut="mois" onChange={setPeriode} />
           </View>
 
           {/* Filtre client (dropdown + clear si filtré) */}
@@ -302,34 +282,5 @@ export default function RetoursList() {
         </View>
       </ScrollView>
     </View>
-  );
-}
-
-function FilterChip({
-  active,
-  label,
-  onPress,
-}: {
-  active: boolean;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      className={`px-3 py-1.5 rounded-md border ${
-        active
-          ? 'bg-emerald-500 border-emerald-500'
-          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-      }`}
-    >
-      <Text
-        className={`text-[12px] font-bold ${
-          active ? 'text-white' : 'text-slate-700 dark:text-slate-300'
-        }`}
-      >
-        {label}
-      </Text>
-    </Pressable>
   );
 }

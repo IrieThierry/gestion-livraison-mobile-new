@@ -1,4 +1,4 @@
-import { ScrollView, View, Text, Pressable, Linking } from 'react-native';
+import { ScrollView, View, Text, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { dialog } from '../../../lib/dialog';
 import {
@@ -6,7 +6,6 @@ import {
   Moon,
   Sun,
   Smartphone,
-  ExternalLink,
   Check,
   ChevronRight,
   Camera,
@@ -19,6 +18,7 @@ import {
   History,
   Store,
   FileText,
+  Receipt,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { Avatar } from '../../../components/shared/Avatar';
@@ -272,6 +272,23 @@ export default function Profil() {
               </View>
               <ChevronRight color="#94a3b8" size={18} />
             </Pressable>
+            <Pressable
+              onPress={() => naviguer('/(livreur)/cash/depenses')}
+              className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
+            >
+              <View className="flex-row items-center gap-3">
+                <Receipt color="#dc2626" size={20} />
+                <View>
+                  <Text className="font-extrabold text-slate-900 dark:text-white">
+                    Dépenses
+                  </Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Carburant, entretien, autre
+                  </Text>
+                </View>
+              </View>
+              <ChevronRight color="#94a3b8" size={18} />
+            </Pressable>
           </View>
 
           {/* Apparence */}
@@ -303,23 +320,6 @@ export default function Profil() {
               );
             })}
           </View>
-
-          {/* Plus de fonctions */}
-          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
-            Plus de fonctions
-          </Text>
-          <Pressable
-            onPress={() => Linking.openURL('https://app.gestionlivraison.example.com')}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 flex-row items-center gap-3 active:opacity-70"
-          >
-            <ExternalLink color="#3b82f6" size={20} />
-            <View className="flex-1">
-              <Text className="font-extrabold text-slate-900 dark:text-white">Portail web</Text>
-              <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                Apprentis, prix, stock équipe, rapports
-              </Text>
-            </View>
-          </Pressable>
 
           {/* Logout */}
           <Pressable

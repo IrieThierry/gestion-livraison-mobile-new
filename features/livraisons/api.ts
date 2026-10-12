@@ -18,9 +18,14 @@ export const livraisonsApi = {
     const { data } = await apiClient.get<LivraisonResponse[]>('/livraison');
     return data;
   },
-  byLivreur: async (livreurId: UUID): Promise<LivraisonResponse[]> => {
+  /** Livraisons du livreur ; `debut` / `fin` (`yyyy-MM-dd`, jours inclus) facultatifs, filtrés par le back. */
+  byLivreur: async (livreurId: UUID, bornes: { debut?: string; fin?: string } = {}): Promise<LivraisonResponse[]> => {
+    const params: Record<string, string> = {};
+    if (bornes.debut) params.debut = bornes.debut;
+    if (bornes.fin) params.fin = bornes.fin;
     const { data } = await apiClient.get<LivraisonResponse[]>(
       `/livraison/livraison-livreur/${livreurId}`,
+      Object.keys(params).length ? { params } : undefined,
     );
     return data;
   },

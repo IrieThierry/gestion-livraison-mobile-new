@@ -17,6 +17,22 @@ import { useAuthStore } from '../../stores/authStore';
 import { Biometric } from '../../lib/biometric';
 import { SecureStorage } from '../../lib/secure-storage';
 import { dialog } from '../../lib/dialog';
+import * as Network from 'expo-network';
+import { messageErreurConnexion } from '../../features/auth/erreurConnexion';
+
+/**
+ * Téléphone sans aucune connexion ? Seul `isConnected === false` compte : l'API
+ * peut être sur un intranet sans accès internet, donc `isInternetReachable`
+ * (et `networkStore`, qui s'en sert) n'est pas utilisé ici.
+ */
+async function estHorsLigne(): Promise<boolean> {
+  try {
+    const etat = await Network.getNetworkStateAsync();
+    return etat.isConnected === false;
+  } catch {
+    return false;
+  }
+}
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -59,9 +75,10 @@ export default function Login() {
 
       router.replace('/(livreur)');
     },
-    onError: (e: unknown) => {
-      const err = e as { response?: { data?: { message?: string } } };
-      dialog.error('Erreur', err.response?.data?.message ?? 'Identifiants incorrects');
+    onError: async (e: unknown) => {
+      const sansReponse = !(e as { response?: unknown } | null)?.response;
+      const horsLigne = sansReponse ? await estHorsLigne() : false;
+      dialog.error('Connexion impossible', messageErreurConnexion(e, { horsLigne }));
     },
   });
 

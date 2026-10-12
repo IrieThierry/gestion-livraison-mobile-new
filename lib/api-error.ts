@@ -107,3 +107,11 @@ export function extractApiErrorMessage(
   }
   return defaultMsg;
 }
+
+/**
+ * Routes publiques d'authentification (connexion, inscription, rafraîchissement) :
+ * un 401 y est une réponse métier, jamais un jeton expiré à rafraîchir.
+ */
+export function estRouteAuth(url: string | undefined): boolean {
+  return !!url && /\/auth\/(login|register|refresh)\b/.test(url);
+}

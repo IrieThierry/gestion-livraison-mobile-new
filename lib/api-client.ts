@@ -7,6 +7,7 @@ import { router } from "expo-router";
 import { SecureStorage } from "./secure-storage";
 import { useAuthStore } from "../stores/authStore";
 import { API_BASE_URL } from "./api-url";
+import { estRouteAuth } from "./api-error";
 
 const baseURL = API_BASE_URL;
 
@@ -40,7 +41,10 @@ apiClient.interceptors.response.use(
     const original = error.config as
       | (AxiosRequestConfig & { _retry?: boolean })
       | undefined;
-    if (error.response?.status !== 401 || !original || original._retry) {
+    // Routes d'authentification (connexion, inscription, rafraîchissement) :
+    // un 401 y est une réponse métier (mot de passe refusé…), pas un jeton
+    // expiré — on rend l'erreur d'origine à l'écran, sans rafraîchissement.
+    if (error.response?.status !== 401 || !original || original._retry || estRouteAuth(original.url)) {
       return Promise.reject(error);
     }
 

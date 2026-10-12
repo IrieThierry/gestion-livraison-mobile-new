@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   CreerLivraisonRequest,
+  LivraisonResponse,
   ModifierLivraisonRequest,
   UUID,
 } from '../../types/api';
 import { livraisonsApi } from './api';
+import { dansBornes } from '../../lib/periode';
 import { livraisonKeys } from './keys';
 import { stockKeys } from '../stock/keys';
 import { encaissementKeys } from '../encaissements/keys';
@@ -30,6 +32,25 @@ export function useLivraisonsByLivreur(livreurId: UUID | undefined) {
     queryKey: livraisonKeys.byLivreur(livreurId ?? ''),
     queryFn: () => livraisonsApi.byLivreur(livreurId as UUID),
     enabled: !!livreurId,
+  });
+}
+
+/**
+ * Livraisons du livreur sur une période (Mes livraisons) : `debut` / `fin`
+ * envoyés à la route. En attendant la réponse (ou hors ligne, période jamais
+ * ouverte), la liste complète du livreur en cache (persistée, lue par
+ * l'Accueil) est affichée, filtrée sur la période.
+ */
+export function useLivraisonsLivreurPeriode(livreurId: UUID | undefined, bornes: { debut?: string; fin?: string }) {
+  const qc = useQueryClient();
+  return useQuery({
+    queryKey: livraisonKeys.byLivreurPeriode(livreurId ?? '', bornes.debut, bornes.fin),
+    queryFn: () => livraisonsApi.byLivreur(livreurId as UUID, bornes),
+    enabled: !!livreurId,
+    placeholderData: () => {
+      const toutes = qc.getQueryData<LivraisonResponse[]>(livraisonKeys.byLivreur(livreurId ?? ''));
+      return toutes?.filter((l) => dansBornes(l.date, bornes));
+    },
   });
 }
 
