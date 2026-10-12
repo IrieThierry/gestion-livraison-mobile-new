@@ -12,6 +12,7 @@ import { PageHeader } from '../../../../components/shared/PageHeader';
 import { FormScreen } from '../../../../components/shared/FormScreen';
 import { SelectField } from '../../../../components/shared/SelectField';
 import { EmptyState } from '../../../../components/shared/EmptyState';
+import { ProduitVignette } from '../../../../components/shared/ProduitVignette';
 import { ApprentiAffecteField } from '../../../../components/livreur/ApprentiAffecteField';
 import { useFournisseursPartenaires } from '../../../../features/lookups/hooks';
 import {
@@ -176,7 +177,12 @@ export default function NouvelleCommande() {
                       key={pf.id}
                       className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center justify-between"
                     >
-                      <View className="flex-1 pr-2">
+                      <ProduitVignette
+                        designation={pf.produit.designation}
+                        photoUrl={pf.produit.photoUrl}
+                        size={36}
+                      />
+                      <View className="flex-1 px-2">
                         <Text className="font-extrabold text-slate-900 dark:text-white text-[13px]">
                           {pf.produit.designation}
                         </Text>
