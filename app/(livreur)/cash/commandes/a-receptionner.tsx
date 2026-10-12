@@ -1,5 +1,4 @@
 import { View, Text, FlatList, Pressable, RefreshControl } from 'react-native';
-import { router } from 'expo-router';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import { CommandeStatusBadge } from '../../../../components/livreur/CommandeStatusBadge';
@@ -8,6 +7,7 @@ import { useCommandesAReceptionner } from '../../../../features/commandes/hooks'
 import { useAuthStore } from '../../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatDateShort } from '../../../../lib/format';
+import { naviguer } from '../../../../lib/navigation-app';
 
 /**
  * Commandes confirmées ou en réception que le livreur peut réceptionner
@@ -27,7 +27,6 @@ export default function CommandesAReceptionner() {
       <PageHeader
         title="À réceptionner"
         subtitle={`${commandes.length} commande${commandes.length > 1 ? 's' : ''}`}
-        fallback="/(livreur)/cash"
       />
 
       <FlatList
@@ -63,7 +62,7 @@ export default function CommandesAReceptionner() {
           const restant = c.produitsCommandes.reduce((s, l) => s + l.qteRestante, 0);
           return (
             <Pressable
-              onPress={() => router.push(`/(livreur)/cash/commandes/${c.id}` as never)}
+              onPress={() => naviguer(`/(livreur)/cash/commandes/${c.id}`)}
               className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 active:opacity-80"
             >
               <View className="flex-row items-center justify-between">

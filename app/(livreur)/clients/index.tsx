@@ -8,7 +8,6 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
-import { router } from 'expo-router';
 import { Plus, Phone, MapPin, Truck, Banknote, Map } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
@@ -19,6 +18,7 @@ import { callPhone, navigateTo } from '../../../lib/linking';
 import { formatMontant } from '../../../lib/format';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import type { ClientResponse, EncoursClientResponse } from '../../../types/api';
+import { naviguer } from '../../../lib/navigation-app';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
   if (!s) return null;
@@ -55,19 +55,13 @@ export default function ClientsList() {
   if (!user) return null;
 
   const onLivrer = (client: ClientResponse) => {
-    router.push({
-      pathname: '/(livreur)/livraisons/nouvelle' as never,
-      params: { clientId: client.id },
-    } as never, { withAnchor: true });
+    naviguer('/(livreur)/livraisons/nouvelle', { clientId: client.id });
   };
 
   const onEncaisser = (client: ClientResponse) => {
     // Page d'encaissement en MODE CLIENT : elle lit le solde du client sur
     // le serveur et pré-remplit le montant.
-    router.push({
-      pathname: '/(livreur)/cash/encaisser' as never,
-      params: { clientId: client.id },
-    } as never, { withAnchor: true });
+    naviguer('/(livreur)/cash/encaisser', { clientId: client.id });
   };
 
   return (
@@ -79,7 +73,7 @@ export default function ClientsList() {
         right={
           <View className="flex-row gap-2">
             <Pressable
-              onPress={() => router.push('/(livreur)/clients/map' as never)}
+              onPress={() => naviguer('/(livreur)/clients/map')}
               className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-70"
             >
               <Map color="#3b82f6" size={14} />
@@ -88,7 +82,7 @@ export default function ClientsList() {
               </Text>
             </Pressable>
             <Pressable
-              onPress={() => router.push('/(livreur)/clients/nouveau' as never)}
+              onPress={() => naviguer('/(livreur)/clients/nouveau')}
               className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
             >
               <Plus color="#fff" size={14} />
@@ -148,10 +142,7 @@ export default function ClientsList() {
               encours={encoursParClient.get(item.id)}
               soldeIndisponible={qEncours.isError}
               onPress={() =>
-                router.push({
-                  pathname: '/(livreur)/clients/[id]' as never,
-                  params: { id: item.id },
-                } as never)
+                naviguer('/(livreur)/clients/[id]', { id: item.id })
               }
               onLivrer={() => onLivrer(item)}
               onEncaisser={() => onEncaisser(item)}

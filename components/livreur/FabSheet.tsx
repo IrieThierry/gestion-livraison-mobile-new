@@ -1,20 +1,21 @@
 import { View, Pressable, Text, Modal, ScrollView } from 'react-native';
-import { router } from 'expo-router';
 import { X } from 'lucide-react-native';
 import { useAuthStore } from '../../stores/authStore';
 import { entreesAccederA } from '../../lib/acceder-a';
+import { ouvrir } from '../../lib/navigation-app';
 
 /**
  * Feuille du bouton + de la barre d'onglets : menu « Accéder à » vers les
- * listes du livreur (`entreesAccederA`). On pousse la liste : la création se
- * fait depuis la liste (bouton « Nouveau / Nouvelle »), et le retour depuis
- * un formulaire ramène à la liste.
+ * listes du livreur (`entreesAccederA`). La liste s'ouvre sur une pile propre
+ * (`ouvrir`, lib/navigation) : la création se fait depuis la liste (bouton
+ * « Nouveau / Nouvelle »), le retour depuis un formulaire ramène à la liste et
+ * le retour depuis la liste ramène à l'Accueil.
  */
 export function FabSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const user = useAuthStore((s) => s.user);
   const go = (path: string) => {
     onClose();
-    router.push(path as never);
+    ouvrir(path);
   };
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>

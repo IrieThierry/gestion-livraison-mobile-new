@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { View, Text, FlatList, Pressable, RefreshControl, ScrollView } from 'react-native';
-import { router } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
@@ -19,6 +18,7 @@ import {
 import { useAuthStore } from '../../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatDateShort, formatFCFA } from '../../../../lib/format';
+import { naviguer } from '../../../../lib/navigation-app';
 
 export default function CommandesList() {
   const user = useAuthStore((s) => s.user);
@@ -42,7 +42,7 @@ export default function CommandesList() {
   if (!isRootLivreur) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader title="Commandes" fallback="/(livreur)/cash" />
+        <PageHeader title="Commandes" />
         <EmptyState
           title="Réservé au livreur principal"
           message="Seul le livreur principal peut passer des commandes auprès d'un fournisseur."
@@ -56,10 +56,9 @@ export default function CommandesList() {
       <PageHeader
         title="Commandes"
         subtitle={`${q.data?.length ?? 0} commande${(q.data?.length ?? 0) > 1 ? 's' : ''}`}
-        fallback="/(livreur)/cash"
         right={
           <Pressable
-            onPress={() => router.push('/(livreur)/cash/commandes/nouvelle' as never)}
+            onPress={() => naviguer('/(livreur)/cash/commandes/nouvelle')}
             className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <Plus color="#fff" size={14} />
@@ -141,7 +140,7 @@ export default function CommandesList() {
         ItemSeparatorComponent={() => <View className="h-2" />}
         renderItem={({ item: c }) => (
           <Pressable
-            onPress={() => router.push(`/(livreur)/cash/commandes/${c.id}` as never)}
+            onPress={() => naviguer(`/(livreur)/cash/commandes/${c.id}`)}
             className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 active:opacity-80"
           >
             <View className="flex-row items-center justify-between">

@@ -6,7 +6,6 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
 import { dialog } from '../../../lib/dialog';
 import { useMutation } from '@tanstack/react-query';
 import { Eye, EyeOff, KeyRound } from 'lucide-react-native';
@@ -14,6 +13,7 @@ import { PageHeader } from '../../../components/shared/PageHeader';
 import { FormScreen } from '../../../components/shared/FormScreen';
 import { authApi } from '../../../features/auth/api';
 import { changePasswordSchema } from '../../../features/auth/schemas';
+import { revenirA } from '../../../lib/navigation-app';
 
 /**
  * Change le mot de passe du livreur connecté. Endpoint :
@@ -34,7 +34,7 @@ export default function ChangerMotDePasse() {
     mutationFn: authApi.changePassword,
     onSuccess: () => {
       dialog.success('Ton mot de passe a été mis à jour.');
-      router.back();
+      revenirA('/(livreur)/profil');
     },
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { message?: string } } };

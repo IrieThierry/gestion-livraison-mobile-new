@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { View, Text, FlatList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
 import { Plus, Wallet } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
@@ -15,6 +14,7 @@ import { useAuthStore } from '../../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { AUCUN_RESULTAT } from '../../../../lib/recherche';
 import { formatDateLong, formatFCFA } from '../../../../lib/format';
+import { naviguer } from '../../../../lib/navigation-app';
 
 /**
  * « Mes versements » : versements du livreur principal à ses fournisseurs
@@ -54,7 +54,7 @@ export default function MesVersements() {
         subtitle={`${affiches.length} versement${affiches.length > 1 ? 's' : ''} · ${formatFCFA(total)} FCFA`}
         right={
           <Pressable
-            onPress={() => router.push('/(livreur)/cash/versement' as never)}
+            onPress={() => naviguer('/(livreur)/cash/versement')}
             accessibilityRole="button"
             accessibilityLabel="Nouveau versement"
             className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"

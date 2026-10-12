@@ -6,7 +6,6 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { FormScreen } from '../../../../components/shared/FormScreen';
@@ -31,6 +30,7 @@ import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatFCFA } from '../../../../lib/format';
 import { MESSAGE_AUCUN_PARTENAIRE, etatListePartenaires } from '../../../../features/relations/regles';
 import { useRetourListe } from '../../../../lib/useRetourListe';
+import { naviguer } from '../../../../lib/navigation-app';
 
 export default function NouvelleCommande() {
   const user = useAuthStore((s) => s.user);
@@ -65,7 +65,7 @@ export default function NouvelleCommande() {
   if (!isRootLivreur) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader retourVers="/(livreur)/cash/commandes" title="Nouvelle commande" />
+        <PageHeader title="Nouvelle commande" />
         <EmptyState
           title="Réservé au livreur principal"
           message="Seul le livreur principal peut passer des commandes."
@@ -103,7 +103,7 @@ export default function NouvelleCommande() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader retourVers="/(livreur)/cash/commandes" title="Nouvelle commande" />
+      <PageHeader title="Nouvelle commande" />
 
       <FormScreen>
         <View className="px-4">
@@ -123,7 +123,7 @@ export default function NouvelleCommande() {
             <View className="items-center">
               <EmptyState title={MESSAGE_AUCUN_PARTENAIRE} />
               <Pressable
-                onPress={() => router.push('/(livreur)/profil/fournisseurs' as never)}
+                onPress={() => naviguer('/(livreur)/profil/fournisseurs')}
                 className="bg-emerald-500 rounded-md px-5 py-3 active:opacity-80"
               >
                 <Text className="text-white font-bold">Mes fournisseurs</Text>

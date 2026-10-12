@@ -102,7 +102,7 @@ export default function NouveauApprenti() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader retourVers="/(livreur)/profil/apprentis" title="Nouvel apprenti" subtitle="Crée un compte rattaché à toi" />
+      <PageHeader title="Nouvel apprenti" subtitle="Crée un compte rattaché à toi" />
 
       <FormScreen>
           <View className="px-4 pt-3 gap-3">

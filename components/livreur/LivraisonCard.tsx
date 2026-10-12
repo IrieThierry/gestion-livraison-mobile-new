@@ -1,5 +1,4 @@
 import { Pressable, View, Text } from 'react-native';
-import { router } from 'expo-router';
 import { formatFCFA, formatTime } from '../../lib/format';
 import {
   isEncaissee,
@@ -8,6 +7,7 @@ import {
 } from '../../lib/livraison-status';
 import { num } from '../../features/encaissements/regles';
 import type { LivraisonResponse } from '../../types/api';
+import { naviguer } from '../../lib/navigation-app';
 
 /** Couleur de bordure : soldée, reste dû du jour, reste dû en retard. */
 type DerivedStatus = 'SOLDEE' | 'LIVREE' | 'IMPAYEE';
@@ -61,7 +61,7 @@ export function LivraisonCard({ livraison }: { livraison: LivraisonResponse }) {
 
   return (
     <Pressable
-      onPress={() => router.push(`/(livreur)/livraisons/${livraison.id}` as never)}
+      onPress={() => naviguer(`/(livreur)/livraisons/${livraison.id}`)}
       className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 ${BORDURES[status]} rounded-lg p-3 active:opacity-70`}
     >
       <View className="flex-row items-start justify-between gap-2">

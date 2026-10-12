@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
-import { router } from 'expo-router';
 import { dialog } from '../../../lib/dialog';
 import { urlAbsolue } from '../../../lib/api-url';
 import { useMutation } from '@tanstack/react-query';
@@ -23,6 +22,7 @@ import {
 import { useAuthStore } from '../../../stores/authStore';
 import { pickImage } from '../../../lib/image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { revenirA } from '../../../lib/navigation-app';
 
 /**
  * Modification des infos perso du livreur connecté.
@@ -51,7 +51,7 @@ export default function ModifierInfos() {
       await AsyncStorage.setItem('user', JSON.stringify(merged));
 
       dialog.success('Tes informations ont été mises à jour.');
-      router.back();
+      revenirA('/(livreur)/profil');
     },
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { message?: string } } };

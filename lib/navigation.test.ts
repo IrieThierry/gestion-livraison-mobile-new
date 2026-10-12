@@ -1,75 +1,233 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import {
-  actionApresEnregistrement,
-  actionRetourEnTete,
-  retourApresEnregistrement,
-  type EtatPile,
+  ACCUEIL,
+  actionNaviguer,
+  actionOuvrir,
+  actionRetour,
+  actionRevenirA,
+  chaineOuverture,
+  ecranActif,
+  normaliserHref,
+  parentDe,
+  pileDe,
+  ROUTES,
+  trouverOnglets,
+  trouverRoute,
+  type EtatNavigateur,
+  type RouteEtat,
 } from './navigation';
 
-const pile = (...noms: string[]): EtatPile => ({
-  index: noms.length - 1,
-  routes: noms.map((name) => ({ name })),
+const PRINCIPAL = { apprenti: false };
+const APPRENTI = { apprenti: true };
+
+/** Fichiers d'écran de app/(livreur) (hors _layout), sans extension. */
+function ecrans(): string[] {
+  const racine = path.join(__dirname, '..', 'app', '(livreur)');
+  const out: string[] = [];
+  const parcourir = (dir: string) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) parcourir(p);
+      else if (/\.tsx$/.test(e.name) && e.name !== '_layout.tsx')
+        out.push(path.relative(racine, p).replace(/\\/g, '/').replace(/\.tsx$/, ''));
+    }
+  };
+  parcourir(racine);
+  return out.sort();
+}
+
+/** État d'onglets factice : `actif` affiché, piles fournies. */
+function onglets(actif: string, piles: Record<string, RouteEtat[]> = {}): EtatNavigateur {
+  const noms = ['index', 'clients', 'fab', 'livraisons', 'profil', 'cash', 'stock', 'previsions', 'clotures'];
+  return {
+    key: 'tabs',
+    index: noms.indexOf(actif),
+    routeNames: noms,
+    type: 'tab',
+    stale: false,
+    history: [{ type: 'route', key: 'index-k' }],
+    routes: noms.map((n) => ({
+      key: `${n}-k`,
+      name: n,
+      ...(piles[n]
+        ? { state: { key: `${n}-pile`, index: piles[n].length - 1, routes: piles[n], stale: false } }
+        : {}),
+    })),
+  };
+}
+const r = (name: string, params?: object, state?: RouteEtat[]): RouteEtat => ({
+  key: `${name}-${JSON.stringify(params ?? {})}`,
+  name,
+  params,
+  ...(state ? { state: { key: `${name}-imb`, index: state.length - 1, routes: state, stale: false } } : {}),
 });
 
-describe('actionApresEnregistrement', () => {
-  it("back quand l'écran précédent est la liste du module", () => {
-    expect(actionApresEnregistrement(pile('index', 'nouvelle'))).toBe('back');
+/** Chemins de la pile d'un onglet après une action RESET. */
+function pileApres(action: ReturnType<typeof actionOuvrir>, onglet: string) {
+  if (!action || action.type !== 'RESET') throw new Error('RESET attendu');
+  const etat = action.payload;
+  const route = etat.routes.find((x) => x.name === onglet)!;
+  return {
+    actif: etat.routes[etat.index].name,
+    noms: (route.state?.routes ?? []).map((x) =>
+      x.state ? `${x.name}>${x.state.routes.map((y) => y.name).join(',')}` : x.name,
+    ),
+    route,
+    history: etat.history,
+  };
+}
+
+describe('table des parents', () => {
+  it('chaque écran du livreur a une entrée, et seulement eux', () => {
+    expect(Object.keys(ROUTES).sort()).toEqual(ecrans());
   });
 
-  it('liste quand le formulaire est seul dans sa pile (push depuis un autre onglet)', () => {
-    expect(actionApresEnregistrement(pile('nouvelle'))).toBe('liste');
+  it('chaque parent est un écran connu ou l’Accueil, et remonte à l’Accueil sans boucle', () => {
+    for (const fichier of Object.keys(ROUTES)) {
+      if (fichier === 'index') continue;
+      let cible = { fichier, params: { id: 'x', famille: 'ventes' } as Record<string, string> };
+      for (let n = 0; ; n++) {
+        expect(n).toBeLessThan(6);
+        const parent = parentDe(cible, PRINCIPAL);
+        expect(parent).not.toBeNull();
+        if (parent === ACCUEIL) break;
+        const suivant = trouverRoute(parent!);
+        expect(suivant).not.toBeNull();
+        cible = suivant!;
+      }
+    }
   });
 
-  it("liste quand l'écran précédent n'est pas la liste (ex. fiche détail)", () => {
-    expect(actionApresEnregistrement(pile('index', '[id]/index', '[id]/modifier'))).toBe('liste');
+  it('formulaire → sa liste, fiche → sa liste, liste → Accueil, Accueil → rien', () => {
+    const p = (chemin: string, ctx = PRINCIPAL) => parentDe(trouverRoute(chemin)!, ctx);
+    expect(p('/cash/commandes/nouvelle')).toBe('/cash/commandes');
+    expect(p('/clients/abc/modifier')).toBe('/clients');
+    expect(p('/cash/encaisser')).toBe('/cash/encaissements');
+    expect(p('/cash/versement')).toBe('/cash/versements');
+    expect(p('/livraisons/42')).toBe('/livraisons');
+    expect(p('/cash/commandes/42')).toBe('/cash/commandes');
+    expect(p('/cash/commandes/42', APPRENTI)).toBe('/cash/commandes/a-receptionner');
+    for (const liste of ['/livraisons', '/clients', '/cash/encaissements', '/cash/encours', '/cash/depenses', '/previsions', '/profil'])
+      expect(p(liste)).toBe(ACCUEIL);
+    expect(p('/')).toBeNull();
   });
 
-  it('liste sans état de pile', () => {
-    expect(actionApresEnregistrement(undefined)).toBe('liste');
-  });
-
-  it("nom d'écran de liste personnalisé", () => {
-    // Versement : la liste « Mes versements » est l'écran 'versements/index' de la pile cash.
-    expect(actionApresEnregistrement(pile('index', 'versements/index', 'versement'), 'versements/index')).toBe('back');
-    expect(actionApresEnregistrement(pile('index', 'versement'), 'versements/index')).toBe('liste');
-    expect(actionApresEnregistrement(pile('index', 'retours', 'retour-client'), 'retours')).toBe('back');
-    expect(actionApresEnregistrement(pile('index', 'retour-client'), 'retours')).toBe('liste');
+  it('les segments fixes priment ; groupe et paramètres normalisés', () => {
+    expect(trouverRoute('/clients/map')?.fichier).toBe('clients/map');
+    expect(trouverRoute('/clients/abc')).toEqual({ fichier: 'clients/[id]/index', params: { id: 'abc' } });
+    expect(trouverRoute('/cash')).toBeNull();
+    expect(normaliserHref('/(livreur)/clients/[id]', { id: 'abc', onglet: 'x' })).toEqual({
+      chemin: '/clients/abc',
+      requete: { onglet: 'x' },
+    });
+    expect(normaliserHref('/(livreur)/cash/commandes/receptions?id=7')).toEqual({
+      chemin: '/cash/commandes/receptions',
+      requete: { id: '7' },
+    });
   });
 });
 
-describe('retourApresEnregistrement', () => {
-  const routeur = () => ({ back: jest.fn(), dismissTo: jest.fn(), replace: jest.fn() });
-
-  it('recule simplement quand la liste est juste dessous', () => {
-    const r = routeur();
-    retourApresEnregistrement(r, '/(livreur)/livraisons', pile('index', 'nouvelle'));
-    expect(r.back).toHaveBeenCalledTimes(1);
-    expect(r.dismissTo).not.toHaveBeenCalled();
+describe('pile propre (ouvrir)', () => {
+  it('chaîne des parents restés dans la rubrique', () => {
+    const chaine = chaineOuverture(trouverRoute('/cash/commandes/nouvelle')!, PRINCIPAL);
+    expect(chaine.map((c) => c.fichier)).toEqual(['cash/commandes/index', 'cash/commandes/nouvelle']);
+    expect(pileDe(chaine)).toEqual({ index: 0, routes: [{ name: 'commandes', state: { index: 1, routes: [{ name: 'index' }, { name: 'nouvelle' }] } }] });
+    expect(pileDe(chaineOuverture(trouverRoute('/cash/versements')!, PRINCIPAL))).toEqual({
+      index: 0,
+      routes: [{ name: 'versements/index' }],
+    });
   });
 
-  it('remonte / remplace vers la liste sinon (jamais de formulaire laissé dans la pile)', () => {
-    const r = routeur();
-    retourApresEnregistrement(r, '/(livreur)/livraisons', pile('nouvelle'));
-    expect(r.back).not.toHaveBeenCalled();
-    expect(r.dismissTo).toHaveBeenCalledWith('/(livreur)/livraisons');
+  it('menu + → Commandes après avoir visité d’autres écrans de la rubrique : pile [Commandes] seule', () => {
+    const etat = onglets('index', {
+      cash: [r('retours'), r('retour-client'), r('commandes', undefined, [r('index'), r('[id]', { id: '1' })])],
+    });
+    const p = pileApres(actionOuvrir(etat, '/(livreur)/cash/commandes', undefined, PRINCIPAL), 'cash');
+    expect(p.actif).toBe('cash');
+    expect(p.noms).toEqual(['commandes>index']);
+    // Pile partielle : React Navigation la réhydrate (nouvelles clés).
+    expect(p.route.state).not.toHaveProperty('key');
+    expect(p.history?.[p.history.length - 1]).toEqual({ type: 'route', key: 'cash-k' });
+  });
+
+  it('formulaire ouvert depuis l’Accueil : [liste, formulaire] avec ses paramètres', () => {
+    const p = pileApres(
+      actionOuvrir(onglets('index'), '/(livreur)/livraisons/nouvelle', { clientId: 'c1' }, PRINCIPAL),
+      'livraisons',
+    );
+    expect(p.noms).toEqual(['index', 'nouvelle']);
+    expect(p.route.state?.routes[1].params).toEqual({ clientId: 'c1' });
+  });
+
+  it('Accueil : saut vers l’onglet Accueil', () => {
+    expect(actionOuvrir(onglets('cash'), '/(livreur)', undefined, PRINCIPAL)).toEqual({
+      type: 'JUMP_TO',
+      payload: { name: 'index' },
+      target: 'tabs',
+    });
   });
 });
 
-describe('actionRetourEnTete', () => {
-  it('back quand la pile du module a un écran précédent', () => {
-    expect(
-      actionRetourEnTete({ etat: pile('index', 'nouvelle'), retourVers: '/x', peutReculer: true }),
-    ).toBe('back');
+describe('retour (parent logique)', () => {
+  it('écran affiché', () => {
+    const etat = onglets('cash', { cash: [r('commandes', undefined, [r('index'), r('[id]', { id: '9' })])] });
+    expect(ecranActif(etat)).toEqual({ fichier: 'cash/commandes/[id]', params: { id: '9' }, chemin: '/cash/commandes/9' });
+    expect(ecranActif(onglets('index'))?.fichier).toBe('index');
   });
 
-  it("liste du module quand la pile est vide (jamais le premier onglet)", () => {
-    expect(
-      actionRetourEnTete({ etat: pile('nouvelle'), retourVers: '/(livreur)/livraisons', peutReculer: true }),
-    ).toBe('retourVers');
+  it('formulaire → liste présente plus bas : pile dépilée, clés conservées', () => {
+    const etat = onglets('cash', { cash: [r('depenses', undefined, [r('index'), r('nouvelle')])] });
+    const p = pileApres(actionRetour(etat, PRINCIPAL), 'cash');
+    expect(p.noms).toEqual(['depenses>index']);
+    expect(p.route.state).toHaveProperty('key', 'cash-pile');
+    expect(p.route.state?.routes[0].state?.routes[0].key).toBe('index-{}');
   });
 
-  it('sans liste connue : comportement historique', () => {
-    expect(actionRetourEnTete({ etat: pile('x'), peutReculer: true })).toBe('back');
-    expect(actionRetourEnTete({ etat: pile('x'), peutReculer: false })).toBe('fallback');
-    expect(actionRetourEnTete({ etat: undefined, peutReculer: false })).toBe('fallback');
+  it('formulaire ouvert seul (autre rubrique) → sa liste sur une pile propre', () => {
+    const etat = onglets('cash', { cash: [r('encours'), r('encaisser', { clientId: 'c1' })] });
+    expect(pileApres(actionRetour(etat, PRINCIPAL), 'cash').noms).toEqual(['encaissements']);
+  });
+
+  it('liste → Accueil directement, même avec des écrans visités plus bas', () => {
+    const etat = onglets('cash', { cash: [r('retours'), r('encours')] });
+    expect(actionRetour(etat, PRINCIPAL)).toEqual({ type: 'JUMP_TO', payload: { name: 'index' }, target: 'tabs' });
+  });
+
+  it('Accueil : aucune action (le système quitte l’application)', () => {
+    expect(actionRetour(onglets('index'), PRINCIPAL)).toBeNull();
+  });
+
+  it('racine d’un onglet visible → Accueil', () => {
+    expect(actionRetour(onglets('profil', { profil: [r('index')] }), PRINCIPAL)?.type).toBe('JUMP_TO');
+  });
+
+  it('après enregistrement : revenir à la liste (dépilée) sans doublon', () => {
+    const etat = onglets('clients', { clients: [r('index'), r('[id]/index', { id: 'a' }), r('[id]/modifier', { id: 'a' })] });
+    expect(pileApres(actionRevenirA(etat, '/(livreur)/clients', PRINCIPAL), 'clients').noms).toEqual(['index']);
+  });
+});
+
+describe('naviguer (liens depuis un écran)', () => {
+  it('même rubrique : empilé ; déjà dans la pile : dépilé (pas de doublon) ; écran courant : rien', () => {
+    const etat = onglets('cash', { cash: [r('retours'), r('retour-client')] });
+    expect(actionNaviguer(onglets('cash', { cash: [r('retours')] }), '/(livreur)/cash/retour-client', undefined, PRINCIPAL)).toBe('push');
+    expect(pileApres(actionNaviguer(etat, '/(livreur)/cash/retours', undefined, PRINCIPAL) as never, 'cash').noms).toEqual(['retours']);
+    expect(actionNaviguer(etat, '/(livreur)/cash/retour-client', undefined, PRINCIPAL)).toBeNull();
+  });
+
+  it('autre rubrique : pile propre', () => {
+    const etat = onglets('clients', { clients: [r('index'), r('[id]/index', { id: 'a' })] });
+    const p = pileApres(actionNaviguer(etat, '/(livreur)/cash/encaisser', { clientId: 'a' }, PRINCIPAL) as never, 'cash');
+    expect(p.noms).toEqual(['encaissements', 'encaisser']);
+  });
+});
+
+describe('état racine', () => {
+  it('trouve le navigateur d’onglets sous __root / (livreur)', () => {
+    const tabs = onglets('index');
+    const racine = { key: 'r', index: 0, routes: [{ name: '__root', state: { key: 's', index: 0, routes: [{ name: '(livreur)', state: tabs }] } }] };
+    expect(trouverOnglets(racine as never)).toBe(tabs);
+    expect(trouverOnglets(undefined)).toBeUndefined();
   });
 });

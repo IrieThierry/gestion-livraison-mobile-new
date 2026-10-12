@@ -217,7 +217,7 @@ export default function ModifierClient() {
   if (!client) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader retourVers="/(livreur)/clients" title="Modifier le client" />
+        <PageHeader title="Modifier le client" />
         <View className="px-4 py-6">
           <Text className="text-slate-500 dark:text-slate-400 text-center">
             Client introuvable.
@@ -230,7 +230,6 @@ export default function ModifierClient() {
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
-        retourVers="/(livreur)/clients"
         title="Modifier le client"
         subtitle={`${client.prenom} ${client.nom}`.trim()}
       />

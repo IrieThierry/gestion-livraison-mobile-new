@@ -1,12 +1,19 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { router } from 'expo-router';
+import { naviguer } from '../../lib/navigation-app';
 import MesVersements from '../../app/(livreur)/cash/versements/index';
 import { useVersementsLivreur } from '../../features/versements/hooks';
 import type { VersementResponse } from '../../types/api';
 
 jest.mock('expo-router', () => ({
+  usePathname: () => '/',
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), dismissTo: jest.fn(), canGoBack: () => true },
   useNavigation: () => ({ getState: () => undefined }),
+}));
+jest.mock('../../lib/navigation-app', () => ({
+  ouvrir: jest.fn(),
+  naviguer: jest.fn(),
+  revenirA: jest.fn(),
+  retourParent: jest.fn(),
 }));
 let mockUser: { id: string; prenom: string; nom: string; parentId: string | null } = {
   id: 'liv-1',
@@ -74,7 +81,7 @@ describe('Mes versements', () => {
     render(<MesVersements />);
     expect(screen.getByText('Aucun versement')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Nouveau versement'));
-    expect(router.push).toHaveBeenCalledWith('/(livreur)/cash/versement');
+    expect(naviguer).toHaveBeenCalledWith('/(livreur)/cash/versement');
   });
 
   it('apprenti : aucune lecture, écran réservé au livreur principal', () => {

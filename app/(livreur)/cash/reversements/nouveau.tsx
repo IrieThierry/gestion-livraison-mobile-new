@@ -117,7 +117,7 @@ export default function NouveauReversement() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader retourVers="/(livreur)/cash/reversements" title="Nouveau reversement" subtitle={beneficiaireLabel} />
+      <PageHeader title="Nouveau reversement" subtitle={beneficiaireLabel} />
 
       <FormScreen>
         <View className="px-4 pt-3 gap-3">

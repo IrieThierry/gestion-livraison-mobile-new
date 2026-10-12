@@ -24,6 +24,7 @@ import { PageHeader } from '../../../components/shared/PageHeader';
 import { Avatar } from '../../../components/shared/Avatar';
 import { useAuthStore } from '../../../stores/authStore';
 import { useThemeStore, type Theme } from '../../../stores/themeStore';
+import { naviguer } from '../../../lib/navigation-app';
 
 const THEMES: Array<{
   key: Theme;
@@ -58,7 +59,7 @@ export default function Profil() {
 
   // Tap sur l'avatar → ouvre la page de modification d'infos où la photo
   // est gérée (upload + delete via expo-image-picker + photosApi).
-  const onPhotoTap = () => router.push('/(livreur)/profil/infos' as never);
+  const onPhotoTap = () => naviguer('/(livreur)/profil/infos');
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
@@ -100,7 +101,7 @@ export default function Profil() {
           </Text>
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
             <Pressable
-              onPress={() => router.push('/(livreur)/profil/infos' as never)}
+              onPress={() => naviguer('/(livreur)/profil/infos')}
               className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
             >
               <View className="flex-row items-center gap-3">
@@ -117,7 +118,7 @@ export default function Profil() {
               <ChevronRight color="#94a3b8" size={18} />
             </Pressable>
             <Pressable
-              onPress={() => router.push('/(livreur)/profil/password' as never)}
+              onPress={() => naviguer('/(livreur)/profil/password')}
               className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
             >
               <View className="flex-row items-center gap-3">
@@ -134,7 +135,7 @@ export default function Profil() {
               <ChevronRight color="#94a3b8" size={18} />
             </Pressable>
             <Pressable
-              onPress={() => router.push('/(livreur)/profil/prix' as never)}
+              onPress={() => naviguer('/(livreur)/profil/prix')}
               className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
             >
               <View className="flex-row items-center gap-3">
@@ -151,7 +152,7 @@ export default function Profil() {
               <ChevronRight color="#94a3b8" size={18} />
             </Pressable>
             <Pressable
-              onPress={() => router.push('/(livreur)/profil/fournisseurs' as never)}
+              onPress={() => naviguer('/(livreur)/profil/fournisseurs')}
               className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
             >
               <View className="flex-row items-center gap-3">
@@ -176,7 +177,7 @@ export default function Profil() {
             {!user.parentId ? (
               <Pressable
                 onPress={() =>
-                  router.push('/(livreur)/profil/apprentis' as never)
+                  naviguer('/(livreur)/profil/apprentis')
                 }
                 className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
               >
@@ -202,7 +203,7 @@ export default function Profil() {
           </Text>
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
             <Pressable
-              onPress={() => router.push('/(livreur)/profil/etats' as never)}
+              onPress={() => naviguer('/(livreur)/profil/etats')}
               className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
             >
               <View className="flex-row items-center gap-3">
@@ -219,7 +220,7 @@ export default function Profil() {
               <ChevronRight color="#94a3b8" size={18} />
             </Pressable>
             <Pressable
-              onPress={() => router.push('/(livreur)/previsions' as never)}
+              onPress={() => naviguer('/(livreur)/previsions')}
               className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
             >
               <View className="flex-row items-center gap-3">
@@ -236,7 +237,7 @@ export default function Profil() {
               <ChevronRight color="#94a3b8" size={18} />
             </Pressable>
             <Pressable
-              onPress={() => router.push('/(livreur)/clotures' as never)}
+              onPress={() => naviguer('/(livreur)/clotures')}
               className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
             >
               <View className="flex-row items-center gap-3">
@@ -254,7 +255,7 @@ export default function Profil() {
             </Pressable>
             <Pressable
               onPress={() =>
-                router.push('/(livreur)/cash/reversements' as never)
+                naviguer('/(livreur)/cash/reversements')
               }
               className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
             >

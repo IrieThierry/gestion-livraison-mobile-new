@@ -1,11 +1,11 @@
 import { View, Text, FlatList, Pressable, RefreshControl } from 'react-native';
-import { router } from 'expo-router';
 import { Plus, ArrowRight } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import { useTransfertsParent } from '../../../../features/transferts/hooks';
 import { useAuthStore } from '../../../../stores/authStore';
 import { formatDateShort } from '../../../../lib/format';
+import { naviguer } from '../../../../lib/navigation-app';
 
 /**
  * Liste des transferts effectués au sein de l'équipe (root + apprentis).
@@ -27,7 +27,7 @@ export default function TransfertsList() {
         subtitle={`${q.data?.length ?? 0} transfert${(q.data?.length ?? 0) > 1 ? 's' : ''}`}
         right={
           <Pressable
-            onPress={() => router.push('/(livreur)/stock/transferts/nouveau' as never)}
+            onPress={() => naviguer('/(livreur)/stock/transferts/nouveau')}
             className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <Plus color="#fff" size={14} />

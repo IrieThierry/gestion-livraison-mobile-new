@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import {
   Phone,
   MapPin,
@@ -39,6 +39,7 @@ import { useAuthStore } from '../../../../stores/authStore';
 import { callPhone, navigateTo } from '../../../../lib/linking';
 import { formatMontant, formatDateShort } from '../../../../lib/format';
 import { isEncaissee, isAEncaisser } from '../../../../lib/livraison-status';
+import { naviguer } from '../../../../lib/navigation-app';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
   if (!s) return null;
@@ -176,26 +177,17 @@ export default function ClientDetail() {
   const credit = solde < 0;
 
   const onLivrer = () =>
-    router.push({
-      pathname: '/(livreur)/livraisons/nouvelle' as never,
-      params: { clientId: client.id },
-    } as never, { withAnchor: true });
+    naviguer('/(livreur)/livraisons/nouvelle', { clientId: client.id });
 
   const onEncaisser = () => {
     // Mode CLIENT — la page lit le solde serveur et pré-remplit le montant.
     // Toujours possible : un paiement sans dû est une avance.
-    router.push({
-      pathname: '/(livreur)/cash/encaisser' as never,
-      params: { clientId: client.id },
-    } as never, { withAnchor: true });
+    naviguer('/(livreur)/cash/encaisser', { clientId: client.id });
   };
 
   // Retour produit : formulaire limité aux livraisons de ce client.
   const onRetourProduit = () =>
-    router.push({
-      pathname: '/(livreur)/cash/retour-client' as never,
-      params: { clientId: client.id },
-    } as never, { withAnchor: true });
+    naviguer('/(livreur)/cash/retour-client', { clientId: client.id });
 
   // Σ dû net (serveur, avant paiements) des livraisons filtrées.
   const totalLivFiltrees = livFiltrees.reduce((acc, l) => acc + num(l.montantDu), 0);
@@ -212,10 +204,7 @@ export default function ClientDetail() {
         right={
           <Pressable
             onPress={() =>
-              router.push({
-                pathname: '/(livreur)/clients/[id]/modifier' as never,
-                params: { id: client.id },
-              } as never)
+              naviguer('/(livreur)/clients/[id]/modifier', { id: client.id })
             }
             className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-70"
           >
@@ -346,10 +335,7 @@ export default function ClientDetail() {
           {/* Prix custom */}
           <Pressable
             onPress={() =>
-              router.push({
-                pathname: '/(livreur)/clients/[id]/prix' as never,
-                params: { id: client.id },
-              } as never)
+              naviguer('/(livreur)/clients/[id]/prix', { id: client.id })
             }
             className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-3 active:opacity-70"
           >
@@ -387,10 +373,7 @@ export default function ClientDetail() {
             return (
               <Pressable
                 onPress={() =>
-                  router.push({
-                    pathname: '/(livreur)/cash/retours' as never,
-                    params: { clientId: client.id },
-                  } as never)
+                  naviguer('/(livreur)/cash/retours', { clientId: client.id })
                 }
                 className="mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-3 active:opacity-70"
               >

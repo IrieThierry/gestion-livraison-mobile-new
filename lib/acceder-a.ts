@@ -1,5 +1,7 @@
 import {
+  Banknote,
   CalendarClock,
+  Coins,
   ClipboardCheck,
   Package,
   Receipt,
@@ -10,10 +12,11 @@ import {
 } from 'lucide-react-native';
 
 /**
- * Entrées du menu « Accéder à » (bouton + de la barre d'onglets) : les huit
+ * Entrées du menu « Accéder à » (bouton + de la barre d'onglets) : les dix
  * listes du livreur, dans l'ordre affiché. Les droits suivent ceux des
  * écrans : un apprenti ne voit pas « Mes versements » (réservé au livreur
- * principal) et ses « Commandes » sont celles à réceptionner.
+ * principal) et ses « Commandes » sont celles à réceptionner ; les
+ * Reversements restent ouverts à tous, comme dans le menu Moi.
  */
 export interface EntreeAccederA {
   cle: string;
@@ -46,6 +49,15 @@ export function entreesAccederA(user: { parentId?: string | null } | null | unde
       iconBg: '#d1fae5',
       iconColor: '#059669',
     },
+    {
+      cle: 'encaissements',
+      label: 'Mes encaissements',
+      hint: 'Encaissements clients, recherche et total',
+      chemin: '/(livreur)/cash/encaissements',
+      icon: Banknote,
+      iconBg: '#d1fae5',
+      iconColor: '#059669',
+    },
     apprenti
       ? null
       : {
@@ -74,6 +86,15 @@ export function entreesAccederA(user: { parentId?: string | null } | null | unde
       icon: RotateCcw,
       iconBg: '#fce7f3',
       iconColor: '#be185d',
+    },
+    {
+      cle: 'reversements',
+      label: 'Reversements',
+      hint: 'Remise due aux clients, remise des fournisseurs',
+      chemin: '/(livreur)/cash/reversements',
+      icon: Coins,
+      iconBg: '#ede9fe',
+      iconColor: '#7c3aed',
     },
     {
       cle: 'depenses',

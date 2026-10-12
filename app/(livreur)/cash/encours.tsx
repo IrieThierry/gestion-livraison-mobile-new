@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native';
-import { router } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
@@ -13,6 +12,7 @@ import {
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import { useAuthStore } from '../../../stores/authStore';
 import { formatMontant } from '../../../lib/format';
+import { naviguer } from '../../../lib/navigation-app';
 
 /**
  * Vue Encours — soldes clients du livreur connecté, calculés par le
@@ -93,10 +93,7 @@ export default function Encours() {
                   <Pressable
                     key={e.clientId}
                     onPress={() =>
-                      router.push({
-                        pathname: '/(livreur)/clients/[id]' as never,
-                        params: { id: e.clientId },
-                      } as never)
+                      naviguer('/(livreur)/clients/[id]', { id: e.clientId })
                     }
                     className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-2 active:opacity-70"
                   >

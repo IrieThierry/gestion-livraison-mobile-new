@@ -8,7 +8,6 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
 import { Plus, UsersRound, Power, ChevronRight } from 'lucide-react-native';
 import { dialog } from '../../../../lib/dialog';
 import { PageHeader } from '../../../../components/shared/PageHeader';
@@ -19,6 +18,7 @@ import {
 } from '../../../../features/apprentis/hooks';
 import { useAuthStore } from '../../../../stores/authStore';
 import type { LivreurResponse } from '../../../../types/api';
+import { naviguer } from '../../../../lib/navigation-app';
 
 /**
  * « Mes apprentis » — page accessible depuis le Profil pour les livreurs
@@ -91,7 +91,7 @@ export default function ApprentisList() {
         subtitle={`${q.data?.length ?? 0} apprenti${(q.data?.length ?? 0) > 1 ? 's' : ''}`}
         right={
           <Pressable
-            onPress={() => router.push('/(livreur)/profil/apprentis/nouveau' as never)}
+            onPress={() => naviguer('/(livreur)/profil/apprentis/nouveau')}
             className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <Plus color="#fff" size={14} />
@@ -146,10 +146,7 @@ export default function ApprentisList() {
           <ApprentiRow
             apprenti={item}
             onPress={() =>
-              router.push({
-                pathname: '/(livreur)/profil/apprentis/[id]' as never,
-                params: { id: item.id },
-              } as never)
+              naviguer('/(livreur)/profil/apprentis/[id]', { id: item.id })
             }
             onToggle={() => onToggle(item)}
           />

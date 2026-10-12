@@ -3,8 +3,15 @@ import NouvelleCommande from '../../app/(livreur)/cash/commandes/nouvelle';
 import { useCatalogueFournisseur } from '../../features/commandes/hooks';
 
 jest.mock('expo-router', () => ({
+  usePathname: () => '/',
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), dismissTo: jest.fn(), canGoBack: () => true },
   useNavigation: () => ({ getState: () => undefined }),
+}));
+jest.mock('../../lib/navigation-app', () => ({
+  ouvrir: jest.fn(),
+  naviguer: jest.fn(),
+  revenirA: jest.fn(),
+  retourParent: jest.fn(),
 }));
 jest.mock('../../stores/authStore', () => {
   const user = { id: 'liv-1', prenom: 'Awa', nom: 'Kone', parentId: null };

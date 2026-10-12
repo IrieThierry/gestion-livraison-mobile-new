@@ -1,13 +1,20 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { router } from 'expo-router';
+import { ouvrir } from '../../lib/navigation-app';
 import Tournee from '../../app/(livreur)/index';
 import { useMouvementsStock } from '../../features/stock/hooks';
 import { useLivraisonsByLivreur } from '../../features/livraisons/hooks';
 import type { MouvementStockResponse, TypeMouvementStock } from '../../types/api';
 
 jest.mock('expo-router', () => ({
+  usePathname: () => '/',
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), dismissTo: jest.fn(), canGoBack: () => true },
   useNavigation: () => ({ getState: () => undefined }),
+}));
+jest.mock('../../lib/navigation-app', () => ({
+  ouvrir: jest.fn(),
+  naviguer: jest.fn(),
+  revenirA: jest.fn(),
+  retourParent: jest.fn(),
 }));
 let mockUser: Record<string, unknown> = { id: 'liv-1', prenom: 'Awa', nom: 'Kone', parentId: null, statut: 'ACTIF' };
 jest.mock('../../stores/authStore', () => ({
@@ -85,11 +92,22 @@ describe('Accueil : chiffres cliquables de la carte verte', () => {
     mouvements.mockReturnValue(lecture([]));
     render(<Tournee />);
     fireEvent.press(screen.getByLabelText('Livraisons : 0'));
-    expect(router.push).toHaveBeenLastCalledWith('/(livreur)/livraisons');
+    expect(ouvrir).toHaveBeenLastCalledWith('/(livreur)/livraisons');
     fireEvent.press(screen.getByLabelText('Produits vendus : 0'));
-    expect(router.push).toHaveBeenLastCalledWith('/(livreur)/livraisons/produits-vendus');
+    expect(ouvrir).toHaveBeenLastCalledWith('/(livreur)/livraisons/produits-vendus');
     fireEvent.press(screen.getByLabelText('Réceptionnés : 0'));
-    expect(router.push).toHaveBeenLastCalledWith('/(livreur)/cash/commandes');
+    expect(ouvrir).toHaveBeenLastCalledWith('/(livreur)/cash/commandes');
+  });
+
+  it('tuile « À encaisser » → Encours ; actions rapides sur une pile propre', () => {
+    mouvements.mockReturnValue(lecture([]));
+    render(<Tournee />);
+    fireEvent.press(screen.getByLabelText('À encaisser'));
+    expect(ouvrir).toHaveBeenLastCalledWith('/(livreur)/cash/encours');
+    fireEvent.press(screen.getByText('Encaisser'));
+    expect(ouvrir).toHaveBeenLastCalledWith('/(livreur)/livraisons');
+    fireEvent.press(screen.getByText('Retour produit'));
+    expect(ouvrir).toHaveBeenLastCalledWith('/(livreur)/cash/retour-client');
   });
 
   it('apprenti : Réceptionnés ouvre les commandes à réceptionner', () => {
@@ -97,7 +115,7 @@ describe('Accueil : chiffres cliquables de la carte verte', () => {
     mouvements.mockReturnValue(lecture([]));
     render(<Tournee />);
     fireEvent.press(screen.getByLabelText('Réceptionnés : 0'));
-    expect(router.push).toHaveBeenLastCalledWith('/(livreur)/cash/commandes/a-receptionner');
+    expect(ouvrir).toHaveBeenLastCalledWith('/(livreur)/cash/commandes/a-receptionner');
   });
 
   it('chargement : « … » ; erreur : « — »', () => {

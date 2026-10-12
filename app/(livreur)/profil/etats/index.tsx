@@ -1,9 +1,9 @@
 import { ScrollView, View, Text, Pressable } from 'react-native';
-import { router } from 'expo-router';
 import { ChevronRight, Truck, Banknote, Package, Store } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { famillesVisibles, type FamilleEtat } from '../../../../features/etats/acces';
 import { useAuthStore } from '../../../../stores/authStore';
+import { naviguer } from '../../../../lib/navigation-app';
 
 const ICONES: Record<FamilleEtat, { icon: React.ComponentType<{ color: string; size: number }>; color: string }> = {
   ventes: { icon: Truck, color: '#10b981' },
@@ -31,7 +31,7 @@ export default function Etats() {
             return (
               <Pressable
                 key={f.key}
-                onPress={() => router.push(`/(livreur)/profil/etats/${f.key}` as never)}
+                onPress={() => naviguer(`/(livreur)/profil/etats/${f.key}`)}
                 className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 flex-row items-center gap-3 active:opacity-70"
               >
                 <View className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 items-center justify-center">

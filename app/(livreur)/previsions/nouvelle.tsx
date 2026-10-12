@@ -116,7 +116,7 @@ export default function NouvellePrevision() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader retourVers="/(livreur)/previsions" title="Nouvelle prévision" subtitle="Multi-produits par client" />
+      <PageHeader title="Nouvelle prévision" subtitle="Multi-produits par client" />
 
       <FormScreen>
         <View className="px-4 pt-3 gap-3">

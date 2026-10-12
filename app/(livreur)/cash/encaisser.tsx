@@ -75,7 +75,7 @@ export default function EncaisserPage() {
   const qLiv = useLivraisonsByLivreur(livreurId);
   const qCli = useClientsByLivreur(livreurId);
   const m = useCreerEncaissement();
-  const retourListe = useRetourListe('/(livreur)/cash');
+  const retourListe = useRetourListe('/(livreur)/cash/encaissements');
   const submittingRef = useRef(false);
 
   const todayIso = jourLocal(new Date());
@@ -161,7 +161,7 @@ export default function EncaisserPage() {
   if (mode === 'livraison' && !livraisonOrigine) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader retourVers="/(livreur)/cash" title="Encaisser" />
+        <PageHeader title="Encaisser" />
         <EmptyState
           title="Livraison introuvable"
           message="Reviens à la tournée et choisis une livraison."
@@ -172,7 +172,7 @@ export default function EncaisserPage() {
   if (mode === 'client' && !client) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader retourVers="/(livreur)/cash" title="Encaisser" />
+        <PageHeader title="Encaisser" />
         <EmptyState
           title="Client introuvable"
           message="Ce client n'est plus dans ta liste."
@@ -257,7 +257,7 @@ export default function EncaisserPage() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader retourVers="/(livreur)/cash" title="Encaisser" subtitle={clientName} />
+      <PageHeader title="Encaisser" subtitle={clientName} />
       <FormScreen>
         <View className="px-4 pt-3">
           {/* Solde et avance (serveur) */}

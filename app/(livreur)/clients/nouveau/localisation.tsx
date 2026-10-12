@@ -6,7 +6,6 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import {
   MapPin,
@@ -30,6 +29,7 @@ import { useNetworkStore } from '../../../../stores/networkStore';
 import { navigateTo } from '../../../../lib/linking';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { buildCreerClientPayload } from '../../../../features/clients/regles';
+import { revenirA, retourParent } from '../../../../lib/navigation-app';
 
 export default function NouveauClientStep2() {
   const user = useAuthStore((s) => s.user);
@@ -99,7 +99,7 @@ export default function NouveauClientStep2() {
         // Le formulaire (étapes 1 et 2, pile imbriquée « nouveau ») sort de la
         // pile : on arrive sur la liste des clients (dismissAll ne dépilait
         // que la pile « nouveau » et laissait l'étape 1 affichée).
-        router.dismissTo('/(livreur)/clients' as never);
+        revenirA('/(livreur)/clients');
         dialog.success('Client créé');
       },
       onError: (err: unknown) => {
@@ -246,7 +246,7 @@ export default function NouveauClientStep2() {
             </View>
 
             <Pressable
-              onPress={() => router.back()}
+              onPress={() => retourParent()}
               className="mt-2 flex-row items-center gap-1 self-start active:opacity-70"
               hitSlop={6}
             >

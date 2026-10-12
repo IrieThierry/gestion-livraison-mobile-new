@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { View, Text, FlatList, Pressable, RefreshControl } from 'react-native';
-import { router } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import { Plus, Trash2, Fuel, Wrench, FileText, MoreHorizontal } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
@@ -8,6 +7,7 @@ import { EmptyState } from '../../../../components/shared/EmptyState';
 import { useDepenses, useDeleteDepense } from '../../../../features/depenses/hooks';
 import { formatFCFA, formatDateShort } from '../../../../lib/format';
 import type { DepenseResponse } from '../../../../types/api';
+import { naviguer } from '../../../../lib/navigation-app';
 
 const CATEGORIE_META: Record<
   string,
@@ -55,7 +55,7 @@ export default function DepensesList() {
         subtitle={`${q.data?.length ?? 0} dépense${(q.data?.length ?? 0) > 1 ? 's' : ''} · ${formatFCFA(total)} FCFA`}
         right={
           <Pressable
-            onPress={() => router.push('/(livreur)/cash/depenses/nouvelle' as never)}
+            onPress={() => naviguer('/(livreur)/cash/depenses/nouvelle')}
             className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <Plus color="#fff" size={14} />

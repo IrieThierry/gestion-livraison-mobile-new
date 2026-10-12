@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { router } from 'expo-router';
 import { Building2, Users, ArrowRight, ChevronLeft, ChevronRight, History } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
@@ -23,6 +22,7 @@ import {
 import { num } from '../../../../features/encaissements/regles';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatFCFA, formatMontant } from '../../../../lib/format';
+import { naviguer } from '../../../../lib/navigation-app';
 
 /**
  * Synthèse Reversements (Item A) — affiche pour le mois sélectionné :
@@ -61,7 +61,7 @@ export default function ReversementsSynthese() {
         subtitle={moisLabel}
         right={
           <Pressable
-            onPress={() => router.push('/(livreur)/cash/reversements/historique' as never)}
+            onPress={() => naviguer('/(livreur)/cash/reversements/historique')}
             className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <History color="#fff" size={14} />
@@ -105,7 +105,7 @@ export default function ReversementsSynthese() {
         <View className="px-4">
           {/* Raccourci visible vers l'historique des reversements faits */}
           <Pressable
-            onPress={() => router.push('/(livreur)/cash/reversements/historique' as never)}
+            onPress={() => naviguer('/(livreur)/cash/reversements/historique')}
             className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 mt-2 mb-3 flex-row items-center gap-3 active:opacity-70"
           >
             <View className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
@@ -218,17 +218,14 @@ export default function ReversementsSynthese() {
                         key={c.clientId}
                         disabled={!reversable}
                         onPress={() =>
-                          router.push({
-                            pathname: '/(livreur)/cash/reversements/nouveau' as never,
-                            params: {
-                              type: 'CLIENT',
-                              beneficiaireId: c.clientId,
-                              label: `${c.prenom} ${c.nom ?? ''}`.trim(),
-                              montantSuggere: montantSuggere(reste),
-                              mois: String(mois),
-                              annee: String(annee),
-                            },
-                          } as never)
+                          naviguer('/(livreur)/cash/reversements/nouveau', {
+                            type: 'CLIENT',
+                            beneficiaireId: c.clientId,
+                            label: `${c.prenom} ${c.nom ?? ''}`.trim(),
+                            montantSuggere: montantSuggere(reste),
+                            mois: String(mois),
+                            annee: String(annee),
+                          })
                         }
                         className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 ${
                           reversable ? 'active:opacity-70' : ''
