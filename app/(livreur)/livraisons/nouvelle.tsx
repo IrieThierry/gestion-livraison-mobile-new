@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
 import { dialog } from '../../../lib/dialog';
 import { useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { AlertCircle } from 'lucide-react-native';
+import { AlertCircle, CalendarCheck } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { FormScreen } from '../../../components/shared/FormScreen';
 import { ClientPicker } from '../../../components/livreur/ClientPicker';
@@ -23,8 +23,15 @@ import {
   buildCreerLivraisonPayload,
   erreurLignesLivraison,
   remiseLivraison,
+  prixInitialLigne,
   totalLivraisonEstime,
 } from '../../../features/livraisons/regles';
+import { useLivraisonsDuJour, usePrevisionsLivreur } from '../../../features/previsions/hooks';
+import {
+  appliquerPrevisions,
+  jourLocal,
+  lignesDepuisPrevisions,
+} from '../../../features/previsions/regles';
 import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../lib/api-error';
@@ -61,6 +68,42 @@ export default function NouvelleLivraison() {
   const m = useCreerLivraison();
   const qc = useQueryClient();
   const retourListe = useRetourListe(LISTE_LIVRAISONS);
+
+  // Prévisions du jour du livreur et ses livraisons du jour (Reste = Prévu − Livré).
+  const jour = jourLocal();
+  const previsionsQ = usePrevisionsLivreur(user?.id, jour);
+  const livraisonsJourQ = useLivraisonsDuJour(user, jour);
+  const prevues = useMemo(
+    () =>
+      user && client && previsionsQ.data && livraisonsJourQ.data
+        ? lignesDepuisPrevisions(previsionsQ.data, livraisonsJourQ.data, {
+            livreurId: user.id,
+            clientId: client.id,
+            jour,
+          })
+        : null,
+    [user, client, previsionsQ.data, livraisonsJourQ.data, jour],
+  );
+  // Client pour lequel le préremplissage a été tenté / appliqué.
+  const tentePour = useRef<string | null>(null);
+  const [prerempliPour, setPrerempliPour] = useState<string | null>(null);
+  const lignesCourantes = useRef(lignes);
+  lignesCourantes.current = lignes;
+
+  // À la sélection d'un client, formulaire sans ligne : lignes = prévisions du jour (Reste).
+  useEffect(() => {
+    if (!client || !prevues || tentePour.current === client.id) return;
+    tentePour.current = client.id;
+    if (lignesCourantes.current.length > 0 || prevues.length === 0) return;
+    setLignes(appliquerPrevisions([], prevues, prixInitialLigne(client.prixDeVenteProduitParDefault)));
+    setPrerempliPour(client.id);
+  }, [client, prevues]);
+
+  const reprendrePrevisions = () => {
+    if (!client || !prevues) return;
+    setLignes(appliquerPrevisions(lignes, prevues, prixInitialLigne(client.prixDeVenteProduitParDefault)));
+    setPrerempliPour(client.id);
+  };
 
   // Pull-to-refresh : invalide les lookups dont le formulaire dépend
   // (clients du livreur + catalogue produits) pour récupérer immédiatement
@@ -138,6 +181,8 @@ export default function NouvelleLivraison() {
       onSuccess: () => {
         setClient(null);
         setLignes([]);
+        setPrerempliPour(null);
+        tentePour.current = null;
         retourListe();
         dialog.success('Livraison enregistrée');
       },
@@ -171,6 +216,25 @@ export default function NouvelleLivraison() {
             Client
           </Text>
           <ClientPicker value={client} onChange={setClient} />
+
+          {client && prerempliPour === client.id ? (
+            <View className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-md p-3 mt-3 flex-row items-center gap-2">
+              <CalendarCheck color="#2563eb" size={14} />
+              <Text className="text-[12px] text-blue-700 dark:text-blue-300 font-bold flex-1">
+                Prérempli depuis les prévisions du jour
+              </Text>
+            </View>
+          ) : null}
+          {client && prevues && prevues.length > 0 && lignes.length > 0 && prerempliPour !== client.id ? (
+            <Pressable
+              onPress={reprendrePrevisions}
+              accessibilityRole="button"
+              className="border border-blue-300 dark:border-blue-500/40 rounded-md py-2.5 mt-3 flex-row items-center justify-center gap-2 active:opacity-70"
+            >
+              <CalendarCheck color="#2563eb" size={14} />
+              <Text className="text-blue-700 dark:text-blue-300 font-bold">Reprendre les prévisions</Text>
+            </Pressable>
+          ) : null}
 
           <View className="mt-5">
             <ProduitPicker

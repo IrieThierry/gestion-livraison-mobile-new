@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,8 @@ import { formatFCFA } from '../../../../lib/format';
 import { MESSAGE_AUCUN_PARTENAIRE, etatListePartenaires } from '../../../../features/relations/regles';
 import { useRetourListe } from '../../../../lib/useRetourListe';
 import { naviguer } from '../../../../lib/navigation-app';
+import { useCommandePrefillStore } from '../../../../stores/commandePrefillStore';
+import { jourCourt, prefillCommande } from '../../../../features/previsions/regles';
 
 export default function NouvelleCommande() {
   const user = useAuthStore((s) => s.user);
@@ -44,13 +46,29 @@ export default function NouvelleCommande() {
     isError: qFournisseurs.isError,
     nombre: fournisseurs.length,
   });
-  const [fournisseurId, setFournisseurId] = useState<string | null>(null);
+  // Commander depuis le cumul des prévisions : source lue une seule fois (store, pas d'URL).
+  const [prefill] = useState(() => useCommandePrefillStore.getState().prendre());
+  const [fournisseurId, setFournisseurId] = useState<string | null>(prefill?.fournisseurId ?? null);
+  // Fournisseur pour lequel le cumul a déjà été reporté dans les quantités.
+  const [prefillApplique, setPrefillApplique] = useState<string | null>(null);
   const [quantites, setQuantites] = useState<Quantites>({});
   const [apprentiId, setApprentiId] = useState<string | null>(null);
   const catalogue = useCatalogueFournisseur(fournisseurId ?? undefined);
   const m = useCreerCommande();
   const retourListe = useRetourListe('/(livreur)/cash/commandes');
   const lignes = useMemo(() => lignesCommandables(catalogue.data ?? []), [catalogue.data]);
+  const prerempli = useMemo(
+    () => (prefill && fournisseurId && catalogue.data ? prefillCommande(prefill.cumul, lignes) : null),
+    [prefill, fournisseurId, catalogue.data, lignes],
+  );
+
+  // Quantités = cumul brut des produits proposés par ce fournisseur (modifiables).
+  useEffect(() => {
+    if (prerempli && fournisseurId && prefillApplique !== fournisseurId) {
+      setQuantites(prerempli.quantites);
+      setPrefillApplique(fournisseurId);
+    }
+  }, [prerempli, fournisseurId, prefillApplique]);
 
   const options = useMemo(
     () =>
@@ -208,6 +226,26 @@ export default function NouvelleCommande() {
                   ))}
                 </View>
               )}
+              {prefill && prerempli ? (
+                <View className="mt-4">
+                  <Text className="text-[12px] font-semibold text-blue-700 dark:text-blue-300">
+                    Prérempli depuis le cumul des prévisions du {jourCourt(prefill.jour)}
+                  </Text>
+                  {prerempli.nonProposes.length > 0 ? (
+                    <View className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3 mt-2">
+                      <Text className="text-[10px] uppercase tracking-wide font-semibold text-amber-700 dark:text-amber-300 mb-1">
+                        Non proposés par ce fournisseur
+                      </Text>
+                      {prerempli.nonProposes.map((p) => (
+                        <View key={p.produitId} className="flex-row justify-between py-0.5">
+                          <Text className="text-[13px] text-amber-800 dark:text-amber-200 flex-1">{p.designation}</Text>
+                          <Text className="text-[13px] font-bold text-amber-800 dark:text-amber-200">{p.qte}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
             </>
           ) : null}
 

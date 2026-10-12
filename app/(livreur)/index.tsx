@@ -17,6 +17,7 @@ import {
   nbProduitsVendus,
 } from '../../features/accueil/regles';
 import { useCommandesAReceptionner } from '../../features/commandes/hooks';
+import { usePrevisionsEchues } from '../../features/previsions/hooks';
 import { useAuthStore } from '../../stores/authStore';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Avatar } from '../../components/shared/Avatar';
@@ -38,6 +39,8 @@ export default function Tournee() {
   // + retours sur la période). C'est ce que l'écran Stock affiche aussi.
   const qStock = useStockCourant();
   const qARecep = useCommandesAReceptionner(!!user);
+  // Prévisions échues du livreur connecté (pas celles des apprentis), hors « Plus tard ».
+  const qEchues = usePrevisionsEchues(user?.id);
   // Mouvements de stock du jour (local) du livreur connecté — l'apprenti voit
   // les siens : quantités vendues (livraisons) et réceptionnées du jour.
   const jour = jourLocal();
@@ -83,11 +86,12 @@ export default function Tournee() {
 
   if (!user) return null;
 
-  // Clochette = nombre de commandes à réceptionner pour l'utilisateur courant.
-  const notifCount = qARecep.data?.length ?? 0;
+  // Clochette = commandes à réceptionner + prévisions échues de l'utilisateur courant.
+  const notifCount = (qARecep.data?.length ?? 0) + qEchues.echues.length;
 
   const onRefresh = () => {
     qARecep.refetch();
+    qEchues.refetch();
     qLiv.refetch();
     qEnc.refetch();
     qEncours.refetch();
@@ -122,9 +126,9 @@ export default function Tournee() {
           <View className="flex-row items-center gap-2">
             <Pressable
               hitSlop={6}
-              onPress={() => ouvrir('/(livreur)/cash/commandes/a-receptionner')}
+              onPress={() => ouvrir('/(livreur)/previsions/echues')}
               accessibilityRole="button"
-              accessibilityLabel="Commandes à réceptionner"
+              accessibilityLabel={`Notifications : ${notifCount}`}
               className="w-10 h-10 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 items-center justify-center active:opacity-70"
             >
               <Bell color="#475569" size={18} />
