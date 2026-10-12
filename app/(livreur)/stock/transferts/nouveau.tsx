@@ -7,10 +7,13 @@ import { SelectField } from '../../../../components/shared/SelectField';
 import { useApprentis } from '../../../../features/apprentis/hooks';
 import { useStockActuel, useStockCourant } from '../../../../features/stock/hooks';
 import { useEffectuerTransfert, useTransfertsLivreur } from '../../../../features/transferts/hooks';
+import { useMesRemises } from '../../../../features/remises-argent/hooks';
 import {
+  COMMENTAIRE_TRANSFERT_MAX,
+  COMMENTAIRE_TRANSFERT_TROP_LONG,
   construireTransfert,
   messageAcceptationPar,
-  MOTIF_REFUS_MAX,
+  messageQuantiteSuperieure,
   nomPrincipal,
   type ModeTransfert,
 } from '../../../../features/transferts/regles';
@@ -21,9 +24,9 @@ import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { useRetourListe } from '../../../../lib/useRetourListe';
 
 const LIBELLE_ENVOI: Record<ModeTransfert, string> = {
-  envoyer: 'Envoyer le transfert',
-  reprendre: 'Reprendre du stock',
-  rendre: 'Rendre du stock',
+  envoyer: 'Envoyer',
+  reprendre: 'Reprendre',
+  rendre: 'Rendre',
 };
 
 /**
@@ -43,6 +46,8 @@ export default function NouveauTransfert() {
   const monStockQ = useStockCourant();
   // Apprenti : ses transferts donnent le nom de son principal (la session n'a que `parentId`).
   const mesTransfertsQ = useTransfertsLivreur(estApprenti ? user?.id : undefined);
+  // À défaut de transfert, le principal est lu sur ses remises (comme le web).
+  const mesRemisesQ = useMesRemises();
   const m = useEffectuerTransfert();
   const verrou = useRef(creerVerrou()).current;
   const retourListe = useRetourListe('/(livreur)/stock/transferts');
@@ -88,11 +93,15 @@ export default function NouveauTransfert() {
   );
   const qteNum = /^\d+$/.test(qte.trim()) ? parseInt(qte.trim(), 10) : 0;
   const insuffisant = !!produitId && qteNum > stockDispo;
+  const commentaireTropLong = commentaire.trim().length > COMMENTAIRE_TRANSFERT_MAX;
+  // Stock de la source illisible : état d'erreur, pas « aucun produit en stock ».
+  const stockQ = mode === 'reprendre' ? (apprentiId ? stockApprentiQ : null) : monStockQ;
+  const stockEnErreur = !!stockQ?.isError;
 
   if (!user) return null;
 
   const nomApprenti = apprentiId ? apprentisOptions.find((o) => o.id === apprentiId)?.label ?? null : null;
-  const nomPrincipalApprenti = nomPrincipal(mesTransfertsQ.data, user.parentId);
+  const nomPrincipalApprenti = nomPrincipal(mesTransfertsQ.data, user.parentId, mesRemisesQ.data);
   const moi = `${user.prenom} ${user.nom} (toi)`;
   // Qui devra accepter : le principal (rendre) ou l'apprenti choisi (envoyer, reprendre).
   const accepteur = estApprenti ? nomPrincipalApprenti : nomApprenti;
@@ -137,7 +146,10 @@ export default function NouveauTransfert() {
       m.mutate(r.valeur, {
         onSuccess: () => {
           retourListe();
-          dialog.success('Transfert envoyé', accepteur ? messageAcceptationPar(accepteur) : undefined);
+          dialog.success(
+            mode === 'reprendre' ? 'Demande de reprise envoyée' : 'Transfert envoyé',
+            accepteur ? messageAcceptationPar(accepteur) : undefined,
+          );
         },
         onError: (e) => setErreur(extractApiErrorMessage(e, 'Transfert impossible.')),
         onSettled: fin,
@@ -160,7 +172,7 @@ export default function NouveauTransfert() {
             <View className="flex-row bg-slate-100 dark:bg-slate-800 rounded-md p-1">
               {(
                 [
-                  { id: 'envoyer', label: 'Envoyer' },
+                  { id: 'envoyer', label: 'Envoyer à un apprenti' },
                   { id: 'reprendre', label: 'Reprendre du stock' },
                 ] as const
               ).map((o) => {
@@ -235,13 +247,20 @@ export default function NouveauTransfert() {
             options={stockOptions}
             isLoading={mode === 'reprendre' ? !!apprentiId && stockApprentiQ.isLoading : monStockQ.isLoading}
             emptyMessage={
-              mode === 'reprendre'
-                ? apprentiId
-                  ? 'Cet apprenti n’a aucun produit en stock.'
-                  : 'Choisis d’abord un apprenti.'
-                : 'Aucun produit en stock. Réceptionne d’abord une commande.'
+              stockEnErreur
+                ? 'Stock indisponible'
+                : mode === 'reprendre'
+                  ? apprentiId
+                    ? 'Cet apprenti n’a aucun produit en stock.'
+                    : 'Choisis d’abord un apprenti.'
+                  : 'Aucun produit en stock. Réceptionne d’abord une commande.'
             }
           />
+          {stockEnErreur ? (
+            <Text accessibilityRole="alert" className="text-[11px] text-red-600 dark:text-red-400 font-bold -mt-1">
+              {extractApiErrorMessage(stockQ?.error, 'Le stock n’a pas pu être lu.')}
+            </Text>
+          ) : null}
 
           <View>
             <Text className={libelleChamp}>Quantité * {produitId ? `(stock dispo : ${stockDispo})` : ''}</Text>
@@ -261,23 +280,26 @@ export default function NouveauTransfert() {
               }`}
             />
             {insuffisant ? (
-              <Text className="text-[11px] text-red-500 font-bold mt-1">Stock insuffisant (max : {stockDispo})</Text>
+              <Text className="text-[11px] text-red-500 font-bold mt-1">{messageQuantiteSuperieure(stockDispo)}</Text>
             ) : null}
           </View>
 
           <View>
-            <Text className={libelleChamp}>{mode === 'envoyer' ? 'Commentaire (optionnel)' : 'Motif (facultatif)'}</Text>
+            <Text className={libelleChamp}>Commentaire (facultatif)</Text>
             <TextInput
               value={commentaire}
               onChangeText={setCommentaire}
               multiline
-              maxLength={MOTIF_REFUS_MAX}
+              maxLength={COMMENTAIRE_TRANSFERT_MAX}
               placeholder="…"
               placeholderTextColor="#94a3b8"
-              accessibilityLabel={mode === 'envoyer' ? 'Commentaire' : 'Motif'}
+              accessibilityLabel="Commentaire"
               className="px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white min-h-[80px]"
               style={{ textAlignVertical: 'top' }}
             />
+            {commentaireTropLong ? (
+              <Text className="text-[11px] text-red-500 font-bold mt-1">{COMMENTAIRE_TRANSFERT_TROP_LONG}</Text>
+            ) : null}
           </View>
 
           {erreur ? <Text className="text-[12px] text-red-600 dark:text-red-400 font-bold">{erreur}</Text> : null}

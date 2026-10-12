@@ -19,10 +19,12 @@ import {
 } from '../../features/transferts/hooks';
 import {
   construireRefus,
+  messageAnnulationTransfert,
   MOTIF_REFUS_MAX,
   nomLivreurTransfert,
   peutAnnulerTransfert,
   peutDeciderTransfert,
+  TITRE_ANNULATION_TRANSFERT,
 } from '../../features/transferts/regles';
 import { creerVerrou, lancerUneFois } from '../../features/commandes/verrou';
 import { extractApiErrorMessage } from '../../lib/api-error';
@@ -134,10 +136,8 @@ export function useDecisionTransfert(moiId: UUID | undefined) {
 
   const annuler = (t: TransfertStockResponse) =>
     dialog.confirm({
-      title: 'Annuler ce transfert ?',
-      message: t.reprise
-        ? `${quoi(t)} : la demande de reprise est retirée.`
-        : `${quoi(t)} : la quantité revient dans ton stock.`,
+      title: TITRE_ANNULATION_TRANSFERT,
+      message: messageAnnulationTransfert(t),
       confirmLabel: 'Annuler le transfert',
       cancelLabel: 'Garder',
       destructive: true,

@@ -54,6 +54,10 @@ jest.mock('../../features/apprentis/hooks', () => ({
     isLoading: false,
   }),
 }));
+let mockRemises: unknown[] | undefined;
+jest.mock('../../features/remises-argent/hooks', () => ({
+  useMesRemises: () => ({ data: mockRemises, isLoading: false, isError: false }),
+}));
 jest.mock('../../components/livreur/MiseAZeroDialog', () => ({ MiseAZeroDialog: () => null }));
 
 const h = hooks as unknown as Record<string, jest.Mock>;
@@ -95,6 +99,7 @@ const dernierConfirm = () => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockUser = APPRENTI;
+  mockRemises = undefined;
   for (const n of ['useEffectuerTransfert', 'useAccepterTransfert', 'useRefuserTransfert', 'useAnnulerTransfert']) {
     mutations[n] = { mutate: jest.fn(), isPending: false };
     h[n].mockReturnValue(mutations[n]);
@@ -207,10 +212,10 @@ describe('Nouveau transfert', () => {
     fireEvent.press(screen.getByText('Choisir un produit'));
     fireEvent.press(screen.getByText('Pain · stock 10'));
     fireEvent.changeText(screen.getByLabelText('Quantité'), '3');
-    fireEvent.changeText(screen.getByLabelText('Motif'), 'Trop de pain');
-    const boutons = screen.getAllByText('Rendre du stock');
-    fireEvent.press(boutons[boutons.length - 1]);
-    fireEvent.press(boutons[boutons.length - 1]);
+    fireEvent.changeText(screen.getByLabelText('Commentaire'), 'Trop de pain');
+    expect(screen.getByText('Commentaire (facultatif)')).toBeTruthy();
+    fireEvent.press(screen.getByText('Rendre'));
+    fireEvent.press(screen.getByText('Rendre'));
     expect(mutations.useEffectuerTransfert.mutate).toHaveBeenCalledTimes(1);
     expect(mutations.useEffectuerTransfert.mutate).toHaveBeenCalledWith(
       { sourceId: 'A1', destinataireId: 'P1', produitId: 'p1', qte: 3, commentaire: 'Trop de pain' },
@@ -235,15 +240,17 @@ describe('Nouveau transfert', () => {
     fireEvent.press(screen.getByText('Choisir un produit'));
     fireEvent.press(screen.getByText('Lait · stock 6'));
     fireEvent.changeText(screen.getByLabelText('Quantité'), '7');
-    const boutons = () => screen.getAllByText('Reprendre du stock');
-    fireEvent.press(boutons()[boutons().length - 1]);
+    expect(screen.getByText('Quantité supérieure au stock disponible (6).')).toBeTruthy();
+    fireEvent.press(screen.getByText('Reprendre'));
     expect(mutations.useEffectuerTransfert.mutate).not.toHaveBeenCalled();
     fireEvent.changeText(screen.getByLabelText('Quantité'), '6');
-    fireEvent.press(boutons()[boutons().length - 1]);
+    fireEvent.press(screen.getByText('Reprendre'));
     expect(mutations.useEffectuerTransfert.mutate).toHaveBeenCalledWith(
       { sourceId: 'A2', destinataireId: 'P1', produitId: 'p9', qte: 6 },
       expect.anything(),
     );
+    mutations.useEffectuerTransfert.mutate.mock.calls[0][1].onSuccess();
+    expect(dialog.success).toHaveBeenCalledWith('Demande de reprise envoyée', 'Le transfert devra être accepté par Moussa C.');
   });
 
   it('principal : Envoyer → source = moi, destinataire = l’apprenti', () => {
@@ -255,11 +262,80 @@ describe('Nouveau transfert', () => {
     fireEvent.press(screen.getByText('Choisir un produit'));
     fireEvent.press(screen.getByText('Pain · stock 10'));
     fireEvent.changeText(screen.getByLabelText('Quantité'), '2');
-    fireEvent.press(screen.getByText('Envoyer le transfert'));
+    expect(screen.getByText('Envoyer à un apprenti')).toBeTruthy();
+    fireEvent.press(screen.getByText('Envoyer'));
     expect(mutations.useEffectuerTransfert.mutate).toHaveBeenCalledWith(
       { sourceId: 'P1', destinataireId: 'A1', produitId: 'p1', qte: 2 },
       expect.anything(),
     );
+  });
+});
+
+describe('Libellés alignés sur le web', () => {
+  it('filtres : « En attente » puis « Tous »', () => {
+    mockUser = PRINCIPAL;
+    h.useTransfertsParent.mockReturnValue(lecture([tr('1'), tr('2', 'ACCEPTE')]));
+    render(<TransfertsList />);
+    const filtres = screen.getAllByText(/^(En attente \(\d+\)|Tous)$/).map((n) => n.props.children);
+    expect(filtres).toEqual(['En attente (1)', 'Tous']);
+  });
+
+  it('annulation : titre et message du web', () => {
+    mockUser = PRINCIPAL;
+    h.useTransfertsParent.mockReturnValue(lecture([tr('1')]));
+    render(<TransfertsList />);
+    fireEvent.press(screen.getByText('Annuler'));
+    const c = dernierConfirm();
+    expect(c.title).toBe('Annuler le transfert ?');
+    expect(c.message).toBe('4 × Pain 1 vers Issa B : la quantité revient dans le stock de l’expéditeur.');
+    expect(c.confirmLabel).toBe('Annuler le transfert');
+    expect(c.cancelLabel).toBe('Garder');
+  });
+
+  it('commentaire : « Commentaire (facultatif) » dans chaque mode, 500 caractères au plus', () => {
+    mockUser = PRINCIPAL;
+    render(<NouveauTransfert />);
+    expect(screen.getByText('Commentaire (facultatif)')).toBeTruthy();
+    expect(screen.getByLabelText('Commentaire').props.maxLength).toBe(500);
+    fireEvent.press(screen.getByText('Reprendre du stock'));
+    expect(screen.getByText('Commentaire (facultatif)')).toBeTruthy();
+    fireEvent.press(screen.getByText('Choisir un apprenti'));
+    fireEvent.press(screen.getByText('Issa B'));
+    fireEvent.changeText(screen.getByLabelText('Commentaire'), 'x'.repeat(501));
+    expect(screen.getByText('Le commentaire ne doit pas dépasser 500 caractères.')).toBeTruthy();
+  });
+
+  it('apprenti sans transfert : nom du principal lu sur ses remises', () => {
+    mockRemises = [{ principal: { id: 'P1', prenom: 'Awa', nom: 'K' } }];
+    render(<NouveauTransfert />);
+    expect(screen.getByText('Le transfert devra être accepté par Awa K.')).toBeTruthy();
+  });
+
+  it('apprenti sans transfert ni remise : « ton livreur principal »', () => {
+    render(<NouveauTransfert />);
+    expect(screen.getByText('Le transfert devra être accepté par ton livreur principal.')).toBeTruthy();
+  });
+});
+
+describe('Nouveau transfert : stock illisible', () => {
+  it('mon stock en erreur : « Stock indisponible », pas le stock vide', () => {
+    sh.useStockCourant.mockReturnValue(lecture(undefined, { isError: true, error: new Error('x') }));
+    render(<NouveauTransfert />);
+    expect(screen.getByText('Stock indisponible')).toBeTruthy();
+    expect(screen.queryByText('Aucun produit en stock. Réceptionne d’abord une commande.')).toBeNull();
+  });
+
+  it('stock de l’apprenti en erreur (reprise) : « Stock indisponible »', () => {
+    mockUser = PRINCIPAL;
+    sh.useStockActuel.mockImplementation((id: string) =>
+      id === 'A2' ? lecture(undefined, { isError: true, error: new Error('x') }) : lecture([]),
+    );
+    render(<NouveauTransfert />);
+    fireEvent.press(screen.getByText('Reprendre du stock'));
+    fireEvent.press(screen.getByText('Choisir un apprenti'));
+    fireEvent.press(screen.getByText('Moussa C'));
+    expect(screen.getByText('Stock indisponible')).toBeTruthy();
+    expect(screen.queryByText('Cet apprenti n’a aucun produit en stock.')).toBeNull();
   });
 });
 

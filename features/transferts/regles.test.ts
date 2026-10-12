@@ -4,6 +4,8 @@ import {
   LIBELLE_STATUT_TRANSFERT,
   MESSAGE_MOTIF_REFUS,
   messageAcceptationPar,
+  messageAnnulationTransfert,
+  TITRE_ANNULATION_TRANSFERT,
   nbTransfertsADecider,
   nomPrincipal,
   peutAnnulerTransfert,
@@ -92,7 +94,7 @@ describe('construireTransfert', () => {
     });
   });
 
-  it('reprendre : source = l’apprenti, destinataire = moi, motif facultatif', () => {
+  it('reprendre : source = l’apprenti, destinataire = moi, commentaire facultatif', () => {
     expect(construireTransfert({ ...base, mode: 'reprendre', apprentiId: 'A1', commentaire: ' trop ' })).toEqual({
       ok: true,
       valeur: { sourceId: 'A1', destinataireId: 'P1', produitId: 'p1', qte: 3, commentaire: 'trop' },
@@ -125,7 +127,16 @@ describe('construireTransfert', () => {
     expect(construireTransfert({ ...base, mode: 'envoyer', apprentiId: 'A1', qte: '2.5' }).ok).toBe(false);
     expect(construireTransfert({ ...base, mode: 'envoyer', apprentiId: 'A1', qte: '6' })).toEqual({
       ok: false,
-      erreur: 'Stock insuffisant (max : 5).',
+      erreur: 'Quantité supérieure au stock disponible (5).',
+    });
+  });
+
+  it('commentaire : 500 caractères au plus, message du web', () => {
+    const r = construireTransfert({ ...base, mode: 'envoyer', apprentiId: 'A1', commentaire: 'x'.repeat(500) });
+    expect(r.ok && r.valeur.commentaire).toHaveLength(500);
+    expect(construireTransfert({ ...base, mode: 'envoyer', apprentiId: 'A1', commentaire: 'x'.repeat(501) })).toEqual({
+      ok: false,
+      erreur: 'Le commentaire ne doit pas dépasser 500 caractères.',
     });
   });
 });
@@ -135,12 +146,41 @@ describe('textes', () => {
     expect(messageAcceptationPar('Issa B')).toBe('Le transfert devra être accepté par Issa B.');
   });
 
+  it('annulation : titre et message du web', () => {
+    expect(TITRE_ANNULATION_TRANSFERT).toBe('Annuler le transfert ?');
+    expect(messageAnnulationTransfert(t())).toBe(
+      '4 × Pain vers Issa B : la quantité revient dans le stock de l’expéditeur.',
+    );
+    expect(
+      messageAnnulationTransfert(t({ reprise: true, destinataire: { id: 'P1', prenom: 'Awa', nom: 'K' } as never })),
+    ).toBe('4 × Pain vers Awa K.');
+  });
+
   it('nom du principal lu dans les transferts de l’apprenti, sinon « ton livreur principal »', () => {
     expect(nomPrincipal([t()], 'P1')).toBe('Awa K');
     expect(nomPrincipal([t({ source: { id: 'A2', prenom: 'X', nom: 'Y' } as never })], 'P1')).toBe(
       'ton livreur principal',
     );
     expect(nomPrincipal(undefined, 'P1')).toBe('ton livreur principal');
+  });
+
+  it('nom du principal : `parent` des transferts, puis remises, comme le web', () => {
+    const principal = { id: 'P1', prenom: 'Awa', nom: 'K' } as never;
+    // Transfert entre apprentis frères : le principal n'est que le `parent`.
+    const freres = t({
+      source: { id: 'A1', prenom: 'Issa', nom: 'B', parent: principal } as never,
+      destinataire: { id: 'A2', prenom: 'Moussa', nom: 'C', parent: null } as never,
+    });
+    expect(nomPrincipal([freres], 'P1')).toBe('Awa K');
+    const freres2 = t({
+      source: { id: 'A2', prenom: 'Moussa', nom: 'C', parent: null } as never,
+      destinataire: { id: 'A1', prenom: 'Issa', nom: 'B', parent: principal } as never,
+    });
+    expect(nomPrincipal([freres2], 'P1')).toBe('Awa K');
+    // Aucun transfert : le principal des remises.
+    expect(nomPrincipal([], 'P1', [{ principal: null }, { principal }])).toBe('Awa K');
+    expect(nomPrincipal(undefined, 'P1', [{ principal: null }])).toBe('ton livreur principal');
+    expect(nomPrincipal(undefined, null, [{ principal }])).toBe('ton livreur principal');
   });
 });
 

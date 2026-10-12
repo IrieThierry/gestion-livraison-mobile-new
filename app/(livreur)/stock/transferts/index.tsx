@@ -31,8 +31,8 @@ export default function TransfertsList() {
   const affiches = transfertsAffiches(tous, filtre);
 
   const filtres: { id: FiltreTransferts; label: string }[] = [
-    { id: 'TOUS', label: 'Tous' },
     { id: 'EN_ATTENTE', label: `En attente (${nbEnAttente})` },
+    { id: 'TOUS', label: 'Tous' },
   ];
 
   return (

@@ -310,13 +310,13 @@ describe('Fiche apprenti : section Remises', () => {
 describe('Clôture : texte d’aide du montant remis', () => {
   it('apprenti : une remise sera déclarée à son principal', () => {
     render(<NouvelleCloture />);
-    expect(screen.getByText(/une remise sera déclarée à ton principal/)).toBeTruthy();
+    expect(screen.getByText('Une remise sera déclarée à ton livreur principal.')).toBeTruthy();
   });
 
   it('principal : pas de texte', () => {
     mockUser = { id: 'P1', prenom: 'Awa', nom: 'K', parentId: null };
     render(<NouvelleCloture />);
-    expect(screen.queryByText(/une remise sera déclarée/)).toBeNull();
+    expect(screen.queryByText(/remise sera déclarée/)).toBeNull();
   });
 });
 

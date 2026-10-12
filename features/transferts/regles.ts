@@ -2,6 +2,7 @@ import type { Resultat } from '../commandes/regles';
 import type {
   EffectuerTransfertRequest,
   RefuserTransfertRequest,
+  RemiseArgentResponse,
   StatutTransfert,
   TransfertStockResponse,
   UUID,
@@ -24,6 +25,22 @@ export const LIBELLE_STATUT_TRANSFERT: Record<StatutTransfert, string> = {
 export const MOTIF_REFUS_MAX = 500;
 export const MESSAGE_MOTIF_REFUS = 'Précisez le motif du refus.';
 export const LIBELLE_PRINCIPAL_PAR_DEFAUT = 'ton livreur principal';
+/** Commentaire d'un transfert : 500 caractères au plus (même message que le web et le back). */
+export const COMMENTAIRE_TRANSFERT_MAX = 500;
+export const COMMENTAIRE_TRANSFERT_TROP_LONG = `Le commentaire ne doit pas dépasser ${COMMENTAIRE_TRANSFERT_MAX} caractères.`;
+
+/** « Quantité supérieure au stock disponible (N). » (comme le web). */
+export const messageQuantiteSuperieure = (disponible: number) =>
+  `Quantité supérieure au stock disponible (${disponible}).`;
+
+/** Fenêtre d'annulation (comme le web) : titre et message. */
+export const TITRE_ANNULATION_TRANSFERT = 'Annuler le transfert ?';
+export function messageAnnulationTransfert(
+  t: Pick<TransfertStockResponse, 'qte' | 'produit' | 'destinataire' | 'reprise'>,
+): string {
+  const vers = `${t.qte} × ${t.produit?.designation ?? '—'} vers ${nomLivreurTransfert(t.destinataire)}`;
+  return t.reprise ? `${vers}.` : `${vers} : la quantité revient dans le stock de l’expéditeur.`;
+}
 
 type Decision = Pick<TransfertStockResponse, 'statut' | 'decideurId' | 'initieParId'>;
 
@@ -93,10 +110,10 @@ export function construireTransfert(s: SaisieTransfert): Resultat<EffectuerTrans
   const brut = s.qte.trim();
   const qte = /^\d+$/.test(brut) ? parseInt(brut, 10) : 0;
   if (!(qte > 0)) return { ok: false, erreur: 'Quantité invalide.' };
-  if (qte > s.stockDispo) return { ok: false, erreur: `Stock insuffisant (max : ${s.stockDispo}).` };
+  if (qte > s.stockDispo) return { ok: false, erreur: messageQuantiteSuperieure(s.stockDispo) };
   const commentaire = s.commentaire.trim();
-  if (commentaire.length > MOTIF_REFUS_MAX) {
-    return { ok: false, erreur: `Le motif ne doit pas dépasser ${MOTIF_REFUS_MAX} caractères.` };
+  if (commentaire.length > COMMENTAIRE_TRANSFERT_MAX) {
+    return { ok: false, erreur: COMMENTAIRE_TRANSFERT_TROP_LONG };
   }
   const valeur: EffectuerTransfertRequest = { sourceId, destinataireId, produitId: s.produitId, qte };
   if (commentaire) valeur.commentaire = commentaire;
@@ -112,21 +129,24 @@ export function nomLivreurTransfert(l: { prenom?: string | null; nom?: string | 
 }
 
 /**
- * Nom du principal d'un apprenti, lu dans ses transferts (la session ne porte
- * que `parentId`) ; à défaut, « ton livreur principal ».
+ * Nom du principal d'un apprenti (la session ne porte que `parentId`), comme
+ * le web : lu dans ses transferts (source, destinataire et leurs `parent`),
+ * sinon le principal de ses remises ; à défaut, « ton livreur principal ».
  */
 export function nomPrincipal(
   transferts: ReadonlyArray<Pick<TransfertStockResponse, 'source' | 'destinataire'>> | undefined,
   parentId: UUID | null | undefined,
+  remises?: ReadonlyArray<Pick<RemiseArgentResponse, 'principal'>>,
 ): string {
-  if (parentId) {
-    for (const t of transferts ?? []) {
-      for (const l of [t.source, t.destinataire]) {
-        if (l?.id === parentId && (l.prenom || l.nom)) return nomLivreurTransfert(l);
-      }
+  if (!parentId) return LIBELLE_PRINCIPAL_PAR_DEFAUT;
+  const nomme = (l: { prenom?: string | null; nom?: string | null } | null | undefined) => !!(l?.prenom || l?.nom);
+  for (const t of transferts ?? []) {
+    for (const l of [t.source, t.destinataire, t.source?.parent, t.destinataire?.parent]) {
+      if (l?.id === parentId && nomme(l)) return nomLivreurTransfert(l);
     }
   }
-  return LIBELLE_PRINCIPAL_PAR_DEFAUT;
+  const principal = (remises ?? []).find((r) => nomme(r.principal))?.principal;
+  return principal ? nomLivreurTransfert(principal) : LIBELLE_PRINCIPAL_PAR_DEFAUT;
 }
 
 export type FiltreTransferts = 'TOUS' | 'EN_ATTENTE';
