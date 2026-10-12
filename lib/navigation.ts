@@ -59,12 +59,16 @@ export interface RouteApp {
  * Origines d'un écran (paramètre `depuis`) :
  *  - `client` : ouvert depuis la fiche client (paramètre `clientId`) ;
  *  - `encours` : ouvert depuis la liste Encours ;
- *  - `a-receptionner` : ouvert depuis « À réceptionner » (cloche de l'Accueil).
+ *  - `a-receptionner` : ouvert depuis « À réceptionner » (cloche de l'Accueil) ;
+ *  - `previsions` : ouvert depuis Prévisions (Commander depuis le cumul) ;
+ *  - `notifications` : ouvert depuis l'écran Notifications (cloche de l'Accueil).
  */
-export type Origine = 'client' | 'encours' | 'a-receptionner';
+export type Origine = 'client' | 'encours' | 'a-receptionner' | 'previsions' | 'notifications';
 export const DEPUIS_CLIENT = 'client' as const;
 export const DEPUIS_ENCOURS = 'encours' as const;
 export const DEPUIS_A_RECEPTIONNER = 'a-receptionner' as const;
+export const DEPUIS_PREVISIONS = 'previsions' as const;
+export const DEPUIS_NOTIFICATIONS = 'notifications' as const;
 const A_RECEPTIONNER = '/cash/commandes/a-receptionner';
 const FICHE_CLIENT = '/clients/[clientId]';
 
@@ -105,9 +109,11 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   'cash/versements/index': { type: 'liste', parent: ACCUEIL },
   'cash/versement': { type: 'formulaire', parent: '/cash/versements' },
   'cash/commandes/index': { type: 'liste', parent: ACCUEIL },
-  'cash/commandes/a-receptionner': { type: 'liste', parent: ACCUEIL },
+  // Ouverte depuis Notifications (cloche) : retour à Notifications.
+  'cash/commandes/a-receptionner': { type: 'liste', parent: ACCUEIL, origines: { notifications: '/previsions/echues' } },
   'cash/commandes/[id]': { type: 'fiche', parent: listeCommandes, origines: { 'a-receptionner': A_RECEPTIONNER } },
-  'cash/commandes/nouvelle': { type: 'formulaire', parent: '/cash/commandes' },
+  // Commander depuis le cumul des prévisions : retour aux Prévisions.
+  'cash/commandes/nouvelle': { type: 'formulaire', parent: '/cash/commandes', origines: { previsions: '/previsions' } },
   'cash/commandes/receptions': {
     type: 'fiche',
     parent: listeCommandes,
@@ -128,6 +134,8 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
 
   'previsions/index': { type: 'liste', parent: ACCUEIL },
   'previsions/nouvelle': { type: 'formulaire', parent: '/previsions' },
+  // Cloche de l'Accueil : commandes à réceptionner et prévisions échues.
+  'previsions/echues': { type: 'liste', parent: ACCUEIL },
 
   'clotures/index': { type: 'liste', parent: '/profil' },
   'clotures/nouvelle': { type: 'formulaire', parent: '/clotures' },

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { depensesApi } from './api';
+import { etatsKeys } from '../etats/keys';
 import type { CreerDepenseRequest, ModifierDepenseRequest, UUID } from '../../types/api';
 
 const depenseKeys = {
@@ -21,6 +22,8 @@ export function useCreateDepense() {
     mutationFn: (p: CreerDepenseRequest) => depensesApi.create(p),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: depenseKeys.all });
+      // État « Dépenses ».
+      qc.invalidateQueries({ queryKey: etatsKeys.all });
     },
   });
 }
@@ -32,6 +35,8 @@ export function useUpdateDepense() {
       depensesApi.update(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: depenseKeys.all });
+      // État « Dépenses ».
+      qc.invalidateQueries({ queryKey: etatsKeys.all });
     },
   });
 }
@@ -42,6 +47,8 @@ export function useDeleteDepense() {
     mutationFn: (id: UUID) => depensesApi.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: depenseKeys.all });
+      // État « Dépenses ».
+      qc.invalidateQueries({ queryKey: etatsKeys.all });
     },
   });
 }

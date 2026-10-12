@@ -16,6 +16,7 @@ export function DatePickerField({
   onChange,
   optional = false,
   maximumDate,
+  minimumDate,
 }: {
   label: string;
   value: string | null;
@@ -23,6 +24,8 @@ export function DatePickerField({
   optional?: boolean;
   /** Date maximale sélectionnable (ex. aujourd'hui pour une date non future). */
   maximumDate?: Date;
+  /** Date minimale sélectionnable (ex. aujourd'hui pour une date non passée). */
+  minimumDate?: Date;
 }) {
   const [showIos, setShowIos] = useState(false);
   const [showAndroid, setShowAndroid] = useState(false);
@@ -97,6 +100,7 @@ export function DatePickerField({
                 display="spinner"
                 onChange={handleChange}
                 maximumDate={maximumDate}
+                minimumDate={minimumDate}
                 themeVariant="light"
               />
             </Pressable>
@@ -111,6 +115,7 @@ export function DatePickerField({
           display="default"
           onChange={handleChange}
           maximumDate={maximumDate}
+          minimumDate={minimumDate}
         />
       ) : null}
     </View>

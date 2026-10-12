@@ -53,4 +53,9 @@ describe('etatsApi', () => {
     expect(get).toHaveBeenNthCalledWith(2, '/commande/me', undefined);
     expect(get).toHaveBeenNthCalledWith(3, '/versement/livreur/l1', avecPeriode);
   });
+
+  it('dépenses : route de l’appelant, période en startDate / endDate', async () => {
+    await etatsApi.depenses(P);
+    expect(get).toHaveBeenCalledWith('/depense', { params: { startDate: '2026-10-01', endDate: '2026-10-31' } });
+  });
 });

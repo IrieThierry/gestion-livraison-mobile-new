@@ -75,3 +75,63 @@ describe('Nouvelle commande (livreur) : vignettes produit', () => {
     expect(screen.getByText('Lait')).toBeTruthy();
   });
 });
+
+describe('Nouvelle commande : préremplie depuis le cumul des prévisions', () => {
+  it('quantités = cumul brut des produits proposés ; les autres listés à part ; source consommée', () => {
+    const { useCommandePrefillStore } = require('../../stores/commandePrefillStore');
+    (useCatalogueFournisseur as jest.Mock).mockReturnValue({
+      data: [ligne('p1', 'Biscuit', null), ligne('p2', 'Lait', null)],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    useCommandePrefillStore.getState().definir({
+      fournisseurId: 'f-1',
+      jour: '2026-10-13',
+      cumul: [
+        { produit: { id: 'p1', code: 'p1', designation: 'Biscuit' }, qteCumulee: 12 },
+        { produit: { id: 'p9', code: 'p9', designation: 'Yaourt' }, qteCumulee: 4 },
+      ],
+    });
+    render(<NouvelleCommande />);
+
+    expect(screen.getByLabelText('Quantité de Biscuit').props.value).toBe('12');
+    expect(screen.getByLabelText('Quantité de Lait').props.value).toBe('');
+    expect(screen.getByText('Non proposés par ce fournisseur')).toBeTruthy();
+    expect(screen.getByText('Yaourt')).toBeTruthy();
+    expect(screen.getByText('Prérempli depuis le cumul des prévisions du 13/10/2026')).toBeTruthy();
+    expect(useCommandePrefillStore.getState().source).toBeNull();
+  });
+});
+
+describe('Nouvelle commande : deux « Commander » sans démontage', () => {
+  it('le second Commander remplace fournisseur et quantités ; la source est vidée', () => {
+    const { act } = require('@testing-library/react-native');
+    const { useCommandePrefillStore } = require('../../stores/commandePrefillStore');
+    (useCatalogueFournisseur as jest.Mock).mockReturnValue({
+      data: [ligne('p1', 'Biscuit', null), ligne('p2', 'Lait', null)],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    useCommandePrefillStore.getState().definir({
+      fournisseurId: 'f-1',
+      jour: '2026-10-13',
+      cumul: [{ produit: { id: 'p1', code: 'p1', designation: 'Biscuit' }, qteCumulee: 12 }],
+    });
+    render(<NouvelleCommande />);
+    expect(screen.getByLabelText('Quantité de Biscuit').props.value).toBe('12');
+
+    act(() => {
+      useCommandePrefillStore.getState().definir({
+        fournisseurId: 'f-1',
+        jour: '2026-10-14',
+        cumul: [{ produit: { id: 'p2', code: 'p2', designation: 'Lait' }, qteCumulee: 7 }],
+      });
+    });
+    expect(screen.getByLabelText('Quantité de Biscuit').props.value).toBe('');
+    expect(screen.getByLabelText('Quantité de Lait').props.value).toBe('7');
+    expect(screen.getByText('Prérempli depuis le cumul des prévisions du 14/10/2026')).toBeTruthy();
+    expect(useCommandePrefillStore.getState().source).toBeNull();
+  });
+});

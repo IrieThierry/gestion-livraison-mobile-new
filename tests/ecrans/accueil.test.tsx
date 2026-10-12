@@ -42,8 +42,13 @@ jest.mock('../../features/stock/hooks', () => ({
   useStockCourant: () => ({ data: [], isLoading: false, isFetching: false, refetch: jest.fn() }),
   useMouvementsStock: jest.fn(),
 }));
+let mockNbCommandes = 0;
 jest.mock('../../features/commandes/hooks', () => ({
-  useCommandesAReceptionner: () => ({ data: [], refetch: jest.fn() }),
+  useCommandesAReceptionner: () => ({ data: Array.from({ length: mockNbCommandes }), refetch: jest.fn() }),
+}));
+let mockEchues: unknown[] = [];
+jest.mock('../../features/previsions/hooks', () => ({
+  usePrevisionsEchues: () => ({ echues: mockEchues, isLoading: false, isError: false, refetch: jest.fn() }),
 }));
 
 const mouvements = useMouvementsStock as jest.Mock;
@@ -67,6 +72,25 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockUser = { id: 'liv-1', prenom: 'Awa', nom: 'Kone', parentId: null, statut: 'ACTIF' };
   livraisons.mockReturnValue(lecture([]));
+  mouvements.mockReturnValue(lecture([]));
+  mockNbCommandes = 0;
+  mockEchues = [];
+});
+
+describe('Accueil : cloche', () => {
+  it('compte commandes à réceptionner + prévisions échues et ouvre la feuille Notifications', () => {
+    mockNbCommandes = 2;
+    mockEchues = [{ cle: 'a' }, { cle: 'b' }, { cle: 'c' }];
+    render(<Tournee />);
+    expect(screen.getByText('5')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Notifications : 5'));
+    expect(ouvrir).toHaveBeenCalledWith('/(livreur)/previsions/echues');
+  });
+
+  it('sans rien à traiter : pas de badge', () => {
+    render(<Tournee />);
+    expect(screen.getByLabelText('Notifications : 0')).toBeTruthy();
+  });
 });
 
 describe('Accueil : chiffres cliquables de la carte verte', () => {

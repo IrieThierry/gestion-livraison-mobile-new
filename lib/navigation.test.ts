@@ -12,6 +12,8 @@ import {
   DEPUIS_A_RECEPTIONNER,
   DEPUIS_CLIENT,
   DEPUIS_ENCOURS,
+  DEPUIS_NOTIFICATIONS,
+  DEPUIS_PREVISIONS,
   parentDe,
   parentOrigine,
   pileDe,
@@ -150,6 +152,14 @@ describe('table des parents', () => {
     expect(p('/cash/commandes/9', { id: '9', depuis: DEPUIS_A_RECEPTIONNER })).toBe('/cash/commandes/a-receptionner');
     expect(p('/cash/commandes/receptions', { id: '9', depuis: DEPUIS_A_RECEPTIONNER })).toBe('/cash/commandes/a-receptionner');
     expect(p('/cash/commandes/9', { id: '9' })).toBe('/cash/commandes');
+    // Commander depuis le cumul des prévisions : retour aux Prévisions.
+    expect(p('/cash/commandes/nouvelle', { depuis: DEPUIS_PREVISIONS })).toBe('/previsions');
+    expect(p('/cash/commandes/nouvelle', {})).toBe('/cash/commandes');
+    // Cloche → Prévisions échues : retour à l'Accueil.
+    expect(p('/previsions/echues', {})).toBe('/');
+    // Notifications → Commandes à réceptionner : retour à Notifications.
+    expect(p('/cash/commandes/a-receptionner', { depuis: DEPUIS_NOTIFICATIONS })).toBe('/previsions/echues');
+    expect(p('/cash/commandes/a-receptionner', {})).toBe('/');
     // La fiche client garde la liste des clients pour parent.
     expect(p('/clients/c1', { id: 'c1', depuis: 'encours' })).toBe('/clients');
   });

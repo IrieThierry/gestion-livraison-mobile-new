@@ -5,6 +5,7 @@ import type { EtatEncaissements } from './calculs/encaissements';
 import type { EtatFournisseurs } from './calculs/fournisseurs';
 import type { EtatStock } from './calculs/stock';
 import type { EtatVentes } from './calculs/ventes';
+import type { EtatDepenses } from './calculs/depenses';
 import { formatJour } from './periode';
 import { entitesFichier, lignesFiltres, type ChoixFiltres, type LigneFiltre } from './filtres';
 import { ENTITE_EQUIPE, nomFichierEtat } from './nomFichier';
@@ -379,6 +380,42 @@ export function documentFournisseurs(etat: EtatFournisseurs, e: EnteteEtat): Doc
         ]),
         totaux: ['Total', '', m(t.montantVerse), ''],
         vide: 'Aucun versement sur la période.',
+      },
+    ],
+  };
+}
+
+export function documentDepenses(etat: EtatDepenses, e: EnteteEtat): DocumentEtat {
+  const t = etat.totaux;
+  return {
+    ...base('depenses', e),
+    syntheses: [
+      { libelle: 'Total des dépenses', valeur: m(t.montant) },
+      { libelle: 'Dépenses', valeur: q(t.nb) },
+    ],
+    sections: [
+      {
+        titre: 'Dépenses de la période',
+        colonnes: [
+          { libelle: 'Date' },
+          { libelle: 'Catégorie' },
+          { libelle: 'Libellé' },
+          { libelle: 'Montant', droite: true },
+        ],
+        lignes: etat.depenses.map((d) => [formatJour(d.date), d.libelleCategorie, d.libelle, m(d.montant)]),
+        totaux: ['Total', `${q(t.nb)} dépense${t.nb > 1 ? 's' : ''}`, '', m(t.montant)],
+        vide: 'Aucune dépense sur la période.',
+      },
+      {
+        titre: 'Par catégorie',
+        colonnes: [
+          { libelle: 'Catégorie' },
+          { libelle: 'Nombre', droite: true },
+          { libelle: 'Montant', droite: true },
+        ],
+        lignes: etat.parCategorie.map((c) => [c.libelle, q(c.nb), m(c.montant)]),
+        totaux: ['Total', q(t.nb), m(t.montant)],
+        vide: 'Aucune dépense sur la période.',
       },
     ],
   };

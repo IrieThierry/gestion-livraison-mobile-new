@@ -11,5 +11,8 @@ export const livraisonKeys = {
   /** Livraisons du livreur sur une période (`debut` / `fin`, jours inclus) : sous la clé `byLivreur`. */
   byLivreurPeriode: (livreurId: UUID, debut?: string, fin?: string) =>
     [...livraisonKeys.byLivreur(livreurId), 'periode', debut ?? '', fin ?? ''] as const,
+  /** Livraisons de l'équipe d'un principal (lui et ses apprentis) sur une période (jours inclus). */
+  byParentPeriode: (parentId: UUID, debut: string, fin: string) =>
+    [...livraisonKeys.all, 'by-parent', parentId, 'periode', debut, fin] as const,
   detail: (id: UUID) => [...livraisonKeys.all, 'detail', id] as const,
 };

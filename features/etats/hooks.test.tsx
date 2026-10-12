@@ -166,7 +166,7 @@ describe('hooks des états', () => {
           libelleLivreur: 'Awa Kone',
           apprentis: [],
           lectureApprentis: APPRENTIS_LUS,
-          filtres: { client: { id: 'c2', label: 'Binta Diallo' }, produit: null, fournisseur: null, typeMouvement: null },
+          filtres: { client: { id: 'c2', label: 'Binta Diallo' }, produit: null, fournisseur: null, typeMouvement: null, categorie: null },
         }),
       { wrapper },
     );

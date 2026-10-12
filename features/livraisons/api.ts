@@ -29,6 +29,13 @@ export const livraisonsApi = {
     );
     return data;
   },
+  /** Livraisons de l'équipe (principal + apprentis) ; `debut` / `fin` (`yyyy-MM-dd`, jours inclus). */
+  byParent: async (parentId: UUID, bornes: { debut: string; fin: string }): Promise<LivraisonResponse[]> => {
+    const { data } = await apiClient.get<LivraisonResponse[]>(`/livraison/parent/${parentId}`, {
+      params: { debut: bornes.debut, fin: bornes.fin },
+    });
+    return data;
+  },
   create: async (payload: CreerLivraisonRequest): Promise<LivraisonResponse> => {
     const { data } = await apiClient.post<LivraisonResponse>('/livraison', payload);
     return data;

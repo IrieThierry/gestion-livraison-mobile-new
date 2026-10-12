@@ -1,7 +1,7 @@
 import type { LivreurResponse, UUID } from '../../types/api';
 import { nomPersonne } from './calculs/commun';
 
-export type FamilleEtat = 'ventes' | 'encaissements' | 'stock' | 'fournisseurs';
+export type FamilleEtat = 'ventes' | 'encaissements' | 'stock' | 'fournisseurs' | 'depenses';
 
 export interface DescriptionFamille {
   key: FamilleEtat;
@@ -29,6 +29,11 @@ export const FAMILLES: DescriptionFamille[] = [
     key: 'fournisseurs',
     titre: 'Fournisseurs et versements',
     description: 'Commandes, réceptions, versements et dû',
+  },
+  {
+    key: 'depenses',
+    titre: 'Dépenses',
+    description: 'Dépenses de la période, par catégorie',
   },
 ];
 
@@ -85,12 +90,21 @@ export function choixDepuisId(id: string | null | undefined): ChoixLivreur {
   return CHOIX_MOI;
 }
 
-/** Le filtre livreur n'a de sens que pour un principal, hors famille fournisseurs. */
+/**
+ * Familles sur le seul livreur connecté : fournisseurs (principal), et
+ * dépenses — `GET /depense` ne renvoie que les dépenses de l'appelant (hors
+ * administrateur) : ni apprenti ni équipe possibles.
+ */
+export function familleSurSoiSeulement(famille: FamilleEtat): boolean {
+  return famille === 'fournisseurs' || famille === 'depenses';
+}
+
+/** Le filtre livreur n'a de sens que pour un principal, hors familles sur soi seulement. */
 export function afficheFiltreLivreur(
   user: UtilisateurEtats | null | undefined,
   famille: FamilleEtat,
 ): boolean {
-  return estPrincipal(user) && famille !== 'fournisseurs';
+  return estPrincipal(user) && !familleSurSoiSeulement(famille);
 }
 
 /** Options du sélecteur de livreur : principal → moi, équipe, chaque apprenti. */
@@ -110,8 +124,8 @@ export function optionsLivreur(
 
 /**
  * Choix réellement appliqué : un apprenti ne voit que ses propres données ;
- * un principal ne peut viser qu'un de SES apprentis ; la famille
- * fournisseurs porte toujours sur le principal lui-même.
+ * un principal ne peut viser qu'un de SES apprentis ; les familles
+ * fournisseurs et dépenses portent toujours sur le livreur connecté.
  */
 export function choixAutorise(
   user: UtilisateurEtats | null | undefined,
@@ -119,7 +133,7 @@ export function choixAutorise(
   apprentiIds: readonly UUID[],
   famille: FamilleEtat,
 ): ChoixLivreur {
-  if (!estPrincipal(user) || famille === 'fournisseurs') return CHOIX_MOI;
+  if (!estPrincipal(user) || familleSurSoiSeulement(famille)) return CHOIX_MOI;
   if (choix.type === 'apprenti' && !apprentiIds.includes(choix.id)) return CHOIX_MOI;
   return choix;
 }

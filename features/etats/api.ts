@@ -1,6 +1,7 @@
 import { apiClient } from '../../lib/api-client';
 import type {
   CommandeResponse,
+  DepenseResponse,
   EncaissementLivraisonResponse,
   EncoursClientResponse,
   FournisseurAvecRelation,
@@ -63,4 +64,11 @@ export const etatsApi = {
   /** Versements du livreur sur la période. */
   versements: (livreurId: UUID, p: Periode): Promise<VersementResponse[]> =>
     get(`/versement/livreur/${livreurId}`, { debut: p.debut, fin: p.fin }),
+
+  /**
+   * Dépenses de la période (jours inclus). Le back ne renvoie que celles de
+   * l'utilisateur connecté (toutes pour un administrateur).
+   */
+  depenses: (p: Periode): Promise<DepenseResponse[]> =>
+    get('/depense', { startDate: p.debut, endDate: p.fin }),
 };

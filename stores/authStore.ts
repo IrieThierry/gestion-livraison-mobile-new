@@ -4,6 +4,7 @@ import { SecureStorage } from '../lib/secure-storage';
 import { Biometric } from '../lib/biometric';
 import { queryClient, QUERY_CACHE_KEY } from '../lib/query-client';
 import type { AuthUser } from '../features/auth/api';
+import { useCommandePrefillStore } from './commandePrefillStore';
 
 interface AuthState {
   user: AuthUser | null;
@@ -69,6 +70,8 @@ export const useAuthStore = create<AuthState>()((set) => ({
     // Cache d'un autre utilisateur : vidé en mémoire ET dans le stockage persisté.
     queryClient.clear();
     await AsyncStorage.removeItem(QUERY_CACHE_KEY);
+    // Préremplissage « Commander » non consommé : jamais repris par un autre compte.
+    useCommandePrefillStore.getState().vider();
     set({ user: null });
   },
 }));
