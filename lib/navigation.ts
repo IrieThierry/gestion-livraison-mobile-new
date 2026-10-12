@@ -151,6 +151,10 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   'profil/apprentis/nouveau': { type: 'formulaire', parent: '/profil/apprentis' },
   'profil/etats/index': { type: 'liste', parent: '/profil' },
   'profil/etats/[famille]': { type: 'fiche', parent: '/profil/etats' },
+  // Remises d'argent : « Mes remises » (apprenti), « Remises des apprentis » (principal).
+  'profil/remises/index': { type: 'liste', parent: '/profil' },
+  'profil/remises/nouvelle': { type: 'formulaire', parent: '/profil/remises' },
+  'profil/remises-apprentis': { type: 'liste', parent: '/profil' },
 };
 
 /**
@@ -164,6 +168,7 @@ export const PILES_IMBRIQUEES: ReadonlySet<string> = new Set([
   'clients/nouveau',
   'profil/apprentis',
   'profil/etats',
+  'profil/remises',
   'stock/transferts',
 ]);
 

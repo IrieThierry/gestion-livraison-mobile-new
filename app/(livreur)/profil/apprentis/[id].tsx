@@ -19,6 +19,7 @@ import {
   Banknote,
   Package,
   CircleAlert,
+  ChevronRight,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
@@ -30,6 +31,10 @@ import { useLivraisonsByLivreur } from '../../../../features/livraisons/hooks';
 import { useEncaissementsByLivreur } from '../../../../features/encaissements/hooks';
 import { useClientsByLivreur, useEncoursByLivreur } from '../../../../features/clients/hooks';
 import { useStockActuel } from '../../../../features/stock/hooks';
+import { useRemisesApprentis } from '../../../../features/remises-argent/hooks';
+import { dernieresRemises } from '../../../../features/remises-argent/regles';
+import { RemiseArgentCarte } from '../../../../components/livreur/RemiseArgentCarte';
+import { naviguer } from '../../../../lib/navigation-app';
 import { callPhone } from '../../../../lib/linking';
 import { formatMontant } from '../../../../lib/format';
 import { num, totalAEncaisser, totalMontantDu } from '../../../../features/encaissements/regles';
@@ -42,6 +47,7 @@ import { num, totalAEncaisser, totalMontantDu } from '../../../../features/encai
  *   - voir les KPIs de l'apprenti
  *   - appeler son numéro
  *   - activer/désactiver son compte
+ *   - voir ses 5 dernières remises d'argent (lien vers la liste filtrée)
  *
  * Note : les mêmes hooks `useLivraisonsByLivreur`/`useClientsByLivreur`/etc.
  * sont utilisés ici avec l'ID de l'apprenti (pas de l'utilisateur connecté).
@@ -57,6 +63,9 @@ export default function ApprentiDetail() {
   const cliQ = useClientsByLivreur(id);
   const encoursQ = useEncoursByLivreur(id);
   const stockQ = useStockActuel(id ?? '');
+  const remisesFiltres = useMemo(() => ({ apprentiId: id }), [id]);
+  const remisesQ = useRemisesApprentis(remisesFiltres, !!id);
+  const remises = useMemo(() => dernieresRemises(remisesQ.data ?? []), [remisesQ.data]);
 
   const apprenti = useMemo(
     () => (apprentisQ.data ?? []).find((a) => a.id === id),
@@ -156,6 +165,7 @@ export default function ApprentiDetail() {
               encQ.refetch();
               cliQ.refetch();
               stockQ.refetch();
+              remisesQ.refetch();
             }}
             tintColor="#10b981"
           />
@@ -306,6 +316,30 @@ export default function ApprentiDetail() {
                 {formatMontant(stats.totalCAMois)} FCFA
               </Text>
             </View>
+          </View>
+
+          {/* Remises d'argent : les 5 dernières, puis la liste filtrée sur l'apprenti */}
+          <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
+            Remises
+          </Text>
+          <View className="gap-2">
+            {remisesQ.isLoading ? (
+              <ActivityIndicator color="#10b981" />
+            ) : remisesQ.isError ? (
+              <Text className="text-[12px] text-red-600 dark:text-red-400">Les remises n’ont pas pu être lues.</Text>
+            ) : remises.length === 0 ? (
+              <Text className="text-[12px] text-slate-500 dark:text-slate-400">Aucune remise pour l’instant.</Text>
+            ) : (
+              remises.map((r) => <RemiseArgentCarte key={r.id} remise={r} />)
+            )}
+            <Pressable
+              onPress={() => naviguer('/(livreur)/profil/remises-apprentis', { apprentiId: apprenti.id })}
+              accessibilityRole="button"
+              className="flex-row items-center justify-between bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2.5 active:opacity-70"
+            >
+              <Text className="text-[13px] font-bold text-emerald-700 dark:text-emerald-400">Voir toutes les remises</Text>
+              <ChevronRight color="#94a3b8" size={16} />
+            </Pressable>
           </View>
 
           {/* Identifiants */}

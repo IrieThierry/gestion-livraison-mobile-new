@@ -49,6 +49,14 @@ jest.mock('../../features/previsions/hooks', () => ({
   useModifierGroupe: jest.fn(),
   useEnregistrerPrevisions: jest.fn(),
 }));
+let mockRemises: unknown = [];
+const mockConfirmer = { mutate: jest.fn(), isPending: false };
+const mockContester = { mutate: jest.fn(), isPending: false };
+jest.mock('../../features/remises-argent/hooks', () => ({
+  useRemisesAConfirmer: () => ({ data: mockRemises, isLoading: false, isError: mockRemises === undefined, refetch: jest.fn() }),
+  useConfirmerRemise: () => mockConfirmer,
+  useContesterRemise: () => mockContester,
+}));
 jest.mock('../../features/commandes/hooks', () => ({
   useCommandesAReceptionner: () => ({ data: [{}, {}], isError: false, refetch: jest.fn() }),
 }));
@@ -116,6 +124,7 @@ beforeEach(() => {
   mockUser = { id: 'L1', prenom: 'Ali', nom: 'K', parentId: null };
   mockOnline = true;
   mockParams = {};
+  mockRemises = [];
   for (const n of ['useSupprimerGroupes', 'useReporterGroupes', 'usePlusTard', 'useModifierGroupe', 'useEnregistrerPrevisions'])
     h[n].mockReturnValue(mutation());
 });
@@ -165,6 +174,42 @@ describe('Notifications (cloche)', () => {
     fireEvent.press(screen.getByText('Reporter'));
     expect(dialog.confirm).not.toHaveBeenCalled();
     expect(dialog.info).not.toHaveBeenCalled();
+  });
+  const remise = {
+    id: 'r1', reference: 'REM-4', montant: 7000, dateRemise: '2026-10-10T09:00:00', statut: 'DECLAREE',
+    apprenti: { id: 'A1', prenom: 'Issa', nom: 'B' }, commentaire: null, motifContestation: null,
+  };
+
+  it('principal : rubrique « Remises à confirmer » avec Confirmer et Contester', () => {
+    mockRemises = [remise];
+    render(<Notifications />);
+    expect(screen.getByText('Remises à confirmer')).toBeTruthy();
+    expect(screen.getByText('REM-4')).toBeTruthy();
+    fireEvent.press(screen.getByText('Confirmer'));
+    (dialog.confirm as jest.Mock).mock.calls[0][0].onConfirm();
+    expect(mockConfirmer.mutate).toHaveBeenCalledWith('r1', expect.anything());
+    fireEvent.press(screen.getByText('Contester'));
+    fireEvent.press(screen.getByText('Envoyer la contestation'));
+    expect(screen.getByText('Précisez le motif de la contestation.')).toBeTruthy();
+    expect(mockContester.mutate).not.toHaveBeenCalled();
+  });
+
+  it('principal : aucune remise, ou lecture impossible', () => {
+    const { unmount } = render(<Notifications />);
+    expect(screen.getByText('Aucune remise à confirmer')).toBeTruthy();
+    unmount();
+    mockRemises = undefined;
+    render(<Notifications />);
+    expect(screen.getByText('Remises à confirmer indisponibles')).toBeTruthy();
+    expect(screen.queryByText('Aucune remise à confirmer')).toBeNull();
+  });
+
+  it('apprenti : pas de rubrique remises', () => {
+    mockUser = { id: 'L1', prenom: 'Ali', nom: 'K', parentId: 'P0' };
+    mockRemises = [remise];
+    render(<Notifications />);
+    expect(screen.queryByText('Remises à confirmer')).toBeNull();
+    expect(screen.queryByText('REM-4')).toBeNull();
   });
 });
 

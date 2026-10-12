@@ -732,6 +732,46 @@ export interface EffectuerTransfertRequest {
   commentaire?: string
 }
 
+// ---------- Remises d'argent apprenti → principal ----------
+export type StatutRemiseArgent = 'DECLAREE' | 'CONFIRMEE' | 'CONTESTEE' | 'ANNULEE'
+
+/** `RemiseArgentResponse` du back (`/remise-argent`). */
+export interface RemiseArgentResponse {
+  id: UUID
+  /** `REM-n`, propre à l'apprenti. */
+  reference: string
+  apprenti: LivreurResponse | null
+  principal: LivreurResponse | null
+  /** BigDecimal : nombre ou chaîne. */
+  montant: number
+  /** LocalDateTime de la déclaration. */
+  dateRemise: ISODate
+  commentaire: string | null
+  statut: StatutRemiseArgent
+  motifContestation: string | null
+  decideParId: UUID | null
+  dateDecision: ISODate | null
+  /** Clôture journalière à l'origine de la remise, sinon null. */
+  clotureId: UUID | null
+}
+
+export interface DeclarerRemiseArgentRequest {
+  montant: number
+  commentaire?: string
+}
+
+export interface ContesterRemiseArgentRequest {
+  motif: string
+}
+
+/** Filtres des listes : `debut` / `fin` en `yyyy-MM-dd`, bornes incluses. */
+export interface FiltresRemisesArgent {
+  apprentiId?: UUID
+  statut?: StatutRemiseArgent
+  debut?: string
+  fin?: string
+}
+
 // ---------- Prévisions (Plan 22) ----------
 export interface PrevisionResponse {
   id: UUID

@@ -161,6 +161,11 @@ export default function NouvelleCloture() {
                 Remettre tout l'encaissé ({formatMontant(estimation.totalEncaisse)})
               </Text>
             </Pressable>
+            {user?.parentId ? (
+              <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                Montant supérieur à 0 : une remise sera déclarée à ton principal, qui devra la confirmer (Moi › Mes remises).
+              </Text>
+            ) : null}
             {montantRemis.trim() !== '' && !remis.ok ? (
               <Text className="text-[11px] text-red-600 dark:text-red-400 mt-1">{remis.erreur}</Text>
             ) : null}
