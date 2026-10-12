@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 
-// Pile construite avec la liste du module dessous (deep link / push avec
-// withAnchor) : le retour depuis un formulaire ramène à la liste.
+// Liste du module en bas de pile pour un lien profond ; en navigation, la pile
+// est construite par lib/navigation (ouvrir : [liste, formulaire]).
 export const unstable_settings = { initialRouteName: 'index' };
 
 export default function ApprentisLayout() {

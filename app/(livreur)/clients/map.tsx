@@ -5,7 +5,6 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { Phone, MapPin, X, AlertCircle } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
@@ -17,6 +16,7 @@ import { callPhone, navigateTo } from '../../../lib/linking';
 import { formatMontant } from '../../../lib/format';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import type { ClientResponse } from '../../../types/api';
+import { naviguer } from '../../../lib/navigation-app';
 
 interface ClientPin {
   id: string;
@@ -187,10 +187,7 @@ export default function ClientsMap() {
           onOpenDetail={() => {
             const id = selected.id;
             setSelected(null);
-            router.push({
-              pathname: '/(livreur)/clients/[id]' as never,
-              params: { id },
-            } as never);
+            naviguer('/(livreur)/clients/[id]', { id });
           }}
         />
       ) : null}

@@ -1,9 +1,9 @@
 import { Stack } from 'expo-router';
 import { PendingValidationGate } from '../../../components/shared/PendingValidationGate';
 
-// Pile construite avec la liste du module dessous (deep link / push avec
-// withAnchor) : le retour depuis un formulaire ramène à la liste.
-export const unstable_settings = { initialRouteName: 'index' };
+// Rubrique sans écran racine (l'ancien carrefour Cash a été supprimé) : la
+// pile est construite par lib/navigation (ouvrir : [liste, formulaire]) et le
+// retour suit le parent logique de chaque écran.
 
 export default function CashLayout() {
   return (

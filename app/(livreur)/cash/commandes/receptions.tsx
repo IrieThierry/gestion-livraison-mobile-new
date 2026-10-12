@@ -46,14 +46,11 @@ export default function ReceptionsCommande() {
   const verrou = useRef(creerVerrou()).current;
 
   const commande = q.data;
-  const fallback = user?.parentId
-    ? '/(livreur)/cash/commandes/a-receptionner'
-    : '/(livreur)/cash/commandes';
 
   if (!commande) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader title="Réceptions" fallback={fallback} />
+        <PageHeader title="Réceptions" />
         {q.isLoading ? (
           <Text className="text-slate-400 text-sm px-4 pt-4">Chargement…</Text>
         ) : q.isError ? (
@@ -141,7 +138,6 @@ export default function ReceptionsCommande() {
       <PageHeader
         title="Réceptions"
         subtitle={`${commande.reference} · ${commande.fournisseur.libelle}`}
-        fallback={fallback}
       />
       <FormScreen>
         <View className="px-4 pt-2 gap-2">

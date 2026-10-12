@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Tabs } from 'expo-router';
+import { Tabs, useNavigationContainerRef } from 'expo-router';
 import { TrendingUp, Truck, User, Plus, Users } from 'lucide-react-native';
 import { OfflineBanner } from '../../components/shared/OfflineBanner';
 import { FabSheet } from '../../components/livreur/FabSheet';
@@ -12,6 +12,14 @@ import { useThemeStore } from '../../stores/themeStore';
 // (cf. lib/onglets.ts) : Accueil → avatar → Mes infos, puis onglet Accueil,
 // puis onglet Moi ⇒ menu Moi.
 import { listenersRacineOnglet } from '../../lib/onglets';
+// Règle unique du retour (parent logique, lib/navigation.ts) : flèche
+// d'en-tête, bouton et geste retour Android ; ouverture des listes sur une
+// pile propre depuis le menu +, l'Accueil et les menus.
+import {
+  brancherNavigation,
+  useRetourMateriel,
+  type RefNavigation,
+} from '../../lib/navigation-app';
 
 export default function LivreurLayout() {
   const [fabOpen, setFabOpen] = useState(false);
@@ -25,6 +33,13 @@ export default function LivreurLayout() {
   // système. On l'ajoute en padding (pas en height) pour que les items
   // restent à leur place et que seule la zone de bas s'agrandisse.
   const insets = useSafeAreaInsets();
+
+  const navigationRef = useNavigationContainerRef();
+  useEffect(() => {
+    brancherNavigation(navigationRef as unknown as RefNavigation);
+    return () => brancherNavigation(null);
+  }, [navigationRef]);
+  useRetourMateriel();
 
   useEffect(() => {
     startWatching();
@@ -42,6 +57,9 @@ export default function LivreurLayout() {
       <OfflineBanner />
       <Tabs
         initialRouteName="index"
+        // Retour depuis la racine d'un onglet = Accueil (le retour matériel
+        // est de toute façon pris en charge par useRetourMateriel).
+        backBehavior="firstRoute"
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: '#10b981',

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { FormScreen } from '../../../../components/shared/FormScreen';
@@ -36,6 +36,7 @@ import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatDateLong, formatFCFA } from '../../../../lib/format';
 import type { CommandeResponse, ProduitCommandeResponse } from '../../../../types/api';
 import { ProduitVignette } from '../../../../components/shared/ProduitVignette';
+import { retourParent } from '../../../../lib/navigation-app';
 
 const SECTION =
   'text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2';
@@ -54,14 +55,11 @@ export default function CommandeDetail() {
   const verrou = useRef(creerVerrou()).current;
 
   const commande = q.data;
-  const fallback = user?.parentId
-    ? '/(livreur)/cash/commandes/a-receptionner'
-    : '/(livreur)/cash/commandes';
 
   if (!commande) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader title="Commande" fallback={fallback} />
+        <PageHeader title="Commande" />
         {q.isLoading ? (
           <Text className="text-slate-400 text-sm px-4 pt-4">Chargement…</Text>
         ) : (
@@ -95,7 +93,7 @@ export default function CommandeDetail() {
         lancerUneFois(verrou, (fin) =>
           mAnnuler.mutate(commande.id, {
             onSuccess: () => {
-              router.back();
+              retourParent();
               dialog.success('Commande annulée');
             },
             onError: erreur('Erreur', "Impossible d'annuler la commande"),
@@ -178,7 +176,6 @@ export default function CommandeDetail() {
       <PageHeader
         title={commande.reference}
         subtitle={commande.fournisseur.libelle}
-        fallback={fallback}
       />
 
       <FormScreen>

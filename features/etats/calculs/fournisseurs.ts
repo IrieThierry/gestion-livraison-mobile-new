@@ -73,8 +73,30 @@ export interface LigneFournisseur {
   remiseARecevoir: number | null;
 }
 
+/**
+ * Ligne « Par produit » (même règle que le web) :
+ * - quantité commandée : Σ `qteCommandee` des commandes de la période (date de
+ *   commande), hors commandes refusées ou annulées ;
+ * - quantité reçue et montant : Σ des lignes des réceptions actives de la
+ *   période (date de réception, quelle que soit la date de la commande),
+ *   montant = quantité × prix figé à la réception. Le prix de la commande
+ *   n'est pas exposé par ligne : le montant est donc celui du reçu, et son
+ *   total égale « Reçu sur la période ».
+ */
+export interface LigneFournisseurProduit {
+  produitId: UUID;
+  designation: string;
+  qteCommandee: number;
+  qteRecue: number;
+  montant: number;
+}
+
+/** Statuts dont les quantités ne sont pas comptées comme commandées (commande abandonnée). */
+const STATUTS_NON_COMMANDES: readonly StatutCommande[] = ['REFUSEE', 'ANNULEE'];
+
 export interface EtatFournisseurs {
   parFournisseur: LigneFournisseur[];
+  parProduit: LigneFournisseurProduit[];
   commandes: LigneCommande[];
   receptions: LigneReception[];
   versements: LigneVersement[];
@@ -87,6 +109,10 @@ export interface EtatFournisseurs {
     montantVerse: number;
     du: number;
     remiseARecevoir: number;
+    qteCommandee: number;
+    qteRecue: number;
+    /** Σ des montants par produit (= montantRecu). */
+    montantProduits: number;
   };
 }
 
@@ -123,10 +149,37 @@ export function calculerEtatFournisseurs(
       montantRecu: arrondi(num(c.montantLivre)),
     }));
 
+  const produits = new Map<UUID, LigneFournisseurProduit>();
+  const produitDe = (
+    p: { id?: UUID; designation?: string | null } | null | undefined,
+  ): LigneFournisseurProduit => {
+    const id = p?.id ?? '';
+    const existant = produits.get(id);
+    if (existant) return existant;
+    const nouveau: LigneFournisseurProduit = {
+      produitId: id,
+      designation: p?.designation ?? '—',
+      qteCommandee: 0,
+      qteRecue: 0,
+      montant: 0,
+    };
+    produits.set(id, nouveau);
+    return nouveau;
+  };
+  for (const c of commandes) {
+    if (!dansPeriode(c.date, periode) || STATUTS_NON_COMMANDES.includes(c.statut)) continue;
+    for (const pc of c.produitsCommandes ?? []) produitDe(pc.produit).qteCommandee += num(pc.qteCommandee);
+  }
+
   const receptions: (LigneReception & { fournisseurId: UUID })[] = [];
   for (const c of commandes) {
     for (const r of c.receptions ?? []) {
       if (r.annulee || !dansPeriode(r.dateReception, periode)) continue;
+      for (const l of r.lignes ?? []) {
+        const p = produitDe(l.produit);
+        p.qteRecue += num(l.quantite);
+        p.montant = arrondi(p.montant + num(l.quantite) * num(l.prixUnitaire));
+      }
       receptions.push({
         fournisseurId: c.fournisseur?.id ?? '',
         date: r.dateReception,
@@ -194,8 +247,13 @@ export function calculerEtatFournisseurs(
     a.fournisseur.localeCompare(b.fournisseur, 'fr'),
   );
 
+  const parProduit = [...produits.values()].sort((a, b) =>
+    a.designation.localeCompare(b.designation, 'fr'),
+  );
+
   return {
     parFournisseur,
+    parProduit,
     commandes: lignesCommandes,
     receptions: receptions.map(({ fournisseurId: _id, ...r }) => r),
     versements: lignesVersements.map(({ fournisseurId: _id, ...v }) => v),
@@ -207,6 +265,9 @@ export function calculerEtatFournisseurs(
       montantVerse: somme(parFournisseur, (f) => f.montantVerse),
       du: somme(parFournisseur, (f) => f.du ?? 0),
       remiseARecevoir: somme(parFournisseur, (f) => f.remiseARecevoir ?? 0),
+      qteCommandee: parProduit.reduce((a, p) => a + p.qteCommandee, 0),
+      qteRecue: parProduit.reduce((a, p) => a + p.qteRecue, 0),
+      montantProduits: somme(parProduit, (p) => p.montant),
     },
   };
 }

@@ -13,7 +13,9 @@ import {
   ChevronLeft,
   ChevronRight,
   History,
+  FileText,
 } from 'lucide-react-native';
+import { usePartagerRecu } from '../../../../features/reversements/useRecu';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import { useReversementsListe } from '../../../../features/reversements/hooks';
@@ -34,8 +36,8 @@ import { formatMontant, formatDateShort } from '../../../../lib/format';
  * faits par le livreur (vers ses clients ou ses fournisseurs). Source :
  * `GET /reversement?annee=X&mois=Y`.
  *
- * Navigation depuis : Cash → Reversements → bouton « Historique » sur
- * la page synthèse.
+ * Navigation depuis : Reversements → bouton « Historique » sur la page
+ * synthèse. Chaque ligne propose son reçu (PDF à partager).
  */
 export default function ReversementsHistorique() {
   const [periode, setPeriode] = useState<Periode>(() => moisCourant());
@@ -44,6 +46,7 @@ export default function ReversementsHistorique() {
   const suivant = moisSuivant(periode);
 
   const q = useReversementsListe(annee, mois);
+  const partagerRecu = usePartagerRecu();
 
   const moisLabel = useMemo(() => {
     const date = new Date(annee, mois - 1, 1);
@@ -219,6 +222,16 @@ export default function ReversementsHistorique() {
                       <Text className="text-[9px] text-slate-400 dark:text-slate-500">
                         FCFA
                       </Text>
+                      <Pressable
+                        onPress={() => partagerRecu(r)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Partager le reçu"
+                        hitSlop={6}
+                        className="flex-row items-center gap-1 mt-1 px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 active:opacity-70"
+                      >
+                        <FileText color="#475569" size={11} />
+                        <Text className="text-[10px] font-bold text-slate-600 dark:text-slate-300">Reçu</Text>
+                      </Pressable>
                     </View>
                   </View>
                 );

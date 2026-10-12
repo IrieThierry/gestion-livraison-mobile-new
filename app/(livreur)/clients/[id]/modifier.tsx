@@ -60,7 +60,8 @@ export default function ModifierClient() {
   const quartiersQ = useQuartiers();
   const categoriesQ = useCategories();
   const m = useModifierClient();
-  const retourListe = useRetourListe('/(livreur)/clients');
+  // Après enregistrement : retour à la fiche du client (son parent logique).
+  const retourListe = useRetourListe(`/(livreur)/clients/${id}`);
 
   const client = useMemo<ClientResponse | undefined>(
     () => (qC.data ?? []).find((c) => c.id === id),
@@ -217,7 +218,7 @@ export default function ModifierClient() {
   if (!client) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader retourVers="/(livreur)/clients" title="Modifier le client" />
+        <PageHeader title="Modifier le client" />
         <View className="px-4 py-6">
           <Text className="text-slate-500 dark:text-slate-400 text-center">
             Client introuvable.
@@ -230,7 +231,6 @@ export default function ModifierClient() {
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
-        retourVers="/(livreur)/clients"
         title="Modifier le client"
         subtitle={`${client.prenom} ${client.nom}`.trim()}
       />

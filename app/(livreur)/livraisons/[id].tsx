@@ -1,5 +1,5 @@
 import { ScrollView, View, Text, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { Phone, MapPin, Banknote } from 'lucide-react-native';
 import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useAuthStore } from '../../../stores/authStore';
@@ -16,6 +16,7 @@ import {
 } from '../../../lib/livraison-status';
 import { num, prixUnitaireClient } from '../../../features/encaissements/regles';
 import { ProduitVignette } from '../../../components/shared/ProduitVignette';
+import { naviguer } from '../../../lib/navigation-app';
 
 /**
  * The backend stores client coords as a single string "lat,lng".
@@ -216,10 +217,7 @@ export default function LivraisonDetail() {
             <Pressable
               disabled={!isOnline}
               onPress={() =>
-                router.push({
-                  pathname: '/(livreur)/cash/encaisser' as never,
-                  params: { livraisonId: livraison.id },
-                }, { withAnchor: true })
+                naviguer('/(livreur)/cash/encaisser', { livraisonId: livraison.id })
               }
               className={`mt-5 rounded-md py-3 flex-row items-center justify-center gap-2 ${
                 isOnline ? 'bg-emerald-500 active:opacity-80' : 'bg-slate-200 dark:bg-slate-800'

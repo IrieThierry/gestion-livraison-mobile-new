@@ -1,13 +1,24 @@
 import { Pressable, Text } from 'react-native';
-import { router } from 'expo-router';
 import type { UUID } from '../../types/api';
+import { naviguer } from '../../lib/navigation-app';
 
 /** Bouton « Réceptions » d'une ligne de commande : ouvre la liste détaillée des réceptions. */
-export function BoutonReceptions({ commandeId, nombre }: { commandeId: UUID; nombre: number }) {
+export function BoutonReceptions({
+  commandeId,
+  nombre,
+  depuis,
+}: {
+  commandeId: UUID;
+  nombre: number;
+  /** Origine (lib/navigation) : le retour depuis les réceptions y revient. */
+  depuis?: string;
+}) {
   if (nombre <= 0) return null;
   return (
     <Pressable
-      onPress={() => router.push(`/(livreur)/cash/commandes/receptions?id=${commandeId}` as never)}
+      onPress={() =>
+        naviguer(`/(livreur)/cash/commandes/receptions`, depuis ? { id: commandeId, depuis } : { id: commandeId })
+      }
       accessibilityLabel="Réceptions"
       className="self-start mt-2 rounded-md px-3 py-1.5 border border-slate-300 dark:border-slate-700 active:opacity-70"
     >

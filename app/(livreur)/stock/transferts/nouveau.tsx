@@ -112,7 +112,7 @@ export default function NouveauTransfert() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader retourVers="/(livreur)/stock/transferts" title="Nouveau transfert" subtitle="Vers un apprenti" />
+      <PageHeader title="Nouveau transfert" subtitle="Vers un apprenti" />
 
       <FormScreen>
         <View className="px-4 pt-3 gap-3">

@@ -7,7 +7,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import {
   RotateCcw,
   ListFilter,
@@ -31,9 +31,12 @@ import {
   libelleQuantite,
   libelleValeur,
 } from '../../../features/retours/libelles';
+import { useProduits } from '../../../features/produits/hooks';
+import { TotalRetoursProduits } from '../../../components/livreur/TotalRetoursProduits';
 import { useAuthStore } from '../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import { formatDateShort } from '../../../lib/format';
+import { naviguer } from '../../../lib/navigation-app';
 
 type Periode = 'mois' | '30j' | '90j' | 'all';
 
@@ -65,7 +68,8 @@ function bornes(periode: Periode): { debut?: string; fin?: string } {
  *   - Période (mois en cours par défaut, 30 / 90 jours, tout)
  *   - Client (dropdown, optionnel) — pré-rempli avec `?clientId=X`
  *
- * Pas de totaux : une correction (quantité négative) s'affiche « Correction −n ».
+ * Une correction (quantité négative) s'affiche « Correction −n ». Au-dessus de
+ * la liste, « Total par produit » des retours affichés (`totalRetoursParProduit`).
  */
 export default function RetoursList() {
   const params = useLocalSearchParams<{ clientId?: string }>();
@@ -99,6 +103,13 @@ export default function RetoursList() {
     [retours, recherche],
   );
 
+  // Photos du référentiel pour les vignettes du total par produit.
+  const qProduits = useProduits();
+  const photos = useMemo(
+    () => new Map((qProduits.data ?? []).map((p) => [p.id, p.photoUrl] as const)),
+    [qProduits.data],
+  );
+
   const clientOptions = useMemo(
     () =>
       // Ordre alphabétique renvoyé par le back.
@@ -117,7 +128,7 @@ export default function RetoursList() {
         subtitle={clientLabel ?? 'Tous clients'}
         right={
           <Pressable
-            onPress={() => router.push('/(livreur)/cash/retour-client' as never)}
+            onPress={() => naviguer('/(livreur)/cash/retour-client')}
             className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <RotateCcw color="#fff" size={13} />
@@ -212,6 +223,12 @@ export default function RetoursList() {
               />
             </View>
           ) : (
+            <>
+            <TotalRetoursProduits
+              retours={retoursAffiches}
+              photos={photos}
+              pageSeulement={!!q.hasNextPage}
+            />
             <View className="gap-2 mt-3">
               {retoursAffiches.length === 0 ? (
                 <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center py-4">
@@ -224,10 +241,7 @@ export default function RetoursList() {
                   <Pressable
                     key={r.id}
                     onPress={() =>
-                      router.push({
-                        pathname: '/(livreur)/livraisons/[id]' as never,
-                        params: { id: r.livraison.id },
-                      } as never)
+                      naviguer('/(livreur)/livraisons/[id]', { id: r.livraison.id })
                     }
                     className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 rounded-md p-3 flex-row items-center gap-3 active:opacity-70 ${
                       correction ? 'border-l-slate-400' : 'border-l-amber-500'
@@ -283,6 +297,7 @@ export default function RetoursList() {
                 </Pressable>
               ) : null}
             </View>
+            </>
           )}
         </View>
       </ScrollView>

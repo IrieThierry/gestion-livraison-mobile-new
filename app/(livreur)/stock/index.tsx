@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native';
-import { router } from 'expo-router';
 import { ArrowLeftRight, Users, ArrowRight, History } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
@@ -11,6 +10,7 @@ import { MiseAZeroDialog, type CibleMiseAZero } from '../../../components/livreu
 import { useStockCourant } from '../../../features/stock/hooks';
 import { peutMettreAZero } from '../../../features/stock/regles';
 import { useAuthStore } from '../../../stores/authStore';
+import { naviguer } from '../../../lib/navigation-app';
 
 /**
  * Écran "Mon stock" — affiche le **stock courant livreur** Plan D
@@ -93,7 +93,7 @@ export default function StockCourant() {
 
           {/* Mouvements (journal du stock) : racine et apprenti */}
           <Pressable
-            onPress={() => router.push('/(livreur)/stock/mouvements' as never)}
+            onPress={() => naviguer('/(livreur)/stock/mouvements')}
             className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg flex-row items-center justify-between px-4 py-3 active:opacity-70"
           >
             <View className="flex-row items-center gap-3 flex-1">
@@ -114,7 +114,7 @@ export default function StockCourant() {
           {!user.parentId ? (
             <View className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
               <Pressable
-                onPress={() => router.push('/(livreur)/stock/transferts' as never)}
+                onPress={() => naviguer('/(livreur)/stock/transferts')}
                 className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
               >
                 <View className="flex-row items-center gap-3 flex-1">
@@ -131,7 +131,7 @@ export default function StockCourant() {
                 <ArrowRight color="#94a3b8" size={16} />
               </Pressable>
               <Pressable
-                onPress={() => router.push('/(livreur)/stock/equipe' as never)}
+                onPress={() => naviguer('/(livreur)/stock/equipe')}
                 className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
               >
                 <View className="flex-row items-center gap-3 flex-1">

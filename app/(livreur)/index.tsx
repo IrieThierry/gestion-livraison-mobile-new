@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native';
-import { router } from 'expo-router';
 import { Bell, Package, Truck, Banknote, RotateCcw } from 'lucide-react-native';
 import { useLivraisonsByLivreur } from '../../features/livraisons/hooks';
 import { useEncaissementsByLivreur } from '../../features/encaissements/hooks';
@@ -25,6 +24,9 @@ import { PendingValidationGate } from '../../components/shared/PendingValidation
 import { LivraisonCard } from '../../components/livreur/LivraisonCard';
 import { formatMontant } from '../../lib/format';
 import { extractApiErrorMessage } from '../../lib/api-error';
+// Accueil : chaque tuile / action ouvre sa rubrique sur une pile propre
+// (lib/navigation) ; retour depuis la liste ouverte = Accueil.
+import { ouvrir } from '../../lib/navigation-app';
 
 export default function Tournee() {
   const user = useAuthStore((s) => s.user);
@@ -119,7 +121,7 @@ export default function Tournee() {
           <View className="flex-row items-center gap-2">
             <Pressable
               hitSlop={6}
-              onPress={() => router.push('/(livreur)/cash/commandes/a-receptionner' as never)}
+              onPress={() => ouvrir('/(livreur)/cash/commandes/a-receptionner')}
               accessibilityRole="button"
               accessibilityLabel="Commandes à réceptionner"
               className="w-10 h-10 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 items-center justify-center active:opacity-70"
@@ -138,7 +140,7 @@ export default function Tournee() {
             </Pressable>
             <Pressable
               hitSlop={6}
-              onPress={() => router.push('/(livreur)/profil/infos' as never)}
+              onPress={() => ouvrir('/(livreur)/profil/infos')}
               accessibilityRole="button"
               accessibilityLabel="Modifier mes infos"
               className="active:opacity-70"
@@ -182,22 +184,22 @@ export default function Tournee() {
             <SousCarte
               libelle="Livraisons"
               valeur={chiffreAccueil(qLiv, computed.duJour.length)}
-              onPress={() => router.push('/(livreur)/livraisons' as never)}
+              onPress={() => ouvrir('/(livreur)/livraisons')}
             />
             <SousCarte
               libelle="Produits vendus"
               valeur={chiffreAccueil(qMv, vendus)}
-              onPress={() => router.push('/(livreur)/livraisons/produits-vendus' as never)}
+              onPress={() => ouvrir('/(livreur)/livraisons/produits-vendus')}
             />
             <SousCarte
               libelle="Réceptionnés"
               valeur={chiffreAccueil(qMv, recus)}
               // Commandes (et leurs réceptions) ; apprenti : commandes à réceptionner, comme le menu « Accéder à ».
               onPress={() =>
-                router.push(
-                  (user.parentId
+                ouvrir(
+                  user.parentId
                     ? '/(livreur)/cash/commandes/a-receptionner'
-                    : '/(livreur)/cash/commandes') as never,
+                    : '/(livreur)/cash/commandes',
                 )
               }
             />
@@ -207,7 +209,7 @@ export default function Tournee() {
         {/* Stat cards — Stock + À encaisser */}
         <View className="flex-row gap-2 mt-3">
           <Pressable
-            onPress={() => router.push('/(livreur)/stock' as never)}
+            onPress={() => ouvrir('/(livreur)/stock')}
             className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 rounded-xl p-3 active:opacity-70"
           >
             <Text className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-semibold">
@@ -221,7 +223,10 @@ export default function Tournee() {
             </Text>
           </Pressable>
           <Pressable
-            onPress={() => router.push('/(livreur)/clients' as never)}
+            // Soldes clients : liste Encours (ex-entrée du carrefour Cash).
+            onPress={() => ouvrir('/(livreur)/cash/encours')}
+            accessibilityRole="button"
+            accessibilityLabel="À encaisser"
             className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-amber-500 rounded-xl p-3 active:opacity-70"
           >
             <Text className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-semibold">
@@ -250,22 +255,22 @@ export default function Tournee() {
           <ActionCard
             icon={Package}
             label="Stock"
-            onPress={() => router.push('/(livreur)/stock' as never)}
+            onPress={() => ouvrir('/(livreur)/stock')}
           />
           <ActionCard
             icon={Truck}
             label="Livrer"
-            onPress={() => router.push('/(livreur)/livraisons/nouvelle' as never, { withAnchor: true })}
+            onPress={() => ouvrir('/(livreur)/livraisons/nouvelle')}
           />
           <ActionCard
             icon={Banknote}
             label="Encaisser"
-            onPress={() => router.push('/(livreur)/livraisons' as never)}
+            onPress={() => ouvrir('/(livreur)/livraisons')}
           />
           <ActionCard
             icon={RotateCcw}
             label="Retour produit"
-            onPress={() => router.push('/(livreur)/cash/retour-client' as never, { withAnchor: true })}
+            onPress={() => ouvrir('/(livreur)/cash/retour-client')}
           />
         </View>
 
@@ -275,7 +280,7 @@ export default function Tournee() {
             Ma tournée · aujourd'hui
           </Text>
           <Pressable
-            onPress={() => router.push('/(livreur)/livraisons' as never)}
+            onPress={() => ouvrir('/(livreur)/livraisons')}
             className="active:opacity-70"
             hitSlop={6}
           >

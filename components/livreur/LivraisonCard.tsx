@@ -1,5 +1,4 @@
 import { Pressable, View, Text } from 'react-native';
-import { router } from 'expo-router';
 import { formatFCFA, formatTime } from '../../lib/format';
 import {
   isEncaissee,
@@ -8,6 +7,7 @@ import {
 } from '../../lib/livraison-status';
 import { num } from '../../features/encaissements/regles';
 import type { LivraisonResponse } from '../../types/api';
+import { naviguer } from '../../lib/navigation-app';
 
 /** Couleur de bordure : soldée, reste dû du jour, reste dû en retard. */
 type DerivedStatus = 'SOLDEE' | 'LIVREE' | 'IMPAYEE';
@@ -45,7 +45,14 @@ export function deriveStatus(livraison: LivraisonResponse): DerivedStatus {
   return livDate === today ? 'LIVREE' : 'IMPAYEE';
 }
 
-export function LivraisonCard({ livraison }: { livraison: LivraisonResponse }) {
+export function LivraisonCard({
+  livraison,
+  depuisClient,
+}: {
+  livraison: LivraisonResponse;
+  /** Carte affichée dans la fiche de ce client : la fiche livraison y revient. */
+  depuisClient?: string;
+}) {
   const status = deriveStatus(livraison);
   const badge = isEncaissee(livraison) ? BADGE.encaissee : BADGE.nonEncaissee;
   const clientName = `${livraison.client.prenom} ${livraison.client.nom}`;
@@ -61,7 +68,12 @@ export function LivraisonCard({ livraison }: { livraison: LivraisonResponse }) {
 
   return (
     <Pressable
-      onPress={() => router.push(`/(livreur)/livraisons/${livraison.id}` as never)}
+      onPress={() =>
+        naviguer(
+          `/(livreur)/livraisons/${livraison.id}`,
+          depuisClient ? { clientId: depuisClient, depuis: 'client' } : undefined,
+        )
+      }
       className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 ${BORDURES[status]} rounded-lg p-3 active:opacity-70`}
     >
       <View className="flex-row items-start justify-between gap-2">

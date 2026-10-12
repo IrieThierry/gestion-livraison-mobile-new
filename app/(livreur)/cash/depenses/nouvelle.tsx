@@ -77,7 +77,7 @@ export default function NouvelleDepense() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader retourVers="/(livreur)/cash/depenses" title="Nouvelle dépense" />
+      <PageHeader title="Nouvelle dépense" />
 
       <FormScreen>
         <View className="px-4 gap-3 pt-3">

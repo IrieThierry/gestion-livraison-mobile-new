@@ -24,6 +24,10 @@ import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatMontant } from '../../../../lib/format';
 import type { BeneficiaireType } from '../../../../types/api';
 import { useRetourListe } from '../../../../lib/useRetourListe';
+import { usePartagerRecu } from '../../../../features/reversements/useRecu';
+
+/** Durée de l'animation de fermeture du dialogue global (AppDialog). */
+const DELAI_FERMETURE_DIALOGUE_MS = 350;
 
 export default function NouveauReversement() {
   const params = useLocalSearchParams<{
@@ -37,6 +41,7 @@ export default function NouveauReversement() {
 
   const m = useEnregistrerReversement();
   const retourListe = useRetourListe('/(livreur)/cash/reversements');
+  const partagerRecu = usePartagerRecu();
   const submittingRef = useRef(false);
   const isOnline = useNetworkStore((s) => s.isOnline);
   const today = jourLocal(new Date());
@@ -81,9 +86,29 @@ export default function NouveauReversement() {
       },
       onSuccess: (r) => {
         retourListe();
+        // Reçu proposé sans bloquer : on est déjà revenu à la liste, le
+        // dialogue se ferme d'un appui (« Fermer ») ou partage le PDF.
         dialog.success(
           'Reversement enregistré',
           `${formatMontant(num(r.montant))} FCFA — période ${String(r.periodeMois).padStart(2, '0')}/${r.periodeAnnee}`,
+          {
+            autoDismissMs: 0,
+            actions: [
+              {
+                label: 'Partager le reçu',
+                style: 'primary',
+                // Feuille de partage ouverte après la fermeture complète du
+                // dialogue (iOS refuse de la présenter pendant l'animation).
+                onPress: () =>
+                  setTimeout(
+                    () =>
+                      partagerRecu(r, type === 'CLIENT' ? { beneficiaire: beneficiaireLabel } : { payeur: beneficiaireLabel }),
+                    DELAI_FERMETURE_DIALOGUE_MS,
+                  ),
+              },
+              { label: 'Fermer', style: 'secondary' },
+            ],
+          },
         );
       },
       onError: (err: unknown) => {
@@ -101,7 +126,7 @@ export default function NouveauReversement() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader retourVers="/(livreur)/cash/reversements" title="Nouveau reversement" subtitle={beneficiaireLabel} />
+      <PageHeader title="Nouveau reversement" subtitle={beneficiaireLabel} />
 
       <FormScreen>
         <View className="px-4 pt-3 gap-3">

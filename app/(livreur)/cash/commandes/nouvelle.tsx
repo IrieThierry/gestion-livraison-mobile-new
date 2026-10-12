@@ -6,12 +6,12 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { FormScreen } from '../../../../components/shared/FormScreen';
 import { SelectField } from '../../../../components/shared/SelectField';
 import { EmptyState } from '../../../../components/shared/EmptyState';
+import { ProduitVignette } from '../../../../components/shared/ProduitVignette';
 import { ApprentiAffecteField } from '../../../../components/livreur/ApprentiAffecteField';
 import { useFournisseursPartenaires } from '../../../../features/lookups/hooks';
 import {
@@ -30,6 +30,7 @@ import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatFCFA } from '../../../../lib/format';
 import { MESSAGE_AUCUN_PARTENAIRE, etatListePartenaires } from '../../../../features/relations/regles';
 import { useRetourListe } from '../../../../lib/useRetourListe';
+import { naviguer } from '../../../../lib/navigation-app';
 
 export default function NouvelleCommande() {
   const user = useAuthStore((s) => s.user);
@@ -64,7 +65,7 @@ export default function NouvelleCommande() {
   if (!isRootLivreur) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader retourVers="/(livreur)/cash/commandes" title="Nouvelle commande" />
+        <PageHeader title="Nouvelle commande" />
         <EmptyState
           title="Réservé au livreur principal"
           message="Seul le livreur principal peut passer des commandes."
@@ -102,7 +103,7 @@ export default function NouvelleCommande() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader retourVers="/(livreur)/cash/commandes" title="Nouvelle commande" />
+      <PageHeader title="Nouvelle commande" />
 
       <FormScreen>
         <View className="px-4">
@@ -122,7 +123,7 @@ export default function NouvelleCommande() {
             <View className="items-center">
               <EmptyState title={MESSAGE_AUCUN_PARTENAIRE} />
               <Pressable
-                onPress={() => router.push('/(livreur)/profil/fournisseurs' as never)}
+                onPress={() => naviguer('/(livreur)/profil/fournisseurs')}
                 className="bg-emerald-500 rounded-md px-5 py-3 active:opacity-80"
               >
                 <Text className="text-white font-bold">Mes fournisseurs</Text>
@@ -176,7 +177,12 @@ export default function NouvelleCommande() {
                       key={pf.id}
                       className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center justify-between"
                     >
-                      <View className="flex-1 pr-2">
+                      <ProduitVignette
+                        designation={pf.produit.designation}
+                        photoUrl={pf.produit.photoUrl}
+                        size={36}
+                      />
+                      <View className="flex-1 px-2">
                         <Text className="font-extrabold text-slate-900 dark:text-white text-[13px]">
                           {pf.produit.designation}
                         </Text>

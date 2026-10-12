@@ -7,8 +7,6 @@ import {
   RefreshControl,
   TextInput,
 } from 'react-native';
-import { router, useNavigation } from 'expo-router';
-import type { EtatPile } from '../../../lib/navigation';
 import { Search, X, ChevronLeft, Plus } from 'lucide-react-native';
 import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useAuthStore } from '../../../stores/authStore';
@@ -18,6 +16,7 @@ import { formatFCFA, formatMontant } from '../../../lib/format';
 import { isEncaissee } from '../../../lib/livraison-status';
 import { num, totalMontantDu, totalRemiseNette } from '../../../features/encaissements/regles';
 import type { LivraisonResponse } from '../../../types/api';
+import { naviguer, retourParent } from '../../../lib/navigation-app';
 
 type Period = 'today' | 'week' | 'month' | 'all';
 
@@ -43,7 +42,6 @@ export default function LivraisonsList() {
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
   const q = useLivraisonsByLivreur(livreurId);
-  const navigation = useNavigation();
   const [period, setPeriod] = useState<Period>('today');
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -90,13 +88,10 @@ export default function LivraisonsList() {
       {/* Header */}
       <View className="flex-row items-center px-4 pt-3 pb-2 gap-3">
         <Pressable
-          onPress={() => {
-            // Liste racine de l'onglet : écran précédent de la pile s'il y en
-            // a un, sinon la Tournée (onglet d'accueil), explicitement.
-            const etat = navigation.getState() as EtatPile | undefined;
-            if (etat && etat.index > 0) router.back();
-            else router.navigate('/(livreur)' as never);
-          }}
+          // Liste : retour à l'Accueil (parent logique, lib/navigation).
+          onPress={() => retourParent('/livraisons')}
+          accessibilityRole="button"
+          accessibilityLabel="Retour"
           hitSlop={8}
           className="w-10 h-10 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 items-center justify-center active:opacity-70"
         >
@@ -107,7 +102,7 @@ export default function LivraisonsList() {
           <Text className="text-[11px] text-slate-500 dark:text-slate-400">{subtitle}</Text>
         </View>
         <Pressable
-          onPress={() => router.push('/(livreur)/livraisons/nouvelle' as never)}
+          onPress={() => naviguer('/(livreur)/livraisons/nouvelle')}
           accessibilityRole="button"
           accessibilityLabel="Nouvelle livraison"
           className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"

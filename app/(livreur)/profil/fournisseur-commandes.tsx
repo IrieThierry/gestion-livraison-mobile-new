@@ -1,5 +1,5 @@
 import { View, Text, FlatList, Pressable, RefreshControl } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import {
@@ -11,6 +11,7 @@ import { useCommandesFournisseur } from '../../../features/commandes/hooks';
 import { useAuthStore } from '../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import { formatDateShort, formatFCFA } from '../../../lib/format';
+import { naviguer } from '../../../lib/navigation-app';
 
 /**
  * Commandes du livreur principal chez un fournisseur (`GET /commande/me?fournisseurId=`),
@@ -27,7 +28,7 @@ export default function FournisseurCommandes() {
   if (!estPrincipal) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader title="Commandes" fallback="/(livreur)/profil/fournisseurs" />
+        <PageHeader title="Commandes" />
         <EmptyState
           title="Réservé au livreur principal"
           message="Seul le livreur principal consulte les commandes par fournisseur."
@@ -43,7 +44,6 @@ export default function FournisseurCommandes() {
       <PageHeader
         title="Commandes"
         subtitle={libelle}
-        fallback="/(livreur)/profil/fournisseurs"
       />
       <FlatList
         data={commandes}
@@ -70,7 +70,7 @@ export default function FournisseurCommandes() {
         ItemSeparatorComponent={() => <View className="h-2" />}
         renderItem={({ item: c }) => (
           <Pressable
-            onPress={() => router.push(`/(livreur)/cash/commandes/${c.id}` as never)}
+            onPress={() => naviguer(`/(livreur)/cash/commandes/${c.id}`)}
             className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 active:opacity-80"
           >
             <View className="flex-row items-center justify-between">

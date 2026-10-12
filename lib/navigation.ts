@@ -1,71 +1,575 @@
 /**
- * Règle de navigation unique de l'app (formulaires et retour arrière).
+ * Règle de navigation unique de l'app : le bouton retour (flèche d'en-tête,
+ * bouton ou geste retour Android) ramène au PARENT LOGIQUE de l'écran.
  *
- *  - Après un enregistrement réussi, on arrive sur la LISTE du module
- *    concerné, sans jamais laisser le formulaire dans la pile.
- *  - Le bouton retour ramène à l'écran précédent de la pile du module, ou à
- *    la liste du module s'il n'y en a pas — jamais au premier onglet par
- *    défaut (le comportement « firstRoute » des onglets).
+ *  | Écran                                   | Retour            |
+ *  |-----------------------------------------|-------------------|
+ *  | formulaire (création / modification)    | sa liste          |
+ *  | fiche (client, commande, livraison…)    | sa liste          |
+ *  | liste (Mes livraisons, Commandes…)      | Accueil           |
+ *  | Accueil                                 | quitter l'app     |
  *
- * Fonctions pures (sans dépendance à expo-router) pour être testées ; le
- * hook `useRetourListe` les branche sur la pile courante.
+ * La table `ROUTES` donne le parent de chaque écran du livreur. Les
+ * sous-pages d'une page de rubrique (Stock → Mouvements, Moi → Mes infos,
+ * Reversements → Historique…) ont pour parent cette page ; l'étape 2 de la
+ * création d'un client a pour parent l'étape 1.
+ *
+ * Ouvrir un écran depuis le menu +, l'Accueil ou un autre onglet repart
+ * d'une pile propre : la pile de la rubrique est remplacée par la chaîne
+ * des parents de l'écran restés dans la rubrique (ex. [Commandes, Commande
+ * CMD-1]). Revenir à un écran déjà dans la pile le dépile (jamais de
+ * doublon).
+ *
+ * Fonctions pures (sans dépendance à expo-router) : elles calculent les
+ * actions à envoyer au navigateur d'onglets ; `lib/navigation-app.ts` les
+ * applique.
  */
 
-/** État minimal d'une pile de navigation (sous-ensemble de React Navigation). */
-export interface EtatPile {
-  index: number;
-  routes: ReadonlyArray<{ name: string }>;
+/** Chemin de l'Accueil (onglet Tournée). */
+export const ACCUEIL = '/';
+
+export type TypeEcran = 'accueil' | 'liste' | 'fiche' | 'formulaire';
+
+export interface ContexteNavigation {
+  /** Apprenti : ses « Commandes » sont celles à réceptionner. */
+  apprenti: boolean;
 }
 
-/** Sous-ensemble du `router` expo-router utilisé ici. */
-export interface RouteurRetour {
-  back(): void;
-  dismissTo(href: never): void;
-  replace(href: never): void;
+type Parametres = Record<string, string>;
+
+export interface RouteApp {
+  type: TypeEcran;
+  /**
+   * Chemin du parent (segments `[x]` remplis avec les paramètres de
+   * l'écran) ; null pour l'Accueil.
+   */
+  parent: string | null | ((ctx: ContexteNavigation) => string);
+  /**
+   * Origines admises (paramètre `depuis`) : l'écran ouvert depuis un autre
+   * a pour parent cet autre écran (gabarit rempli avec ses paramètres). Seules
+   * ces valeurs sont acceptées : jamais une route arbitraire venue des paramètres.
+   */
+  origines?: Readonly<Partial<Record<Origine, string>>>;
 }
 
 /**
- * Après enregistrement :
- *  - 'back' si l'écran précédent de la pile est la liste du module ;
- *  - 'liste' sinon : on revient à la liste (dépilée si elle est plus bas
- *    dans la pile, sinon elle remplace le formulaire).
+ * Origines d'un écran (paramètre `depuis`) :
+ *  - `client` : ouvert depuis la fiche client (paramètre `clientId`) ;
+ *  - `encours` : ouvert depuis la liste Encours ;
+ *  - `a-receptionner` : ouvert depuis « À réceptionner » (cloche de l'Accueil).
  */
-export function actionApresEnregistrement(
-  etat: EtatPile | undefined,
-  ecranListe = 'index',
-): 'back' | 'liste' {
-  if (!etat || etat.index < 1) return 'liste';
-  return etat.routes[etat.index - 1]?.name === ecranListe ? 'back' : 'liste';
+export type Origine = 'client' | 'encours' | 'a-receptionner';
+export const DEPUIS_CLIENT = 'client' as const;
+export const DEPUIS_ENCOURS = 'encours' as const;
+export const DEPUIS_A_RECEPTIONNER = 'a-receptionner' as const;
+const A_RECEPTIONNER = '/cash/commandes/a-receptionner';
+const FICHE_CLIENT = '/clients/[clientId]';
+
+const listeCommandes = (ctx: ContexteNavigation) =>
+  ctx.apprenti ? '/cash/commandes/a-receptionner' : '/cash/commandes';
+
+/**
+ * Écrans du livreur, par fichier (relatif à `app/(livreur)`, sans extension)
+ * → type et parent. Chaque fichier d'écran doit y figurer (test).
+ */
+export const ROUTES: Readonly<Record<string, RouteApp>> = {
+  index: { type: 'accueil', parent: null },
+  fab: { type: 'liste', parent: ACCUEIL },
+
+  'clients/index': { type: 'liste', parent: ACCUEIL },
+  'clients/map': { type: 'liste', parent: '/clients' },
+  'clients/[id]/index': { type: 'fiche', parent: '/clients' },
+  // Ouverts seulement depuis la fiche : elle est leur parent.
+  'clients/[id]/modifier': { type: 'formulaire', parent: '/clients/[id]' },
+  'clients/[id]/prix': { type: 'formulaire', parent: '/clients/[id]' },
+  'clients/nouveau/index': { type: 'formulaire', parent: '/clients' },
+  'clients/nouveau/localisation': { type: 'formulaire', parent: '/clients/nouveau' },
+
+  'livraisons/index': { type: 'liste', parent: ACCUEIL },
+  'livraisons/[id]': { type: 'fiche', parent: '/livraisons', origines: { client: FICHE_CLIENT } },
+  'livraisons/nouvelle': { type: 'formulaire', parent: '/livraisons', origines: { client: FICHE_CLIENT } },
+  'livraisons/produits-vendus': { type: 'liste', parent: ACCUEIL },
+
+  'cash/encaissements': { type: 'liste', parent: ACCUEIL },
+  'cash/encaisser': {
+    type: 'formulaire',
+    parent: '/cash/encaissements',
+    origines: { client: FICHE_CLIENT, encours: '/cash/encours' },
+  },
+  'cash/encours': { type: 'liste', parent: ACCUEIL },
+  'cash/retours': { type: 'liste', parent: ACCUEIL, origines: { client: FICHE_CLIENT } },
+  'cash/retour-client': { type: 'formulaire', parent: '/cash/retours', origines: { client: FICHE_CLIENT } },
+  'cash/versements/index': { type: 'liste', parent: ACCUEIL },
+  'cash/versement': { type: 'formulaire', parent: '/cash/versements' },
+  'cash/commandes/index': { type: 'liste', parent: ACCUEIL },
+  'cash/commandes/a-receptionner': { type: 'liste', parent: ACCUEIL },
+  'cash/commandes/[id]': { type: 'fiche', parent: listeCommandes, origines: { 'a-receptionner': A_RECEPTIONNER } },
+  'cash/commandes/nouvelle': { type: 'formulaire', parent: '/cash/commandes' },
+  'cash/commandes/receptions': {
+    type: 'fiche',
+    parent: listeCommandes,
+    origines: { 'a-receptionner': A_RECEPTIONNER },
+  },
+  'cash/depenses/index': { type: 'liste', parent: ACCUEIL },
+  'cash/depenses/nouvelle': { type: 'formulaire', parent: '/cash/depenses' },
+  'cash/reversements/index': { type: 'liste', parent: ACCUEIL },
+  'cash/reversements/historique': { type: 'liste', parent: '/cash/reversements' },
+  'cash/reversements/nouveau': { type: 'formulaire', parent: '/cash/reversements' },
+
+  'stock/index': { type: 'liste', parent: ACCUEIL },
+  'stock/mouvements': { type: 'liste', parent: '/stock' },
+  'stock/equipe': { type: 'liste', parent: '/stock' },
+  'stock/transferts/index': { type: 'liste', parent: '/stock' },
+  'stock/transferts/nouveau': { type: 'formulaire', parent: '/stock/transferts' },
+
+  'previsions/index': { type: 'liste', parent: ACCUEIL },
+  'previsions/nouvelle': { type: 'formulaire', parent: '/previsions' },
+
+  'clotures/index': { type: 'liste', parent: ACCUEIL },
+  'clotures/nouvelle': { type: 'formulaire', parent: '/clotures' },
+
+  'profil/index': { type: 'liste', parent: ACCUEIL },
+  'profil/infos': { type: 'formulaire', parent: '/profil' },
+  'profil/password': { type: 'formulaire', parent: '/profil' },
+  'profil/prix': { type: 'formulaire', parent: '/profil' },
+  'profil/fournisseurs': { type: 'liste', parent: '/profil' },
+  'profil/fournisseur-commandes': { type: 'liste', parent: '/profil/fournisseurs' },
+  'profil/apprentis/index': { type: 'liste', parent: '/profil' },
+  'profil/apprentis/[id]': { type: 'fiche', parent: '/profil/apprentis' },
+  'profil/apprentis/nouveau': { type: 'formulaire', parent: '/profil/apprentis' },
+  'profil/etats/index': { type: 'liste', parent: '/profil' },
+  'profil/etats/[famille]': { type: 'fiche', parent: '/profil/etats' },
+};
+
+/**
+ * Dossiers qui ont leur propre `_layout` (pile imbriquée). Les onglets
+ * (premier segment) sont des piles du navigateur d'onglets `(livreur)`.
+ */
+export const PILES_IMBRIQUEES: ReadonlySet<string> = new Set([
+  'cash/commandes',
+  'cash/depenses',
+  'cash/reversements',
+  'clients/nouveau',
+  'profil/apprentis',
+  'profil/etats',
+  'stock/transferts',
+]);
+
+/** Nom de la route du groupe des écrans du livreur dans la pile racine. */
+export const GROUPE_LIVREUR = '(livreur)';
+
+// ---------------------------------------------------------------------------
+// Chemins
+// ---------------------------------------------------------------------------
+
+export interface Cible {
+  /** Fichier de l'écran (clé de `ROUTES`). */
+  fichier: string;
+  /** Paramètres de l'écran : segments dynamiques et paramètres de requête. */
+  params: Parametres;
 }
 
-/** Applique `actionApresEnregistrement` avec le routeur fourni. */
-export function retourApresEnregistrement(
-  routeur: RouteurRetour,
-  liste: string,
-  etat: EtatPile | undefined,
-  ecranListe = 'index',
-): void {
-  if (actionApresEnregistrement(etat, ecranListe) === 'back') {
-    routeur.back();
-  } else {
-    // POP_TO : remonte jusqu'à la liste si elle est dans la pile, sinon
-    // remplace l'écran courant par la liste (pas de doublon de formulaire).
-    routeur.dismissTo(liste as never);
+/** Chemin d'URL d'un fichier (sans `index` final), avec ses segments dynamiques. */
+function motif(fichier: string): string[] {
+  const s = fichier.split('/');
+  if (s[s.length - 1] === 'index') s.pop();
+  return s;
+}
+
+/** Chemin concret d'un fichier : `[id]` remplacé par le paramètre, `/` en tête. */
+export function cheminDe(fichier: string, params: Parametres = {}): string {
+  const segments = motif(fichier).map((seg) => {
+    const m = /^\[(.+)\]$/.exec(seg);
+    return m ? encodeURIComponent(params[m[1]] ?? seg) : seg;
+  });
+  return `/${segments.join('/')}`;
+}
+
+/**
+ * Découpe un href de l'app (`/(livreur)/cash/commandes/[id]?x=1`, ou
+ * `/cash/commandes/42`) en chemin sans groupe ni requête, segments
+ * dynamiques remplis par `params`, et paramètres de requête.
+ */
+export function normaliserHref(
+  href: string,
+  params: Record<string, string | number | undefined> = {},
+): { chemin: string; requete: Parametres } {
+  const [brut, query = ''] = href.split('?');
+  const p: Parametres = {};
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null) p[k] = String(v);
+  const utilises = new Set<string>();
+  const segments = brut
+    .split('/')
+    .filter((s) => s && !/^\(.*\)$/.test(s))
+    .map((seg) => {
+      const m = /^\[(.+)\]$/.exec(seg);
+      if (m && p[m[1]] !== undefined) {
+        utilises.add(m[1]);
+        return encodeURIComponent(p[m[1]]);
+      }
+      return seg;
+    });
+  const requete: Parametres = {};
+  for (const morceau of query.split('&').filter(Boolean)) {
+    const [k, v = ''] = morceau.split('=');
+    requete[decodeURIComponent(k)] = decodeURIComponent(v);
   }
+  for (const [k, v] of Object.entries(p)) if (!utilises.has(k)) requete[k] = v;
+  return { chemin: `/${segments.join('/')}`, requete };
 }
 
 /**
- * Bouton retour d'un en-tête :
- *  - 'back' si la pile du module a un écran précédent ;
- *  - 'retourVers' si une liste de module est connue (pile vide) ;
- *  - sinon comportement historique : back() si possible, ou `fallback`.
+ * Écran correspondant à un chemin concret (`/clients/abc` →
+ * `clients/[id]/index` avec `{ id: 'abc' }`). Les segments fixes priment sur
+ * les segments dynamiques (`/clients/map` n'est pas une fiche client).
  */
-export function actionRetourEnTete(input: {
-  etat: EtatPile | undefined;
-  retourVers?: string;
-  peutReculer: boolean;
-}): 'back' | 'retourVers' | 'fallback' {
-  if (input.etat && input.etat.index > 0) return 'back';
-  if (input.retourVers) return 'retourVers';
-  return input.peutReculer ? 'back' : 'fallback';
+export function trouverRoute(chemin: string): Cible | null {
+  const segments = chemin.split('/').filter(Boolean);
+  let meilleur: { cible: Cible; fixes: number } | null = null;
+  for (const fichier of Object.keys(ROUTES)) {
+    const m = motif(fichier);
+    if (m.length !== segments.length) continue;
+    const params: Parametres = {};
+    let fixes = 0;
+    let ok = true;
+    for (let i = 0; i < m.length; i++) {
+      const dyn = /^\[(.+)\]$/.exec(m[i]);
+      if (dyn) params[dyn[1]] = decodeURIComponent(segments[i]);
+      else if (m[i] === segments[i]) fixes++;
+      else {
+        ok = false;
+        break;
+      }
+    }
+    if (ok && (!meilleur || fixes > meilleur.fixes)) meilleur = { cible: { fichier, params }, fixes };
+  }
+  return meilleur?.cible ?? null;
+}
+
+/** Onglet (route du navigateur d'onglets) d'un écran. */
+export function ongletDe(fichier: string): string {
+  return fichier.split('/')[0];
+}
+
+/**
+ * Parent logique d'un écran : chemin concret, `ACCUEIL`, ou null pour
+ * l'Accueil lui-même. Un écran inconnu remonte à l'Accueil.
+ */
+/**
+ * Parent donné par l'origine (`depuis`) de l'écran, s'il en a une valide :
+ * valeur admise par la table, gabarit entièrement rempli, écran connu.
+ */
+export function parentOrigine(cible: Cible): string | null {
+  const depuis = cible.params.depuis;
+  const origines = ROUTES[cible.fichier]?.origines;
+  // Propriété propre seulement : `constructor`, `__proto__`, `toString`… sont refusés.
+  const gabarit =
+    typeof depuis === 'string' && origines && Object.prototype.hasOwnProperty.call(origines, depuis)
+      ? origines[depuis as Origine]
+      : undefined;
+  if (typeof gabarit !== 'string') return null;
+  const { chemin } = normaliserHref(gabarit, cible.params);
+  if (chemin.includes('[') || !trouverRoute(chemin)) return null;
+  return chemin;
+}
+
+export function parentDe(cible: Cible, ctx: ContexteNavigation): string | null {
+  const route = ROUTES[cible.fichier];
+  if (!route) return ACCUEIL;
+  if (route.parent === null) return null;
+  const origine = parentOrigine(cible);
+  if (origine) return origine;
+  const parent = typeof route.parent === 'function' ? route.parent(ctx) : route.parent;
+  return normaliserHref(parent, cible.params).chemin;
+}
+
+/**
+ * Pile propre d'un écran : la chaîne de ses parents restés dans la même
+ * rubrique (onglet), du plus haut à l'écran lui-même.
+ */
+export function chaineOuverture(cible: Cible, ctx: ContexteNavigation): Cible[] {
+  const chaine: Cible[] = [cible];
+  const onglet = ongletDe(cible.fichier);
+  let courant = cible;
+  for (let garde = 0; garde < 10; garde++) {
+    const parent = parentDe(courant, ctx);
+    if (!parent || parent === ACCUEIL) break;
+    const p = trouverRoute(parent);
+    if (!p || ongletDe(p.fichier) !== onglet) break;
+    chaine.unshift(p);
+    courant = p;
+  }
+  return chaine;
+}
+
+// ---------------------------------------------------------------------------
+// États de navigation (sous-ensemble de React Navigation)
+// ---------------------------------------------------------------------------
+
+export interface RouteEtat {
+  key?: string;
+  name: string;
+  params?: object;
+  state?: EtatNavigateur | PartielNavigateur;
+}
+
+export interface EtatNavigateur {
+  key: string;
+  index: number;
+  routes: RouteEtat[];
+  stale?: false;
+  type?: string;
+  routeNames?: string[];
+  history?: Array<{ type: string; key: string }>;
+  [autre: string]: unknown;
+}
+
+export interface PartielNavigateur {
+  index?: number;
+  routes: RouteEtat[];
+}
+
+export type ActionOnglets =
+  | { type: 'RESET'; payload: EtatNavigateur; target: string }
+  | { type: 'JUMP_TO'; payload: { name: string }; target: string };
+
+/** Paramètres d'écran en chaînes (on ignore `screen`/`params` posés par expo-router sur un parent). */
+function paramsEcran(params: object | undefined): Parametres {
+  const p: Parametres = {};
+  for (const [k, v] of Object.entries(params ?? {})) {
+    if (k === 'screen' || k === 'params' || k === 'initial' || k === 'state') continue;
+    if (typeof v === 'string' || typeof v === 'number') p[k] = String(v);
+  }
+  return p;
+}
+
+/** État du navigateur d'onglets du livreur dans l'état racine, ou undefined. */
+export function trouverOnglets(etat: EtatNavigateur | PartielNavigateur | undefined): EtatNavigateur | undefined {
+  if (!etat?.routes) return undefined;
+  for (const r of etat.routes) {
+    if (r.name === GROUPE_LIVREUR && r.state && 'key' in r.state) return r.state as EtatNavigateur;
+    const sous = trouverOnglets(r.state);
+    if (sous) return sous;
+  }
+  return undefined;
+}
+
+/** Une entrée de pile d'onglet aplatie : chemin de l'écran et sa position. */
+interface EntreePile {
+  chemin: string;
+  /** Index dans la pile de l'onglet. */
+  i: number;
+  /** Index dans la pile imbriquée, ou -1. */
+  j: number;
+}
+
+/** Écrans d'une pile d'onglet, du bas vers le haut, avec leur chemin. */
+function aplatir(onglet: RouteEtat): EntreePile[] {
+  const pile = onglet.state;
+  if (!pile?.routes) return [{ chemin: cheminDe(onglet.name, paramsEcran(onglet.params)), i: 0, j: -1 }];
+  const entrees: EntreePile[] = [];
+  pile.routes.forEach((r, i) => {
+    const dossier = `${onglet.name}/${r.name}`;
+    if (PILES_IMBRIQUEES.has(dossier)) {
+      const internes = r.state?.routes ?? [{ name: 'index', params: undefined }];
+      internes.forEach((x, j) =>
+        entrees.push({ chemin: cheminDe(`${dossier}/${x.name}`, paramsEcran(x.params)), i, j }),
+      );
+    } else {
+      entrees.push({ chemin: cheminDe(dossier, paramsEcran(r.params)), i, j: -1 });
+    }
+  });
+  return entrees;
+}
+
+/**
+ * Écran affiché : onglet actif et route la plus profonde. Undefined si
+ * l'état est inconnu.
+ */
+export function ecranActif(onglets: EtatNavigateur | undefined): (Cible & { chemin: string }) | undefined {
+  const onglet = onglets?.routes?.[onglets.index];
+  if (!onglet) return undefined;
+  const noms = [onglet.name];
+  let route: RouteEtat = onglet;
+  let params = paramsEcran(route.params);
+  for (let garde = 0; garde < 10; garde++) {
+    const s = route.state;
+    if (s?.routes?.length) {
+      route = s.routes[s.index ?? s.routes.length - 1];
+      noms.push(route.name);
+      params = paramsEcran(route.params);
+      continue;
+    }
+    // Pile pas encore montée : expo-router a posé l'écran visé dans les paramètres.
+    const p = route.params as { screen?: unknown; params?: object } | undefined;
+    if (typeof p?.screen !== 'string') break;
+    noms.push(p.screen);
+    params = paramsEcran(p.params);
+    route = { name: p.screen, params: p.params };
+  }
+  const fichier = noms.join('/');
+  const connu = ROUTES[fichier] ? fichier : ROUTES[`${fichier}/index`] ? `${fichier}/index` : fichier;
+  return { fichier: connu, params, chemin: cheminDe(connu, params) };
+}
+
+/** Écrans d'une pile d'onglet (fichier et paramètres), du bas vers le haut. */
+function ecransDePile(onglet: RouteEtat): Cible[] {
+  const pile = onglet.state;
+  if (!pile?.routes) return [];
+  const out: Cible[] = [];
+  for (const r of pile.routes) {
+    const dossier = `${onglet.name}/${r.name}`;
+    if (PILES_IMBRIQUEES.has(dossier)) {
+      if (!r.state?.routes) return [];
+      for (const x of r.state.routes) out.push({ fichier: `${dossier}/${x.name}`, params: paramsEcran(x.params) });
+    } else out.push({ fichier: dossier, params: paramsEcran(r.params) });
+  }
+  return out;
+}
+
+/** Vrai si la pile de l'onglet est exactement la chaîne demandée. */
+function pileIdentique(onglet: RouteEtat, chaine: Cible[]): boolean {
+  const actuelle = ecransDePile(onglet);
+  const cle = (c: Cible) => `${c.fichier}?${JSON.stringify(Object.entries(c.params).sort())}`;
+  return actuelle.length === chaine.length && actuelle.every((c, i) => cle(c) === cle(chaine[i]));
+}
+
+/** Pile (partielle) d'un onglet pour une chaîne d'écrans de cet onglet. */
+export function pileDe(chaine: Cible[]): PartielNavigateur {
+  const routes: RouteEtat[] = [];
+  for (const c of chaine) {
+    const [onglet, ...reste] = c.fichier.split('/');
+    const dossier = `${onglet}/${reste[0]}`;
+    const params = Object.keys(c.params).length ? c.params : undefined;
+    if (reste.length > 1 && PILES_IMBRIQUEES.has(dossier)) {
+      const interne: RouteEtat = { name: reste.slice(1).join('/'), params };
+      const dernier = routes[routes.length - 1];
+      if (dernier?.name === reste[0] && dernier.state) {
+        dernier.state.routes.push(interne);
+        dernier.state.index = dernier.state.routes.length - 1;
+      } else {
+        routes.push({ name: reste[0], state: { index: 0, routes: [interne] } });
+      }
+    } else {
+      routes.push({ name: reste.join('/'), params });
+    }
+  }
+  return { index: routes.length - 1, routes };
+}
+
+/** Onglets avec `nom` actif et, si fournie, sa pile remplacée. */
+function avecOnglet(onglets: EtatNavigateur, nom: string, pile?: RouteEtat['state']): EtatNavigateur | null {
+  const index = onglets.routes.findIndex((r) => r.name === nom);
+  if (index < 0) return null;
+  const cle = onglets.routes[index].key;
+  const routes = onglets.routes.map((r, i) =>
+    i === index && pile ? { key: r.key, name: r.name, state: pile } : r,
+  );
+  const history = onglets.history
+    ? [...onglets.history.filter((h) => h.key !== cle), { type: 'route', key: cle as string }]
+    : undefined;
+  return { ...onglets, index, routes, ...(history ? { history } : {}) };
+}
+
+/**
+ * Ouvrir un écran sur une pile propre : la pile de sa rubrique devient la
+ * chaîne de ses parents dans la rubrique, et la rubrique est affichée.
+ * Null si l'écran est inconnu (le routeur prend le relais).
+ */
+export function actionOuvrir(
+  onglets: EtatNavigateur,
+  href: string,
+  params: Record<string, string | number | undefined> | undefined,
+  ctx: ContexteNavigation,
+): ActionOnglets | null {
+  const { chemin, requete } = normaliserHref(href, params);
+  if (chemin === ACCUEIL) return { type: 'JUMP_TO', payload: { name: 'index' }, target: onglets.key };
+  const cible = trouverRoute(chemin);
+  if (!cible) return null;
+  const chaine = chaineOuverture({ ...cible, params: { ...cible.params, ...requete } }, ctx);
+  const nom = ongletDe(cible.fichier);
+  // Pile déjà identique (mêmes écrans, mêmes paramètres) : pas de RESET, qui
+  // remonterait l'écran (recherche et défilement perdus) ; on affiche l'onglet.
+  const onglet = onglets.routes.find((r) => r.name === nom);
+  if (onglet && pileIdentique(onglet, chaine)) {
+    return onglets.routes[onglets.index]?.name === nom ? null : { type: 'JUMP_TO', payload: { name: nom }, target: onglets.key };
+  }
+  const etat = avecOnglet(onglets, nom, pileDe(chaine));
+  return etat ? { type: 'RESET', payload: etat, target: onglets.key } : null;
+}
+
+/**
+ * Revenir à un écran (retour ou après enregistrement) : Accueil → onglet
+ * Accueil ; écran déjà présent plus bas dans la pile de la rubrique → pile
+ * dépilée jusqu'à lui (son état est conservé) ; sinon pile propre (`actionOuvrir`).
+ */
+export function actionRevenirA(
+  onglets: EtatNavigateur,
+  href: string,
+  ctx: ContexteNavigation,
+): ActionOnglets | null {
+  const { chemin } = normaliserHref(href);
+  if (chemin === ACCUEIL) return { type: 'JUMP_TO', payload: { name: 'index' }, target: onglets.key };
+  const cible = trouverRoute(chemin);
+  if (!cible) return null;
+  const nom = ongletDe(cible.fichier);
+  const onglet = onglets.routes.find((r) => r.name === nom);
+  const actif = onglets.routes[onglets.index]?.name === nom;
+  const pile = onglet?.state;
+  if (onglet && pile && 'key' in pile) {
+    const entrees = aplatir(onglet);
+    // Rubrique affichée : le plus haut sous l'écran courant (pas lui-même) ;
+    // autre rubrique (ex. retour à la fiche client) : sa pile est dépilée
+    // jusqu'à l'écran, qui garde son état, et la rubrique est affichée.
+    for (let k = entrees.length - (actif ? 2 : 1); k >= 0; k--) {
+      const e = entrees[k];
+      if (e.chemin !== chemin) continue;
+      const routes = pile.routes.slice(0, e.i + 1).map((r, i) => {
+        if (i !== e.i || e.j < 0 || !r.state) return r;
+        return { ...r, state: { ...r.state, index: e.j, routes: r.state.routes.slice(0, e.j + 1) } };
+      });
+      const etat = avecOnglet(onglets, nom, { ...pile, index: e.i, routes });
+      return etat ? { type: 'RESET', payload: etat, target: onglets.key } : null;
+    }
+  }
+  return actionOuvrir(onglets, href, undefined, ctx);
+}
+
+/**
+ * Retour depuis l'écran affiché : vers son parent logique. Null sur
+ * l'Accueil (comportement par défaut : quitter l'application) ou si l'état
+ * est inconnu.
+ */
+export function actionRetour(onglets: EtatNavigateur | undefined, ctx: ContexteNavigation): ActionOnglets | null {
+  const ecran = ecranActif(onglets);
+  if (!onglets || !ecran) return null;
+  const parent = parentDe(ecran, ctx);
+  if (parent === null) return null;
+  return actionRevenirA(onglets, parent, ctx);
+}
+
+/**
+ * Aller vers un écran depuis un écran de l'app : autre rubrique → pile
+ * propre (`actionOuvrir`) ; même rubrique et écran déjà dans la pile →
+ * dépilé (`actionRevenirA`, pas de doublon) ; sinon 'push' (empilé sur
+ * l'écran courant, ex. liste → fiche → formulaire).
+ */
+export function actionNaviguer(
+  onglets: EtatNavigateur,
+  href: string,
+  params: Record<string, string | number | undefined> | undefined,
+  ctx: ContexteNavigation,
+): ActionOnglets | 'push' | null {
+  const { chemin, requete } = normaliserHref(href, params);
+  if (chemin === ACCUEIL) return actionOuvrir(onglets, href, params, ctx);
+  const cible = trouverRoute(chemin);
+  if (!cible) return 'push';
+  const nom = ongletDe(cible.fichier);
+  const onglet = onglets.routes[onglets.index];
+  if (onglet?.name !== nom) return actionOuvrir(onglets, href, params, ctx);
+  const actif = ecranActif(onglets);
+  if (actif?.chemin === chemin && Object.keys(requete).length === 0) return null;
+  const present = aplatir(onglet).slice(0, -1).some((e) => e.chemin === chemin);
+  if (present && Object.keys(requete).length === 0) return actionRevenirA(onglets, href, ctx);
+  return 'push';
 }

@@ -6,7 +6,6 @@ import {
   Pressable,
   RefreshControl,
 } from 'react-native';
-import { router } from 'expo-router';
 import { dialog } from '../../../lib/dialog';
 import { Plus, Trash2, ListTree, Calendar } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
@@ -19,6 +18,7 @@ import {
 } from '../../../features/previsions/hooks';
 import { useAuthStore } from '../../../stores/authStore';
 import { ProduitVignette } from '../../../components/shared/ProduitVignette';
+import { naviguer } from '../../../lib/navigation-app';
 
 /**
  * Liste des prévisions pour une date donnée + cumul commande fournisseur.
@@ -58,10 +58,7 @@ export default function PrevisionsList() {
         right={
           <Pressable
             onPress={() =>
-              router.push({
-                pathname: '/(livreur)/previsions/nouvelle' as never,
-                params: { date: dateStr },
-              } as never)
+              naviguer('/(livreur)/previsions/nouvelle', { date: dateStr })
             }
             className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >

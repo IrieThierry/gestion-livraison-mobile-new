@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, Pressable, RefreshControl } from 'react-native';
-import { router } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import { ArrowRight } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
@@ -16,6 +15,7 @@ import { useClientDraftStore } from '../../../../stores/clientDraftStore';
 import { useAuthStore } from '../../../../stores/authStore';
 import { peutFixerConditions } from '../../../../features/remise/regles';
 import { validerRemiseClient } from '../../../../features/clients/regles';
+import { naviguer } from '../../../../lib/navigation-app';
 
 export default function NouveauClientStep1() {
   const draft = useClientDraftStore((s) => s.draft);
@@ -136,7 +136,7 @@ export default function NouveauClientStep1() {
       avecRemise: conditionsFixables && avecRemise,
       remiseUnitaire: remise?.ok ? remise.valeur : 0,
     });
-    router.push('/(livreur)/clients/nouveau/localisation' as never);
+    naviguer('/(livreur)/clients/nouveau/localisation');
   };
 
   return (
@@ -144,7 +144,6 @@ export default function NouveauClientStep1() {
       <PageHeader
         title="Nouveau client"
         subtitle="Étape 1 / 2 — Informations"
-        retourVers="/(livreur)/clients"
       />
 
       {/* Step indicator */}

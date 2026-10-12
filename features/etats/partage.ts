@@ -28,21 +28,33 @@ export async function renommerPdf(uri: string, nomFichier: string): Promise<stri
 }
 
 /**
- * Génère le PDF de l'état sur l'appareil (HTML → PDF avec `expo-print`),
- * le nomme d'après l'état (`Type_Entite_debut_au_fin.pdf`) puis ouvre la
- * fenêtre de partage du téléphone (WhatsApp, e-mail, Fichiers…).
- * Renvoie l'URI du fichier partagé.
+ * Génère un PDF sur l'appareil (HTML → PDF avec `expo-print`), le nomme
+ * `<nomFichier>.pdf` (extension ajoutée si absente) puis ouvre la fenêtre de
+ * partage du téléphone (WhatsApp, e-mail, Fichiers…). Commun aux états et
+ * au reçu de reversement. Renvoie l'URI du fichier partagé.
  */
-export async function partagerPdfEtat(doc: DocumentEtat): Promise<string> {
+export async function partagerPdf(p: { html: string; nomFichier: string; titre: string }): Promise<string> {
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error(MESSAGE_PARTAGE_INDISPONIBLE);
   }
-  const { uri: brut } = await Print.printToFileAsync({ html: genererHtmlEtat(doc) });
-  const uri = await renommerPdf(brut, doc.nomFichier);
+  const { uri: brut } = await Print.printToFileAsync({ html: p.html });
+  const uri = await renommerPdf(brut, p.nomFichier.replace(/\.pdf$/i, ''));
   await Sharing.shareAsync(uri, {
     mimeType: 'application/pdf',
     UTI: 'com.adobe.pdf',
-    dialogTitle: `Partager l’état « ${doc.titre} »`,
+    dialogTitle: p.titre,
   });
   return uri;
+}
+
+/**
+ * PDF d'un état, nommé d'après l'état (`Type_Entite_debut_au_fin.pdf`),
+ * puis fenêtre de partage. Renvoie l'URI du fichier partagé.
+ */
+export function partagerPdfEtat(doc: DocumentEtat): Promise<string> {
+  return partagerPdf({
+    html: genererHtmlEtat(doc),
+    nomFichier: doc.nomFichier,
+    titre: `Partager l’état « ${doc.titre} »`,
+  });
 }

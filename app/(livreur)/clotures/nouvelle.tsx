@@ -101,7 +101,7 @@ export default function NouvelleCloture() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader retourVers="/(livreur)/clotures" title="Nouvelle clôture" subtitle="Fin de journée" />
+      <PageHeader title="Nouvelle clôture" subtitle="Fin de journée" />
 
       <FormScreen>
         <View className="px-4 pt-3 gap-3">

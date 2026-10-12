@@ -155,7 +155,7 @@ export default function NouvelleLivraison() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Nouvelle livraison" retourVers={LISTE_LIVRAISONS} />
+      <PageHeader title="Nouvelle livraison" />
 
       <FormScreen
         refreshControl={

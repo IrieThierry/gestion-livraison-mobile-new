@@ -57,7 +57,7 @@ export default function RetourClient() {
   const livreurId = user?.id ?? '';
   const q = useLivraisonsByLivreur(livreurId);
   const m = useEnregistrerRetour();
-  const retourListe = useRetourListe('/(livreur)/cash/retours', 'retours');
+  const retourListe = useRetourListe('/(livreur)/cash/retours');
   // Garde synchrone contre le double appui.
   const submittingRef = useRef(false);
 
@@ -190,7 +190,6 @@ export default function RetourClient() {
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
-        retourVers="/(livreur)/cash/retours"
         title="Retour produit"
         subtitle={clientFiltreNom ?? undefined}
       />

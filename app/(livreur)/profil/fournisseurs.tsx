@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from 'react';
-import { router } from 'expo-router';
 import { ScrollView, View, Text, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
@@ -29,6 +28,7 @@ import { creerVerrou, lancerUneFois } from '../../../features/commandes/verrou';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import { dialog } from '../../../lib/dialog';
 import type { FournisseurAvecRelation } from '../../../types/api';
+import { naviguer } from '../../../lib/navigation-app';
 
 const STYLES_ETAT: Record<EtatRelation, { bg: string; text: string }> = {
   NON_INVITE: { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-600 dark:text-slate-300' },
@@ -100,7 +100,7 @@ export default function MesFournisseurs() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Mes fournisseurs" fallback="/(livreur)/profil" />
+      <PageHeader title="Mes fournisseurs" />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled"
@@ -172,10 +172,7 @@ export default function MesFournisseurs() {
                   {montants ? (
                     <Pressable
                       onPress={() =>
-                        router.push({
-                          pathname: '/(livreur)/profil/fournisseur-commandes',
-                          params: { id: f.id, libelle: f.libelle },
-                        } as never)
+                        naviguer('/(livreur)/profil/fournisseur-commandes', { id: f.id, libelle: f.libelle })
                       }
                       accessibilityLabel={`Commandes ${f.libelle}`}
                       className="rounded-md px-3 py-2 border border-slate-300 dark:border-slate-700 active:opacity-70"

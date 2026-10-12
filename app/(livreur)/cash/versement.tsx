@@ -30,7 +30,7 @@ import { extractApiErrorMessage } from '../../../lib/api-error';
 import { formatDateShort, formatFCFA } from '../../../lib/format';
 import { useRetourListe } from '../../../lib/useRetourListe';
 
-// Cible du CTA "Faire un versement" sur l'onglet Cash. Le livreur principal :
+// Cible du bouton « Nouveau versement » de Mes versements. Le livreur principal :
 //  1. choisit un fournisseur
 //  2. coche les commandes livrées qu'il règle (aucune cochée = versement libre,
 //     qui réduit seulement la dette et exige un montant > 0)
@@ -73,7 +73,7 @@ export default function Versement() {
   const m = useEnregistrerVersement();
   // Après enregistrement : la liste « Mes versements » (dépilée si elle est juste
   // dessous, sinon elle remplace le formulaire) ; la requête est invalidée par la mutation.
-  const retourListe = useRetourListe('/(livreur)/cash/versements', 'versements/index');
+  const retourListe = useRetourListe('/(livreur)/cash/versements');
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -104,7 +104,7 @@ export default function Versement() {
   if (!isRootLivreur) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-        <PageHeader retourVers="/(livreur)/cash" title="Faire un versement" />
+        <PageHeader title="Faire un versement" />
         <EmptyState
           title="Réservé au livreur principal"
           message="Seul le livreur principal règle les commandes auprès des fournisseurs."
@@ -168,7 +168,7 @@ export default function Versement() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader retourVers="/(livreur)/cash" title="Faire un versement" />
+      <PageHeader title="Faire un versement" />
 
       <FormScreen
         refreshControl={
