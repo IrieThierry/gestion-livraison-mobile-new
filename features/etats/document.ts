@@ -310,6 +310,19 @@ export function documentFournisseurs(etat: EtatFournisseurs, e: EnteteEtat): Doc
         vide: 'Aucun fournisseur partenaire.',
       },
       {
+        titre: 'Par produit',
+        note: 'Commandée : commandes de la période, hors refusées et annulées. Reçue et montant : réceptions de la période, au prix de la réception.',
+        colonnes: [
+          { libelle: 'Produit' },
+          { libelle: 'Commandée', droite: true },
+          { libelle: 'Reçue', droite: true },
+          { libelle: 'Montant reçu', droite: true },
+        ],
+        lignes: etat.parProduit.map((p) => [p.designation, q(p.qteCommandee), q(p.qteRecue), m(p.montant)]),
+        totaux: ['Total', q(t.qteCommandee), q(t.qteRecue), m(t.montantProduits)],
+        vide: 'Aucun produit commandé ni reçu sur la période.',
+      },
+      {
         titre: 'Commandes de la période',
         note: 'Reçu (total commande) : toutes les réceptions actives de la commande, y compris hors période.',
         colonnes: [

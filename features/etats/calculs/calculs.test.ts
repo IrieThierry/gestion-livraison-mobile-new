@@ -3,6 +3,7 @@ import { calculerEtatVentes } from './ventes';
 import { calculerEtatEncaissements } from './encaissements';
 import { calculerEtatStock, detailMouvement, lignesDepuisActuel, lignesDepuisEquipe } from './stock';
 import { calculerEtatFournisseurs } from './fournisseurs';
+import { documentFournisseurs, type EnteteEtat } from '../document';
 import {
   PERIODE_OCTOBRE as P,
   commande,
@@ -14,7 +15,7 @@ import {
   partenaire,
   versement,
 } from './etats.fixture';
-import type { StockEquipeLigneResponse, StockLivreurResponse } from '../../../types/api';
+import type { CommandeResponse, StockEquipeLigneResponse, StockLivreurResponse } from '../../../types/api';
 
 describe('commun', () => {
   it('arrondit au centime sans -0', () => {
@@ -292,6 +293,9 @@ describe('calculerEtatFournisseurs', () => {
       montantVerse: 8000,
       du: 149500.5,
       remiseARecevoir: 2000,
+      qteCommandee: 0,
+      qteRecue: 16,
+      montantProduits: 14000,
     });
   });
 
@@ -410,5 +414,87 @@ describe('filtres des états', () => {
 
   it('sans filtre : résultat inchangé', () => {
     expect(calculerEtatVentes(livraisons, P, {})).toEqual(calculerEtatVentes(livraisons, P));
+  });
+});
+
+describe('fournisseurs et versements : par produit (mêmes chiffres que le web)', () => {
+  const soleil = { id: 'f1', libelle: 'Soleil' };
+  const lune = { id: 'f2', libelle: 'Lune' };
+  const baguette = { id: 'p1', code: 'p1', designation: 'Baguette' };
+  const croissant = { id: 'p2', code: 'p2', designation: 'Croissant' };
+  type Produit = typeof baguette;
+  const cmd = (
+    id: string,
+    date: string,
+    fournisseur: { id: string; libelle: string },
+    statut: string,
+    produitsCommandes: Array<[Produit, number]>,
+    receptions: unknown[] = [],
+  ) =>
+    ({
+      id,
+      reference: `CMD-${id}`,
+      date,
+      statut,
+      fournisseur,
+      montantLivre: null,
+      produitsCommandes: produitsCommandes.map(([p, q]) => ({ id: `${id}-${p.id}`, produit: p, qteCommandee: q })),
+      receptions,
+    }) as unknown as CommandeResponse;
+  const reception = (date: string, lignes: Array<[Produit, number, number]>, annulee = false) => ({
+    id: date,
+    reference: `REC-${date}`,
+    dateReception: date,
+    annulee,
+    lignes: lignes.map(([p, quantite, prixUnitaire]) => ({ produit: p, quantite, prixUnitaire, remiseLivreurUnitaire: 0 })),
+  });
+
+  // Jeu de données identique au test web (src/__tests__/etats-calculs.test.ts).
+  const commandes = [
+    cmd('1', '2026-10-02T08:00:00', soleil, 'EN_RECEPTION', [[baguette, 10], [croissant, 4]], [
+      reception('2026-10-03T08:00:00', [[baguette, 6, 150]]),
+      reception('2026-10-04T08:00:00', [[croissant, 4, 300]], true),
+    ]),
+    // Commande de septembre reçue en octobre : quantité reçue comptée, quantité commandée non.
+    cmd('2', '2026-09-28T08:00:00', lune, 'LIVREE', [[baguette, 5]], [
+      reception('2026-10-01T09:00:00', [[baguette, 5, 140.5]]),
+    ]),
+    // Refusée / annulée : jamais comptées comme commandées.
+    cmd('3', '2026-10-05T08:00:00', soleil, 'REFUSEE', [[croissant, 7]]),
+    cmd('4', '2026-10-06T08:00:00', lune, 'ANNULEE', [[baguette, 9]]),
+    cmd('5', '2026-10-07T08:00:00', lune, 'ENVOYEE', [[croissant, 2]]),
+  ];
+  const entete: EnteteEtat = { livreur: 'Awa Kone', periode: P, editeLe: new Date(2026, 9, 11, 14, 5), equipe: false };
+
+  it('commandé (commandes de la période, hors refusées et annulées), reçu et montant (réceptions actives de la période)', () => {
+    const etat = calculerEtatFournisseurs([], commandes, [], P);
+    expect(etat.parProduit).toEqual([
+      { produitId: 'p1', designation: 'Baguette', qteCommandee: 10, qteRecue: 11, montant: 1602.5 },
+      { produitId: 'p2', designation: 'Croissant', qteCommandee: 6, qteRecue: 0, montant: 0 },
+    ]);
+    expect(etat.totaux).toMatchObject({ qteCommandee: 16, qteRecue: 11, montantProduits: 1602.5 });
+    expect(etat.totaux.montantProduits).toBe(etat.totaux.montantRecu);
+  });
+
+  it('respecte le filtre fournisseur', () => {
+    const etat = calculerEtatFournisseurs([], commandes, [], P, { fournisseurId: 'f2' });
+    expect(etat.parProduit).toEqual([
+      { produitId: 'p1', designation: 'Baguette', qteCommandee: 0, qteRecue: 5, montant: 702.5 },
+      { produitId: 'p2', designation: 'Croissant', qteCommandee: 2, qteRecue: 0, montant: 0 },
+    ]);
+  });
+
+  it('section « Par produit » après « Par fournisseur », avec ses totaux', () => {
+    const doc = documentFournisseurs(calculerEtatFournisseurs([], commandes, [], P), entete);
+    const section = doc.sections[1];
+    expect(section.titre).toBe('Par produit');
+    expect(section.colonnes.map((c) => c.libelle)).toEqual(['Produit', 'Commandée', 'Reçue', 'Montant reçu']);
+    expect(section.lignes.map((l) => l.map((c) => c.replace(/\s/g, ' ')))).toEqual([
+      ['Baguette', '10', '11', '1 602,5'],
+      ['Croissant', '6', '0', '0'],
+    ]);
+    expect(section.totaux?.map((c) => c.replace(/\s/g, ' '))).toEqual(['Total', '16', '11', '1 602,5']);
+    expect(section.vide).toBe('Aucun produit commandé ni reçu sur la période.');
+    expect(documentFournisseurs(calculerEtatFournisseurs([], [], [], P), entete).sections[1].lignes).toEqual([]);
   });
 });

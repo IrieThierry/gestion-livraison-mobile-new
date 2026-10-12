@@ -31,6 +31,8 @@ import {
   libelleQuantite,
   libelleValeur,
 } from '../../../features/retours/libelles';
+import { useProduits } from '../../../features/produits/hooks';
+import { TotalRetoursProduits } from '../../../components/livreur/TotalRetoursProduits';
 import { useAuthStore } from '../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import { formatDateShort } from '../../../lib/format';
@@ -65,7 +67,8 @@ function bornes(periode: Periode): { debut?: string; fin?: string } {
  *   - Période (mois en cours par défaut, 30 / 90 jours, tout)
  *   - Client (dropdown, optionnel) — pré-rempli avec `?clientId=X`
  *
- * Pas de totaux : une correction (quantité négative) s'affiche « Correction −n ».
+ * Une correction (quantité négative) s'affiche « Correction −n ». Au-dessus de
+ * la liste, « Total par produit » des retours affichés (`totalRetoursParProduit`).
  */
 export default function RetoursList() {
   const params = useLocalSearchParams<{ clientId?: string }>();
@@ -97,6 +100,13 @@ export default function RetoursList() {
         r.livraison.reference,
       ]),
     [retours, recherche],
+  );
+
+  // Photos du référentiel pour les vignettes du total par produit.
+  const qProduits = useProduits();
+  const photos = useMemo(
+    () => new Map((qProduits.data ?? []).map((p) => [p.id, p.photoUrl] as const)),
+    [qProduits.data],
   );
 
   const clientOptions = useMemo(
@@ -212,6 +222,12 @@ export default function RetoursList() {
               />
             </View>
           ) : (
+            <>
+            <TotalRetoursProduits
+              retours={retoursAffiches}
+              photos={photos}
+              pageSeulement={!!q.hasNextPage}
+            />
             <View className="gap-2 mt-3">
               {retoursAffiches.length === 0 ? (
                 <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center py-4">
@@ -283,6 +299,7 @@ export default function RetoursList() {
                 </Pressable>
               ) : null}
             </View>
+            </>
           )}
         </View>
       </ScrollView>
