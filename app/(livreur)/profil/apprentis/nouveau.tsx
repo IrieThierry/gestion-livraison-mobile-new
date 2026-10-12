@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MESSAGES_COMPTE } from '../../../../features/auth/schemas';
 import {
   View,
   Text,
@@ -57,7 +58,7 @@ export default function NouveauApprenti() {
       return;
     }
     if (!/^[0-9]{10}$/.test(contact.trim())) {
-      dialog.warning('Champ invalide', 'Téléphone : 10 chiffres requis');
+      dialog.warning('Champ invalide', MESSAGES_COMPTE.contact);
       return;
     }
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -69,7 +70,7 @@ export default function NouveauApprenti() {
       return;
     }
     if (password.length < 6) {
-      dialog.warning('Champ invalide', 'Mot de passe min 6 caractères');
+      dialog.warning('Champ invalide', MESSAGES_COMPTE.motDePasse);
       return;
     }
 

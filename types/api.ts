@@ -9,10 +9,24 @@ export interface LoginRequest {
   password: string
 }
 
-// Statut métier du compte. `EN_ATTENTE_VALIDATION` = login OK mais toutes
-// les actions métier sont bloquées tant qu'un admin n'a pas validé. Le seul
-// écran accessible reste le profil (pour changer son mot de passe).
+// Statut du compte renvoyé par le back. Plus de validation par l'admin :
+// l'inscription crée un compte VALIDE ; la valeur historique d'attente reste
+// lisible (anciennes sessions) mais ne bloque plus rien.
 export type StatutCompte = 'VALIDE' | 'EN_ATTENTE_VALIDATION'
+
+// ---------- Abonnement ----------
+export type StatutAbonnement = 'ESSAI' | 'ACTIF' | 'EXPIRE'
+export type FormuleAbonnement = 'LIVREUR' | 'FOURNISSEUR'
+
+/** `GET /abonnement/me` : abonnement effectif (celui du principal pour un apprenti, `herite: true`). */
+export interface AbonnementMe {
+  statut: StatutAbonnement
+  formule: FormuleAbonnement
+  debut: string | null
+  finEssai: string | null
+  finPeriode: string | null
+  herite: boolean
+}
 
 export interface AuthResponse {
   token: string

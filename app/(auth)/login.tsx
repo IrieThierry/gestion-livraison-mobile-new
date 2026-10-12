@@ -9,6 +9,7 @@ import {
 import { FormScreen } from '../../components/shared/FormScreen';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { accueilDuProfil } from '../../lib/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { AtSign, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { authApi } from '../../features/auth/api';
@@ -73,7 +74,7 @@ export default function Login() {
         // Biometric setup is optional — never block login
       }
 
-      router.replace('/(livreur)');
+      router.replace(accueilDuProfil(user.profile) as never);
     },
     onError: async (e: unknown) => {
       const sansReponse = !(e as { response?: unknown } | null)?.response;

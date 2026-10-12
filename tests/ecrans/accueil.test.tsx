@@ -51,6 +51,11 @@ jest.mock('../../features/previsions/hooks', () => ({
   usePrevisionsEchues: () => ({ echues: mockEchues, isLoading: false, isError: false, refetch: jest.fn() }),
 }));
 
+let mockAbonnement: unknown = { statut: 'ESSAI', formule: 'LIVREUR', herite: false };
+jest.mock('../../features/abonnement/hooks', () => ({
+  useMonAbonnement: () => ({ data: mockAbonnement, isLoading: false, isError: false, refetch: jest.fn() }),
+}));
+
 const mouvements = useMouvementsStock as jest.Mock;
 const livraisons = useLivraisonsByLivreur as jest.Mock;
 
@@ -75,6 +80,7 @@ beforeEach(() => {
   mouvements.mockReturnValue(lecture([]));
   mockNbCommandes = 0;
   mockEchues = [];
+  mockAbonnement = { statut: 'ESSAI', formule: 'LIVREUR', herite: false };
 });
 
 describe('Accueil : cloche', () => {
@@ -158,5 +164,30 @@ describe('Accueil : chiffres cliquables de la carte verte', () => {
     render(<Tournee />);
     expect(screen.getByLabelText('Produits vendus : —')).toBeTruthy();
     expect(screen.getByLabelText('Réceptionnés : —')).toBeTruthy();
+  });
+});
+
+describe('Accueil : bandeau abonnement expiré', () => {
+  it('EXPIRE : bandeau « Abonnement expiré : consultation seule. »', () => {
+    mockAbonnement = { statut: 'EXPIRE', formule: 'LIVREUR', herite: false };
+    render(<Tournee />);
+    expect(screen.getByText('Abonnement expiré : consultation seule.')).toBeTruthy();
+  });
+
+  it.each([
+    ['ESSAI', { statut: 'ESSAI', formule: 'LIVREUR', herite: false }],
+    ['ACTIF', { statut: 'ACTIF', formule: 'LIVREUR', herite: false }],
+    ['sans abonnement', null],
+  ])('%s : pas de bandeau', (_nom, abo) => {
+    mockAbonnement = abo;
+    render(<Tournee />);
+    expect(screen.queryByText('Abonnement expiré : consultation seule.')).toBeNull();
+  });
+
+  it('plus d’écran « Compte en attente de validation »', () => {
+    mockUser = { ...mockUser, statut: 'EN_ATTENTE_VALIDATION' };
+    render(<Tournee />);
+    expect(screen.queryByText('Compte en attente de validation')).toBeNull();
+    expect(screen.getByLabelText('Notifications : 0')).toBeTruthy();
   });
 });

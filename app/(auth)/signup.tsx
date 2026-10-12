@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,8 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import {
-  Truck,
-  Building2,
   ArrowLeft,
   Eye,
   EyeOff,
@@ -25,17 +23,16 @@ import {
   Lock,
 } from 'lucide-react-native';
 import { authApi } from '../../features/auth/api';
-import { signupSchema } from '../../features/auth/schemas';
+import { MESSAGES_COMPTE, signupSchema } from '../../features/auth/schemas';
 import { extractApiErrorMessage } from '../../lib/api-error';
 import { dialog } from '../../lib/dialog';
+import { creerVerrou, lancerUneFois } from '../../features/commandes/verrou';
 
 /**
- * Auto-inscription d'un livreur ou fournisseur. Le back crée le compte avec
- * `statut=EN_ATTENTE_VALIDATION` — l'utilisateur peut se connecter mais
- * tous les écrans métier sont remplacés par la `PendingValidationScreen`
- * tant qu'un admin n'a pas validé.
- *
- * Mirror simplifié de la page web `SignupPage`.
+ * Inscription libre d'un livreur : le compte est utilisable tout de suite
+ * (abonnement en essai). Le profil Fournisseur n'est pas proposé sur mobile :
+ * le fournisseur s'inscrit sur le portail web. Règles et messages A7 :
+ * `signupSchema`.
  */
 export default function Signup() {
   const [prenom, setPrenom] = useState('');
@@ -45,15 +42,16 @@ export default function Signup() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [profile, setProfile] = useState<'LIVREUR' | 'FOURNISSEUR'>('LIVREUR');
   const [showPwd, setShowPwd] = useState(false);
+  // Double appui avant que isPending ne s'affiche : un seul envoi.
+  const verrou = useRef(creerVerrou()).current;
 
   const m = useMutation({
     mutationFn: authApi.register,
     onSuccess: () => {
       dialog.success(
         'Compte créé',
-        'Ton inscription est enregistrée. Un administrateur doit valider ton compte avant que tu puisses utiliser l\'app — connecte-toi pour suivre l\'état.',
+        MESSAGES_COMPTE.inscriptionReussie,
         {
           autoDismissMs: 0,
           actions: [
@@ -80,13 +78,12 @@ export default function Signup() {
       username,
       password,
       confirmPassword,
-      profile,
     });
     if (!parsed.success) {
       dialog.warning('Champs invalides', parsed.error.issues[0]?.message);
       return;
     }
-    m.mutate(parsed.data);
+    lancerUneFois(verrou, (fin) => m.mutate(parsed.data, { onSettled: fin }));
   };
 
   return (
@@ -109,66 +106,14 @@ export default function Signup() {
               Créer un compte
             </Text>
             <Text className="text-slate-500 dark:text-slate-400 mt-2">
-              Un administrateur validera ton compte avant la première utilisation.
+              Compte livreur, utilisable dès l'inscription.
             </Text>
-
-            {/* Type de compte */}
-            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-6 mb-2">
-              Type de compte
+            <Text className="text-[12px] text-slate-400 dark:text-slate-500 mt-1">
+              Fournisseur ? Inscrivez-vous sur le portail web.
             </Text>
-            <View className="flex-row gap-2">
-              <Pressable
-                onPress={() => setProfile('LIVREUR')}
-                className={`flex-1 flex-col items-center gap-1 py-3 rounded-lg border-2 ${
-                  profile === 'LIVREUR'
-                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10'
-                    : 'border-slate-200 dark:border-slate-800'
-                }`}
-              >
-                <Truck color={profile === 'LIVREUR' ? '#10b981' : '#64748b'} size={20} />
-                <Text
-                  className={`font-bold text-[13px] ${
-                    profile === 'LIVREUR'
-                      ? 'text-emerald-700 dark:text-emerald-400'
-                      : 'text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  Livreur
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setProfile('FOURNISSEUR')}
-                className={`flex-1 flex-col items-center gap-1 py-3 rounded-lg border-2 ${
-                  profile === 'FOURNISSEUR'
-                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10'
-                    : 'border-slate-200 dark:border-slate-800'
-                }`}
-              >
-                <Building2
-                  color={profile === 'FOURNISSEUR' ? '#10b981' : '#64748b'}
-                  size={20}
-                />
-                <Text
-                  className={`font-bold text-[13px] ${
-                    profile === 'FOURNISSEUR'
-                      ? 'text-emerald-700 dark:text-emerald-400'
-                      : 'text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  Fournisseur
-                </Text>
-              </Pressable>
-            </View>
-            {profile === 'FOURNISSEUR' ? (
-              <View className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3 mt-3">
-                <Text className="text-[11px] text-amber-700 dark:text-amber-400">
-                  Le compte sera créé mais devra être lié à une entité fournisseur par un administrateur.
-                </Text>
-              </View>
-            ) : null}
 
             {/* Identité */}
-            <View className="flex-row gap-3 mt-4">
+            <View className="flex-row gap-3 mt-6">
               <View className="flex-1">
                 <Field
                   label="Prénom *"

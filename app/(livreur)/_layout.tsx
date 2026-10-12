@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Tabs, useNavigationContainerRef } from 'expo-router';
+import { Redirect, Tabs, useNavigationContainerRef } from 'expo-router';
+import { estProfilPortailWeb, PORTAIL_WEB } from '../../lib/navigation';
 import { TrendingUp, Truck, User, Plus, Users } from 'lucide-react-native';
 import { OfflineBanner } from '../../components/shared/OfflineBanner';
 import { PreparationRecuBanner } from '../../components/shared/PreparationRecuBanner';
@@ -46,12 +47,9 @@ export default function LivreurLayout() {
     startWatching();
   }, []);
 
-  // Compte en attente de validation : on neutralise le FAB. L'écran
-  // d'attente est rendu PAR ONGLET via `PendingValidationGate` placé
-  // dans chaque sous-layout métier (clients, livraisons, cash, stock)
-  // et dans la page Tournée. La tab bar reste intacte (FAB inclus) —
-  // seul le contenu est remplacé.
-  const isPending = user?.statut === 'EN_ATTENTE_VALIDATION';
+  // ADMIN / FOURNISSEUR : pas d'onglets livreur (aucune requête livreur
+  // lancée), écran « Utilisez le portail web » à la place.
+  if (estProfilPortailWeb(user?.profile)) return <Redirect href={PORTAIL_WEB as never} />;
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-slate-50 dark:bg-slate-950">
@@ -121,10 +119,6 @@ export default function LivreurLayout() {
           listeners={{
             tabPress: (e) => {
               e.preventDefault();
-              // Le compte n'est pas encore validé : on neutralise le FAB.
-              // Chaque onglet affiche déjà l'écran « Compte en attente »
-              // via `PendingValidationGate` dans son sous-layout.
-              if (isPending) return;
               setFabOpen(true);
             },
           }}
