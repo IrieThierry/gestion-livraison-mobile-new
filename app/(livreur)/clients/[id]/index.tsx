@@ -40,6 +40,8 @@ import { callPhone, navigateTo } from '../../../../lib/linking';
 import { formatMontant, formatDateShort } from '../../../../lib/format';
 import { isEncaissee, isAEncaisser } from '../../../../lib/livraison-status';
 import { naviguer } from '../../../../lib/navigation-app';
+// Formulaires et sous-pages ouverts d'ici reviennent à la fiche (lib/navigation).
+import { DEPUIS_CLIENT } from '../../../../lib/navigation';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
   if (!s) return null;
@@ -177,17 +179,17 @@ export default function ClientDetail() {
   const credit = solde < 0;
 
   const onLivrer = () =>
-    naviguer('/(livreur)/livraisons/nouvelle', { clientId: client.id });
+    naviguer('/(livreur)/livraisons/nouvelle', { clientId: client.id, depuis: DEPUIS_CLIENT });
 
   const onEncaisser = () => {
     // Mode CLIENT — la page lit le solde serveur et pré-remplit le montant.
     // Toujours possible : un paiement sans dû est une avance.
-    naviguer('/(livreur)/cash/encaisser', { clientId: client.id });
+    naviguer('/(livreur)/cash/encaisser', { clientId: client.id, depuis: DEPUIS_CLIENT });
   };
 
   // Retour produit : formulaire limité aux livraisons de ce client.
   const onRetourProduit = () =>
-    naviguer('/(livreur)/cash/retour-client', { clientId: client.id });
+    naviguer('/(livreur)/cash/retour-client', { clientId: client.id, depuis: DEPUIS_CLIENT });
 
   // Σ dû net (serveur, avant paiements) des livraisons filtrées.
   const totalLivFiltrees = livFiltrees.reduce((acc, l) => acc + num(l.montantDu), 0);
@@ -373,7 +375,7 @@ export default function ClientDetail() {
             return (
               <Pressable
                 onPress={() =>
-                  naviguer('/(livreur)/cash/retours', { clientId: client.id })
+                  naviguer('/(livreur)/cash/retours', { clientId: client.id, depuis: DEPUIS_CLIENT })
                 }
                 className="mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-3 active:opacity-70"
               >
@@ -522,7 +524,7 @@ export default function ClientDetail() {
             ) : (
               <View className="gap-2">
                 {livFiltrees.map((l) => (
-                  <LivraisonCard key={l.id} livraison={l} />
+                  <LivraisonCard key={l.id} livraison={l} depuisClient={client.id} />
                 ))}
               </View>
             )}

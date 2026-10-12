@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { naviguer, ouvrir, retourParent, revenirA } from '../../lib/navigation-app';
+import { naviguer, ouvrir, retourParent, revenirApresEnregistrement } from '../../lib/navigation-app';
 import { PageHeader } from '../../components/shared/PageHeader';
 import MesEncaissements from '../../app/(livreur)/cash/encaissements';
 import RetoursList from '../../app/(livreur)/cash/retours';
@@ -20,6 +20,7 @@ jest.mock('../../lib/navigation-app', () => ({
   ouvrir: jest.fn(),
   naviguer: jest.fn(),
   revenirA: jest.fn(),
+  revenirApresEnregistrement: jest.fn(),
   retourParent: jest.fn(),
 }));
 jest.mock('../../stores/authStore', () => {
@@ -171,7 +172,7 @@ describe('Reçu de reversement', () => {
     render(<NouveauReversement />);
     fireEvent.changeText(screen.getByPlaceholderText('0'), '300');
     fireEvent.press(screen.getByText(/^Reverser 300 FCFA$/));
-    expect(revenirA).toHaveBeenCalledWith('/(livreur)/cash/reversements');
+    expect(revenirApresEnregistrement).toHaveBeenCalledWith('/(livreur)/cash/reversements');
     const d = useDialogStore.getState();
     expect(d.open).toBe(true);
     expect(d.actions?.map((a) => a.label)).toEqual(['Partager le reçu', 'Fermer']);

@@ -11,6 +11,7 @@ import {
   ecranActif,
   normaliserHref,
   parentDe,
+  parentOrigine,
   trouverOnglets,
   trouverRoute,
   type ActionOnglets,
@@ -87,6 +88,16 @@ export function revenirA(href: string): void {
   if (action && ref) ref.dispatch(action);
   else if (normaliserHref(href).chemin === ACCUEIL) router.navigate('/(livreur)' as never);
   else router.dismissTo(hrefRouteur(href));
+}
+
+/**
+ * Après un enregistrement : retour à l'écran d'origine (`depuis`, ex. la
+ * fiche client) s'il est valide, sinon à la liste du module.
+ */
+export function revenirApresEnregistrement(liste: string): void {
+  const ecran = ecranActif(onglets());
+  const origine = ecran ? parentOrigine(ecran) : null;
+  revenirA(origine ?? liste);
 }
 
 /**

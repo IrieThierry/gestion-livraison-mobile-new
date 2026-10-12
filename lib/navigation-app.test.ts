@@ -1,5 +1,13 @@
 import { router } from 'expo-router';
-import { brancherNavigation, naviguer, ouvrir, retourParent, revenirA, type RefNavigation } from './navigation-app';
+import {
+  brancherNavigation,
+  naviguer,
+  ouvrir,
+  retourParent,
+  revenirA,
+  revenirApresEnregistrement,
+  type RefNavigation,
+} from './navigation-app';
 import type { EtatNavigateur, RouteEtat } from './navigation';
 
 jest.mock('expo-router', () => ({
@@ -100,12 +108,58 @@ describe('parcours de navigation (règle du parent logique)', () => {
     expect(affiche(ref).onglet).toBe('index');
   });
 
-  it('Encaisser depuis une fiche client → pile propre [Mes encaissements, Encaisser] ; après enregistrement : la liste', () => {
-    const ref = navigateur('clients', { clients: [{ name: 'index' }, { name: '[id]/index', params: { id: 'c1' } }] });
+  it('Encaisser depuis la liste des clients (sans origine) → [Mes encaissements, Encaisser] ; après enregistrement : la liste', () => {
+    const ref = navigateur('clients', { clients: [{ name: 'index' }] });
     naviguer('/(livreur)/cash/encaisser', { clientId: 'c1' });
     expect(affiche(ref)).toEqual({ onglet: 'cash', pile: ['encaissements', 'encaisser'] });
-    revenirA('/(livreur)/cash/encaissements');
+    revenirApresEnregistrement('/(livreur)/cash/encaissements');
     expect(affiche(ref)).toEqual({ onglet: 'cash', pile: ['encaissements'] });
+  });
+
+  it.each([
+    ['/(livreur)/cash/encaisser', 'encaisser'],
+    ['/(livreur)/livraisons/nouvelle', 'nouvelle'],
+    ['/(livreur)/cash/retour-client', 'retour-client'],
+  ])('%s depuis la fiche client : retour (flèche ou Android) et enregistrement → la fiche', (href, ecran) => {
+    const fiche = { name: '[id]/index', params: { id: 'c1' } };
+    const ref = navigateur('clients', { clients: [{ name: 'index' }, fiche] });
+    const cleFiche = affiche(ref) && ref.onglets().routes[1].state!.routes[1].key;
+    naviguer(href, { clientId: 'c1', depuis: 'client' });
+    expect(affiche(ref).pile).toEqual([ecran]);
+    expect(retourParent()).toBe(true);
+    expect(affiche(ref)).toEqual({ onglet: 'clients', pile: ['index', '[id]/index'] });
+    expect(ref.onglets().routes[1].state!.routes[1].key).toBe(cleFiche); // fiche conservée
+    naviguer(href, { clientId: 'c1', depuis: 'client' });
+    revenirApresEnregistrement('/(livreur)/cash/encaissements');
+    expect(affiche(ref)).toEqual({ onglet: 'clients', pile: ['index', '[id]/index'] });
+    // La fiche garde la liste des clients pour parent, puis l'Accueil.
+    retourParent();
+    expect(affiche(ref)).toEqual({ onglet: 'clients', pile: ['index'] });
+    retourParent();
+    expect(affiche(ref).onglet).toBe('index');
+  });
+
+  it('Modifier depuis la fiche : retour et enregistrement → la fiche', () => {
+    const ref = navigateur('clients', { clients: [{ name: 'index' }, { name: '[id]/index', params: { id: 'c1' } }] });
+    naviguer('/(livreur)/clients/[id]/modifier', { id: 'c1' });
+    expect(router.push).toHaveBeenCalledWith('/clients/c1/modifier');
+    const avecModifier = navigateur('clients', {
+      clients: [{ name: 'index' }, { name: '[id]/index', params: { id: 'c1' } }, { name: '[id]/modifier', params: { id: 'c1' } }],
+    });
+    retourParent();
+    expect(affiche(avecModifier).pile).toEqual(['index', '[id]/index']);
+    void ref;
+  });
+
+  it('Encours → Encaisser (depuis encours) : retour → Encours', () => {
+    const ref = navigateur('index');
+    ouvrir('/(livreur)/cash/encours');
+    naviguer('/(livreur)/cash/encaisser', { clientId: 'c1', depuis: 'encours' });
+    expect(router.push).toHaveBeenCalledWith({ pathname: '/cash/encaisser', params: { clientId: 'c1', depuis: 'encours' } });
+    const pile = navigateur('cash', { cash: [{ name: 'encours' }, { name: 'encaisser', params: { clientId: 'c1', depuis: 'encours' } }] });
+    retourParent();
+    expect(affiche(pile)).toEqual({ onglet: 'cash', pile: ['encours'] });
+    void ref;
   });
 
   it('apprenti : fiche commande → commandes à réceptionner', () => {

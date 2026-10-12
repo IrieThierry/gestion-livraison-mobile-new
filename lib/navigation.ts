@@ -44,7 +44,23 @@ export interface RouteApp {
    * l'écran) ; null pour l'Accueil.
    */
   parent: string | null | ((ctx: ContexteNavigation) => string);
+  /**
+   * Origines admises (paramètre `depuis`) : l'écran ouvert depuis un autre
+   * a pour parent cet autre écran (gabarit rempli avec ses paramètres). Seules
+   * ces valeurs sont acceptées : jamais une route arbitraire venue des paramètres.
+   */
+  origines?: Readonly<Partial<Record<Origine, string>>>;
 }
+
+/**
+ * Origines d'un écran (paramètre `depuis`) :
+ *  - `client` : ouvert depuis la fiche client (paramètre `clientId`) ;
+ *  - `encours` : ouvert depuis la liste Encours.
+ */
+export type Origine = 'client' | 'encours';
+export const DEPUIS_CLIENT = 'client' as const;
+export const DEPUIS_ENCOURS = 'encours' as const;
+const FICHE_CLIENT = '/clients/[clientId]';
 
 const listeCommandes = (ctx: ContexteNavigation) =>
   ctx.apprenti ? '/cash/commandes/a-receptionner' : '/cash/commandes';
@@ -60,21 +76,26 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   'clients/index': { type: 'liste', parent: ACCUEIL },
   'clients/map': { type: 'liste', parent: '/clients' },
   'clients/[id]/index': { type: 'fiche', parent: '/clients' },
-  'clients/[id]/modifier': { type: 'formulaire', parent: '/clients' },
-  'clients/[id]/prix': { type: 'formulaire', parent: '/clients' },
+  // Ouverts seulement depuis la fiche : elle est leur parent.
+  'clients/[id]/modifier': { type: 'formulaire', parent: '/clients/[id]' },
+  'clients/[id]/prix': { type: 'formulaire', parent: '/clients/[id]' },
   'clients/nouveau/index': { type: 'formulaire', parent: '/clients' },
   'clients/nouveau/localisation': { type: 'formulaire', parent: '/clients/nouveau' },
 
   'livraisons/index': { type: 'liste', parent: ACCUEIL },
-  'livraisons/[id]': { type: 'fiche', parent: '/livraisons' },
-  'livraisons/nouvelle': { type: 'formulaire', parent: '/livraisons' },
+  'livraisons/[id]': { type: 'fiche', parent: '/livraisons', origines: { client: FICHE_CLIENT } },
+  'livraisons/nouvelle': { type: 'formulaire', parent: '/livraisons', origines: { client: FICHE_CLIENT } },
   'livraisons/produits-vendus': { type: 'liste', parent: ACCUEIL },
 
   'cash/encaissements': { type: 'liste', parent: ACCUEIL },
-  'cash/encaisser': { type: 'formulaire', parent: '/cash/encaissements' },
+  'cash/encaisser': {
+    type: 'formulaire',
+    parent: '/cash/encaissements',
+    origines: { client: FICHE_CLIENT, encours: '/cash/encours' },
+  },
   'cash/encours': { type: 'liste', parent: ACCUEIL },
-  'cash/retours': { type: 'liste', parent: ACCUEIL },
-  'cash/retour-client': { type: 'formulaire', parent: '/cash/retours' },
+  'cash/retours': { type: 'liste', parent: ACCUEIL, origines: { client: FICHE_CLIENT } },
+  'cash/retour-client': { type: 'formulaire', parent: '/cash/retours', origines: { client: FICHE_CLIENT } },
   'cash/versements/index': { type: 'liste', parent: ACCUEIL },
   'cash/versement': { type: 'formulaire', parent: '/cash/versements' },
   'cash/commandes/index': { type: 'liste', parent: ACCUEIL },
@@ -227,10 +248,25 @@ export function ongletDe(fichier: string): string {
  * Parent logique d'un écran : chemin concret, `ACCUEIL`, ou null pour
  * l'Accueil lui-même. Un écran inconnu remonte à l'Accueil.
  */
+/**
+ * Parent donné par l'origine (`depuis`) de l'écran, s'il en a une valide :
+ * valeur admise par la table, gabarit entièrement rempli, écran connu.
+ */
+export function parentOrigine(cible: Cible): string | null {
+  const depuis = cible.params.depuis as Origine | undefined;
+  const gabarit = depuis ? ROUTES[cible.fichier]?.origines?.[depuis] : undefined;
+  if (!gabarit) return null;
+  const { chemin } = normaliserHref(gabarit, cible.params);
+  if (chemin.includes('[') || !trouverRoute(chemin)) return null;
+  return chemin;
+}
+
 export function parentDe(cible: Cible, ctx: ContexteNavigation): string | null {
   const route = ROUTES[cible.fichier];
   if (!route) return ACCUEIL;
   if (route.parent === null) return null;
+  const origine = parentOrigine(cible);
+  if (origine) return origine;
   const parent = typeof route.parent === 'function' ? route.parent(ctx) : route.parent;
   return normaliserHref(parent, cible.params).chemin;
 }
@@ -439,10 +475,12 @@ export function actionRevenirA(
   const onglet = onglets.routes.find((r) => r.name === nom);
   const actif = onglets.routes[onglets.index]?.name === nom;
   const pile = onglet?.state;
-  if (actif && onglet && pile && 'key' in pile) {
+  if (onglet && pile && 'key' in pile) {
     const entrees = aplatir(onglet);
-    // Le plus haut sous l'écran courant (pas l'écran courant lui-même).
-    for (let k = entrees.length - 2; k >= 0; k--) {
+    // Rubrique affichée : le plus haut sous l'écran courant (pas lui-même) ;
+    // autre rubrique (ex. retour à la fiche client) : sa pile est dépilée
+    // jusqu'à l'écran, qui garde son état, et la rubrique est affichée.
+    for (let k = entrees.length - (actif ? 2 : 1); k >= 0; k--) {
       const e = entrees[k];
       if (e.chemin !== chemin) continue;
       const routes = pile.routes.slice(0, e.i + 1).map((r, i) => {

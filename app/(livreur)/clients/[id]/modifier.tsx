@@ -60,7 +60,8 @@ export default function ModifierClient() {
   const quartiersQ = useQuartiers();
   const categoriesQ = useCategories();
   const m = useModifierClient();
-  const retourListe = useRetourListe('/(livreur)/clients');
+  // Après enregistrement : retour à la fiche du client (son parent logique).
+  const retourListe = useRetourListe(`/(livreur)/clients/${id}`);
 
   const client = useMemo<ClientResponse | undefined>(
     () => (qC.data ?? []).find((c) => c.id === id),

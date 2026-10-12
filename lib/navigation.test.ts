@@ -9,7 +9,10 @@ import {
   chaineOuverture,
   ecranActif,
   normaliserHref,
+  DEPUIS_CLIENT,
+  DEPUIS_ENCOURS,
   parentDe,
+  parentOrigine,
   pileDe,
   ROUTES,
   trouverOnglets,
@@ -102,7 +105,9 @@ describe('table des parents', () => {
   it('formulaire → sa liste, fiche → sa liste, liste → Accueil, Accueil → rien', () => {
     const p = (chemin: string, ctx = PRINCIPAL) => parentDe(trouverRoute(chemin)!, ctx);
     expect(p('/cash/commandes/nouvelle')).toBe('/cash/commandes');
-    expect(p('/clients/abc/modifier')).toBe('/clients');
+    expect(p('/clients/abc/modifier')).toBe('/clients/abc');
+    expect(p('/clients/abc/prix')).toBe('/clients/abc');
+    expect(p('/clients/abc')).toBe('/clients');
     expect(p('/cash/encaisser')).toBe('/cash/encaissements');
     expect(p('/cash/versement')).toBe('/cash/versements');
     expect(p('/livraisons/42')).toBe('/livraisons');
@@ -111,6 +116,23 @@ describe('table des parents', () => {
     for (const liste of ['/livraisons', '/clients', '/cash/encaissements', '/cash/encours', '/cash/depenses', '/previsions', '/profil'])
       expect(p(liste)).toBe(ACCUEIL);
     expect(p('/')).toBeNull();
+  });
+
+  it('origine (depuis) : fiche client ou Encours, validée par la table', () => {
+    const p = (chemin: string, params: Record<string, string>) => parentDe({ ...trouverRoute(chemin)!, params }, PRINCIPAL);
+    for (const ecran of ['/cash/encaisser', '/livraisons/nouvelle', '/cash/retour-client', '/cash/retours'])
+      expect(p(ecran, { clientId: 'c1', depuis: DEPUIS_CLIENT })).toBe('/clients/c1');
+    expect(p('/livraisons/42', { id: '42', clientId: 'c1', depuis: 'client' })).toBe('/clients/c1');
+    expect(p('/cash/encaisser', { clientId: 'c1', depuis: DEPUIS_ENCOURS })).toBe('/cash/encours');
+    // Sans origine, origine inconnue, non admise ou incomplète : parent de la table.
+    expect(p('/cash/encaisser', { clientId: 'c1' })).toBe('/cash/encaissements');
+    expect(p('/cash/encaisser', { clientId: 'c1', depuis: '/profil/password' })).toBe('/cash/encaissements');
+    expect(p('/livraisons/nouvelle', { clientId: 'c1', depuis: 'encours' })).toBe('/livraisons');
+    expect(p('/cash/encaisser', { depuis: 'client' })).toBe('/cash/encaissements');
+    // Un identifiant ne peut pas sortir de la fiche client : il est encodé en un seul segment.
+    expect(parentOrigine({ fichier: 'cash/encaisser', params: { clientId: '../profil', depuis: 'client' } })).toBe('/clients/..%2Fprofil');
+    // La fiche client garde la liste des clients pour parent.
+    expect(p('/clients/c1', { id: 'c1', depuis: 'encours' })).toBe('/clients');
   });
 
   it('les segments fixes priment ; groupe et paramètres normalisés', () => {
