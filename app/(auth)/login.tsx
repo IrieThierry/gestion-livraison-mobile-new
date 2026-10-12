@@ -17,6 +17,20 @@ import { useAuthStore } from '../../stores/authStore';
 import { Biometric } from '../../lib/biometric';
 import { SecureStorage } from '../../lib/secure-storage';
 import { dialog } from '../../lib/dialog';
+import * as Network from 'expo-network';
+import { messageErreurConnexion } from '../../features/auth/erreurConnexion';
+import { useNetworkStore } from '../../stores/networkStore';
+
+/** Téléphone hors ligne ? (le suivi du réseau ne démarre qu'après connexion : on interroge expo-network). */
+async function estHorsLigne(): Promise<boolean> {
+  if (!useNetworkStore.getState().isOnline) return true;
+  try {
+    const etat = await Network.getNetworkStateAsync();
+    return etat.isConnected === false || etat.isInternetReachable === false;
+  } catch {
+    return false;
+  }
+}
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -59,9 +73,10 @@ export default function Login() {
 
       router.replace('/(livreur)');
     },
-    onError: (e: unknown) => {
-      const err = e as { response?: { data?: { message?: string } } };
-      dialog.error('Erreur', err.response?.data?.message ?? 'Identifiants incorrects');
+    onError: async (e: unknown) => {
+      const sansReponse = !(e as { response?: unknown })?.response;
+      const horsLigne = sansReponse ? await estHorsLigne() : false;
+      dialog.error('Connexion impossible', messageErreurConnexion(e, { horsLigne }));
     },
   });
 

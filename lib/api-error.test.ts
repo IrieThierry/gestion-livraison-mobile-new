@@ -1,4 +1,4 @@
-import { extractApiErrorMessage } from './api-error'
+import { estRouteAuth, extractApiErrorMessage } from './api-error'
 
 const apiErr = (status: number, message: unknown) => ({ response: { status, data: { success: false, message } } })
 
@@ -25,5 +25,16 @@ describe('extractApiErrorMessage', () => {
 
   it('traduit les doublons SQL', () => {
     expect(extractApiErrorMessage(apiErr(500, 'duplicate key ... username'))).toMatch(/nom d'utilisateur/)
+  })
+})
+
+describe('estRouteAuth', () => {
+  it('connexion, inscription et rafraîchissement : pas de rafraîchissement du jeton sur 401', () => {
+    expect(estRouteAuth('/auth/login')).toBe(true)
+    expect(estRouteAuth('http://h/api/auth/register')).toBe(true)
+    expect(estRouteAuth('/auth/refresh')).toBe(true)
+    expect(estRouteAuth('/auth/me')).toBe(false)
+    expect(estRouteAuth('/livraisons')).toBe(false)
+    expect(estRouteAuth(undefined)).toBe(false)
   })
 })
