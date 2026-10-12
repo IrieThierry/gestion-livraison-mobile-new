@@ -10,6 +10,7 @@ import { useRetours } from '../../features/retours/hooks';
 import { useReversementsListe, useEnregistrerReversement } from '../../features/reversements/hooks';
 import { useDialogStore } from '../../stores/dialogStore';
 import { partagerRecu } from '../../features/reversements/partageRecu';
+import { chargerDetailRecu } from '../../features/reversements/recuDonnees';
 
 jest.mock('expo-router', () => ({
   usePathname: () => '/cash/encaissements',
@@ -57,6 +58,8 @@ jest.mock('../../features/reversements/hooks', () => ({
   useEnregistrerReversement: jest.fn(),
 }));
 jest.mock('../../features/reversements/partageRecu', () => ({ partagerRecu: jest.fn(() => Promise.resolve('uri')) }));
+const DETAIL = { type: 'client', lignes: [], totaux: { qteVendue: 0, qteRetournee: 0, qteNette: 0, montant: 0, remise: 0 } };
+jest.mock('../../features/reversements/recuDonnees', () => ({ chargerDetailRecu: jest.fn() }));
 
 const reversement = {
   id: 'rev-1',
@@ -74,6 +77,7 @@ const reversement = {
 beforeEach(() => {
   jest.clearAllMocks();
   useDialogStore.getState().hide?.();
+  (chargerDetailRecu as jest.Mock).mockResolvedValue(DETAIL);
 });
 
 describe('PageHeader : flèche retour = parent logique', () => {
@@ -164,7 +168,24 @@ describe('Reçu de reversement', () => {
         nomFichier: 'Recu-reversement_Marie-Kouassi_2026-10-08.pdf',
         beneficiaire: { nom: 'Marie Kouassi', qualite: 'Client' },
         payeur: { nom: 'Ahmed Koné', qualite: 'Livreur' },
+        detail: DETAIL,
       }),
+    );
+    // Détail lu pour le livreur connecté (livreur principal).
+    expect(chargerDetailRecu).toHaveBeenCalledWith(reversement, { id: 'liv-1', parentId: null });
+    expect(useDialogStore.getState().open).toBe(false);
+  });
+
+  it('détail illisible : reçu généré quand même avec « Détail indisponible », puis message', async () => {
+    (chargerDetailRecu as jest.Mock).mockRejectedValue(new Error('Network Error'));
+    (useReversementsListe as jest.Mock).mockReturnValue(lecture([reversement]));
+    render(<ReversementsHistorique />);
+    fireEvent.press(screen.getByLabelText('Partager le reçu'));
+    await waitFor(() => expect(partagerRecu).toHaveBeenCalledWith(expect.objectContaining({ detail: { type: 'indisponible' } })));
+    await waitFor(() => expect(useDialogStore.getState().open).toBe(true));
+    expect(useDialogStore.getState().title).toBe('Détail indisponible');
+    expect(useDialogStore.getState().message).toBe(
+      'Détail indisponible : le reçu a été généré sans le détail de la période.',
     );
   });
 

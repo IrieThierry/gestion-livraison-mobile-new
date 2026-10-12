@@ -4,6 +4,7 @@ import { assainirSegment } from '../etats/nomFichier';
 import { formatJour } from '../etats/periode';
 import { formatMontant } from '../../lib/format';
 import type { ReversementRecord, UUID } from '../../types/api';
+import { DETAIL_AUCUN, tableauDetail, type DetailRecu, type TableauDetail } from './recuDetail';
 
 /**
  * Reçu de reversement (même contenu que le web, features/reversements/recu.ts).
@@ -95,12 +96,15 @@ export interface RecuReversement {
   editeLe: string;
   /** Avec l'extension `.pdf`. */
   nomFichier: string;
+  /** Détail de la période (tableau sous le montant). */
+  detail: DetailRecu;
 }
 
 export function recuReversement(
   r: ReversementRecord,
   parties: { beneficiaire: PartieRecu; payeur: PartieRecu },
   editeLe: Date = new Date(),
+  detail: DetailRecu = DETAIL_AUCUN,
 ): RecuReversement {
   const mois = r.periodeMois ? MOIS[r.periodeMois - 1] : undefined;
   return {
@@ -117,6 +121,7 @@ export function recuReversement(
     editeLe: formatEdition(editeLe),
     // Bénéficiaire inconnu : « Non-precise », comme le web.
     nomFichier: nomFichierRecu(parties.beneficiaire.nom, r.dateReversement),
+    detail,
   };
 }
 
@@ -149,16 +154,47 @@ const STYLE = `
   .app { color: #059669; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
   h1 { font-size: 20px; margin: 2px 0 0; }
   table { width: 100%; border-collapse: collapse; }
-  th { text-align: left; width: 38%; color: #475569; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }
-  td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-weight: 700; }
+  table.champs th { text-align: left; width: 38%; color: #475569; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }
+  table.champs td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-weight: 700; }
+  h2 { font-size: 13px; margin: 0 0 6px; color: #0f172a; }
+  table.detail { font-size: 10.5px; margin-bottom: 8px; }
+  table.detail thead { display: table-header-group; }
+  table.detail tfoot { display: table-row-group; }
+  table.detail tr { page-break-inside: avoid; break-inside: avoid; }
+  table.detail th { background: #f1f5f9; color: #334155; font-weight: 700; text-align: left; padding: 5px 6px; border-bottom: 1px solid #cbd5e1; }
+  table.detail td { padding: 4px 6px; border-bottom: 1px solid #e2e8f0; }
+  table.detail .d { text-align: right; white-space: nowrap; }
+  table.detail tr.sous-total td { font-weight: 700; background: #f8fafc; }
+  table.detail tr.total td { font-weight: 800; border-top: 2px solid #10b981; }
+  .vide { color: #64748b; font-style: italic; padding: 6px 0 10px; }
   .montant { margin: 18px 0; border: 2px solid #10b981; border-radius: 6px; padding: 12px; display: flex; justify-content: space-between; align-items: center; }
   .montant .l { color: #475569; text-transform: uppercase; font-size: 11px; font-weight: 700; }
   .montant .v { font-size: 22px; font-weight: 800; }
   .mention { background: #f1f5f9; border-left: 3px solid #64748b; padding: 8px 10px; color: #334155; margin-bottom: 16px; }
-  .signatures { display: flex; gap: 24px; margin-top: 28px; }
+  .signatures { display: flex; gap: 24px; margin-top: 28px; page-break-inside: avoid; break-inside: avoid; }
   .signature { flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; height: 110px; padding: 8px; color: #475569; font-size: 11px; }
   footer { margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 6px; color: #64748b; font-size: 10px; }
 `;
+
+/**
+ * HTML du tableau de détail : en-tête répété sur chaque page et lignes jamais
+ * coupées (pagination du PDF par `expo-print`). Sans ligne : le texte `vide`.
+ */
+export function genererHtmlDetail(t: TableauDetail): string {
+  const titre = `<h2>${echapperHtml(t.titre)}</h2>`;
+  if (t.lignes.length === 0 || t.colonnes.length === 0) {
+    return `<section class="detail">${titre}<p class="vide">${echapperHtml(t.vide)}</p></section>`;
+  }
+  const cellule = (balise: 'th' | 'td', texte: string, i: number) =>
+    `<${balise}${t.colonnes[i]?.droite ? ' class="d"' : ''}>${echapperHtml(texte)}</${balise}>`;
+  const sousTotaux = new Set(t.sousTotaux);
+  const tete = `<thead><tr>${t.colonnes.map((c, i) => cellule('th', c.libelle, i)).join('')}</tr></thead>`;
+  const corps = t.lignes
+    .map((l, k) => `<tr${sousTotaux.has(k) ? ' class="sous-total"' : ''}>${l.map((v, i) => cellule('td', v, i)).join('')}</tr>`)
+    .join('');
+  const pied = t.totaux ? `<tfoot><tr class="total">${t.totaux.map((v, i) => cellule('td', v, i)).join('')}</tr></tfoot>` : '';
+  return `<section class="detail">${titre}<table class="detail">${tete}<tbody>${corps}</tbody>${pied}</table></section>`;
+}
 
 /** HTML du reçu, converti en PDF par `expo-print`. Tout texte est échappé. */
 export function genererHtmlRecu(recu: RecuReversement): string {
@@ -179,8 +215,9 @@ export function genererHtmlRecu(recu: RecuReversement): string {
 <div class="app">${echapperHtml(recu.application)}</div>
 <h1>${echapperHtml(recu.titre)}</h1>
 </header>
-<table>${lignes}</table>
+<table class="champs">${lignes}</table>
 <div class="montant"><span class="l">Montant</span><span class="v">${echapperHtml(montantRecu(recu.montant))}</span></div>
+${genererHtmlDetail(tableauDetail(recu.detail))}
 ${mention}<div class="signatures">${SIGNATURES_RECU.map((s) => `<div class="signature">${echapperHtml(s)}</div>`).join('')}</div>
 <footer>Édité le ${echapperHtml(recu.editeLe)}</footer>
 </body>

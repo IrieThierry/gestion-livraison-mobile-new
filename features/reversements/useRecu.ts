@@ -15,6 +15,8 @@ import {
   type PartieRecu,
 } from './recu';
 import { partagerRecu } from './partageRecu';
+import { chargerDetailRecu } from './recuDonnees';
+import { DETAIL_EN_ECHEC, MESSAGE_DETAIL_INDISPONIBLE, type DetailRecu } from './recuDetail';
 
 /**
  * Annuaire des noms connus du livreur connecté pour éditer un reçu : ses
@@ -51,25 +53,44 @@ export function useAnnuaireRecu(): AnnuaireRecu {
  * Partage du reçu d'un reversement (PDF + fenêtre de partage). `connu`
  * complète l'annuaire avec un nom déjà affiché à l'écran (ex. le bénéficiaire
  * choisi dans la synthèse). Un double appui n'ouvre qu'un partage.
+ *
+ * Le détail de la période est lu au moment du partage (`chargerDetailRecu`) ;
+ * si la lecture échoue, le reçu est quand même généré avec « Détail
+ * indisponible » et un message s'affiche après le partage.
  */
 export function usePartagerRecu() {
   const annuaire = useAnnuaireRecu();
+  const user = useAuthStore((s) => s.user);
   const verrou = useRef(creerVerrou()).current;
   return useCallback(
     (r: ReversementRecord, connu?: { beneficiaire?: string; payeur?: string }) => {
       lancerUneFois(verrou, (fin) => {
         // Tout dans la promesse : une erreur synchrone (donnée inattendue)
         // est affichée et le verrou est toujours libéré.
+        let indisponible = false;
         Promise.resolve()
-          .then(() => {
+          .then(async () => {
             const parties = partiesReversement(r, annuaire);
             const completer = (p: PartieRecu, nom?: string): PartieRecu =>
               nom && p.nom === NON_PRECISE ? { ...p, nom } : p;
-            const recu = recuReversement(r, {
-              beneficiaire: completer(parties.beneficiaire, connu?.beneficiaire),
-              payeur: completer(parties.payeur, connu?.payeur),
+            const detail: DetailRecu = await (user
+              ? chargerDetailRecu(r, { id: user.id, parentId: user.parentId ?? null })
+              : Promise.reject(new Error('Session absente'))
+            ).catch(() => {
+              indisponible = true;
+              return DETAIL_EN_ECHEC;
             });
-            return partagerRecu(recu);
+            const recu = recuReversement(
+              r,
+              {
+                beneficiaire: completer(parties.beneficiaire, connu?.beneficiaire),
+                payeur: completer(parties.payeur, connu?.payeur),
+              },
+              new Date(),
+              detail,
+            );
+            await partagerRecu(recu);
+            if (indisponible) dialog.warning('Détail indisponible', MESSAGE_DETAIL_INDISPONIBLE);
           })
           .catch((e: unknown) =>
             dialog.error(
@@ -80,6 +101,6 @@ export function usePartagerRecu() {
           .finally(fin);
       });
     },
-    [annuaire, verrou],
+    [annuaire, user, verrou],
   );
 }

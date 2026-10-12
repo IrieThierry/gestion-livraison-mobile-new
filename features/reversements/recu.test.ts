@@ -3,6 +3,7 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import {
   champsRecu,
+  genererHtmlDetail,
   genererHtmlRecu,
   MENTION_INFORMATIF,
   montantRecu,
@@ -147,5 +148,48 @@ describe('partagerRecu', () => {
     const uri = await partagerRecu(recuReversement(r, partiesReversement(r, annuaire), editeLe));
     expect(uri).toBe('file:///cache/Recu-reversement_Marie-Kouassi_2026-10-08.pdf');
     expect(Sharing.shareAsync).toHaveBeenCalledWith(uri, expect.objectContaining({ mimeType: 'application/pdf' }));
+  });
+});
+
+describe('reçu de reversement : détail de la période', () => {
+  const detail = {
+    type: 'client' as const,
+    lignes: [{ produitId: 'p', designation: 'Pain <bio>', qteVendue: 10, qteRetournee: 2, qteNette: 8, montant: 880, remise: 80 }],
+    totaux: { qteVendue: 10, qteRetournee: 2, qteNette: 8, montant: 880, remise: 80 },
+  };
+
+  it('tableau sous le montant : en-tête répété sur chaque page, total en pied, texte échappé', () => {
+    const recu = recuReversement(reversement({}), partiesReversement(reversement({}), annuaire), editeLe, detail);
+    expect(recu.detail).toBe(detail);
+    const html = espaces(genererHtmlRecu(recu));
+    expect(html.indexOf('Détail sur la période')).toBeGreaterThan(html.indexOf('class="montant"'));
+    expect(html.indexOf('Détail sur la période')).toBeLessThan(html.indexOf('Signature du bénéficiaire'));
+    expect(html).toContain('thead { display: table-header-group; }');
+    expect(html).toContain('<th>Produit</th><th class="d">Qté vendue</th><th class="d">Qté retournée</th>');
+    expect(html).toContain('<td>Pain &lt;bio&gt;</td><td class="d">10</td><td class="d">2</td><td class="d">8</td><td class="d">880 F CFA</td><td class="d">80 F CFA</td>');
+    expect(html).toContain('<tfoot><tr class="total"><td>Total</td>');
+  });
+
+  it('sans détail : « Aucun détail sur la période » ; lecture en échec : « Détail indisponible »', () => {
+    const parties = partiesReversement(reversement({}), annuaire);
+    expect(recuReversement(reversement({}), parties, editeLe).detail).toEqual({ type: 'aucun' });
+    expect(genererHtmlRecu(recuReversement(reversement({}), parties, editeLe))).toContain(
+      '<p class="vide">Aucun détail sur la période</p>',
+    );
+    expect(genererHtmlRecu(recuReversement(reversement({}), parties, editeLe, { type: 'indisponible' }))).toContain(
+      '<p class="vide">Détail indisponible</p>',
+    );
+  });
+
+  it('livreur : lignes de sous-total marquées', () => {
+    const html = genererHtmlDetail({
+      titre: 'Détail sur la période',
+      colonnes: [{ libelle: 'Commande', droite: false }, { libelle: 'Qté', droite: true }],
+      lignes: [['CMD-1', '2'], ['Sous-total CMD-1', '2']],
+      sousTotaux: [1],
+      totaux: ['Total', '2'],
+      vide: 'Aucun détail sur la période',
+    });
+    expect(html).toContain('<tr><td>CMD-1</td><td class="d">2</td></tr><tr class="sous-total"><td>Sous-total CMD-1</td>');
   });
 });
