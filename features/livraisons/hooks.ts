@@ -33,6 +33,15 @@ export function useLivraisonsByLivreur(livreurId: UUID | undefined) {
   });
 }
 
+/** Livraisons du livreur sur une période (Mes livraisons) : `debut` / `fin` envoyés à la route. */
+export function useLivraisonsLivreurPeriode(livreurId: UUID | undefined, bornes: { debut?: string; fin?: string }) {
+  return useQuery({
+    queryKey: livraisonKeys.byLivreurPeriode(livreurId ?? '', bornes.debut, bornes.fin),
+    queryFn: () => livraisonsApi.byLivreur(livreurId as UUID, bornes),
+    enabled: !!livreurId,
+  });
+}
+
 /**
  * Création d'une livraison. Côté back, ça déclenche :
  *  - insertion `livraison` + `produit_livraison` (avec marge cristallisée)

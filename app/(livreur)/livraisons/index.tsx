@@ -8,7 +8,7 @@ import {
   TextInput,
 } from 'react-native';
 import { Search, X, ChevronLeft, Plus } from 'lucide-react-native';
-import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
+import { useLivraisonsLivreurPeriode } from '../../../features/livraisons/hooks';
 import { useAuthStore } from '../../../stores/authStore';
 import { LivraisonCard } from '../../../components/livreur/LivraisonCard';
 import { EmptyState } from '../../../components/shared/EmptyState';
@@ -17,37 +17,43 @@ import { isEncaissee } from '../../../lib/livraison-status';
 import { num, totalMontantDu, totalRemiseNette } from '../../../features/encaissements/regles';
 import type { LivraisonResponse } from '../../../types/api';
 import { naviguer, retourParent } from '../../../lib/navigation-app';
+import { FiltrePeriode } from '../../../components/shared/FiltrePeriode';
+import {
+  aujourdhui,
+  bornesPeriode,
+  dansBornes,
+  derniersJours,
+  estPeriodePerso,
+  type OptionPeriode,
+  type ValeurPeriode,
+} from '../../../lib/periode';
 
-type Period = 'today' | 'week' | 'month' | 'all';
+type Raccourci = 'today' | '7j' | '30j';
 
-const PERIOD_LABELS: Record<Period, string> = {
-  today: "Aujourd'hui",
-  week: 'Semaine',
-  month: 'Mois',
-  all: 'Tous',
-};
-
-function inPeriod(d: Date, p: Period): boolean {
-  const now = new Date();
-  if (p === 'today') return d.toDateString() === now.toDateString();
-  if (p === 'all') return true;
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  if (p === 'week') start.setDate(now.getDate() - 7);
-  else if (p === 'month') start.setMonth(now.getMonth() - 1);
-  return d >= start;
-}
+/**
+ * Période de la liste (Aujourd'hui par défaut) : envoyée à la route
+ * (`debut` / `fin`) ; elle filtre la liste, les compteurs et la recherche.
+ */
+const PERIODES: ReadonlyArray<OptionPeriode<Raccourci>> = [
+  { cle: 'today', label: "Aujourd'hui", bornes: aujourdhui },
+  { cle: '7j', label: '7 j', bornes: (n) => derniersJours(7, n) },
+  { cle: '30j', label: '30 j', bornes: (n) => derniersJours(30, n) },
+];
 
 export default function LivraisonsList() {
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
-  const q = useLivraisonsByLivreur(livreurId);
-  const [period, setPeriod] = useState<Period>('today');
+  const [period, setPeriod] = useState<ValeurPeriode<Raccourci>>({ cle: 'today' });
+  // Bornes recalculées à chaque rendu (jour courant) ; la clé de requête ne change qu'avec elles.
+  const bornes = bornesPeriode(period, PERIODES);
+  const q = useLivraisonsLivreurPeriode(livreurId, bornes);
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState('');
 
+  const { debut, fin } = bornes;
   const filtered = useMemo<LivraisonResponse[]>(() => {
-    let list = (q.data ?? []).filter((l) => inPeriod(new Date(l.date), period));
+    // Le back filtre déjà ; le filtre local garde la liste cohérente avec la pastille.
+    let list = (q.data ?? []).filter((l) => dansBornes(l.date, { debut, fin }));
     if (search.trim()) {
       const needle = search.toLowerCase();
       list = list.filter(
@@ -60,7 +66,7 @@ export default function LivraisonsList() {
     return [...list].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );
-  }, [q.data, period, search]);
+  }, [q.data, debut, fin, search]);
 
   const stats = useMemo(() => {
     // Badge à deux états (E8) : « Encaissée » dès un paiement, même partiel.
@@ -80,7 +86,7 @@ export default function LivraisonsList() {
   if (!user) return null;
 
   const subtitle = `${filtered.length} livraison${filtered.length > 1 ? 's' : ''}${
-    period === 'today' ? " aujourd'hui" : ''
+    !estPeriodePerso(period) && period.cle === 'today' ? " aujourd'hui" : ''
   }`;
 
   return (
@@ -179,33 +185,10 @@ export default function LivraisonsList() {
             </View>
           </View>
 
-          {/* Period pills */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator
-            contentContainerStyle={{ gap: 8, paddingTop: 4, paddingBottom: 4 }}
-            className="mt-3"
-          >
-            {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
-              <Pressable
-                key={p}
-                onPress={() => setPeriod(p)}
-                className={`px-4 py-2 rounded-md ${
-                  period === p
-                    ? 'bg-emerald-500'
-                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
-                }`}
-              >
-                <Text
-                  className={`text-[12px] font-bold ${
-                    period === p ? 'text-white' : 'text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  {PERIOD_LABELS[p]}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          {/* Période : Aujourd'hui / 7 j / 30 j / Période… */}
+          <View className="mt-3">
+            <FiltrePeriode options={PERIODES} valeur={period} defaut="today" onChange={setPeriod} titre={null} />
+          </View>
 
           {/* Section title */}
           <Text className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 dark:text-slate-400 mt-4 mb-2">

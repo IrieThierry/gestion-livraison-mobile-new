@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ScrollView, View, Text, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
-import { ListFilter, X } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { SelectField } from '../../../components/shared/SelectField';
@@ -8,49 +8,43 @@ import { ProduitVignette } from '../../../components/shared/ProduitVignette';
 import { useProduits } from '../../../features/produits/hooks';
 import { useMouvementsStock } from '../../../features/stock/hooks';
 import { libelleQuantiteMouvement, libelleTypeMouvement } from '../../../features/stock/regles';
-import { derniersJours, moisEnCours } from '../../../features/retours/api';
+import { FiltrePeriode } from '../../../components/shared/FiltrePeriode';
+import {
+  bornesPeriode,
+  derniersJours,
+  moisEnCours,
+  type OptionPeriode,
+  type ValeurPeriode,
+} from '../../../lib/periode';
 import { useAuthStore } from '../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import { formatDateLong, formatTime } from '../../../lib/format';
 
-type Periode = 'mois' | '30j' | '90j' | 'all';
+type Raccourci = 'mois' | '30j' | '90j';
 
-const PERIODES: Array<{ key: Periode; label: string }> = [
-  { key: 'mois', label: 'Ce mois' },
-  { key: '30j', label: '30 jours' },
-  { key: '90j', label: '90 jours' },
-  { key: 'all', label: 'Tout' },
+/** Raccourcis de période (mois en cours par défaut) ; « Période… » : Du / Au (FiltrePeriode). */
+const PERIODES: ReadonlyArray<OptionPeriode<Raccourci>> = [
+  { cle: 'mois', label: 'Ce mois', bornes: moisEnCours },
+  { cle: '30j', label: '30 jours', bornes: (n) => derniersJours(30, n) },
+  { cle: '90j', label: '90 jours', bornes: (n) => derniersJours(90, n) },
 ];
-
-function bornes(periode: Periode): { debut?: string; fin?: string } {
-  switch (periode) {
-    case 'mois':
-      return moisEnCours();
-    case '30j':
-      return derniersJours(30);
-    case '90j':
-      return derniersJours(90);
-    default:
-      return {};
-  }
-}
 
 /**
  * Mouvements de stock du livreur connecté (`GET /stock-livreur/{id}/historique`) :
  * réceptions, transferts reçus et envoyés, livraisons, retours remis en stock.
  * Journal lu à la volée, du plus récent au plus ancien ; quantité signée.
- * Filtres : période (mois en cours par défaut) et produit.
+ * Filtres : période (mois en cours par défaut, « Période… » Du / Au) et produit.
  */
 export default function MouvementsStock() {
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
 
-  const [periode, setPeriode] = useState<Periode>('mois');
+  const [periode, setPeriode] = useState<ValeurPeriode<Raccourci>>({ cle: 'mois' });
   const [produitId, setProduitId] = useState<string | null>(null);
 
   const qProduits = useProduits();
   const filtres = useMemo(
-    () => ({ ...bornes(periode), ...(produitId ? { produitId } : {}) }),
+    () => ({ ...bornesPeriode(periode, PERIODES), ...(produitId ? { produitId } : {}) }),
     [periode, produitId],
   );
   const q = useMouvementsStock(livreurId, filtres);
@@ -84,21 +78,8 @@ export default function MouvementsStock() {
         }
       >
         <View className="px-4 pt-3">
-          <View className="flex-row items-center gap-1.5 mb-2">
-            <ListFilter color="#64748b" size={12} />
-            <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
-              Période
-            </Text>
-          </View>
-          <View className="flex-row gap-2 mb-3">
-            {PERIODES.map((p) => (
-              <FilterChip
-                key={p.key}
-                active={periode === p.key}
-                label={p.label}
-                onPress={() => setPeriode(p.key)}
-              />
-            ))}
+          <View className="mb-3">
+            <FiltrePeriode options={PERIODES} valeur={periode} defaut="mois" onChange={setPeriode} />
           </View>
 
           <View className="flex-row items-end gap-2">
@@ -202,34 +183,5 @@ export default function MouvementsStock() {
         </View>
       </ScrollView>
     </View>
-  );
-}
-
-function FilterChip({
-  active,
-  label,
-  onPress,
-}: {
-  active: boolean;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      className={`px-3 py-1.5 rounded-md border ${
-        active
-          ? 'bg-emerald-500 border-emerald-500'
-          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-      }`}
-    >
-      <Text
-        className={`text-[12px] font-bold ${
-          active ? 'text-white' : 'text-slate-700 dark:text-slate-300'
-        }`}
-      >
-        {label}
-      </Text>
-    </Pressable>
   );
 }

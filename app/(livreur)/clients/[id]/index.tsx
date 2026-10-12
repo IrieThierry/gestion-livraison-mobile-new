@@ -22,7 +22,6 @@ import {
   ChevronDown,
   ChevronUp,
   Info as InfoIcon,
-  ListFilter,
   Pencil,
   RotateCcw,
 } from 'lucide-react-native';
@@ -42,6 +41,14 @@ import { isEncaissee, isAEncaisser } from '../../../../lib/livraison-status';
 import { naviguer } from '../../../../lib/navigation-app';
 // Formulaires et sous-pages ouverts d'ici reviennent à la fiche (lib/navigation).
 import { DEPUIS_CLIENT } from '../../../../lib/navigation';
+import { FiltrePeriode } from '../../../../components/shared/FiltrePeriode';
+import {
+  bornesPeriode,
+  dansBornes,
+  derniersJours,
+  type OptionPeriode,
+  type ValeurPeriode,
+} from '../../../../lib/periode';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
   if (!s) return null;
@@ -50,15 +57,15 @@ function parseLatLng(s: string | null | undefined): { lat: number; lng: number }
   return null;
 }
 
-type Periode = '7j' | '30j' | '90j' | 'all';
+type Raccourci = '7j' | '30j' | '90j';
 /** Badge à deux états (E8), plus « reste dû » (`entierementPayee` serveur). */
 type LivraisonStatut = 'all' | 'NON_ENCAISSEE' | 'ENCAISSEE' | 'RESTE_DU';
 
-const PERIODES: Array<{ key: Periode; label: string; days: number | null }> = [
-  { key: '7j', label: '7 jours', days: 7 },
-  { key: '30j', label: '30 jours', days: 30 },
-  { key: '90j', label: '90 jours', days: 90 },
-  { key: 'all', label: 'Tout', days: null },
+/** Raccourcis de période (30 jours par défaut) ; « Période… » : Du / Au (FiltrePeriode). Filtrage local. */
+const PERIODES: ReadonlyArray<OptionPeriode<Raccourci>> = [
+  { cle: '7j', label: '7 jours', bornes: (n) => derniersJours(7, n) },
+  { cle: '30j', label: '30 jours', bornes: (n) => derniersJours(30, n) },
+  { cle: '90j', label: '90 jours', bornes: (n) => derniersJours(90, n) },
 ];
 
 /**
@@ -92,8 +99,8 @@ export default function ClientDetail() {
   const [openLiv, setOpenLiv] = useState(false);
   const [openEnc, setOpenEnc] = useState(false);
 
-  const [periodeLiv, setPeriodeLiv] = useState<Periode>('30j');
-  const [periodeEnc, setPeriodeEnc] = useState<Periode>('30j');
+  const [periodeLiv, setPeriodeLiv] = useState<ValeurPeriode<Raccourci>>({ cle: '30j' });
+  const [periodeEnc, setPeriodeEnc] = useState<ValeurPeriode<Raccourci>>({ cle: '30j' });
   const [statutLiv, setStatutLiv] = useState<LivraisonStatut>('all');
 
   const client = useMemo(
@@ -125,12 +132,9 @@ export default function ClientDetail() {
   const solde = num(encours?.solde);
 
   const livFiltrees = useMemo(() => {
-    const now = Date.now();
-    const days = PERIODES.find((p) => p.key === periodeLiv)?.days ?? null;
+    const bornes = bornesPeriode(periodeLiv, PERIODES);
     return livraisonsClient.filter((l) => {
-      if (days !== null && now - new Date(l.date).getTime() > days * 86_400_000) {
-        return false;
-      }
+      if (!dansBornes(l.date, bornes)) return false;
       if (statutLiv === 'all') return true;
       if (statutLiv === 'ENCAISSEE') return isEncaissee(l);
       if (statutLiv === 'NON_ENCAISSEE') return !isEncaissee(l);
@@ -140,14 +144,9 @@ export default function ClientDetail() {
   }, [livraisonsClient, periodeLiv, statutLiv]);
 
   const encFiltres = useMemo(() => {
-    const now = Date.now();
-    const days = PERIODES.find((p) => p.key === periodeEnc)?.days ?? null;
-    return encaissementsClient.filter((e) => {
-      if (days !== null && e.dateEncaissement) {
-        return now - new Date(e.dateEncaissement).getTime() <= days * 86_400_000;
-      }
-      return true;
-    });
+    const bornes = bornesPeriode(periodeEnc, PERIODES);
+    // Sans date d'encaissement : gardé (comme avant).
+    return encaissementsClient.filter((e) => !e.dateEncaissement || dansBornes(e.dateEncaissement, bornes));
   }, [encaissementsClient, periodeEnc]);
 
   if (!user) return null;
@@ -463,21 +462,8 @@ export default function ClientDetail() {
             onToggle={() => setOpenLiv((v) => !v)}
           >
             {/* Filtres période */}
-            <View className="flex-row items-center gap-1.5 mb-2">
-              <ListFilter color="#64748b" size={12} />
-              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
-                Période
-              </Text>
-            </View>
-            <View className="flex-row gap-2 mb-3">
-              {PERIODES.map((p) => (
-                <FilterChip
-                  key={`L_${p.key}`}
-                  active={periodeLiv === p.key}
-                  label={p.label}
-                  onPress={() => setPeriodeLiv(p.key)}
-                />
-              ))}
+            <View className="mb-3">
+              <FiltrePeriode options={PERIODES} valeur={periodeLiv} defaut="30j" onChange={setPeriodeLiv} />
             </View>
 
             {/* Filtres statut */}
@@ -541,21 +527,8 @@ export default function ClientDetail() {
             open={openEnc}
             onToggle={() => setOpenEnc((v) => !v)}
           >
-            <View className="flex-row items-center gap-1.5 mb-2">
-              <ListFilter color="#64748b" size={12} />
-              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
-                Période
-              </Text>
-            </View>
-            <View className="flex-row gap-2 mb-3">
-              {PERIODES.map((p) => (
-                <FilterChip
-                  key={`E_${p.key}`}
-                  active={periodeEnc === p.key}
-                  label={p.label}
-                  onPress={() => setPeriodeEnc(p.key)}
-                />
-              ))}
+            <View className="mb-3">
+              <FiltrePeriode options={PERIODES} valeur={periodeEnc} defaut="30j" onChange={setPeriodeEnc} />
             </View>
 
             <View className="bg-slate-50 dark:bg-slate-800/50 rounded-md p-3 mb-3 flex-row justify-between items-center">
