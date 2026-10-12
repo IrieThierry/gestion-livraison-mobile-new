@@ -4,6 +4,12 @@ import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { ChiffresPrevision, PastilleStatut } from '../../../components/previsions/LignePrevision';
 import { useCommandesAReceptionner } from '../../../features/commandes/hooks';
+import { useRemisesAConfirmer } from '../../../features/remises-argent/hooks';
+import { peutDecider } from '../../../features/remises-argent/regles';
+import { RemiseArgentCarte, useDecisionRemise } from '../../../components/livreur/RemiseArgentCarte';
+import { TransfertCarte, useDecisionTransfert } from '../../../components/livreur/TransfertCarte';
+import { useTransfertsADecider } from '../../../features/transferts/hooks';
+import { peutDeciderTransfert } from '../../../features/transferts/regles';
 import {
   usePlusTard,
   usePrevisionsEchues,
@@ -31,6 +37,9 @@ import { extractApiErrorMessage } from '../../../lib/api-error';
  * Pour chaque échue, ou pour toutes : Supprimer (confirmation), Reporter
  * (aujourd'hui ou demain, pour la quantité restante) ou Plus tard (rien ne
  * change, plus compté jusqu'au lendemain). Jamais de suppression automatique.
+ * Principal : « Remises à confirmer » de ses apprentis (Confirmer, Contester).
+ * Tous : « Transferts à recevoir » (Accepter, Refuser) et lien vers la liste
+ * des transferts (retour à Notifications).
  */
 export default function Notifications() {
   const user = useAuthStore((s) => s.user);
@@ -41,6 +50,10 @@ export default function Notifications() {
   const supprimer = useSupprimerGroupes();
   const reporter = useReporterGroupes();
   const plusTard = usePlusTard(user?.id);
+  const remisesQ = useRemisesAConfirmer();
+  const decision = useDecisionRemise();
+  const transfertsQ = useTransfertsADecider();
+  const decisionTransfert = useDecisionTransfert(user?.id);
   const isOnline = useNetworkStore((s) => s.isOnline);
   const enCours = supprimer.isPending || reporter.isPending || plusTard.isPending;
   // Hors ligne : Supprimer / Reporter / Tout traiter désactivés (Plus tard reste local).
@@ -49,6 +62,9 @@ export default function Notifications() {
   if (!user) return null;
 
   const nbCommandes = qARecep.data?.length ?? 0;
+  const estPrincipal = !user.parentId;
+  const remises = (remisesQ.data ?? []).filter(peutDecider);
+  const transferts = (transfertsQ.data ?? []).filter((t) => peutDeciderTransfert(t, user.id));
   const echues = echuesQ.echues;
 
   const libelleGroupe = (g: GroupePrevision) =>
@@ -120,6 +136,8 @@ export default function Notifications() {
             onRefresh={() => {
               qARecep.refetch();
               echuesQ.refetch();
+              if (estPrincipal) remisesQ.refetch();
+              transfertsQ.refetch();
             }}
             tintColor="#10b981"
           />
@@ -144,6 +162,49 @@ export default function Notifications() {
             </Text>
             <ChevronRight color="#94a3b8" size={18} />
           </Pressable>
+
+          <View className="flex-row items-center mt-3">
+            <Text className="flex-1 text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
+              Transferts à recevoir
+            </Text>
+            <Pressable
+              onPress={() => ouvrir('/(livreur)/stock/transferts', { depuis: DEPUIS_NOTIFICATIONS })}
+              accessibilityRole="button"
+              hitSlop={6}
+            >
+              <Text className="text-[12px] font-bold text-emerald-700 dark:text-emerald-400">Voir tous les transferts</Text>
+            </Pressable>
+          </View>
+          {transfertsQ.isLoading ? (
+            <ActivityIndicator color="#10b981" />
+          ) : transfertsQ.isError ? (
+            <EmptyState title="Transferts à recevoir indisponibles" message="Les transferts n’ont pas pu être lus." />
+          ) : transferts.length === 0 ? (
+            <EmptyState title="Aucun transfert à recevoir" />
+          ) : (
+            transferts.map((t) => (
+              <TransfertCarte key={t.id} transfert={t} actions={decisionTransfert.actions(t)} />
+            ))
+          )}
+
+          {estPrincipal ? (
+            <>
+              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-3">
+                Remises à confirmer
+              </Text>
+              {remisesQ.isLoading ? (
+                <ActivityIndicator color="#10b981" />
+              ) : remisesQ.isError ? (
+                <EmptyState title="Remises à confirmer indisponibles" message="Les remises n’ont pas pu être lues." />
+              ) : remises.length === 0 ? (
+                <EmptyState title="Aucune remise à confirmer" />
+              ) : (
+                remises.map((r) => (
+                  <RemiseArgentCarte key={r.id} remise={r} avecApprenti actions={decision.actions(r)} />
+                ))
+              )}
+            </>
+          ) : null}
 
           <View className="flex-row items-center mt-3">
             <Text className="flex-1 text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
@@ -224,6 +285,8 @@ export default function Notifications() {
           )}
         </View>
       </ScrollView>
+      {decision.dialogue}
+      {decisionTransfert.dialogue}
     </View>
   );
 }

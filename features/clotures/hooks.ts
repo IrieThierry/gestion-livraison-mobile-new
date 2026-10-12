@@ -3,6 +3,7 @@ import { cloturesApi } from './api';
 import { livraisonKeys } from '../livraisons/keys';
 import { encaissementKeys } from '../encaissements/keys';
 import { encoursKeys } from '../clients/keys';
+import { remiseArgentKeys } from '../remises-argent/keys';
 import type { EnregistrerClotureRequest, UUID } from '../../types/api';
 
 const clotureKeys = {
@@ -38,6 +39,8 @@ export function useEnregistrerCloture() {
       qc.invalidateQueries({ queryKey: livraisonKeys.all });
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
       qc.invalidateQueries({ queryKey: encoursKeys.all });
+      // Clôture d'un apprenti avec un montant remis : une remise est déclarée (comme le web).
+      qc.invalidateQueries({ queryKey: remiseArgentKeys.all });
     },
   });
 }

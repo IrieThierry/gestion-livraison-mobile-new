@@ -47,7 +47,7 @@ describe('options des filtres', () => {
     expect(o.clients?.map((c) => c.label)).toEqual(['Ali Traore', 'Binta Diallo']);
   });
 
-  it('stock : produits et les six types de mouvement', () => {
+  it('stock : produits et les sept types de mouvement', () => {
     const o = optionsStock([{ produit: { id: 'p-Jus', designation: 'Jus' }, qte: 1 }], [mouvement('LIVRAISON', '2026-10-01', -1)]);
     expect(o.produits?.map((p) => p.label)).toEqual(['Eau 1,5 L', 'Jus']);
     expect(OPTIONS_TYPES_MOUVEMENT.map((t) => t.label)).toEqual([
@@ -56,6 +56,7 @@ describe('options des filtres', () => {
       'Retour en stock',
       'Transfert reçu',
       'Transfert envoyé',
+      'Transfert retourné',
       'Ajustement',
     ]);
     expect(o.typesMouvement).toBe(OPTIONS_TYPES_MOUVEMENT);

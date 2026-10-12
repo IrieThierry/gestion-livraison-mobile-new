@@ -65,6 +65,7 @@ export const ORDRE_TYPES: TypeMouvementStock[] = [
   'RETOUR_EN_STOCK',
   'TRANSFERT_ENTREE',
   'TRANSFERT_SORTIE',
+  'TRANSFERT_RETOUR',
   'AJUSTEMENT',
 ];
 

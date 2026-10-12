@@ -19,6 +19,7 @@ import {
   Store,
   FileText,
   Receipt,
+  HandCoins,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { Avatar } from '../../../components/shared/Avatar';
@@ -289,6 +290,45 @@ export default function Profil() {
               </View>
               <ChevronRight color="#94a3b8" size={18} />
             </Pressable>
+            {/* Remises d'argent : l'apprenti déclare, le principal confirme ou conteste. */}
+            {user.parentId ? (
+              <Pressable
+                onPress={() => naviguer('/(livreur)/profil/remises')}
+                className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
+              >
+                <View className="flex-row items-center gap-3">
+                  <HandCoins color="#0d9488" size={20} />
+                  <View>
+                    <Text className="font-extrabold text-slate-900 dark:text-white">
+                      Mes remises
+                    </Text>
+                    <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Argent remis à ton principal
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight color="#94a3b8" size={18} />
+              </Pressable>
+            ) : null}
+            {!user.parentId ? (
+              <Pressable
+                onPress={() => naviguer('/(livreur)/profil/remises-apprentis')}
+                className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
+              >
+                <View className="flex-row items-center gap-3">
+                  <HandCoins color="#0d9488" size={20} />
+                  <View>
+                    <Text className="font-extrabold text-slate-900 dark:text-white">
+                      Remises des apprentis
+                    </Text>
+                    <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Confirme ou conteste l’argent remis
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight color="#94a3b8" size={18} />
+              </Pressable>
+            ) : null}
           </View>
 
           {/* Apparence */}

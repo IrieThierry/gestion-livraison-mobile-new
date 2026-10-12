@@ -50,4 +50,19 @@ describe('Onglet Moi', () => {
     expect(screen.getByText('Clôtures journalières')).toBeTruthy();
     expect(screen.queryByText('Mes apprentis')).toBeNull();
   });
+
+  it('remises d’argent : « Mes remises » pour l’apprenti seulement', () => {
+    mockUser = { ...mockUser, parentId: 'p' };
+    render(<Profil />);
+    expect(screen.queryByText('Remises des apprentis')).toBeNull();
+    fireEvent.press(screen.getByText('Mes remises'));
+    expect(naviguer).toHaveBeenLastCalledWith('/(livreur)/profil/remises');
+  });
+
+  it('remises d’argent : « Remises des apprentis » pour le principal seulement', () => {
+    render(<Profil />);
+    expect(screen.queryByText('Mes remises')).toBeNull();
+    fireEvent.press(screen.getByText('Remises des apprentis'));
+    expect(naviguer).toHaveBeenLastCalledWith('/(livreur)/profil/remises-apprentis');
+  });
 });

@@ -49,6 +49,24 @@ jest.mock('../../features/previsions/hooks', () => ({
   useModifierGroupe: jest.fn(),
   useEnregistrerPrevisions: jest.fn(),
 }));
+let mockRemises: unknown = [];
+const mockConfirmer = { mutate: jest.fn(), isPending: false };
+const mockContester = { mutate: jest.fn(), isPending: false };
+jest.mock('../../features/remises-argent/hooks', () => ({
+  useRemisesAConfirmer: () => ({ data: mockRemises, isLoading: false, isError: mockRemises === undefined, refetch: jest.fn() }),
+  useConfirmerRemise: () => mockConfirmer,
+  useContesterRemise: () => mockContester,
+}));
+let mockTransferts: unknown = [];
+const mockAccepter = { mutate: jest.fn(), isPending: false };
+const mockRefuser = { mutate: jest.fn(), isPending: false };
+const mockAnnuler = { mutate: jest.fn(), isPending: false };
+jest.mock('../../features/transferts/hooks', () => ({
+  useTransfertsADecider: () => ({ data: mockTransferts, isLoading: false, isError: mockTransferts === undefined, refetch: jest.fn() }),
+  useAccepterTransfert: () => mockAccepter,
+  useRefuserTransfert: () => mockRefuser,
+  useAnnulerTransfert: () => mockAnnuler,
+}));
 jest.mock('../../features/commandes/hooks', () => ({
   useCommandesAReceptionner: () => ({ data: [{}, {}], isError: false, refetch: jest.fn() }),
 }));
@@ -116,6 +134,8 @@ beforeEach(() => {
   mockUser = { id: 'L1', prenom: 'Ali', nom: 'K', parentId: null };
   mockOnline = true;
   mockParams = {};
+  mockRemises = [];
+  mockTransferts = [];
   for (const n of ['useSupprimerGroupes', 'useReporterGroupes', 'usePlusTard', 'useModifierGroupe', 'useEnregistrerPrevisions'])
     h[n].mockReturnValue(mutation());
 });
@@ -165,6 +185,74 @@ describe('Notifications (cloche)', () => {
     fireEvent.press(screen.getByText('Reporter'));
     expect(dialog.confirm).not.toHaveBeenCalled();
     expect(dialog.info).not.toHaveBeenCalled();
+  });
+  const remise = {
+    id: 'r1', reference: 'REM-4', montant: 7000, dateRemise: '2026-10-10T09:00:00', statut: 'DECLAREE',
+    apprenti: { id: 'A1', prenom: 'Issa', nom: 'B' }, commentaire: null, motifContestation: null,
+  };
+
+  it('principal : rubrique « Remises à confirmer » avec Confirmer et Contester', () => {
+    mockRemises = [remise];
+    render(<Notifications />);
+    expect(screen.getByText('Remises à confirmer')).toBeTruthy();
+    expect(screen.getByText('REM-4')).toBeTruthy();
+    fireEvent.press(screen.getByText('Confirmer'));
+    (dialog.confirm as jest.Mock).mock.calls[0][0].onConfirm();
+    expect(mockConfirmer.mutate).toHaveBeenCalledWith('r1', expect.anything());
+    fireEvent.press(screen.getByText('Contester'));
+    const boutons = screen.getAllByText('Contester');
+    fireEvent.press(boutons[boutons.length - 1]);
+    expect(screen.getByText('Précisez le motif de la contestation.')).toBeTruthy();
+    expect(mockContester.mutate).not.toHaveBeenCalled();
+  });
+
+  it('principal : aucune remise, ou lecture impossible', () => {
+    const { unmount } = render(<Notifications />);
+    expect(screen.getByText('Aucune remise à confirmer')).toBeTruthy();
+    unmount();
+    mockRemises = undefined;
+    render(<Notifications />);
+    expect(screen.getByText('Remises à confirmer indisponibles')).toBeTruthy();
+    expect(screen.queryByText('Aucune remise à confirmer')).toBeNull();
+  });
+
+  const transfert = {
+    id: 't1', qte: 4, dateTransfert: '2026-10-12T10:00:00', statut: 'EN_ATTENTE', commentaire: null, motifRefus: null,
+    source: { id: 'P0', prenom: 'Awa', nom: 'K' }, destinataire: { id: 'L1', prenom: 'Ali', nom: 'K' },
+    produit: { id: 'p1', designation: 'Pain' }, initieParId: 'P0', decideurId: 'L1', reprise: false,
+    decideParId: null, dateDecision: null,
+  };
+
+  it('« Transferts à recevoir » : Accepter, Refuser, et la liste ouverte depuis Notifications', () => {
+    mockUser = { id: 'L1', prenom: 'Ali', nom: 'K', parentId: 'P0' };
+    mockTransferts = [transfert];
+    render(<Notifications />);
+    expect(screen.getByText('Transferts à recevoir')).toBeTruthy();
+    expect(screen.getByText(/Pain ×/)).toBeTruthy();
+    fireEvent.press(screen.getByText('Accepter'));
+    (dialog.confirm as jest.Mock).mock.calls[0][0].onConfirm();
+    expect(mockAccepter.mutate).toHaveBeenCalledWith('t1', expect.anything());
+    expect(screen.getByText('Refuser')).toBeTruthy();
+    fireEvent.press(screen.getByText('Voir tous les transferts'));
+    expect(ouvrir).toHaveBeenCalledWith('/(livreur)/stock/transferts', { depuis: 'notifications' });
+  });
+
+  it('« Transferts à recevoir » : aucun, ou lecture impossible', () => {
+    const { unmount } = render(<Notifications />);
+    expect(screen.getByText('Aucun transfert à recevoir')).toBeTruthy();
+    unmount();
+    mockTransferts = undefined;
+    render(<Notifications />);
+    expect(screen.getByText('Transferts à recevoir indisponibles')).toBeTruthy();
+    expect(screen.queryByText('Aucun transfert à recevoir')).toBeNull();
+  });
+
+  it('apprenti : pas de rubrique remises', () => {
+    mockUser = { id: 'L1', prenom: 'Ali', nom: 'K', parentId: 'P0' };
+    mockRemises = [remise];
+    render(<Notifications />);
+    expect(screen.queryByText('Remises à confirmer')).toBeNull();
+    expect(screen.queryByText('REM-4')).toBeNull();
   });
 });
 
