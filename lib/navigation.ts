@@ -28,6 +28,51 @@
  * applique.
  */
 
+// ---------------------------------------------------------------------------
+// Profil : livreur (onglets) ou portail web (ADMIN, FOURNISSEUR)
+// ---------------------------------------------------------------------------
+
+/** Groupe des onglets du livreur (cible après la connexion d'un livreur). */
+export const ACCUEIL_LIVREUR = '/(livreur)';
+
+/**
+ * Écran « Utilisez le portail web » (`app/portail-web.tsx`, déclaré dans la
+ * pile racine) : un compte ADMIN ou FOURNISSEUR n'a pas d'espace sur mobile.
+ */
+export const PORTAIL_WEB = '/portail-web';
+
+/** Premier segment de route de l'écran portail web. */
+const SEGMENT_PORTAIL_WEB = 'portail-web';
+
+/** ADMIN et FOURNISSEUR utilisent le portail web ; un profil absent (ancienne session) reste livreur. */
+export function estProfilPortailWeb(profile: string | null | undefined): boolean {
+  return profile === 'ADMIN' || profile === 'FOURNISSEUR';
+}
+
+/** Écran d'arrivée après la connexion selon le profil. */
+export function accueilDuProfil(profile: string | null | undefined): string {
+  return estProfilPortailWeb(profile) ? PORTAIL_WEB : ACCUEIL_LIVREUR;
+}
+
+/**
+ * Redirection de la pile racine (`AuthGate`) : non connecté hors `(auth)` →
+ * connexion ; connecté dans `(auth)` → écran de son profil ; ADMIN ou
+ * FOURNISSEUR hors du portail web → portail web ; livreur sur le portail
+ * web → onglets. Null : rester où l'on est.
+ */
+export function redirectionRacine(
+  user: { profile?: string | null } | null,
+  premierSegment: string | undefined,
+): string | null {
+  const dansAuth = premierSegment === '(auth)';
+  if (!user) return dansAuth ? null : '/(auth)/login';
+  if (dansAuth) return accueilDuProfil(user.profile);
+  const portail = estProfilPortailWeb(user.profile);
+  if (portail && premierSegment !== SEGMENT_PORTAIL_WEB) return PORTAIL_WEB;
+  if (!portail && premierSegment === SEGMENT_PORTAIL_WEB) return ACCUEIL_LIVREUR;
+  return null;
+}
+
 /** Chemin de l'Accueil (onglet Tournée). */
 export const ACCUEIL = '/';
 

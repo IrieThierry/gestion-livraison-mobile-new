@@ -26,7 +26,8 @@ export interface RegisterRequest {
   email: string;
   username: string;
   password: string;
-  profile?: 'LIVREUR' | 'FOURNISSEUR';
+  /** Le mobile n'inscrit que des livreurs (le fournisseur s'inscrit sur le portail web). */
+  profile: 'LIVREUR';
 }
 
 export const authApi = {
@@ -37,14 +38,14 @@ export const authApi = {
   },
 
   /**
-   * Auto-inscription. Le back crée un compte avec `statut=EN_ATTENTE_VALIDATION`
-   * et `actif=true`. L'utilisateur peut se connecter mais ses actions métier
-   * sont bloquées tant qu'un admin ne valide pas son compte.
-   * Mirror de `authApi.register` côté web.
+   * Inscription libre d'un livreur : le back crée un compte utilisable tout
+   * de suite, avec un abonnement en essai. Réponse 201
+   * `{ message: 'Compte créé. Vous pouvez vous connecter.' }`.
    */
   register: async (input: SignupInput): Promise<{ message: string }> => {
     const { confirmPassword: _confirm, ...payload } = input;
-    const { data } = await apiClient.post<{ message: string }>('/auth/register', payload);
+    const body: RegisterRequest = { ...payload, profile: 'LIVREUR' };
+    const { data } = await apiClient.post<{ message: string }>('/auth/register', body);
     return data;
   },
 

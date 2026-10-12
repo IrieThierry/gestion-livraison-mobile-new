@@ -13,6 +13,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 import { useNetworkStore } from '../stores/networkStore';
 import { AppDialog } from '../components/shared/AppDialog';
+import { redirectionRacine } from '../lib/navigation';
 
 // ---- TanStack Query : focus + online managers branchés sur React Native ----
 // Sur le web, react-query écoute `window.focus` et `navigator.onLine`. En
@@ -78,12 +79,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
     // Compute the next route synchronously, then hide splash AFTER navigation
     // so the user never sees a flash of the wrong screen.
-    const inAuth = segments[0] === '(auth)';
-    if (!user && !inAuth) {
-      router.replace('/(auth)/login');
-    } else if (user && inAuth) {
-      router.replace('/(livreur)');
-    }
+    // ADMIN / FOURNISSEUR : écran « Utilisez le portail web » au lieu des
+    // onglets livreur (lib/navigation, redirectionRacine).
+    const cible = redirectionRacine(user, segments[0]);
+    if (cible) router.replace(cible as never);
 
     // Give the navigation a frame to apply, then hide the splash (no-op in Expo Go).
     const id = setTimeout(safeHideSplash, 50);
@@ -151,6 +150,7 @@ export default function RootLayout() {
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#f8fafc' } }}>
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(livreur)" />
+            <Stack.Screen name="portail-web" />
           </Stack>
         </AuthGate>
         {/*

@@ -2,6 +2,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   ACCUEIL,
+  ACCUEIL_LIVREUR,
+  accueilDuProfil,
+  estProfilPortailWeb,
+  PORTAIL_WEB,
+  redirectionRacine,
   actionNaviguer,
   actionOuvrir,
   actionRetour,
@@ -334,5 +339,56 @@ describe('état racine', () => {
     const racine = { key: 'r', index: 0, routes: [{ name: '__root', state: { key: 's', index: 0, routes: [{ name: '(livreur)', state: tabs }] } }] };
     expect(trouverOnglets(racine as never)).toBe(tabs);
     expect(trouverOnglets(undefined)).toBeUndefined();
+  });
+});
+
+describe('Profil : écran « Utilisez le portail web »', () => {
+  const livreur = { profile: 'LIVREUR' };
+
+  it('ADMIN et FOURNISSEUR vont au portail web, le livreur (ou un profil absent) aux onglets', () => {
+    expect(estProfilPortailWeb('ADMIN')).toBe(true);
+    expect(estProfilPortailWeb('FOURNISSEUR')).toBe(true);
+    expect(estProfilPortailWeb('LIVREUR')).toBe(false);
+    expect(estProfilPortailWeb(undefined)).toBe(false);
+    expect(accueilDuProfil('ADMIN')).toBe(PORTAIL_WEB);
+    expect(accueilDuProfil('FOURNISSEUR')).toBe(PORTAIL_WEB);
+    expect(accueilDuProfil('LIVREUR')).toBe(ACCUEIL_LIVREUR);
+  });
+
+  it('redirection racine selon la session et le profil', () => {
+    expect(redirectionRacine(null, '(livreur)')).toBe('/(auth)/login');
+    expect(redirectionRacine(null, 'portail-web')).toBe('/(auth)/login');
+    expect(redirectionRacine(null, '(auth)')).toBeNull();
+    expect(redirectionRacine(livreur, '(auth)')).toBe(ACCUEIL_LIVREUR);
+    expect(redirectionRacine({ profile: 'ADMIN' }, '(auth)')).toBe(PORTAIL_WEB);
+    expect(redirectionRacine({ profile: 'FOURNISSEUR' }, '(livreur)')).toBe(PORTAIL_WEB);
+    expect(redirectionRacine({ profile: 'FOURNISSEUR' }, 'portail-web')).toBeNull();
+    expect(redirectionRacine(livreur, 'portail-web')).toBe(ACCUEIL_LIVREUR);
+    expect(redirectionRacine(livreur, '(livreur)')).toBeNull();
+  });
+
+  it('l’écran existe et est déclaré dans la pile racine', () => {
+    const racine = path.join(__dirname, '..', 'app');
+    expect(fs.existsSync(path.join(racine, 'portail-web.tsx'))).toBe(true);
+    expect(PORTAIL_WEB).toBe('/portail-web');
+    const layout = fs.readFileSync(path.join(racine, '_layout.tsx'), 'utf8');
+    expect(layout).toMatch(/<Stack\.Screen name="portail-web" \/>/);
+  });
+});
+
+describe('Plus d’écran d’attente de validation', () => {
+  it('aucune référence à PendingValidation dans app/ et components/', () => {
+    const trouves: string[] = [];
+    const parcourir = (dir: string) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) parcourir(p);
+        else if (/\.tsx?$/.test(e.name) && /PendingValidation|EN_ATTENTE_VALIDATION/.test(fs.readFileSync(p, 'utf8')))
+          trouves.push(p);
+      }
+    };
+    parcourir(path.join(__dirname, '..', 'app'));
+    parcourir(path.join(__dirname, '..', 'components'));
+    expect(trouves).toEqual([]);
   });
 });

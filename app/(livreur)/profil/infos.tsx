@@ -23,6 +23,9 @@ import { useAuthStore } from '../../../stores/authStore';
 import { pickImage } from '../../../lib/image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { revenirA } from '../../../lib/navigation-app';
+import { extractApiErrorMessage } from '../../../lib/api-error';
+import { useMonAbonnement } from '../../../features/abonnement/hooks';
+import { libelleAbonnement } from '../../../features/abonnement/regles';
 
 /**
  * Modification des infos perso du livreur connecté.
@@ -39,6 +42,7 @@ export default function ModifierInfos() {
   const [nom, setNom] = useState(user?.nom ?? '');
   const [contact, setContact] = useState(user?.contact ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
+  const abonnement = useMonAbonnement().data;
 
   const m = useMutation({
     mutationFn: authApi.updateProfile,
@@ -54,8 +58,7 @@ export default function ModifierInfos() {
       revenirA('/(livreur)/profil');
     },
     onError: (err: unknown) => {
-      const e = err as { response?: { data?: { message?: string } } };
-      dialog.error('Erreur', e.response?.data?.message ?? 'Mise à jour impossible');
+      dialog.error('Erreur', extractApiErrorMessage(err, 'Mise à jour impossible'));
     },
   });
 
@@ -215,6 +218,29 @@ export default function ModifierInfos() {
               Le nom d'utilisateur ne peut pas être modifié.
             </Text>
           </View>
+
+          {/* Abonnement (lecture seule, comme le Profil web) ; l'admin n'en a pas. */}
+          {abonnement ? (
+            <View className="bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3">
+              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                Abonnement
+              </Text>
+              <Text
+                className={`font-bold ${
+                  abonnement.statut === 'EXPIRE'
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                {libelleAbonnement(abonnement.statut)}
+              </Text>
+              {abonnement.herite ? (
+                <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
+                  Abonnement de ton livreur principal.
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
 
           <Pressable
             onPress={onSubmit}

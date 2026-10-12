@@ -25,7 +25,8 @@ import { nbTransfertsADecider } from '../../features/transferts/regles';
 import { useAuthStore } from '../../stores/authStore';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Avatar } from '../../components/shared/Avatar';
-import { PendingValidationGate } from '../../components/shared/PendingValidationGate';
+import { AbonnementExpireBanner } from '../../components/shared/AbonnementExpireBanner';
+import { useMonAbonnement } from '../../features/abonnement/hooks';
 import { LivraisonCard } from '../../components/livreur/LivraisonCard';
 import { formatMontant } from '../../lib/format';
 import { extractApiErrorMessage } from '../../lib/api-error';
@@ -45,6 +46,8 @@ export default function Tournee() {
   const qARecep = useCommandesAReceptionner(!!user);
   // Prévisions échues du livreur connecté (pas celles des apprentis), hors « Plus tard ».
   const qEchues = usePrevisionsEchues(user?.id);
+  // Abonnement effectif : bandeau en EXPIRE (relu au tirer-pour-rafraîchir).
+  const qAbo = useMonAbonnement();
   // Principal : remises déclarées par ses apprentis, à confirmer (désactivé pour un apprenti).
   const qRemises = useRemisesAConfirmer();
   // Transferts à recevoir : en attente, dont le livreur connecté est le décideur (principal comme apprenti).
@@ -110,10 +113,10 @@ export default function Tournee() {
     qEncours.refetch();
     qStock.refetch();
     qMv.refetch();
+    qAbo.refetch();
   };
 
   return (
-    <PendingValidationGate>
     <ScrollView
       className="flex-1 bg-slate-50 dark:bg-slate-950"
       contentContainerStyle={{ paddingBottom: 24 }}
@@ -167,6 +170,8 @@ export default function Tournee() {
             </Pressable>
           </View>
         </View>
+
+        <AbonnementExpireBanner />
 
         {/* Hero card — solde du jour with sub-cards */}
         <View
@@ -324,7 +329,6 @@ export default function Tournee() {
         )}
       </View>
     </ScrollView>
-    </PendingValidationGate>
   );
 }
 

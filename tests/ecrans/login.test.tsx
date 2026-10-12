@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as Network from 'expo-network';
+import { router } from 'expo-router';
 import Login from '../../app/(auth)/login';
 import { authApi } from '../../features/auth/api';
 import { useDialogStore } from '../../stores/dialogStore';
@@ -63,5 +64,29 @@ describe('Connexion : message d’erreur', () => {
     connecter();
     expect(await messageAffiche()).toBe('Identifiant ou mot de passe incorrect.');
     expect(etatReseau).not.toHaveBeenCalled();
+  });
+});
+
+describe('Connexion : écran d’arrivée selon le profil', () => {
+  const reponse = (profile: string) => ({
+    token: 't',
+    refreshToken: 'r',
+    id: 'u-1',
+    nom: 'Kone',
+    prenom: 'Awa',
+    username: 'awa',
+    email: '',
+    contact: '0712345678',
+    profile,
+  });
+
+  it.each([
+    ['LIVREUR', '/(livreur)'],
+    ['ADMIN', '/portail-web'],
+    ['FOURNISSEUR', '/portail-web'],
+  ])('%s → %s', async (profile, cible) => {
+    login.mockResolvedValue(reponse(profile));
+    connecter();
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith(cible));
   });
 });

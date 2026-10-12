@@ -38,3 +38,11 @@ describe('estRouteAuth', () => {
     expect(estRouteAuth(undefined)).toBe(false)
   })
 })
+
+describe('extractApiErrorMessage : abonnement expiré', () => {
+  it('403 du back : le message est montré tel quel', () => {
+    expect(extractApiErrorMessage(apiErr(403, 'Abonnement expiré : consultation seule.'), 'Erreur')).toBe(
+      'Abonnement expiré : consultation seule.',
+    )
+  })
+})

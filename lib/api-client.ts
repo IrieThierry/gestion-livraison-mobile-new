@@ -8,6 +8,8 @@ import { SecureStorage } from "./secure-storage";
 import { useAuthStore } from "../stores/authStore";
 import { API_BASE_URL } from "./api-url";
 import { estRouteAuth } from "./api-error";
+import { queryClient } from "./query-client";
+import { MESSAGE_ABONNEMENT_EXPIRE } from "../features/abonnement/regles";
 
 const baseURL = API_BASE_URL;
 
@@ -38,6 +40,15 @@ function processQueue(error: unknown, token: string | null) {
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
+    // Abonnement expiré constaté lors d'une écriture : on relit l'abonnement
+    // (clé ['abonnement'], cf. features/abonnement/hooks) pour que le bandeau
+    // de l'Accueil s'affiche tout de suite, comme sur le web.
+    if (
+      error.response?.status === 403 &&
+      (error.response.data as { message?: unknown } | undefined)?.message === MESSAGE_ABONNEMENT_EXPIRE
+    ) {
+      void queryClient.invalidateQueries({ queryKey: ["abonnement"] });
+    }
     const original = error.config as
       | (AxiosRequestConfig & { _retry?: boolean })
       | undefined;

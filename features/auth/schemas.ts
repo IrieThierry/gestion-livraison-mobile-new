@@ -9,22 +9,53 @@ export const loginSchema = z.object({
 export type LoginInput = z.infer<typeof loginSchema>;
 
 /**
- * Mirror du `signupSchema` du portail web. Email optionnel (peut être chaîne
- * vide). `confirmPassword` est validé au submit (refine ci-dessous).
+ * Règles A7 d'un compte, alignées sur le back (`ReglesCompte`) et le web,
+ * avec les messages de la spec « Inscription libre et abonnement ».
+ */
+export const MESSAGES_COMPTE = {
+  motDePasse: 'Le mot de passe doit contenir au moins 6 caractères.',
+  contact: 'Le numéro doit contenir 10 chiffres.',
+  nomLongueur: 'Le nom doit contenir entre 2 et 50 caractères.',
+  prenomLongueur: 'Le prénom doit contenir entre 2 et 50 caractères.',
+  nomFormat: 'Le nom ne doit contenir que des lettres, espaces, tirets, apostrophes ou points.',
+  prenomFormat: 'Le prénom ne doit contenir que des lettres, espaces, tirets, apostrophes ou points.',
+  usernameLongueur: "Le nom d'utilisateur doit contenir entre 3 et 50 caractères.",
+  inscriptionReussie: 'Compte créé. Vous pouvez vous connecter.',
+} as const;
+
+/** Règle existante des noms côté back : lettres, espaces, apostrophes, points, tirets. */
+const FORMAT_NOM = /^[\p{L}\s'’.-]*$/u;
+
+const nomPersonne = (longueur: string, format: string) =>
+  z
+    .string()
+    .trim()
+    .min(2, longueur)
+    .max(50, longueur)
+    .regex(FORMAT_NOM, format);
+
+const contact = z.string().trim().regex(/^[0-9]{10}$/, MESSAGES_COMPTE.contact);
+const motDePasse = z.string().refine((v) => v.trim().length > 0 && v.length >= 6, MESSAGES_COMPTE.motDePasse);
+const email = z
+  .union([z.string().trim().email('Email invalide'), z.literal('')])
+  .optional()
+  .transform((v) => v ?? '');
+
+/**
+ * Inscription libre depuis le mobile : livreur seulement (le fournisseur
+ * s'inscrit sur le portail web). Le profil envoyé est toujours LIVREUR, même
+ * si une autre valeur est passée. `confirmPassword` est vérifié au submit.
  */
 export const signupSchema = z
   .object({
-    prenom: z.string().min(2, 'Prénom trop court'),
-    nom: z.string().min(2, 'Nom trop court'),
-    contact: z.string().regex(/^[0-9]{10}$/, 'Téléphone : 10 chiffres'),
-    email: z
-      .union([z.string().email('Email invalide'), z.literal('')])
-      .optional()
-      .transform((v) => v ?? ''),
-    username: z.string().min(3, "Nom d'utilisateur min 3 caractères"),
-    password: z.string().min(6, 'Mot de passe min 6 caractères'),
+    prenom: nomPersonne(MESSAGES_COMPTE.prenomLongueur, MESSAGES_COMPTE.prenomFormat),
+    nom: nomPersonne(MESSAGES_COMPTE.nomLongueur, MESSAGES_COMPTE.nomFormat),
+    contact,
+    email,
+    username: z.string().trim().min(3, MESSAGES_COMPTE.usernameLongueur).max(50, MESSAGES_COMPTE.usernameLongueur),
+    password: motDePasse,
     confirmPassword: z.string(),
-    profile: z.enum(['LIVREUR', 'FOURNISSEUR']).default('LIVREUR'),
+    profile: z.unknown().transform((): 'LIVREUR' => 'LIVREUR'),
   })
   .refine((d) => d.password === d.confirmPassword, {
     path: ['confirmPassword'],
@@ -33,21 +64,32 @@ export const signupSchema = z
 
 export type SignupInput = z.infer<typeof signupSchema>;
 
+/**
+ * Création d'un apprenti (Profil → Apprentis → Nouveau) : mêmes règles et
+ * messages A7 que l'inscription (prénom, nom, contact, email, username, mot de passe).
+ */
+export const apprentiSchema = z.object({
+  prenom: nomPersonne(MESSAGES_COMPTE.prenomLongueur, MESSAGES_COMPTE.prenomFormat),
+  nom: nomPersonne(MESSAGES_COMPTE.nomLongueur, MESSAGES_COMPTE.nomFormat),
+  contact,
+  email,
+  username: z.string().trim().min(3, MESSAGES_COMPTE.usernameLongueur).max(50, MESSAGES_COMPTE.usernameLongueur),
+  password: motDePasse,
+});
+export type ApprentiInput = z.infer<typeof apprentiSchema>;
+
 export const updateProfileSchema = z.object({
-  prenom: z.string().min(2, 'Prénom trop court'),
-  nom: z.string().min(2, 'Nom trop court'),
-  contact: z.string().regex(/^[0-9]{10}$/, 'Téléphone : 10 chiffres'),
-  email: z
-    .union([z.string().email('Email invalide'), z.literal('')])
-    .optional()
-    .transform((v) => v ?? ''),
+  prenom: nomPersonne(MESSAGES_COMPTE.prenomLongueur, MESSAGES_COMPTE.prenomFormat),
+  nom: nomPersonne(MESSAGES_COMPTE.nomLongueur, MESSAGES_COMPTE.nomFormat),
+  contact,
+  email,
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Mot de passe actuel requis'),
-    newPassword: z.string().min(6, 'Nouveau mot de passe min 6 caractères'),
+    newPassword: motDePasse,
     confirmPassword: z.string(),
   })
   .refine((d) => d.newPassword === d.confirmPassword, {
