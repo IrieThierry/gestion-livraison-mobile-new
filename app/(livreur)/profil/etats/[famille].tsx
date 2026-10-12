@@ -36,6 +36,7 @@ import {
   RACCOURCIS_PERIODE,
 } from '../../../../features/etats/periode';
 import {
+  useEtatDepenses,
   useEtatEncaissements,
   useEtatFournisseurs,
   useEtatStock,
@@ -49,6 +50,7 @@ import {
   filtresDeFamille,
   ID_TOUS,
   OPTION_TOUS,
+  OPTION_TOUTES,
   type ChoixFiltre,
   type ChoixFiltres,
   type OptionFiltre,
@@ -157,6 +159,7 @@ function Apercu({ famille }: { famille: FamilleEtat }) {
       {famille === 'fournisseurs' ? (
         <EtatFournisseurs params={params} filtres={filtres} />
       ) : null}
+      {famille === 'depenses' ? <EtatDepenses params={params} filtres={filtres} /> : null}
     </View>
   );
 }
@@ -178,6 +181,10 @@ function EtatFournisseurs({ params, filtres }: PropsEtat) {
   return (
     <Corps resultat={useEtatFournisseurs(params)} filtres={filtres} periodeValide={!!params.periode} />
   );
+}
+
+function EtatDepenses({ params, filtres }: PropsEtat) {
+  return <Corps resultat={useEtatDepenses(params)} filtres={filtres} periodeValide={!!params.periode} />;
 }
 
 function Corps({
@@ -317,11 +324,12 @@ function Filtres({
   entites: ChoixFiltres;
   onEntites: (c: ChoixFiltres) => void;
 }) {
-  const listes: Array<{ cle: keyof ChoixFiltres; label: string; liste?: OptionFiltre[] }> = [
+  const listes: Array<{ cle: keyof ChoixFiltres; label: string; liste?: OptionFiltre[]; tous?: OptionFiltre }> = [
     { cle: 'client', label: 'Client', liste: optionsEntites.clients },
     { cle: 'produit', label: 'Produit', liste: optionsEntites.produits },
     { cle: 'fournisseur', label: 'Fournisseur', liste: optionsEntites.fournisseurs },
     { cle: 'typeMouvement', label: 'Type de mouvement', liste: optionsEntites.typesMouvement },
+    { cle: 'categorie', label: 'Catégorie', liste: optionsEntites.categories, tous: OPTION_TOUTES },
   ];
   return (
     <View>
@@ -379,12 +387,13 @@ function Filtres({
           />
         </View>
       ) : null}
-      {listes.map(({ cle, label, liste }) =>
+      {listes.map(({ cle, label, liste, tous }) =>
         liste ? (
           <View key={cle} className="mt-3">
             <FiltreEntite
               label={label}
               liste={liste}
+              tous={tous}
               valeur={entites[cle]}
               onChange={(v) => onEntites({ ...entites, [cle]: v })}
             />
@@ -395,21 +404,23 @@ function Filtres({
   );
 }
 
-/** Liste avec recherche, « Tous » par défaut. */
+/** Liste avec recherche, « Tous » (ou « Toutes ») par défaut. */
 function FiltreEntite({
   label,
   liste,
+  tous = OPTION_TOUS,
   valeur,
   onChange,
 }: {
   label: string;
   liste: OptionFiltre[];
+  tous?: OptionFiltre;
   valeur: ChoixFiltre;
   onChange: (v: ChoixFiltre) => void;
 }) {
   // Un choix absent des données de la période reste affiché (et sélectionnable).
   const options = [
-    OPTION_TOUS,
+    tous,
     ...liste,
     ...(valeur && !liste.some((o) => o.id === valeur.id) ? [valeur] : []),
   ];

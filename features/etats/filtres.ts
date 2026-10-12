@@ -1,5 +1,6 @@
 import type {
   CommandeResponse,
+  DepenseResponse,
   EncaissementLivraisonResponse,
   EncoursClientResponse,
   FournisseurAvecRelation,
@@ -12,6 +13,7 @@ import type { FamilleEtat } from './acces';
 import { nomPersonne, type FiltresEtat } from './calculs/commun';
 import { ORDRE_TYPES, type LigneStockSource } from './calculs/stock';
 import { libelleTypeMouvement } from '../stock/regles';
+import { libelleCategorieDepense, ORDRE_CATEGORIES_DEPENSE } from './calculs/depenses';
 
 /**
  * Filtres d'entité des états : options des listes (tirées des données déjà
@@ -29,6 +31,8 @@ export interface OptionsFiltres {
   produits?: OptionFiltre[];
   fournisseurs?: OptionFiltre[];
   typesMouvement?: OptionFiltre[];
+  /** Catégories de dépense (« Toutes » par défaut). */
+  categories?: OptionFiltre[];
 }
 
 /** Choix de l'écran : identifiant et libellé (pour l'en-tête et le nom du fichier). */
@@ -39,6 +43,7 @@ export interface ChoixFiltres {
   produit: ChoixFiltre;
   fournisseur: ChoixFiltre;
   typeMouvement: ChoixFiltre;
+  categorie: ChoixFiltre;
 }
 
 export const AUCUN_FILTRE: ChoixFiltres = {
@@ -46,11 +51,14 @@ export const AUCUN_FILTRE: ChoixFiltres = {
   produit: null,
   fournisseur: null,
   typeMouvement: null,
+  categorie: null,
 };
 
 /** Identifiant de l'option « Tous » (valeur par défaut des listes). */
 export const ID_TOUS = '__tous__';
 export const OPTION_TOUS: OptionFiltre = { id: ID_TOUS, label: 'Tous' };
+/** « Toutes » : option par défaut des listes au féminin (catégorie). */
+export const OPTION_TOUTES: OptionFiltre = { id: ID_TOUS, label: 'Toutes' };
 
 /**
  * Types de mouvement du filtre : mêmes libellés que les tableaux de l'état,
@@ -130,6 +138,20 @@ export function optionsFournisseurs(
   };
 }
 
+/**
+ * Dépenses : les catégories connues (ordre de la saisie), puis celles
+ * rencontrées dans les données.
+ */
+export function optionsDepenses(depenses: readonly DepenseResponse[]): OptionsFiltres {
+  const connues = ORDRE_CATEGORIES_DEPENSE.map((c) => ({ id: c, label: libelleCategorieDepense(c) }));
+  const autres = options(
+    depenses
+      .filter((d) => d.categorie && !ORDRE_CATEGORIES_DEPENSE.includes(d.categorie))
+      .map((d) => [d.categorie, libelleCategorieDepense(d.categorie)] as [string, string]),
+  );
+  return { categories: [...connues, ...autres] };
+}
+
 /** Filtres utiles à une famille (les autres sont ignorés). */
 export function filtresDeFamille(famille: FamilleEtat, c: ChoixFiltres): ChoixFiltres {
   switch (famille) {
@@ -139,6 +161,8 @@ export function filtresDeFamille(famille: FamilleEtat, c: ChoixFiltres): ChoixFi
       return { ...AUCUN_FILTRE, client: c.client };
     case 'stock':
       return { ...AUCUN_FILTRE, produit: c.produit, typeMouvement: c.typeMouvement };
+    case 'depenses':
+      return { ...AUCUN_FILTRE, categorie: c.categorie };
     default:
       return { ...AUCUN_FILTRE, fournisseur: c.fournisseur };
   }
@@ -151,6 +175,7 @@ export function idsFiltres(c: ChoixFiltres): FiltresEtat {
     produitId: c.produit?.id ?? null,
     fournisseurId: c.fournisseur?.id ?? null,
     typeMouvement: (c.typeMouvement?.id as TypeMouvementStock | undefined) ?? null,
+    categorie: c.categorie?.id ?? null,
   };
 }
 
@@ -160,18 +185,19 @@ export interface LigneFiltre {
   valeur: string;
 }
 
-/** Lignes d'en-tête des filtres actifs, dans l'ordre client, produit, fournisseur, type. */
+/** Lignes d'en-tête des filtres actifs, dans l'ordre client, produit, fournisseur, type, catégorie. */
 export function lignesFiltres(c: ChoixFiltres): LigneFiltre[] {
   const lignes: Array<[string, ChoixFiltre]> = [
     ['Client', c.client],
     ['Produit', c.produit],
     ['Fournisseur', c.fournisseur],
     ['Type de mouvement', c.typeMouvement],
+    ['Catégorie', c.categorie],
   ];
   return lignes.filter(([, v]) => !!v).map(([libelle, v]) => ({ libelle, valeur: v!.label }));
 }
 
-/** Entités du nom de fichier (client, produit, fournisseur ; jamais le type de mouvement). */
+/** Entités du nom de fichier (client, produit, fournisseur, catégorie ; jamais le type de mouvement). */
 export function entitesFichier(c: ChoixFiltres): string[] {
-  return [c.client, c.produit, c.fournisseur].filter((v): v is OptionFiltre => !!v).map((v) => v.label);
+  return [c.client, c.produit, c.fournisseur, c.categorie].filter((v): v is OptionFiltre => !!v).map((v) => v.label);
 }

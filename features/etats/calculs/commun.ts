@@ -75,6 +75,8 @@ export interface FiltresEtat {
   produitId?: string | null;
   fournisseurId?: string | null;
   typeMouvement?: TypeMouvementStock | null;
+  /** Catégorie de dépense (`CARBURANT`…). */
+  categorie?: string | null;
 }
 
 /** Vrai si le filtre est vide (« Tous ») ou correspond à l'identifiant. */

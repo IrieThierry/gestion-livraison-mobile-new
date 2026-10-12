@@ -144,6 +144,7 @@ describe('filtres dans le document et le PDF', () => {
     produit: { id: 'p1', label: 'Eau 1,5 L' },
     fournisseur: null,
     typeMouvement: null,
+    categorie: null,
   };
 
   it('une ligne par filtre actif dans l’en-tête, nom de fichier avec les entités', () => {
@@ -184,7 +185,7 @@ describe('filtres dans le document et le PDF', () => {
   it('le type de mouvement figure dans l’en-tête mais pas dans le nom du fichier', () => {
     const doc = documentStock(calculerEtatStock([], [], P), {
       ...entete,
-      filtres: { client: null, produit: null, fournisseur: null, typeMouvement: { id: 'RETOUR_EN_STOCK', label: 'Retour en stock' } },
+      filtres: { client: null, produit: null, fournisseur: null, typeMouvement: { id: 'RETOUR_EN_STOCK', label: 'Retour en stock' }, categorie: null },
     });
     expect(doc.filtres).toEqual([{ libelle: 'Type de mouvement', valeur: 'Retour en stock' }]);
     expect(doc.nomFichier).toBe('Stock-Mouvements_Awa-Kone_2026-10-01_au_2026-10-31');

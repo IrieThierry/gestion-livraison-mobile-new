@@ -9,7 +9,9 @@ import { calculerEtatVentes } from './calculs/ventes';
 import { calculerEtatEncaissements } from './calculs/encaissements';
 import { calculerEtatStock, lignesDepuisActuel, lignesDepuisEquipe } from './calculs/stock';
 import { calculerEtatFournisseurs } from './calculs/fournisseurs';
+import { calculerEtatDepenses } from './calculs/depenses';
 import {
+  documentDepenses,
   documentEncaissements,
   documentFournisseurs,
   documentStock,
@@ -19,6 +21,7 @@ import {
 import {
   AUCUN_FILTRE,
   idsFiltres,
+  optionsDepenses,
   optionsEncaissements,
   optionsFournisseurs,
   optionsStock,
@@ -102,7 +105,7 @@ function entete(p: ParamsEtat, periode: Periode) {
 /** Clé stable des filtres choisis (dépendance des calculs). */
 function cleFiltres(p: ParamsEtat): string {
   const f = p.filtres ?? AUCUN_FILTRE;
-  return [f.client, f.produit, f.fournisseur, f.typeMouvement].map((c) => c?.id ?? '').join('|');
+  return [f.client, f.produit, f.fournisseur, f.typeMouvement, f.categorie].map((c) => c?.id ?? '').join('|');
 }
 
 export function useEtatVentes(p: ParamsEtat): ResultatEtat {
@@ -243,4 +246,27 @@ export function useEtatFournisseurs(p: ParamsEtat): ResultatEtat {
     [qP.data, qC.data, qV.data],
   );
   return combiner([qP, qC, qV], document, options);
+}
+
+/** Dépenses de l'utilisateur connecté (la route ne renvoie que les siennes). */
+export function useEtatDepenses(p: ParamsEtat): ResultatEtat {
+  const periode = p.periode;
+  const q = useQuery({
+    queryKey: etatsKeys.depenses(p.user.id, periode),
+    queryFn: () => etatsApi.depenses(periode!),
+    enabled: !!periode,
+  });
+  const document = useMemo(
+    () =>
+      periode && q.data
+        ? documentDepenses(
+            calculerEtatDepenses(q.data, periode, idsFiltres(p.filtres ?? AUCUN_FILTRE)),
+            entete(p, periode),
+          )
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [q.data, periode, p.libelleLivreur, cleFiltres(p)],
+  );
+  const options = useMemo(() => optionsDepenses(q.data ?? []), [q.data]);
+  return combiner([q], document, options);
 }

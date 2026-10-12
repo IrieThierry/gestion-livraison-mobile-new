@@ -20,4 +20,5 @@ export const etatsKeys = {
   commandes: () => [...etatsKeys.all, 'commandes'] as const,
   versements: (livreurId: UUID, p: Periode | null) =>
     [...etatsKeys.all, 'versements', livreurId, per(p)] as const,
+  depenses: (userId: UUID, p: Periode | null) => [...etatsKeys.all, 'depenses', userId, per(p)] as const,
 };

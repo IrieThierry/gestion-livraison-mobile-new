@@ -13,6 +13,7 @@ export const TYPE_FICHIER: Record<FamilleEtat, string> = {
   encaissements: 'Encaissements-Creances',
   stock: 'Stock-Mouvements',
   fournisseurs: 'Fournisseurs-Versements',
+  depenses: 'Depenses',
 };
 
 /** Entité sans filtre : vue équipe du livreur principal. */
@@ -38,7 +39,7 @@ export interface ParamsNomFichier {
   famille: FamilleEtat;
   periode: Periode;
   /**
-   * Entités filtrées, dans l'ordre client, produit, fournisseur (le type de
+   * Entités filtrées, dans l'ordre client, produit, fournisseur, catégorie (le type de
    * mouvement n'entre pas dans le nom). Vides ou absentes : `livreur`.
    */
   entites?: ReadonlyArray<string | null | undefined>;

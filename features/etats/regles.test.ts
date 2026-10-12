@@ -57,8 +57,10 @@ describe('accès aux états', () => {
       'encaissements',
       'stock',
       'fournisseurs',
+      'depenses',
     ]);
-    expect(famillesVisibles(apprenti).map((f) => f.key)).toEqual(['ventes', 'encaissements', 'stock']);
+    expect(famillesVisibles(apprenti).map((f) => f.key)).toEqual(['ventes', 'encaissements', 'stock', 'depenses']);
+    expect(peutVoirFamille(apprenti, 'depenses')).toBe(true);
     expect(peutVoirFamille(apprenti, 'fournisseurs')).toBe(false);
     expect(famillesVisibles(null)).toEqual([]);
   });
@@ -76,6 +78,8 @@ describe('accès aux états', () => {
   it('filtre livreur : principal hors fournisseurs seulement', () => {
     expect(afficheFiltreLivreur(principal, 'ventes')).toBe(true);
     expect(afficheFiltreLivreur(principal, 'fournisseurs')).toBe(false);
+    // Dépenses : la route ne renvoie que celles de l'appelant.
+    expect(afficheFiltreLivreur(principal, 'depenses')).toBe(false);
     expect(afficheFiltreLivreur(apprenti, 'ventes')).toBe(false);
   });
 
@@ -95,6 +99,7 @@ describe('accès aux états', () => {
       id: 'a1',
     });
     expect(choixAutorise(principal, { type: 'equipe' }, ids, 'fournisseurs')).toEqual({ type: 'moi' });
+    expect(choixAutorise(principal, { type: 'apprenti', id: 'a1' }, ids, 'depenses')).toEqual({ type: 'moi' });
   });
 
   it('cible des lectures et libellé de l’en-tête', () => {

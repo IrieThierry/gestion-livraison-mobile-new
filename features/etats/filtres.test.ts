@@ -5,6 +5,7 @@ import {
   idsFiltres,
   lignesFiltres,
   OPTIONS_TYPES_MOUVEMENT,
+  optionsDepenses,
   optionsEncaissements,
   optionsFournisseurs,
   optionsStock,
@@ -73,12 +74,26 @@ describe('options des filtres', () => {
   });
 });
 
+describe('options des dépenses', () => {
+  it('catégories connues dans l’ordre de la saisie, puis les autres rencontrées', () => {
+    const d = (categorie: string) => ({ id: categorie, libelle: 'x', categorie, montant: 1, dateDepense: '2026-10-01', commentaire: null });
+    expect(optionsDepenses([d('AUTRE'), d('PEAGE'), d('CARBURANT')]).categories).toEqual([
+      { id: 'CARBURANT', label: 'Carburant' },
+      { id: 'ENTRETIEN', label: 'Entretien' },
+      { id: 'ADMINISTRATIF', label: 'Administratif' },
+      { id: 'AUTRE', label: 'Autre' },
+      { id: 'PEAGE', label: 'PEAGE' },
+    ]);
+  });
+});
+
 describe('choix des filtres', () => {
   const tous = {
     client: { id: 'c', label: 'Ali' },
     produit: { id: 'p', label: 'Eau' },
     fournisseur: { id: 'f', label: 'Brasserie' },
     typeMouvement: { id: 'AJUSTEMENT', label: 'Ajustement' },
+    categorie: { id: 'CARBURANT', label: 'Carburant' },
   };
 
   it('ne garde que les filtres de la famille', () => {
@@ -86,17 +101,31 @@ describe('choix des filtres', () => {
     expect(filtresDeFamille('encaissements', tous)).toEqual({ ...AUCUN_FILTRE, client: tous.client });
     expect(filtresDeFamille('stock', tous)).toEqual({ ...AUCUN_FILTRE, produit: tous.produit, typeMouvement: tous.typeMouvement });
     expect(filtresDeFamille('fournisseurs', tous)).toEqual({ ...AUCUN_FILTRE, fournisseur: tous.fournisseur });
+    expect(filtresDeFamille('depenses', tous)).toEqual({ ...AUCUN_FILTRE, categorie: tous.categorie });
   });
 
   it('identifiants, lignes d’en-tête et entités du nom de fichier', () => {
-    expect(idsFiltres(tous)).toEqual({ clientId: 'c', produitId: 'p', fournisseurId: 'f', typeMouvement: 'AJUSTEMENT' });
-    expect(idsFiltres(AUCUN_FILTRE)).toEqual({ clientId: null, produitId: null, fournisseurId: null, typeMouvement: null });
+    expect(idsFiltres(tous)).toEqual({
+      clientId: 'c',
+      produitId: 'p',
+      fournisseurId: 'f',
+      typeMouvement: 'AJUSTEMENT',
+      categorie: 'CARBURANT',
+    });
+    expect(idsFiltres(AUCUN_FILTRE)).toEqual({
+      clientId: null,
+      produitId: null,
+      fournisseurId: null,
+      typeMouvement: null,
+      categorie: null,
+    });
     expect(lignesFiltres(tous).map((l) => `${l.libelle} : ${l.valeur}`)).toEqual([
       'Client : Ali',
       'Produit : Eau',
       'Fournisseur : Brasserie',
       'Type de mouvement : Ajustement',
+      'Catégorie : Carburant',
     ]);
-    expect(entitesFichier(tous)).toEqual(['Ali', 'Eau', 'Brasserie']);
+    expect(entitesFichier(tous)).toEqual(['Ali', 'Eau', 'Brasserie', 'Carburant']);
   });
 });

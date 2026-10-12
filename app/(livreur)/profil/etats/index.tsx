@@ -1,5 +1,5 @@
 import { ScrollView, View, Text, Pressable } from 'react-native';
-import { ChevronRight, Truck, Banknote, Package, Store } from 'lucide-react-native';
+import { ChevronRight, Truck, Banknote, Package, Store, Wallet } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { famillesVisibles, type FamilleEtat } from '../../../../features/etats/acces';
 import { useAuthStore } from '../../../../stores/authStore';
@@ -10,6 +10,7 @@ const ICONES: Record<FamilleEtat, { icon: React.ComponentType<{ color: string; s
   encaissements: { icon: Banknote, color: '#3b82f6' },
   stock: { icon: Package, color: '#f59e0b' },
   fournisseurs: { icon: Store, color: '#8b5cf6' },
+  depenses: { icon: Wallet, color: '#ef4444' },
 };
 
 /**
