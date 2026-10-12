@@ -18,6 +18,10 @@ import {
 } from '../../features/accueil/regles';
 import { useCommandesAReceptionner } from '../../features/commandes/hooks';
 import { usePrevisionsEchues } from '../../features/previsions/hooks';
+import { useRemisesAConfirmer } from '../../features/remises-argent/hooks';
+import { nbRemisesAConfirmer } from '../../features/remises-argent/regles';
+import { useTransfertsADecider } from '../../features/transferts/hooks';
+import { nbTransfertsADecider } from '../../features/transferts/regles';
 import { useAuthStore } from '../../stores/authStore';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Avatar } from '../../components/shared/Avatar';
@@ -44,6 +48,10 @@ export default function Tournee() {
   const qEchues = usePrevisionsEchues(user?.id);
   // Abonnement effectif : bandeau en EXPIRE (relu au tirer-pour-rafraîchir).
   const qAbo = useMonAbonnement();
+  // Principal : remises déclarées par ses apprentis, à confirmer (désactivé pour un apprenti).
+  const qRemises = useRemisesAConfirmer();
+  // Transferts à recevoir : en attente, dont le livreur connecté est le décideur (principal comme apprenti).
+  const qTransferts = useTransfertsADecider();
   // Mouvements de stock du jour (local) du livreur connecté — l'apprenti voit
   // les siens : quantités vendues (livraisons) et réceptionnées du jour.
   const jour = jourLocal();
@@ -89,12 +97,17 @@ export default function Tournee() {
 
   if (!user) return null;
 
-  // Clochette = commandes à réceptionner + prévisions échues de l'utilisateur courant.
-  const notifCount = (qARecep.data?.length ?? 0) + qEchues.echues.length;
+  // Clochette = commandes à réceptionner + prévisions échues de l'utilisateur courant
+  // + (principal) remises déclarées par ses apprentis, à confirmer + transferts à recevoir.
+  const nbRemises = user.parentId ? 0 : nbRemisesAConfirmer(qRemises.data);
+  const nbTransferts = nbTransfertsADecider(qTransferts.data, user.id);
+  const notifCount = (qARecep.data?.length ?? 0) + qEchues.echues.length + nbRemises + nbTransferts;
 
   const onRefresh = () => {
     qARecep.refetch();
     qEchues.refetch();
+    if (!user.parentId) qRemises.refetch();
+    qTransferts.refetch();
     qLiv.refetch();
     qEnc.refetch();
     qEncours.refetch();

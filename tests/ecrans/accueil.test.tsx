@@ -46,6 +46,14 @@ let mockNbCommandes = 0;
 jest.mock('../../features/commandes/hooks', () => ({
   useCommandesAReceptionner: () => ({ data: Array.from({ length: mockNbCommandes }), refetch: jest.fn() }),
 }));
+let mockRemises: unknown[] = [];
+jest.mock('../../features/remises-argent/hooks', () => ({
+  useRemisesAConfirmer: () => ({ data: mockRemises, isLoading: false, isError: false, refetch: jest.fn() }),
+}));
+let mockTransferts: unknown[] = [];
+jest.mock('../../features/transferts/hooks', () => ({
+  useTransfertsADecider: () => ({ data: mockTransferts, isLoading: false, isError: false, refetch: jest.fn() }),
+}));
 let mockEchues: unknown[] = [];
 jest.mock('../../features/previsions/hooks', () => ({
   usePrevisionsEchues: () => ({ echues: mockEchues, isLoading: false, isError: false, refetch: jest.fn() }),
@@ -81,6 +89,8 @@ beforeEach(() => {
   mockNbCommandes = 0;
   mockEchues = [];
   mockAbonnement = { statut: 'ESSAI', formule: 'LIVREUR', herite: false };
+  mockRemises = [];
+  mockTransferts = [];
 });
 
 describe('Accueil : cloche', () => {
@@ -91,6 +101,37 @@ describe('Accueil : cloche', () => {
     expect(screen.getByText('5')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Notifications : 5'));
     expect(ouvrir).toHaveBeenCalledWith('/(livreur)/previsions/echues');
+  });
+
+  it('principal : + remises déclarées à confirmer', () => {
+    mockNbCommandes = 1;
+    mockRemises = [{ statut: 'DECLAREE' }, { statut: 'DECLAREE' }];
+    render(<Tournee />);
+    expect(screen.getByLabelText('Notifications : 3')).toBeTruthy();
+  });
+
+  it('apprenti : les remises ne comptent pas', () => {
+    mockUser = { ...mockUser, parentId: 'p' };
+    mockRemises = [{ statut: 'DECLAREE' }];
+    render(<Tournee />);
+    expect(screen.getByLabelText('Notifications : 0')).toBeTruthy();
+  });
+
+  it('+ transferts à recevoir (dont je suis le décideur), principal comme apprenti', () => {
+    mockNbCommandes = 1;
+    mockTransferts = [
+      { statut: 'EN_ATTENTE', decideurId: mockUser.id },
+      { statut: 'EN_ATTENTE', decideurId: 'autre' },
+    ];
+    render(<Tournee />);
+    expect(screen.getByLabelText('Notifications : 2')).toBeTruthy();
+  });
+
+  it('apprenti : transferts à recevoir comptés', () => {
+    mockUser = { ...mockUser, parentId: 'p' };
+    mockTransferts = [{ statut: 'EN_ATTENTE', decideurId: mockUser.id }];
+    render(<Tournee />);
+    expect(screen.getByLabelText('Notifications : 1')).toBeTruthy();
   });
 
   it('sans rien à traiter : pas de badge', () => {

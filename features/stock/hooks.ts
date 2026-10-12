@@ -68,6 +68,18 @@ export function useMouvementsStock(livreurId: UUID, filtres: FiltresMouvementsSt
 }
 
 /**
+ * Stock en transit du livreur (transferts en attente, hors reprises) :
+ * sortant et entrant par produit. Relu après chaque écriture de transfert.
+ */
+export function useStockEnTransit(livreurId: UUID | undefined) {
+  return useQuery({
+    queryKey: stockKeys.enTransit(livreurId ?? ''),
+    queryFn: () => stockApi.enTransit(livreurId as UUID),
+    enabled: !!livreurId,
+  });
+}
+
+/**
  * Mise à zéro du stock d'un produit. Après succès, tout le cache du stock
  * est invalidé : stock courant, stock d'équipe et historique (mouvement
  * AJUSTEMENT), ce qui rafraîchit aussi les blocs de l'accueil.

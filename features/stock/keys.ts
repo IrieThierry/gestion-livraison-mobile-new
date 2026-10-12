@@ -10,6 +10,7 @@ export const stockKeys = {
     [...stockKeys.all, 'historique', livreurId, filtres] as const,
   parentActuel: (parentId: UUID) => [...stockKeys.all, 'parent-actuel', parentId] as const,
   equipe: () => [...stockKeys.all, 'equipe'] as const,
+  enTransit: (livreurId: UUID) => [...stockKeys.all, 'en-transit', livreurId] as const,
   // Le web utilise une clé inline `['stock', 'courant', dateDebut, dateFin]`
   // pour `useStockCourant`. On expose un helper équivalent côté mobile.
   courant: (dateDebut?: string, dateFin?: string) =>

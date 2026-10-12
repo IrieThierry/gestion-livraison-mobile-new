@@ -656,6 +656,8 @@ export type TypeMouvementStock =
   | 'LIVRAISON'
   | 'RETOUR_EN_STOCK'
   | 'AJUSTEMENT'
+  /** Transfert refusé ou annulé : la quantité revient chez la source (entrée). */
+  | 'TRANSFERT_RETOUR'
 
 /**
  * Un mouvement du stock d'un livreur (journal lu à la volée, trié du plus récent
@@ -736,6 +738,28 @@ export interface TransfertStockResponse {
   qte: number
   dateTransfert: ISODate
   commentaire: string | null
+  statut: StatutTransfert
+  motifRefus: string | null
+  /** Qui a lancé le transfert : lui seul peut l'annuler tant qu'il est en attente. */
+  initieParId: UUID | null
+  decideParId: UUID | null
+  dateDecision: ISODate | null
+  /** Reprise : lancée par le destinataire (le principal reprend du stock à son apprenti). */
+  reprise: boolean
+  /** Qui accepte ou refuse : toujours celui qui n'a pas lancé le transfert. */
+  decideurId: UUID | null
+}
+
+/** Statut d'un transfert de stock : tout transfert doit être accepté par son décideur. */
+export type StatutTransfert = 'EN_ATTENTE' | 'ACCEPTE' | 'REFUSE' | 'ANNULE'
+
+export interface RefuserTransfertRequest {
+  motif: string
+}
+
+/** `GET /stock-livreur/{livreurId}/en-transit` : transferts en attente par produit (hors reprises). */
+export interface StockEnTransitResponse {
+  lignes: Array<{ produit: ProduitResponse; sortant: number; entrant: number }>
 }
 
 export interface EffectuerTransfertRequest {
@@ -744,6 +768,46 @@ export interface EffectuerTransfertRequest {
   produitId: UUID
   qte: number
   commentaire?: string
+}
+
+// ---------- Remises d'argent apprenti → principal ----------
+export type StatutRemiseArgent = 'DECLAREE' | 'CONFIRMEE' | 'CONTESTEE' | 'ANNULEE'
+
+/** `RemiseArgentResponse` du back (`/remise-argent`). */
+export interface RemiseArgentResponse {
+  id: UUID
+  /** `REM-n`, propre à l'apprenti. */
+  reference: string
+  apprenti: LivreurResponse | null
+  principal: LivreurResponse | null
+  /** BigDecimal : nombre ou chaîne. */
+  montant: number
+  /** LocalDateTime de la déclaration. */
+  dateRemise: ISODate
+  commentaire: string | null
+  statut: StatutRemiseArgent
+  motifContestation: string | null
+  decideParId: UUID | null
+  dateDecision: ISODate | null
+  /** Clôture journalière à l'origine de la remise, sinon null. */
+  clotureId: UUID | null
+}
+
+export interface DeclarerRemiseArgentRequest {
+  montant: number
+  commentaire?: string
+}
+
+export interface ContesterRemiseArgentRequest {
+  motif: string
+}
+
+/** Filtres des listes : `debut` / `fin` en `yyyy-MM-dd`, bornes incluses. */
+export interface FiltresRemisesArgent {
+  apprentiId?: UUID
+  statut?: StatutRemiseArgent
+  debut?: string
+  fin?: string
 }
 
 // ---------- Prévisions (Plan 22) ----------

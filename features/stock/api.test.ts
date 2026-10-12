@@ -61,3 +61,12 @@ describe('stockApi.mettreAZero', () => {
     await expect(stockApi.mettreAZero('liv-1', 'p-1', { motif: 'CASSE' })).rejects.toBe(erreur);
   });
 });
+
+describe('stockApi.enTransit', () => {
+  it('lit le stock en transit du livreur', async () => {
+    const reponse = { lignes: [{ produit: { id: 'p1' }, sortant: 4, entrant: 0 }] };
+    get.mockResolvedValue({ data: reponse });
+    expect(await stockApi.enTransit('liv-1')).toBe(reponse);
+    expect(get).toHaveBeenCalledWith('/stock-livreur/liv-1/en-transit');
+  });
+});

@@ -13,6 +13,7 @@ const LIBELLES: Record<TypeMouvementStock, string> = {
   LIVRAISON: 'Livraison',
   RETOUR_EN_STOCK: 'Retour en stock',
   AJUSTEMENT: 'Ajustement',
+  TRANSFERT_RETOUR: 'Transfert retourné',
 };
 
 /** Libellé d'un type de mouvement de stock (mêmes libellés que le web). */

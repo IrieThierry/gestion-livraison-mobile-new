@@ -10,7 +10,7 @@ import {
 import type { TypeMouvementStock } from '../../types/api';
 
 describe('libelleTypeMouvement', () => {
-  it('donne le libellé des six types', () => {
+  it('donne le libellé des sept types', () => {
     const attendus: Record<TypeMouvementStock, string> = {
       RECEPTION: 'Réception',
       TRANSFERT_ENTREE: 'Transfert reçu',
@@ -18,6 +18,7 @@ describe('libelleTypeMouvement', () => {
       LIVRAISON: 'Livraison',
       RETOUR_EN_STOCK: 'Retour en stock',
       AJUSTEMENT: 'Ajustement',
+      TRANSFERT_RETOUR: 'Transfert retourné',
     };
     for (const [type, libelle] of Object.entries(attendus)) {
       expect(libelleTypeMouvement(type as TypeMouvementStock)).toBe(libelle);
