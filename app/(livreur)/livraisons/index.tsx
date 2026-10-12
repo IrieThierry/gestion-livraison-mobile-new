@@ -118,6 +118,8 @@ export default function LivraisonsList() {
         </Pressable>
         <Pressable
           onPress={() => setSearchOpen((v) => !v)}
+          accessibilityRole="button"
+          accessibilityLabel={searchOpen ? 'Fermer la recherche' : 'Rechercher'}
           hitSlop={8}
           className="w-10 h-10 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 items-center justify-center active:opacity-70"
         >
@@ -154,7 +156,11 @@ export default function LivraisonsList() {
           <View className="flex-row gap-2 mt-1">
             <StatCount label="Encaissée" value={stats.encaissees} accent="emerald" />
             <StatCount label="Non encaissée" value={stats.nonEncaissees} accent="amber" />
-            <View className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-red-500 rounded-lg p-2.5">
+            <View
+              accessible
+              accessibilityLabel={`Reste dû : ${formatMontant(stats.resteDu)}`}
+              className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-red-500 rounded-lg p-2.5"
+            >
               <Text className="text-[9px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-extrabold">
                 Reste dû
               </Text>
@@ -237,6 +243,8 @@ function StatCount({
         : 'border-l-red-500';
   return (
     <View
+      accessible
+      accessibilityLabel={`${label} : ${value}`}
       className={`flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 ${border} rounded-lg p-2.5`}
     >
       <Text className="text-[9px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-extrabold">

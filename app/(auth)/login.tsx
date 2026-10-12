@@ -19,14 +19,16 @@ import { SecureStorage } from '../../lib/secure-storage';
 import { dialog } from '../../lib/dialog';
 import * as Network from 'expo-network';
 import { messageErreurConnexion } from '../../features/auth/erreurConnexion';
-import { useNetworkStore } from '../../stores/networkStore';
 
-/** Téléphone hors ligne ? (le suivi du réseau ne démarre qu'après connexion : on interroge expo-network). */
+/**
+ * Téléphone sans aucune connexion ? Seul `isConnected === false` compte : l'API
+ * peut être sur un intranet sans accès internet, donc `isInternetReachable`
+ * (et `networkStore`, qui s'en sert) n'est pas utilisé ici.
+ */
 async function estHorsLigne(): Promise<boolean> {
-  if (!useNetworkStore.getState().isOnline) return true;
   try {
     const etat = await Network.getNetworkStateAsync();
-    return etat.isConnected === false || etat.isInternetReachable === false;
+    return etat.isConnected === false;
   } catch {
     return false;
   }
@@ -74,7 +76,7 @@ export default function Login() {
       router.replace('/(livreur)');
     },
     onError: async (e: unknown) => {
-      const sansReponse = !(e as { response?: unknown })?.response;
+      const sansReponse = !(e as { response?: unknown } | null)?.response;
       const horsLigne = sansReponse ? await estHorsLigne() : false;
       dialog.error('Connexion impossible', messageErreurConnexion(e, { horsLigne }));
     },

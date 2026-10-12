@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View, Text, Pressable, Modal, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Calendar, ListFilter, X } from 'lucide-react-native';
@@ -13,6 +13,7 @@ import {
   type OptionPeriode,
   type ValeurPeriode,
 } from '../../lib/periode';
+import { useThemeStore } from '../../stores/themeStore';
 
 /**
  * Filtre de période partagé : pastilles des raccourcis de l'écran, plus
@@ -146,11 +147,14 @@ function ChoixDuAu({
   const [au, setAu] = useState(initial.au);
   const [edition, setEdition] = useState<'du' | 'au' | null>(null);
   const aujourdhui = new Date();
+  // Calendrier iOS « inline » : couleurs du thème de l'appli (la feuille le suit), pas de celui du système.
+  const theme = useThemeStore((s) => s.effective);
 
-  const choisir = (_: unknown, d?: Date) => {
+  // Stable : le dialogue Android se rouvre si `onChange` change pendant qu'il est ouvert.
+  const choisir = useCallback((evenement: { type?: string }, d?: Date) => {
     const champ = edition;
     if (Platform.OS !== 'ios') setEdition(null);
-    if (!d || !champ) return;
+    if (evenement?.type === 'dismissed' || !d || !champ) return;
     const j = jourIso(d);
     // Au ≥ Du et pas après aujourd'hui : un Du après Au repousse Au.
     if (champ === 'du') {
@@ -162,7 +166,7 @@ function ChoixDuAu({
       setDu(v.du);
       setAu(v.au);
     }
-  };
+  }, [edition, du, au]);
 
   return (
     <Modal transparent animationType="fade" onRequestClose={onAnnuler}>
@@ -185,6 +189,7 @@ function ChoixDuAu({
               onChange={choisir}
               minimumDate={edition === 'au' ? dateDeJour(du) : undefined}
               maximumDate={aujourdhui}
+              themeVariant={theme}
             />
           ) : null}
 

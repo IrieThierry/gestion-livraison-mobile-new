@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { naviguer } from '../../lib/navigation-app';
 import LivraisonsList from '../../app/(livreur)/livraisons/index';
 import { useLivraisonsLivreurPeriode } from '../../features/livraisons/hooks';
-import { aujourdhui, derniersJours } from '../../lib/periode';
+import { aujourdhui, derniersJours, jourIso, libelleIntervalle } from '../../lib/periode';
 
 jest.mock('expo-router', () => ({
   usePathname: () => '/',
@@ -22,6 +22,18 @@ jest.mock('../../stores/authStore', () => {
   return { useAuthStore: (sel: (s: unknown) => unknown) => sel({ user }) };
 });
 jest.mock('../../features/livraisons/hooks', () => ({ useLivraisonsLivreurPeriode: jest.fn() }));
+// Calendrier simulé : un appui choisit le jour d'il y a 3 jours.
+jest.mock('@react-native-community/datetimepicker', () => {
+  const { Text } = jest.requireActual('react-native');
+  return {
+    __esModule: true,
+    default: ({ onChange }: { onChange: (e: { type: string }, d: Date) => void }) => {
+      const d = new Date();
+      d.setDate(d.getDate() - 3);
+      return <Text onPress={() => onChange({ type: 'set' }, d)}>calendrier</Text>;
+    },
+  };
+});
 
 const hook = useLivraisonsLivreurPeriode as jest.Mock;
 const lecture = (data: unknown[]) => ({ data, isLoading: false, isFetching: false, refetch: jest.fn() });
@@ -83,5 +95,33 @@ describe('Mes livraisons', () => {
     fireEvent.press(screen.getByText('7 j'));
     expect(screen.getByText('2 livraisons')).toBeTruthy();
     expect(screen.queryByText(/Ancien/)).toBeNull();
+    // Compteurs sur la période seulement.
+    expect(screen.getByLabelText('Encaissée : 1')).toBeTruthy();
+    expect(screen.getByLabelText('Non encaissée : 1')).toBeTruthy();
+    expect(screen.getByLabelText(/^Reste dû : 1.000$/)).toBeTruthy();
+    // Recherche dans la période.
+    fireEvent.press(screen.getByLabelText('Rechercher'));
+    fireEvent.changeText(screen.getByPlaceholderText('Rechercher un client ou quartier…'), 'Koffi');
+    expect(screen.getByText('1 livraison')).toBeTruthy();
+    expect(screen.getByLabelText('Encaissée : 0')).toBeTruthy();
+    expect(screen.getByLabelText('Non encaissée : 1')).toBeTruthy();
+    fireEvent.changeText(screen.getByPlaceholderText('Rechercher un client ou quartier…'), 'Ancien');
+    expect(screen.getByText('0 livraison')).toBeTruthy();
+  });
+
+  it('Période… : Du / Au choisis, envoyés à la route, pastille de l’intervalle, croix → Aujourd’hui', () => {
+    render(<LivraisonsList />);
+    fireEvent.press(screen.getByText('Période…'));
+    const aujourd = jourIso(new Date());
+    const ilYa3 = new Date();
+    ilYa3.setDate(ilYa3.getDate() - 3);
+    const du = jourIso(ilYa3);
+    fireEvent.press(screen.getByLabelText(/^Du /));
+    fireEvent.press(screen.getByText('calendrier'));
+    fireEvent.press(screen.getByText('Appliquer'));
+    expect(hook).toHaveBeenLastCalledWith('liv-1', { debut: du, fin: aujourd });
+    expect(screen.getByText(libelleIntervalle(du, aujourd))).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Effacer la période'));
+    expect(hook).toHaveBeenLastCalledWith('liv-1', aujourdhui());
   });
 });

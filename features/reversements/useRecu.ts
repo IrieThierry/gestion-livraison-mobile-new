@@ -15,6 +15,7 @@ import {
   type PartieRecu,
 } from './recu';
 import { partagerRecu } from './partageRecu';
+import { useRecuStore } from '../../stores/recuStore';
 import { chargerDetailRecu } from './recuDonnees';
 import { DETAIL_EN_ECHEC, MESSAGE_DETAIL_INDISPONIBLE, type DetailRecu } from './recuDetail';
 
@@ -68,6 +69,9 @@ export function usePartagerRecu() {
         // Tout dans la promesse : une erreur synchrone (donnée inattendue)
         // est affichée et le verrou est toujours libéré.
         let indisponible = false;
+        // Bandeau « Préparation du reçu… » (et bouton occupé) jusqu'à l'ouverture du partage.
+        const preparer = useRecuStore.getState().setPreparation;
+        preparer(r.id);
         Promise.resolve()
           .then(async () => {
             const parties = partiesReversement(r, annuaire);
@@ -89,6 +93,7 @@ export function usePartagerRecu() {
               new Date(),
               detail,
             );
+            preparer(null);
             await partagerRecu(recu);
             if (indisponible) dialog.warning('Détail indisponible', MESSAGE_DETAIL_INDISPONIBLE);
           })
@@ -98,7 +103,10 @@ export function usePartagerRecu() {
               e instanceof Error && e.message ? e.message : 'Le reçu n’a pas pu être généré.',
             ),
           )
-          .finally(fin);
+          .finally(() => {
+            preparer(null);
+            fin();
+          });
       });
     },
     [annuaire, user, verrou],

@@ -156,7 +156,7 @@ const STYLE = `
   table { width: 100%; border-collapse: collapse; }
   table.champs th { text-align: left; width: 38%; color: #475569; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }
   table.champs td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-weight: 700; }
-  h2 { font-size: 13px; margin: 0 0 6px; color: #0f172a; }
+  h2 { font-size: 13px; margin: 0 0 6px; color: #0f172a; page-break-after: avoid; break-after: avoid; }
   table.detail { font-size: 10.5px; margin-bottom: 8px; }
   table.detail thead { display: table-header-group; }
   table.detail tfoot { display: table-row-group; }

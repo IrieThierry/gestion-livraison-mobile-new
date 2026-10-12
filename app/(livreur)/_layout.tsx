@@ -4,6 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Tabs, useNavigationContainerRef } from 'expo-router';
 import { TrendingUp, Truck, User, Plus, Users } from 'lucide-react-native';
 import { OfflineBanner } from '../../components/shared/OfflineBanner';
+import { PreparationRecuBanner } from '../../components/shared/PreparationRecuBanner';
 import { FabSheet } from '../../components/livreur/FabSheet';
 import { useNetworkStore } from '../../stores/networkStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -55,6 +56,7 @@ export default function LivreurLayout() {
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-slate-50 dark:bg-slate-950">
       <OfflineBanner />
+      <PreparationRecuBanner />
       <Tabs
         initialRouteName="index"
         // Retour depuis la racine d'un onglet = Accueil (le retour matériel

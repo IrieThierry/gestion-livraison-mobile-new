@@ -11,6 +11,8 @@ import { useReversementsListe, useEnregistrerReversement } from '../../features/
 import { useDialogStore } from '../../stores/dialogStore';
 import { partagerRecu } from '../../features/reversements/partageRecu';
 import { chargerDetailRecu } from '../../features/reversements/recuDonnees';
+import { useRecuStore } from '../../stores/recuStore';
+import { PreparationRecuBanner } from '../../components/shared/PreparationRecuBanner';
 
 jest.mock('expo-router', () => ({
   usePathname: () => '/cash/encaissements',
@@ -174,6 +176,27 @@ describe('Reçu de reversement', () => {
     // Détail lu pour le livreur connecté (livreur principal).
     expect(chargerDetailRecu).toHaveBeenCalledWith(reversement, { id: 'liv-1', parentId: null });
     expect(useDialogStore.getState().open).toBe(false);
+  });
+
+  it('pendant la lecture du détail : bandeau « Préparation du reçu… » et bouton occupé', async () => {
+    let finir: (v: unknown) => void = () => undefined;
+    (chargerDetailRecu as jest.Mock).mockReturnValue(new Promise((ok) => (finir = ok)));
+    (useReversementsListe as jest.Mock).mockReturnValue(lecture([reversement]));
+    render(
+      <>
+        <PreparationRecuBanner />
+        <ReversementsHistorique />
+      </>,
+    );
+    expect(screen.queryByLabelText('Préparation du reçu…')).toBeNull();
+    fireEvent.press(screen.getByLabelText('Partager le reçu'));
+    expect(useRecuStore.getState().preparation).toBe('rev-1');
+    expect(screen.getByLabelText('Préparation du reçu…')).toBeTruthy();
+    expect(screen.getByLabelText('Partager le reçu').props.accessibilityState).toMatchObject({ busy: true });
+    await act(async () => finir(DETAIL));
+    await waitFor(() => expect(partagerRecu).toHaveBeenCalled());
+    await waitFor(() => expect(useRecuStore.getState().preparation).toBeNull());
+    expect(screen.queryByLabelText('Préparation du reçu…')).toBeNull();
   });
 
   it('détail illisible : reçu généré quand même avec « Détail indisponible », puis message', async () => {
