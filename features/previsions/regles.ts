@@ -306,62 +306,115 @@ export function echuesATraiter(
 // Écritures (plans d'appels)
 // ---------------------------------------------------------------------------
 
-/** Création : ajouter à une prévision existante (PUT) ou créer (POST). */
+/** Commentaires réunis : `a · b` (b ignoré s'il est vide ou déjà contenu dans a). */
+export function fusionnerCommentaires(a: string | null | undefined, b: string | null | undefined): string | null {
+  const x = (a ?? '').trim();
+  const y = (b ?? '').trim();
+  if (!y) return x || null;
+  if (!x) return y;
+  if (x.includes(y)) return x;
+  return `${x} · ${y}`;
+}
+
+/**
+ * Création : ajouter à une prévision existante (PUT), créer (POST), ou rien
+ * (`deja` : report déjà fait, voir `planReport`). `commentaire` absent = ne
+ * pas toucher au commentaire existant.
+ */
 export type PlanCreation =
-  | { type: 'ajout'; id: UUID; qteEstimee: number }
-  | { type: 'creation'; qteEstimee: number };
+  | { type: 'ajout'; id: UUID; qteEstimee: number; commentaire?: string }
+  | { type: 'creation'; qteEstimee: number; commentaire?: string }
+  | { type: 'deja' };
+
+type CibleGroupe = { livreurId: UUID; clientId: UUID; produitId: UUID; jour: string };
+
+function duGroupe(p: PrevisionResponse, c: CibleGroupe): boolean {
+  return (
+    p.livreur?.id === c.livreurId &&
+    p.client?.id === c.clientId &&
+    p.produit?.id === c.produitId &&
+    jourDe(p.dateLivraison) === c.jour
+  );
+}
 
 /**
  * À la création, si une prévision existe déjà pour ce livreur + client +
  * produit + jour : la quantité est ajoutée à la première (PUT) au lieu de
- * créer un doublon.
+ * créer un doublon ; un commentaire saisi est ajouté au sien (jamais écrasé).
  */
 export function planCreation(
   existantes: readonly PrevisionResponse[],
-  cible: { livreurId: UUID; clientId: UUID; produitId: UUID; jour: string },
+  cible: CibleGroupe,
   qte: number,
+  commentaire?: string | null,
 ): PlanCreation {
-  const deja = existantes.find(
-    (p) =>
-      p.livreur?.id === cible.livreurId &&
-      p.client?.id === cible.clientId &&
-      p.produit?.id === cible.produitId &&
-      jourDe(p.dateLivraison) === cible.jour,
-  );
-  if (!deja) return { type: 'creation', qteEstimee: qte };
-  return { type: 'ajout', id: deja.id, qteEstimee: n(deja.qteEstimee) + qte };
+  const deja = existantes.find((p) => duGroupe(p, cible));
+  const saisi = (commentaire ?? '').trim();
+  if (!deja) {
+    return saisi ? { type: 'creation', qteEstimee: qte, commentaire: saisi } : { type: 'creation', qteEstimee: qte };
+  }
+  const plan: PlanCreation = { type: 'ajout', id: deja.id, qteEstimee: n(deja.qteEstimee) + qte };
+  const fusion = fusionnerCommentaires(deja.commentaire, saisi);
+  return fusion && fusion !== (deja.commentaire ?? '').trim() ? { ...plan, commentaire: fusion } : plan;
 }
 
 /** Modification d'une ligne regroupée : la nouvelle quantité remplace le total. */
 export interface PlanModification {
-  maj: { id: UUID; qteEstimee: number };
+  /** `commentaire` : commentaire du groupe reporté sur la prévision gardée. */
+  maj: { id: UUID; qteEstimee: number; commentaire?: string };
   suppressions: UUID[];
 }
 
-export function planModification(g: Pick<GroupePrevision, 'ids'>, nouvelleQte: number): PlanModification {
+export function planModification(
+  g: Pick<GroupePrevision, 'ids'> & { commentaire?: string | null },
+  nouvelleQte: number,
+): PlanModification {
   const [premiere, ...autres] = g.ids;
-  return { maj: { id: premiere, qteEstimee: nouvelleQte }, suppressions: autres };
+  const maj: PlanModification['maj'] = { id: premiere, qteEstimee: nouvelleQte };
+  // Les autres prévisions sont supprimées : le commentaire du groupe (premier non vide) est gardé.
+  if (g.commentaire && autres.length > 0) maj.commentaire = g.commentaire;
+  return { maj, suppressions: autres };
+}
+
+/** Marque d'un report : `Reporté du 10/10` (jour d'origine). */
+export function marqueReport(jourSource: string): string {
+  const [, m, d] = jourSource.split('-');
+  return `Reporté du ${d}/${m}`;
 }
 
 /**
  * Report d'une prévision échue (quantité = Reste) vers `jourCible`. Le back
  * ne modifie pas la date d'une prévision (PUT : quantité et commentaire
- * seulement) : on crée (ou on complète) la prévision du jour cible, puis on
- * supprime les prévisions du groupe échu.
+ * seulement) : on crée (ou on complète) la prévision du jour cible, marquée
+ * « Reporté du JJ/MM » (ajoutée au commentaire existant), puis on supprime
+ * les prévisions du groupe échu. Idempotent : si la cible porte déjà la
+ * marque de ce jour d'origine (essai précédent interrompu avant la
+ * suppression), rien n'est ajouté (`deja`) et seule la suppression est refaite.
  */
 export interface PlanReport {
   creation: PlanCreation;
-  cible: { livreurId: UUID; clientId: UUID; produitId: UUID; jour: string };
+  cible: CibleGroupe;
   suppressions: UUID[];
 }
 
 export function planReport(
-  g: Pick<GroupePrevision, 'ids' | 'reste' | 'livreurId' | 'client' | 'produit'>,
+  g: Pick<GroupePrevision, 'ids' | 'reste' | 'livreurId' | 'client' | 'produit' | 'jour'> & {
+    commentaire?: string | null;
+  },
   jourCible: string,
   existantesCible: readonly PrevisionResponse[],
 ): PlanReport {
   const cible = { livreurId: g.livreurId, clientId: g.client.id, produitId: g.produit.id, jour: jourCible };
-  return { creation: planCreation(existantesCible, cible, g.reste), cible, suppressions: [...g.ids] };
+  const marque = marqueReport(g.jour);
+  const suppressions = [...g.ids];
+  if (existantesCible.some((p) => duGroupe(p, cible) && (p.commentaire ?? '').includes(marque))) {
+    return { creation: { type: 'deja' }, cible, suppressions };
+  }
+  let creation = planCreation(existantesCible, cible, g.reste, marque);
+  if (creation.type === 'creation') {
+    creation = { ...creation, commentaire: fusionnerCommentaires(g.commentaire, marque) ?? marque };
+  }
+  return { creation, cible, suppressions };
 }
 
 // ---------------------------------------------------------------------------

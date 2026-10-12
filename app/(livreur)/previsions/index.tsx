@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, View, Text, Pressable, RefreshControl, Switch } from 'react-native';
+import { ActivityIndicator, ScrollView, View, Text, Pressable, RefreshControl, Switch } from 'react-native';
 import { Plus, ListTree, Calendar, ShoppingCart, Users } from 'lucide-react-native';
 import { dialog } from '../../../lib/dialog';
 import { PageHeader } from '../../../components/shared/PageHeader';
@@ -67,6 +67,8 @@ export default function PrevisionsList() {
   const fournisseursQ = useFournisseursPartenaires();
 
   const livraisons = livraisonsQ.data;
+  // Livré inconnu tant que les livraisons ne sont pas lues : pas de « Livré 0 » ni de fausse « Échue ».
+  const livreConnu = !!livraisons;
   const mesBlocs = useMemo(
     () => parClient(regrouperPrevisions(previsionsQ.data ?? [], livraisons ?? [])),
     [previsionsQ.data, livraisons],
@@ -177,7 +179,13 @@ export default function PrevisionsList() {
               />
             </View>
           ) : null}
-          {cumul.length === 0 ? (
+          {cumulQ.isLoading ? (
+            <ActivityIndicator color="#3b82f6" />
+          ) : cumulQ.isError ? (
+            <Text className="text-[12px] text-red-600 dark:text-red-400">
+              {extractApiErrorMessage(cumulQ.error, 'Cumul indisponible.')}
+            </Text>
+          ) : cumul.length === 0 ? (
             <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-3">
               <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center">
                 Aucune prévision saisie pour cette date.
@@ -214,7 +222,19 @@ export default function PrevisionsList() {
               {principal ? 'Mes prévisions par client' : 'Détail par client'}
             </Text>
           </View>
-          {mesBlocs.length === 0 ? (
+          {livraisonsQ.isError ? (
+            <Text className="text-[12px] text-amber-700 dark:text-amber-300">
+              Livraisons indisponibles : Livré et Écart ne sont pas calculés.
+            </Text>
+          ) : null}
+          {previsionsQ.isLoading ? (
+            <ActivityIndicator color="#10b981" />
+          ) : previsionsQ.isError ? (
+            <EmptyState
+              title="Chargement impossible"
+              message={extractApiErrorMessage(previsionsQ.error, 'Les prévisions n’ont pas pu être lues.')}
+            />
+          ) : mesBlocs.length === 0 ? (
             <EmptyState
               title="Aucune prévision"
               message="Saisis tes prévisions du jour pour anticiper la commande fournisseur."
@@ -228,6 +248,7 @@ export default function PrevisionsList() {
                       key={l.cle}
                       ligne={l}
                       echue={estEchue(l, aujourdhui)}
+                      livreConnu={livreConnu}
                       onModifier={() => setEnModification(l)}
                       onSupprimer={() => onSupprimer(l)}
                     />
@@ -250,7 +271,7 @@ export default function PrevisionsList() {
                   {parClient(a.lignes).map((b) => (
                     <CarteClient key={`${a.livreurId}-${b.clientId}`} bloc={b}>
                       {b.lignes.map((l) => (
-                        <LignePrevision key={l.cle} ligne={l} echue={estEchue(l, aujourdhui)} />
+                        <LignePrevision key={l.cle} ligne={l} echue={estEchue(l, aujourdhui)} livreConnu={livreConnu} />
                       ))}
                     </CarteClient>
                   ))}

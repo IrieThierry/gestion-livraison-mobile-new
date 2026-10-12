@@ -99,6 +99,10 @@ export default function NouvelleLivraison() {
     setPrerempliPour(client.id);
   }, [client, prevues]);
 
+  // Prévisions déjà reprises telles quelles (chaque produit prévu avec son Reste).
+  const prevuesAppliquees =
+    !!prevues && prevues.every((p) => lignes.some((l) => l.produitId === p.produitId && l.qte === p.qte));
+
   const reprendrePrevisions = () => {
     if (!client || !prevues) return;
     setLignes(appliquerPrevisions(lignes, prevues, prixInitialLigne(client.prixDeVenteProduitParDefault)));
@@ -217,7 +221,7 @@ export default function NouvelleLivraison() {
           </Text>
           <ClientPicker value={client} onChange={setClient} />
 
-          {client && prerempliPour === client.id ? (
+          {client && prerempliPour === client.id && lignes.length > 0 ? (
             <View className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-md p-3 mt-3 flex-row items-center gap-2">
               <CalendarCheck color="#2563eb" size={14} />
               <Text className="text-[12px] text-blue-700 dark:text-blue-300 font-bold flex-1">
@@ -225,7 +229,7 @@ export default function NouvelleLivraison() {
               </Text>
             </View>
           ) : null}
-          {client && prevues && prevues.length > 0 && lignes.length > 0 && prerempliPour !== client.id ? (
+          {client && prevues && prevues.length > 0 && !prevuesAppliquees ? (
             <Pressable
               onPress={reprendrePrevisions}
               accessibilityRole="button"

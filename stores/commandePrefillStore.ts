@@ -18,14 +18,18 @@ interface CommandePrefillState {
   definir: (source: PrefillCommandeSource) => void;
   /** Lit et vide la source (consommée une seule fois). */
   prendre: () => PrefillCommandeSource | null;
+  /** Vide la source (déconnexion). */
+  vider: () => void;
 }
 
 export const useCommandePrefillStore = create<CommandePrefillState>((set, get) => ({
   source: null,
-  definir: (source) => set({ source }),
+  // Nouvel objet à chaque « Commander » : le formulaire déjà monté le voit changer.
+  definir: (source) => set({ source: { ...source } }),
   prendre: () => {
     const s = get().source;
     if (s) set({ source: null });
     return s;
   },
+  vider: () => set({ source: null }),
 }));

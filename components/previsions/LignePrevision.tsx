@@ -43,7 +43,22 @@ export function PastilleEchue() {
 }
 
 /** Prévu · Livré · Écart. */
-export function ChiffresPrevision({ ligne }: { ligne: Pick<GroupePrevision, 'prevu' | 'livre' | 'ecart'> }) {
+export function ChiffresPrevision({
+  ligne,
+  livreConnu = true,
+}: {
+  ligne: Pick<GroupePrevision, 'prevu' | 'livre' | 'ecart'>;
+  /** Faux tant que les livraisons ne sont pas lues : Livré et Écart masqués. */
+  livreConnu?: boolean;
+}) {
+  if (!livreConnu) {
+    return (
+      <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+        Prévu <Text className="font-bold text-slate-800 dark:text-slate-200">{ligne.prevu}</Text>
+        {' · '}Livré … · Écart …
+      </Text>
+    );
+  }
   return (
     <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
       Prévu <Text className="font-bold text-slate-800 dark:text-slate-200">{ligne.prevu}</Text>
@@ -68,11 +83,14 @@ export function ChiffresPrevision({ ligne }: { ligne: Pick<GroupePrevision, 'pre
 export function LignePrevision({
   ligne,
   echue,
+  livreConnu = true,
   onModifier,
   onSupprimer,
 }: {
   ligne: GroupePrevision;
   echue?: boolean;
+  /** Faux tant que les livraisons ne sont pas lues : ni Livré, ni pastilles. */
+  livreConnu?: boolean;
   onModifier?: () => void;
   onSupprimer?: () => void;
 }) {
@@ -83,11 +101,13 @@ export function LignePrevision({
         <Text className="font-bold text-slate-900 dark:text-white text-[13px]">
           {ligne.produit.designation}
         </Text>
-        <ChiffresPrevision ligne={ligne} />
-        <View className="flex-row flex-wrap gap-1 mt-1">
-          <PastilleStatut statut={ligne.statut} />
-          {echue ? <PastilleEchue /> : null}
-        </View>
+        <ChiffresPrevision ligne={ligne} livreConnu={livreConnu} />
+        {livreConnu ? (
+          <View className="flex-row flex-wrap gap-1 mt-1">
+            <PastilleStatut statut={ligne.statut} />
+            {echue ? <PastilleEchue /> : null}
+          </View>
+        ) : null}
         {ligne.commentaire ? (
           <Text className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{ligne.commentaire}</Text>
         ) : null}

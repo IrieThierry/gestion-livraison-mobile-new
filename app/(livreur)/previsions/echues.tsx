@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { CalendarClock, ChevronRight, Clock, Package, Trash2 } from 'lucide-react-native';
+import { CalendarClock, ChevronRight, Clock, Package, Trash2, WifiOff } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { ChiffresPrevision, PastilleStatut } from '../../../components/previsions/LignePrevision';
@@ -19,6 +19,8 @@ import {
   type GroupePrevision,
 } from '../../../features/previsions/regles';
 import { useAuthStore } from '../../../stores/authStore';
+import { useNetworkStore } from '../../../stores/networkStore';
+import { DEPUIS_NOTIFICATIONS } from '../../../lib/navigation';
 import { dialog } from '../../../lib/dialog';
 import { ouvrir } from '../../../lib/navigation-app';
 import { extractApiErrorMessage } from '../../../lib/api-error';
@@ -39,7 +41,10 @@ export default function Notifications() {
   const supprimer = useSupprimerGroupes();
   const reporter = useReporterGroupes();
   const plusTard = usePlusTard(user?.id);
+  const isOnline = useNetworkStore((s) => s.isOnline);
   const enCours = supprimer.isPending || reporter.isPending || plusTard.isPending;
+  // Hors ligne : Supprimer / Reporter / Tout traiter désactivés (Plus tard reste local).
+  const ecritureImpossible = enCours || !isOnline;
 
   if (!user) return null;
 
@@ -125,13 +130,15 @@ export default function Notifications() {
             Commandes à réceptionner
           </Text>
           <Pressable
-            onPress={() => ouvrir('/(livreur)/cash/commandes/a-receptionner')}
+            onPress={() => ouvrir('/(livreur)/cash/commandes/a-receptionner', { depuis: DEPUIS_NOTIFICATIONS })}
             accessibilityRole="button"
             className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 flex-row items-center gap-3 active:opacity-70"
           >
             <Package color="#f59e0b" size={20} />
             <Text className="flex-1 font-bold text-slate-900 dark:text-white">
-              {nbCommandes === 0
+              {qARecep.isError
+                ? 'Commandes à réceptionner indisponibles'
+                : nbCommandes === 0
                 ? 'Aucune commande à réceptionner'
                 : `${nbCommandes} commande${nbCommandes > 1 ? 's' : ''} à réceptionner`}
             </Text>
@@ -145,7 +152,7 @@ export default function Notifications() {
             {echues.length > 1 ? (
               <Pressable
                 onPress={onToutTraiter}
-                disabled={enCours}
+                disabled={ecritureImpossible}
                 accessibilityRole="button"
                 className="bg-slate-800 dark:bg-slate-700 px-3 py-1.5 rounded-md active:opacity-80"
               >
@@ -153,6 +160,19 @@ export default function Notifications() {
               </Pressable>
             ) : null}
           </View>
+          {!isOnline ? (
+            <View className="flex-row items-center gap-2 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3">
+              <WifiOff color="#d97706" size={14} />
+              <Text className="flex-1 text-[12px] text-amber-800 dark:text-amber-200">
+                Hors ligne : Supprimer et Reporter seront possibles au retour du réseau.
+              </Text>
+            </View>
+          ) : null}
+          {echuesQ.partiel ? (
+            <Text className="text-[12px] text-amber-700 dark:text-amber-300">
+              Certains jours n’ont pas pu être lus : la liste peut être incomplète.
+            </Text>
+          ) : null}
           {echuesQ.isLoading ? (
             <ActivityIndicator color="#10b981" />
           ) : echuesQ.isError ? (
@@ -181,14 +201,14 @@ export default function Notifications() {
                     libelle="Supprimer"
                     icone={<Trash2 color="#dc2626" size={14} />}
                     couleur="text-red-600 dark:text-red-400"
-                    disabled={enCours}
+                    disabled={ecritureImpossible}
                     onPress={() => onSupprimer([g])}
                   />
                   <Action
                     libelle="Reporter"
                     icone={<CalendarClock color="#2563eb" size={14} />}
                     couleur="text-blue-700 dark:text-blue-300"
-                    disabled={enCours}
+                    disabled={ecritureImpossible}
                     onPress={() => onReporter([g])}
                   />
                   <Action

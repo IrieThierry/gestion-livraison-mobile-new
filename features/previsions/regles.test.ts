@@ -9,6 +9,8 @@ import {
   erreurDatePrevue,
   estEchue,
   formatEcart,
+  fusionnerCommentaires,
+  marqueReport,
   jourAbrege,
   jourDe,
   joursEchues,
@@ -221,7 +223,7 @@ describe('plans d’écriture', () => {
     );
     expect(g.reste).toBe(7);
     expect(planReport(g, '2026-10-13', [])).toEqual({
-      creation: { type: 'creation', qteEstimee: 7 },
+      creation: { type: 'creation', qteEstimee: 7, commentaire: 'Reporté du 10/10' },
       cible,
       suppressions: ['a', 'b'],
     });
@@ -229,7 +231,36 @@ describe('plans d’écriture', () => {
       type: 'ajout',
       id: 'z',
       qteEstimee: 9,
+      commentaire: 'Reporté du 10/10',
     });
+  });
+
+  it('report : marque ajoutée après « · » au commentaire existant ; idempotent si déjà marqué', () => {
+    const [g] = regrouperPrevisions([prev({ id: 'a', qte: 4, jour: '2026-10-10', commentaire: 'matin' })], []);
+    expect(planReport(g, '2026-10-13', []).creation).toEqual({
+      type: 'creation',
+      qteEstimee: 4,
+      commentaire: 'matin · Reporté du 10/10',
+    });
+    expect(
+      planReport(g, '2026-10-13', [prev({ id: 'z', qte: 2, jour: '2026-10-13', commentaire: 'soir' })]).creation,
+    ).toEqual({ type: 'ajout', id: 'z', qteEstimee: 6, commentaire: 'soir · Reporté du 10/10' });
+    const deja = planReport(g, '2026-10-13', [prev({ id: 'z', qte: 6, jour: '2026-10-13', commentaire: 'soir · Reporté du 10/10' })]);
+    expect(deja).toEqual({ creation: { type: 'deja' }, cible, suppressions: ['a'] });
+    expect(marqueReport('2026-10-10')).toBe('Reporté du 10/10');
+  });
+
+  it('commentaires : ajoutés, jamais écrasés', () => {
+    expect(fusionnerCommentaires('matin', 'urgent')).toBe('matin · urgent');
+    expect(fusionnerCommentaires('matin · urgent', 'urgent')).toBe('matin · urgent');
+    expect(fusionnerCommentaires(null, ' urgent ')).toBe('urgent');
+    expect(fusionnerCommentaires('', '')).toBeNull();
+    expect(planCreation([prev({ id: 'x', qte: 1, jour: '2026-10-13', commentaire: 'matin' })], cible, 2)).toEqual({
+      type: 'ajout',
+      id: 'x',
+      qteEstimee: 3,
+    });
+    expect(planModification({ ids: ['a', 'b'], commentaire: 'note' }, 5).maj).toEqual({ id: 'a', qteEstimee: 5, commentaire: 'note' });
   });
 });
 

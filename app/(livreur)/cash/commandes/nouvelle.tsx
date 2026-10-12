@@ -31,7 +31,10 @@ import { formatFCFA } from '../../../../lib/format';
 import { MESSAGE_AUCUN_PARTENAIRE, etatListePartenaires } from '../../../../features/relations/regles';
 import { useRetourListe } from '../../../../lib/useRetourListe';
 import { naviguer } from '../../../../lib/navigation-app';
-import { useCommandePrefillStore } from '../../../../stores/commandePrefillStore';
+import {
+  useCommandePrefillStore,
+  type PrefillCommandeSource,
+} from '../../../../stores/commandePrefillStore';
 import { jourCourt, prefillCommande } from '../../../../features/previsions/regles';
 
 export default function NouvelleCommande() {
@@ -46,9 +49,11 @@ export default function NouvelleCommande() {
     isError: qFournisseurs.isError,
     nombre: fournisseurs.length,
   });
-  // Commander depuis le cumul des prévisions : source lue une seule fois (store, pas d'URL).
-  const [prefill] = useState(() => useCommandePrefillStore.getState().prendre());
-  const [fournisseurId, setFournisseurId] = useState<string | null>(prefill?.fournisseurId ?? null);
+  // Commander depuis le cumul des prévisions : source passée par un store (pas d'URL),
+  // prise (donc vidée) à chaque nouveau « Commander », même si l'écran est resté monté.
+  const sourceEnAttente = useCommandePrefillStore((s) => s.source);
+  const [prefill, setPrefill] = useState<PrefillCommandeSource | null>(null);
+  const [fournisseurId, setFournisseurId] = useState<string | null>(null);
   // Fournisseur pour lequel le cumul a déjà été reporté dans les quantités.
   const [prefillApplique, setPrefillApplique] = useState<string | null>(null);
   const [quantites, setQuantites] = useState<Quantites>({});
@@ -61,6 +66,18 @@ export default function NouvelleCommande() {
     () => (prefill && fournisseurId && catalogue.data ? prefillCommande(prefill.cumul, lignes) : null),
     [prefill, fournisseurId, catalogue.data, lignes],
   );
+
+  useEffect(() => {
+    if (!sourceEnAttente) return;
+    const source = useCommandePrefillStore.getState().prendre();
+    if (!source) return;
+    // Nouveau « Commander » : le formulaire repart de cette source seulement.
+    setPrefill(source);
+    setFournisseurId(source.fournisseurId);
+    setQuantites({});
+    setApprentiId(null);
+    setPrefillApplique(null);
+  }, [sourceEnAttente]);
 
   // Quantités = cumul brut des produits proposés par ce fournisseur (modifiables).
   useEffect(() => {
@@ -111,6 +128,9 @@ export default function NouvelleCommande() {
         setFournisseurId(null);
         setQuantites({});
         setApprentiId(null);
+        // Commande envoyée : le cumul n'est plus jamais réappliqué.
+        setPrefill(null);
+        setPrefillApplique(null);
         retourListe();
         dialog.success('Commande envoyée');
       },

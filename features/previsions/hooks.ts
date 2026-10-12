@@ -87,16 +87,32 @@ export function useLivraisonsDuJour(user: UtilisateurPrevisions | null | undefin
 // « Plus tard » (mémoire locale, par utilisateur)
 // ---------------------------------------------------------------------------
 
+/**
+ * Copie en mémoire (session) de la mémoire « Plus tard » de chaque
+ * utilisateur : si AsyncStorage est indisponible, le choix vaut au moins
+ * pour la session (relectures comprises).
+ */
+const memoireSession = new Map<UUID, MemoirePlusTard>();
+
+/** Réservé aux tests : oublie les copies en mémoire. */
+export function viderMemoireSessionPlusTard(): void {
+  memoireSession.clear();
+}
+
+async function lirePlusTard(userId: UUID): Promise<MemoirePlusTard> {
+  const session = memoireSession.get(userId) ?? {};
+  try {
+    const stocke = lireMemoirePlusTard(await AsyncStorage.getItem(cleStockagePlusTard(userId)));
+    return { ...stocke, ...session };
+  } catch {
+    return session;
+  }
+}
+
 export function useMemoirePlusTard(userId: UUID | undefined) {
   return useQuery({
     queryKey: previsionKeys.plusTard(userId ?? ''),
-    queryFn: async (): Promise<MemoirePlusTard> => {
-      try {
-        return lireMemoirePlusTard(await AsyncStorage.getItem(cleStockagePlusTard(userId as UUID)));
-      } catch {
-        return {};
-      }
-    },
+    queryFn: () => lirePlusTard(userId as UUID),
     enabled: !!userId,
     staleTime: Infinity,
   });
@@ -108,19 +124,13 @@ export function usePlusTard(userId: UUID | undefined) {
   return useMutation({
     mutationFn: async (cles: string[]) => {
       if (!userId) return;
-      const cle = cleStockagePlusTard(userId);
-      let actuelle: MemoirePlusTard = {};
-      try {
-        actuelle = lireMemoirePlusTard(await AsyncStorage.getItem(cle));
-      } catch {
-        actuelle = {};
-      }
-      const suivante = ajouterPlusTard(actuelle, cles, jourLocal());
+      const suivante = ajouterPlusTard(await lirePlusTard(userId), cles, jourLocal());
+      memoireSession.set(userId, suivante);
       qc.setQueryData(previsionKeys.plusTard(userId), suivante);
       try {
-        await AsyncStorage.setItem(cle, JSON.stringify(suivante));
+        await AsyncStorage.setItem(cleStockagePlusTard(userId), JSON.stringify(suivante));
       } catch {
-        // Stockage indisponible : le choix vaut pour la session.
+        // Stockage indisponible : la copie en mémoire vaut pour la session.
       }
     },
   });
@@ -134,13 +144,17 @@ export interface ResultatEchues {
   /** Échues à traiter (hors « Plus tard » du jour), de la plus ancienne à la plus récente. */
   echues: GroupePrevision[];
   isLoading: boolean;
+  /** Aucune échue calculable (livraisons illisibles, ou aucun jour lu). */
   isError: boolean;
+  /** Certains jours n'ont pas pu être lus : la liste est incomplète. */
+  partiel: boolean;
   refetch: () => void;
 }
 
 /**
  * Prévisions échues du livreur connecté (jamais celles des apprentis) :
  * jour < aujourd'hui et Reste > 0, sur les `JOURS_ECHUES` derniers jours.
+ * Un jour illisible n'empêche pas d'afficher les autres (`partiel`).
  */
 export function usePrevisionsEchues(userId: UUID | undefined, aujourdhui: string = jourLocal()): ResultatEchues {
   const jours = useMemo(() => joursEchues(aujourdhui), [aujourdhui]);
@@ -168,10 +182,12 @@ export function usePrevisionsEchues(userId: UUID | undefined, aujourdhui: string
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cle, qLiv.data, qMemo.data, aujourdhui]);
 
+  const joursEnErreur = qPrev.filter((q) => q.isError).length;
   return {
     echues,
     isLoading: qPrev.some((q) => q.isLoading) || qLiv.isLoading,
-    isError: qPrev.some((q) => q.isError) || qLiv.isError,
+    isError: qLiv.isError || (joursEnErreur > 0 && joursEnErreur === qPrev.length),
+    partiel: joursEnErreur > 0 && joursEnErreur < qPrev.length && !qLiv.isError,
     refetch: () => {
       for (const q of qPrev) q.refetch();
       qLiv.refetch();
@@ -194,12 +210,28 @@ export interface SaisiePrevisions {
   jour: string;
   commentaire?: string;
   lignes: Array<{ produitId: UUID; qte: number }>;
+  /** Appelé après chaque ligne écrite : le formulaire la retire (un nouvel essai ne la réécrit pas). */
+  onLigneEcrite?: (produitId: UUID) => void;
+}
+
+/** Échec au milieu d'un enregistrement : lignes déjà écrites et ligne en échec. */
+export class ErreurEnregistrementPartiel extends Error {
+  constructor(
+    readonly ecrites: UUID[],
+    readonly enEchec: UUID,
+    readonly cause: unknown,
+  ) {
+    super('Enregistrement partiel des prévisions');
+    this.name = 'ErreurEnregistrementPartiel';
+  }
 }
 
 /**
- * Enregistre les quantités saisies : une prévision existante pour le même
- * client + produit + jour (du même livreur) est complétée (PUT, quantité
- * ajoutée) au lieu d'être dupliquée.
+ * Enregistre les quantités saisies, une ligne après l'autre : une prévision
+ * existante pour le même client + produit + jour (du même livreur) est
+ * complétée (PUT, quantité ajoutée, commentaire saisi ajouté au sien) au lieu
+ * d'être dupliquée. Sur échec, `ErreurEnregistrementPartiel` dit ce qui a
+ * déjà été écrit.
  */
 export function useEnregistrerPrevisions() {
   const invalider = useInvaliderPrevisions();
@@ -207,24 +239,35 @@ export function useEnregistrerPrevisions() {
     mutationFn: async (s: SaisiePrevisions) => {
       // Lecture fraîche du jour (pas le cache) : décide ajout ou création.
       const existantes = await previsionsApi.byLivreur(s.livreurId, s.jour);
+      const ecrites: UUID[] = [];
       for (const l of s.lignes) {
-        const plan = planCreation(
-          existantes,
-          { livreurId: s.livreurId, clientId: s.clientId, produitId: l.produitId, jour: s.jour },
-          l.qte,
-        );
-        if (plan.type === 'ajout') {
-          await previsionsApi.update(plan.id, { qteEstimee: plan.qteEstimee });
-        } else {
-          await previsionsApi.create({
-            livreurId: s.livreurId,
-            clientId: s.clientId,
-            produitId: l.produitId,
-            qteEstimee: plan.qteEstimee,
-            dateLivraison: s.jour,
-            commentaire: s.commentaire,
-          });
+        try {
+          const plan = planCreation(
+            existantes,
+            { livreurId: s.livreurId, clientId: s.clientId, produitId: l.produitId, jour: s.jour },
+            l.qte,
+            s.commentaire,
+          );
+          if (plan.type === 'ajout') {
+            await previsionsApi.update(
+              plan.id,
+              plan.commentaire ? { qteEstimee: plan.qteEstimee, commentaire: plan.commentaire } : { qteEstimee: plan.qteEstimee },
+            );
+          } else if (plan.type === 'creation') {
+            await previsionsApi.create({
+              livreurId: s.livreurId,
+              clientId: s.clientId,
+              produitId: l.produitId,
+              qteEstimee: plan.qteEstimee,
+              dateLivraison: s.jour,
+              commentaire: plan.commentaire,
+            });
+          }
+        } catch (e) {
+          throw new ErreurEnregistrementPartiel(ecrites, l.produitId, e);
         }
+        ecrites.push(l.produitId);
+        s.onLigneEcrite?.(l.produitId);
       }
     },
     onSettled: () => invalider(),
@@ -235,9 +278,20 @@ export function useEnregistrerPrevisions() {
 export function useModifierGroupe() {
   const invalider = useInvaliderPrevisions();
   return useMutation({
-    mutationFn: async ({ groupe, qte }: { groupe: Pick<GroupePrevision, 'ids'>; qte: number }) => {
+    mutationFn: async ({
+      groupe,
+      qte,
+    }: {
+      groupe: Pick<GroupePrevision, 'ids'> & { commentaire?: string | null };
+      qte: number;
+    }) => {
       const plan = planModification(groupe, qte);
-      await previsionsApi.update(plan.maj.id, { qteEstimee: plan.maj.qteEstimee });
+      await previsionsApi.update(
+        plan.maj.id,
+        plan.maj.commentaire
+          ? { qteEstimee: plan.maj.qteEstimee, commentaire: plan.maj.commentaire }
+          : { qteEstimee: plan.maj.qteEstimee },
+      );
       for (const id of plan.suppressions) await previsionsApi.remove(id);
     },
     onSettled: () => invalider(),
@@ -257,8 +311,10 @@ export function useSupprimerGroupes() {
 
 /**
  * Reporte des groupes échus à `jourCible` pour leur Reste : création (ou
- * complément) de la prévision du jour cible, puis suppression des
- * prévisions échues du groupe (le back ne change pas la date d'une prévision).
+ * complément) de la prévision du jour cible, marquée « Reporté du JJ/MM »,
+ * puis suppression des prévisions échues du groupe (le back ne change pas la
+ * date d'une prévision). Un nouvel essai après un échec entre les deux ne
+ * rajoute pas la quantité (marque déjà présente) : il refait la suppression.
  */
 export function useReporterGroupes() {
   const invalider = useInvaliderPrevisions();
@@ -274,18 +330,29 @@ export function useReporterGroupes() {
         const plan = planReport(g, jourCible, existantes);
         const creation = plan.creation;
         if (creation.type === 'ajout') {
-          const maj = await previsionsApi.update(creation.id, { qteEstimee: creation.qteEstimee });
+          const maj = await previsionsApi.update(
+            creation.id,
+            creation.commentaire
+              ? { qteEstimee: creation.qteEstimee, commentaire: creation.commentaire }
+              : { qteEstimee: creation.qteEstimee },
+          );
           // Plusieurs reports vers le même groupe : la quantité suivante s'ajoute à celle-ci.
           const i = existantes.findIndex((p) => p.id === creation.id);
-          if (i >= 0) existantes[i] = { ...existantes[i], qteEstimee: maj?.qteEstimee ?? creation.qteEstimee };
-        } else {
+          if (i >= 0) {
+            existantes[i] = {
+              ...existantes[i],
+              qteEstimee: maj?.qteEstimee ?? creation.qteEstimee,
+              commentaire: maj?.commentaire ?? creation.commentaire ?? existantes[i].commentaire,
+            };
+          }
+        } else if (creation.type === 'creation') {
           const cree = await previsionsApi.create({
             livreurId: plan.cible.livreurId,
             clientId: plan.cible.clientId,
             produitId: plan.cible.produitId,
-            qteEstimee: plan.creation.qteEstimee,
+            qteEstimee: creation.qteEstimee,
             dateLivraison: jourCible,
-            commentaire: g.commentaire ?? undefined,
+            commentaire: creation.commentaire,
           });
           if (cree) existantes.push(cree);
         }

@@ -18,7 +18,7 @@ import { useClientsByLivreur, useEncoursByLivreur } from '../../../features/clie
 import { optionsClients, soldesParClient } from '../../../features/clients/affichage';
 import { AUCUN_RESULTAT, filtrerRecherche } from '../../../lib/recherche';
 import { useProduits } from '../../../features/produits/hooks';
-import { useEnregistrerPrevisions } from '../../../features/previsions/hooks';
+import { ErreurEnregistrementPartiel, useEnregistrerPrevisions } from '../../../features/previsions/hooks';
 import {
   ajouterJours,
   erreurDatePrevue,
@@ -54,6 +54,8 @@ export default function NouvellePrevision() {
   const erreurDate = erreurDatePrevue(date, aujourdhui);
   const [qtes, setQtes] = useState<Record<string, string>>({});
   const [commentaire, setCommentaire] = useState('');
+  // Lignes déjà écrites lors d'un envoi interrompu (retirées du formulaire).
+  const [dejaEnregistrees, setDejaEnregistrees] = useState<string[]>([]);
   const [rechercheProduit, setRechercheProduit] = useState('');
 
   const clientsQ = useClientsByLivreur(livreurId);
@@ -100,6 +102,8 @@ export default function NouvellePrevision() {
 
     // Une prévision existante pour le même client + produit + jour est
     // complétée (quantité ajoutée) au lieu d'être dupliquée.
+    const designation = (id: string) =>
+      (produitsQ.data ?? []).find((p) => p.id === id)?.designation ?? 'un produit';
     m.mutate(
       {
         livreurId,
@@ -107,6 +111,14 @@ export default function NouvellePrevision() {
         jour: date,
         commentaire: commentaire.trim() || undefined,
         lignes: lignesAvecQte.map((l) => ({ produitId: l.produit.id, qte: l.qte })),
+        // Ligne écrite : retirée du formulaire, un nouvel essai ne l'ajoute pas deux fois.
+        onLigneEcrite: (produitId) => {
+          setQtes((q) => {
+            const { [produitId]: _ecrite, ...reste } = q;
+            return reste;
+          });
+          setDejaEnregistrees((d) => [...d, designation(produitId)]);
+        },
       },
       {
         onSuccess: () => {
@@ -115,8 +127,17 @@ export default function NouvellePrevision() {
             `${lignesAvecQte.length} prévision${lignesAvecQte.length > 1 ? 's' : ''} enregistrée${lignesAvecQte.length > 1 ? 's' : ''}`,
           );
         },
-        onError: (err: unknown) =>
-          dialog.error('Erreur', extractApiErrorMessage(err, 'Échec de l’enregistrement')),
+        onError: (err: unknown) => {
+          const cause = err instanceof ErreurEnregistrementPartiel ? err.cause : err;
+          const message = extractApiErrorMessage(cause, 'Échec de l’enregistrement');
+          const ecrites = err instanceof ErreurEnregistrementPartiel ? err.ecrites.map(designation) : [];
+          dialog.error(
+            'Enregistrement interrompu',
+            ecrites.length > 0
+              ? `Enregistrement interrompu : ${message}. Déjà enregistrées : ${ecrites.join(', ')} ; les autres lignes restent à envoyer.`
+              : `Enregistrement interrompu : ${message}.`,
+          );
+        },
       },
     );
   };
@@ -215,6 +236,14 @@ export default function NouvellePrevision() {
               className="px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white"
             />
           </View>
+
+          {dejaEnregistrees.length > 0 ? (
+            <View className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-md p-3 mt-3">
+              <Text className="text-[12px] text-emerald-800 dark:text-emerald-200">
+                Déjà enregistrées : {dejaEnregistrees.join(', ')}
+              </Text>
+            </View>
+          ) : null}
 
           {/* Submit */}
           <Pressable
