@@ -6,6 +6,7 @@ import type {
   MouvementStockResponse,
   StockCourantLigneResponse,
   StockEquipeLigneResponse,
+  StockEnTransitResponse,
   StockLivreurResponse,
   UUID,
 } from '../../types/api';
@@ -79,6 +80,16 @@ export const stockApi = {
       `/stock-livreur/${livreurId}/historique`,
       { params: filtres },
     );
+    return data;
+  },
+
+  /**
+   * Stock en transit d'un livreur (`GET /stock-livreur/{id}/en-transit`) : par
+   * produit, quantités des transferts en attente envoyées (sortant) et à
+   * recevoir (entrant). Les reprises en attente n'y figurent pas.
+   */
+  enTransit: async (livreurId: UUID): Promise<StockEnTransitResponse> => {
+    const { data } = await apiClient.get<StockEnTransitResponse>(`/stock-livreur/${livreurId}/en-transit`);
     return data;
   },
 

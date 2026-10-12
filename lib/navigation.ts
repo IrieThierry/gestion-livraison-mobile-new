@@ -131,7 +131,8 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   'stock/index': { type: 'liste', parent: ACCUEIL },
   'stock/mouvements': { type: 'liste', parent: '/stock' },
   'stock/equipe': { type: 'liste', parent: '/stock' },
-  'stock/transferts/index': { type: 'liste', parent: '/stock' },
+  // Ouverte depuis Notifications (« Transferts à recevoir ») : retour à Notifications.
+  'stock/transferts/index': { type: 'liste', parent: '/stock', origines: { notifications: '/previsions/echues' } },
   'stock/transferts/nouveau': { type: 'formulaire', parent: '/stock/transferts' },
 
   'previsions/index': { type: 'liste', parent: ACCUEIL },

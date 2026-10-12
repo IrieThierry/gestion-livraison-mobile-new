@@ -50,6 +50,10 @@ let mockRemises: unknown[] = [];
 jest.mock('../../features/remises-argent/hooks', () => ({
   useRemisesAConfirmer: () => ({ data: mockRemises, isLoading: false, isError: false, refetch: jest.fn() }),
 }));
+let mockTransferts: unknown[] = [];
+jest.mock('../../features/transferts/hooks', () => ({
+  useTransfertsADecider: () => ({ data: mockTransferts, isLoading: false, isError: false, refetch: jest.fn() }),
+}));
 let mockEchues: unknown[] = [];
 jest.mock('../../features/previsions/hooks', () => ({
   usePrevisionsEchues: () => ({ echues: mockEchues, isLoading: false, isError: false, refetch: jest.fn() }),
@@ -80,6 +84,7 @@ beforeEach(() => {
   mockNbCommandes = 0;
   mockEchues = [];
   mockRemises = [];
+  mockTransferts = [];
 });
 
 describe('Accueil : cloche', () => {
@@ -104,6 +109,23 @@ describe('Accueil : cloche', () => {
     mockRemises = [{ statut: 'DECLAREE' }];
     render(<Tournee />);
     expect(screen.getByLabelText('Notifications : 0')).toBeTruthy();
+  });
+
+  it('+ transferts à recevoir (dont je suis le décideur), principal comme apprenti', () => {
+    mockNbCommandes = 1;
+    mockTransferts = [
+      { statut: 'EN_ATTENTE', decideurId: mockUser.id },
+      { statut: 'EN_ATTENTE', decideurId: 'autre' },
+    ];
+    render(<Tournee />);
+    expect(screen.getByLabelText('Notifications : 2')).toBeTruthy();
+  });
+
+  it('apprenti : transferts à recevoir comptés', () => {
+    mockUser = { ...mockUser, parentId: 'p' };
+    mockTransferts = [{ statut: 'EN_ATTENTE', decideurId: mockUser.id }];
+    render(<Tournee />);
+    expect(screen.getByLabelText('Notifications : 1')).toBeTruthy();
   });
 
   it('sans rien à traiter : pas de badge', () => {

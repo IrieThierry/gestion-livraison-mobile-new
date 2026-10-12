@@ -57,6 +57,16 @@ jest.mock('../../features/remises-argent/hooks', () => ({
   useConfirmerRemise: () => mockConfirmer,
   useContesterRemise: () => mockContester,
 }));
+let mockTransferts: unknown = [];
+const mockAccepter = { mutate: jest.fn(), isPending: false };
+const mockRefuser = { mutate: jest.fn(), isPending: false };
+const mockAnnuler = { mutate: jest.fn(), isPending: false };
+jest.mock('../../features/transferts/hooks', () => ({
+  useTransfertsADecider: () => ({ data: mockTransferts, isLoading: false, isError: mockTransferts === undefined, refetch: jest.fn() }),
+  useAccepterTransfert: () => mockAccepter,
+  useRefuserTransfert: () => mockRefuser,
+  useAnnulerTransfert: () => mockAnnuler,
+}));
 jest.mock('../../features/commandes/hooks', () => ({
   useCommandesAReceptionner: () => ({ data: [{}, {}], isError: false, refetch: jest.fn() }),
 }));
@@ -125,6 +135,7 @@ beforeEach(() => {
   mockOnline = true;
   mockParams = {};
   mockRemises = [];
+  mockTransferts = [];
   for (const n of ['useSupprimerGroupes', 'useReporterGroupes', 'usePlusTard', 'useModifierGroupe', 'useEnregistrerPrevisions'])
     h[n].mockReturnValue(mutation());
 });
@@ -203,6 +214,37 @@ describe('Notifications (cloche)', () => {
     render(<Notifications />);
     expect(screen.getByText('Remises à confirmer indisponibles')).toBeTruthy();
     expect(screen.queryByText('Aucune remise à confirmer')).toBeNull();
+  });
+
+  const transfert = {
+    id: 't1', qte: 4, dateTransfert: '2026-10-12T10:00:00', statut: 'EN_ATTENTE', commentaire: null, motifRefus: null,
+    source: { id: 'P0', prenom: 'Awa', nom: 'K' }, destinataire: { id: 'L1', prenom: 'Ali', nom: 'K' },
+    produit: { id: 'p1', designation: 'Pain' }, initieParId: 'P0', decideurId: 'L1', reprise: false,
+    decideParId: null, dateDecision: null,
+  };
+
+  it('« Transferts à recevoir » : Accepter, Refuser, et la liste ouverte depuis Notifications', () => {
+    mockUser = { id: 'L1', prenom: 'Ali', nom: 'K', parentId: 'P0' };
+    mockTransferts = [transfert];
+    render(<Notifications />);
+    expect(screen.getByText('Transferts à recevoir')).toBeTruthy();
+    expect(screen.getByText(/Pain ×/)).toBeTruthy();
+    fireEvent.press(screen.getByText('Accepter'));
+    (dialog.confirm as jest.Mock).mock.calls[0][0].onConfirm();
+    expect(mockAccepter.mutate).toHaveBeenCalledWith('t1', expect.anything());
+    expect(screen.getByText('Refuser')).toBeTruthy();
+    fireEvent.press(screen.getByText('Voir tous les transferts'));
+    expect(ouvrir).toHaveBeenCalledWith('/(livreur)/stock/transferts', { depuis: 'notifications' });
+  });
+
+  it('« Transferts à recevoir » : aucun, ou lecture impossible', () => {
+    const { unmount } = render(<Notifications />);
+    expect(screen.getByText('Aucun transfert à recevoir')).toBeTruthy();
+    unmount();
+    mockTransferts = undefined;
+    render(<Notifications />);
+    expect(screen.getByText('Transferts à recevoir indisponibles')).toBeTruthy();
+    expect(screen.queryByText('Aucun transfert à recevoir')).toBeNull();
   });
 
   it('apprenti : pas de rubrique remises', () => {

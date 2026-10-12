@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native';
-import { ArrowLeftRight, Users, ArrowRight, History } from 'lucide-react-native';
+import { ArrowLeftRight, Users, ArrowRight, History, Undo2, Hourglass } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { SearchInput } from '../../../components/shared/SearchInput';
 import { AUCUN_RESULTAT, filtrerRecherche } from '../../../lib/recherche';
 import { ProduitVignette } from '../../../components/shared/ProduitVignette';
 import { MiseAZeroDialog, type CibleMiseAZero } from '../../../components/livreur/MiseAZeroDialog';
-import { useStockCourant } from '../../../features/stock/hooks';
+import { useStockCourant, useStockEnTransit } from '../../../features/stock/hooks';
 import { peutMettreAZero } from '../../../features/stock/regles';
 import { useAuthStore } from '../../../stores/authStore';
 import { naviguer } from '../../../lib/navigation-app';
@@ -28,6 +28,8 @@ import { naviguer } from '../../../lib/navigation-app';
 export default function StockCourant() {
   const user = useAuthStore((s) => s.user);
   const q = useStockCourant();
+  // Transferts en attente (hors reprises) : sortant et entrant par produit.
+  const qTransit = useStockEnTransit(user?.id);
   const [recherche, setRecherche] = useState('');
   const [cible, setCible] = useState<CibleMiseAZero | null>(null);
   // Tri stable alphabétique par désignation produit
@@ -44,6 +46,9 @@ export default function StockCourant() {
   ]);
 
   if (!user) return null;
+
+  // Produits en transit (au moins une quantité envoyée ou à recevoir).
+  const transit = (qTransit.data?.lignes ?? []).filter((l) => l.sortant > 0 || l.entrant > 0);
 
   // « Mettre à zéro » : livreur principal seulement (jamais l'apprenti).
   const miseAZeroPossible = peutMettreAZero(user, user.id);
@@ -110,26 +115,75 @@ export default function StockCourant() {
             <ArrowRight color="#94a3b8" size={16} />
           </Pressable>
 
-          {/* Submenu (root only — pas pour les apprentis) */}
-          {!user.parentId ? (
-            <View className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+          {/* En transit : transferts envoyés ou à recevoir, en attente d'acceptation (hors reprises). */}
+          {transit.length > 0 ? (
+            <Pressable
+              onPress={() => naviguer('/(livreur)/stock/transferts')}
+              accessibilityRole="button"
+              className="mt-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg px-4 py-3 active:opacity-70"
+            >
+              <View className="flex-row items-center gap-2">
+                <Hourglass color="#d97706" size={16} />
+                <Text className="flex-1 font-extrabold text-amber-900 dark:text-amber-200">En transit</Text>
+                <ArrowRight color="#94a3b8" size={16} />
+              </View>
+              {transit.map((l) => (
+                <View key={l.produit?.id} className="flex-row items-start justify-between mt-1.5 gap-2">
+                  <Text className="flex-1 text-[12px] font-bold text-slate-800 dark:text-slate-200">
+                    {l.produit?.designation ?? '—'}
+                  </Text>
+                  <View className="items-end">
+                    {l.sortant > 0 ? (
+                      <Text className="text-[11px] text-amber-800 dark:text-amber-300">
+                        {`${l.sortant} envoyé(s), en attente d’acceptation`}
+                      </Text>
+                    ) : null}
+                    {l.entrant > 0 ? (
+                      <Text className="text-[11px] text-emerald-700 dark:text-emerald-400">{`${l.entrant} à recevoir`}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              ))}
+            </Pressable>
+          ) : null}
+
+          {/* Transferts (tous) ; « Rendre du stock » (apprenti) ; « Stock équipe » (principal) */}
+          <View className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+            {user.parentId ? (
               <Pressable
-                onPress={() => naviguer('/(livreur)/stock/transferts')}
-                className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
+                onPress={() => naviguer('/(livreur)/stock/transferts/nouveau')}
+                accessibilityRole="button"
+                className="flex-row items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 active:opacity-70"
               >
                 <View className="flex-row items-center gap-3 flex-1">
-                  <ArrowLeftRight color="#3b82f6" size={20} />
+                  <Undo2 color="#10b981" size={20} />
                   <View className="flex-1">
-                    <Text className="font-extrabold text-slate-900 dark:text-white">
-                      Transferts
-                    </Text>
+                    <Text className="font-extrabold text-slate-900 dark:text-white">Rendre du stock</Text>
                     <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Vers / depuis tes apprentis
+                      À ton livreur principal, qui devra l’accepter
                     </Text>
                   </View>
                 </View>
                 <ArrowRight color="#94a3b8" size={16} />
               </Pressable>
+            ) : null}
+            <Pressable
+              onPress={() => naviguer('/(livreur)/stock/transferts')}
+              accessibilityRole="button"
+              className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
+            >
+              <View className="flex-row items-center gap-3 flex-1">
+                <ArrowLeftRight color="#3b82f6" size={20} />
+                <View className="flex-1">
+                  <Text className="font-extrabold text-slate-900 dark:text-white">Transferts</Text>
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {user.parentId ? 'Avec ton livreur principal' : 'Vers / depuis tes apprentis'}
+                  </Text>
+                </View>
+              </View>
+              <ArrowRight color="#94a3b8" size={16} />
+            </Pressable>
+            {!user.parentId ? (
               <Pressable
                 onPress={() => naviguer('/(livreur)/stock/equipe')}
                 className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
@@ -147,8 +201,8 @@ export default function StockCourant() {
                 </View>
                 <ArrowRight color="#94a3b8" size={16} />
               </Pressable>
-            </View>
-          ) : null}
+            ) : null}
+          </View>
 
           {/* Liste */}
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">

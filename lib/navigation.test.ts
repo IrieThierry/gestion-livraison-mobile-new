@@ -161,6 +161,11 @@ describe('table des parents', () => {
     // Notifications → Commandes à réceptionner : retour à Notifications.
     expect(p('/cash/commandes/a-receptionner', { depuis: DEPUIS_NOTIFICATIONS })).toBe('/previsions/echues');
     expect(p('/cash/commandes/a-receptionner', {})).toBe('/');
+    // Notifications → Transferts : retour à Notifications ; sinon Stock.
+    expect(p('/stock/transferts', { depuis: DEPUIS_NOTIFICATIONS })).toBe('/previsions/echues');
+    expect(p('/stock/transferts', { depuis: 'client' })).toBe('/stock');
+    expect(p('/stock/transferts', {})).toBe('/stock');
+    expect(p('/stock/transferts/nouveau', { depuis: DEPUIS_NOTIFICATIONS })).toBe('/stock/transferts');
     // Fiche apprenti → Remises des apprentis (filtrée) : retour à la fiche ; sinon Moi.
     expect(p('/profil/remises-apprentis', { apprentiId: 'A1', depuis: DEPUIS_APPRENTI })).toBe('/profil/apprentis/A1');
     expect(p('/profil/remises-apprentis', { apprentiId: 'A1' })).toBe('/profil');
@@ -261,6 +266,16 @@ describe('retour (parent logique)', () => {
   it('formulaire ouvert seul (autre rubrique) → sa liste sur une pile propre', () => {
     const etat = onglets('cash', { cash: [r('encours'), r('encaisser', { clientId: 'c1' })] });
     expect(pileApres(actionRetour(etat, PRINCIPAL), 'cash').noms).toEqual(['encaissements']);
+  });
+
+  it('Transferts ouverts depuis Notifications → retour à Notifications (onglet Prévisions)', () => {
+    const etat = onglets('stock', { stock: [r('transferts', undefined, [r('index', { depuis: DEPUIS_NOTIFICATIONS })])] });
+    const p = pileApres(actionRetour(etat, PRINCIPAL), 'previsions');
+    expect(p.actif).toBe('previsions');
+    expect(p.noms).toEqual(['echues']);
+    // Sans origine : retour à Stock.
+    const sans = onglets('stock', { stock: [r('transferts', undefined, [r('index')])] });
+    expect(pileApres(actionRetour(sans, PRINCIPAL), 'stock').noms).toEqual(['index']);
   });
 
   it('liste → Accueil directement, même avec des écrans visités plus bas', () => {

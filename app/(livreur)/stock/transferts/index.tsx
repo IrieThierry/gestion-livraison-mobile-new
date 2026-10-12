@@ -1,49 +1,84 @@
+import { useState } from 'react';
 import { View, Text, FlatList, Pressable, RefreshControl } from 'react-native';
-import { Plus, ArrowRight } from 'lucide-react-native';
+import { Plus, Undo2 } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
-import { useTransfertsParent } from '../../../../features/transferts/hooks';
+import { TransfertCarte, useDecisionTransfert } from '../../../../components/livreur/TransfertCarte';
+import { useTransfertsLivreur, useTransfertsParent } from '../../../../features/transferts/hooks';
+import { transfertsAffiches, type FiltreTransferts } from '../../../../features/transferts/regles';
 import { useAuthStore } from '../../../../stores/authStore';
-import { formatDateShort } from '../../../../lib/format';
 import { naviguer } from '../../../../lib/navigation-app';
 
 /**
- * Liste des transferts effectués au sein de l'équipe (root + apprentis).
- * Utilise `GET /transfert-stock/parent/{parentId}` côté back, qui renvoie
- * tous les transferts dont la source OU le destinataire appartient à
- * l'équipe du parent.
+ * Transferts de stock. Principal : ceux de l'équipe (`GET
+ * /transfert-stock/parent/{id}`) ; apprenti : les siens (`GET
+ * /transfert-stock/livreur/{id}`). Badge de statut, filtre « En attente » et
+ * actions selon le rôle : le décideur Accepte ou Refuse, l'initiateur Annule.
  */
 export default function TransfertsList() {
   const user = useAuthStore((s) => s.user);
-  const livreurId = user?.id ?? '';
-  const q = useTransfertsParent(livreurId);
+  const estApprenti = !!user?.parentId;
+  const qEquipe = useTransfertsParent(user && !estApprenti ? user.id : undefined);
+  const qMiens = useTransfertsLivreur(user && estApprenti ? user.id : undefined);
+  const q = estApprenti ? qMiens : qEquipe;
+  const decision = useDecisionTransfert(user?.id);
+  const [filtre, setFiltre] = useState<FiltreTransferts>('TOUS');
 
   if (!user) return null;
+
+  const tous = q.data ?? [];
+  const nbEnAttente = tous.filter((t) => t.statut === 'EN_ATTENTE').length;
+  const affiches = transfertsAffiches(tous, filtre);
+
+  const filtres: { id: FiltreTransferts; label: string }[] = [
+    { id: 'TOUS', label: 'Tous' },
+    { id: 'EN_ATTENTE', label: `En attente (${nbEnAttente})` },
+  ];
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
         title="Transferts de stock"
-        subtitle={`${q.data?.length ?? 0} transfert${(q.data?.length ?? 0) > 1 ? 's' : ''}`}
+        subtitle={`${tous.length} transfert${tous.length > 1 ? 's' : ''}`}
         right={
           <Pressable
             onPress={() => naviguer('/(livreur)/stock/transferts/nouveau')}
+            accessibilityRole="button"
             className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
-            <Plus color="#fff" size={14} />
-            <Text className="text-white text-xs font-bold">Nouveau</Text>
+            {estApprenti ? <Undo2 color="#fff" size={14} /> : <Plus color="#fff" size={14} />}
+            <Text className="text-white text-xs font-bold">{estApprenti ? 'Rendre du stock' : 'Nouveau'}</Text>
           </Pressable>
         }
       />
 
+      <View className="flex-row gap-2 px-4 pt-2">
+        {filtres.map((f) => {
+          const actif = filtre === f.id;
+          return (
+            <Pressable
+              key={f.id}
+              onPress={() => setFiltre(f.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: actif }}
+              className={`px-3 py-1.5 rounded-full border ${
+                actif
+                  ? 'bg-emerald-500 border-emerald-500'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              <Text className={`text-xs font-bold ${actif ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}>
+                {f.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
       <FlatList
-        data={[...(q.data ?? [])].sort(
-          (a, b) =>
-            new Date(b.dateTransfert).getTime() -
-            new Date(a.dateTransfert).getTime(),
-        )}
+        data={affiches}
         keyExtractor={(t) => t.id}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8, gap: 8 }}
         refreshControl={
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
@@ -52,32 +87,26 @@ export default function TransfertsList() {
           />
         }
         ListEmptyComponent={
-          <EmptyState
-            title="Aucun transfert"
-            message="Transfère du stock vers un apprenti avec le bouton « Nouveau »."
-          />
+          q.isLoading ? (
+            <Text className="text-slate-400 text-sm">Chargement…</Text>
+          ) : q.isError ? (
+            <EmptyState title="Transferts indisponibles" message="Les transferts n’ont pas pu être lus." />
+          ) : filtre === 'EN_ATTENTE' ? (
+            <EmptyState title="Aucun transfert en attente" />
+          ) : (
+            <EmptyState
+              title="Aucun transfert"
+              message={
+                estApprenti
+                  ? 'Rends du stock à ton livreur principal avec « Rendre du stock ».'
+                  : 'Envoie du stock à un apprenti, ou reprends-en, avec le bouton « Nouveau ».'
+              }
+            />
+          )
         }
-        renderItem={({ item }) => (
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 mb-2">
-            <Text className="font-extrabold text-slate-900 dark:text-white">
-              {item.produit?.designation ?? '—'} × {item.qte}
-            </Text>
-            <View className="flex-row items-center gap-1 mt-1">
-              <Text className="text-[12px] text-slate-700 dark:text-slate-300">
-                {item.source?.prenom} {item.source?.nom}
-              </Text>
-              <ArrowRight color="#10b981" size={12} />
-              <Text className="text-[12px] text-slate-700 dark:text-slate-300">
-                {item.destinataire?.prenom} {item.destinataire?.nom}
-              </Text>
-            </View>
-            <Text className="text-[10px] text-slate-400 mt-1">
-              {formatDateShort(item.dateTransfert)}
-              {item.commentaire ? ` · ${item.commentaire}` : ''}
-            </Text>
-          </View>
-        )}
+        renderItem={({ item }) => <TransfertCarte transfert={item} actions={decision.actions(item)} />}
       />
+      {decision.dialogue}
     </View>
   );
 }
