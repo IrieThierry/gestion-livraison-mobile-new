@@ -189,7 +189,8 @@ describe('Notifications (cloche)', () => {
     (dialog.confirm as jest.Mock).mock.calls[0][0].onConfirm();
     expect(mockConfirmer.mutate).toHaveBeenCalledWith('r1', expect.anything());
     fireEvent.press(screen.getByText('Contester'));
-    fireEvent.press(screen.getByText('Envoyer la contestation'));
+    const boutons = screen.getAllByText('Contester');
+    fireEvent.press(boutons[boutons.length - 1]);
     expect(screen.getByText('Précisez le motif de la contestation.')).toBeTruthy();
     expect(mockContester.mutate).not.toHaveBeenCalled();
   });

@@ -35,6 +35,7 @@ import { useRemisesApprentis } from '../../../../features/remises-argent/hooks';
 import { dernieresRemises } from '../../../../features/remises-argent/regles';
 import { RemiseArgentCarte } from '../../../../components/livreur/RemiseArgentCarte';
 import { naviguer } from '../../../../lib/navigation-app';
+import { DEPUIS_APPRENTI } from '../../../../lib/navigation';
 import { callPhone } from '../../../../lib/linking';
 import { formatMontant } from '../../../../lib/format';
 import { num, totalAEncaisser, totalMontantDu } from '../../../../features/encaissements/regles';
@@ -333,7 +334,7 @@ export default function ApprentiDetail() {
               remises.map((r) => <RemiseArgentCarte key={r.id} remise={r} />)
             )}
             <Pressable
-              onPress={() => naviguer('/(livreur)/profil/remises-apprentis', { apprentiId: apprenti.id })}
+              onPress={() => naviguer('/(livreur)/profil/remises-apprentis', { apprentiId: apprenti.id, depuis: DEPUIS_APPRENTI })}
               accessibilityRole="button"
               className="flex-row items-center justify-between bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2.5 active:opacity-70"
             >

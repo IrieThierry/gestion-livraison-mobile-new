@@ -61,14 +61,16 @@ export interface RouteApp {
  *  - `encours` : ouvert depuis la liste Encours ;
  *  - `a-receptionner` : ouvert depuis « À réceptionner » (cloche de l'Accueil) ;
  *  - `previsions` : ouvert depuis Prévisions (Commander depuis le cumul) ;
- *  - `notifications` : ouvert depuis l'écran Notifications (cloche de l'Accueil).
+ *  - `notifications` : ouvert depuis l'écran Notifications (cloche de l'Accueil) ;
+ *  - `apprenti` : ouvert depuis la fiche apprenti (paramètre `apprentiId`).
  */
-export type Origine = 'client' | 'encours' | 'a-receptionner' | 'previsions' | 'notifications';
+export type Origine = 'client' | 'encours' | 'a-receptionner' | 'previsions' | 'notifications' | 'apprenti';
 export const DEPUIS_CLIENT = 'client' as const;
 export const DEPUIS_ENCOURS = 'encours' as const;
 export const DEPUIS_A_RECEPTIONNER = 'a-receptionner' as const;
 export const DEPUIS_PREVISIONS = 'previsions' as const;
 export const DEPUIS_NOTIFICATIONS = 'notifications' as const;
+export const DEPUIS_APPRENTI = 'apprenti' as const;
 const A_RECEPTIONNER = '/cash/commandes/a-receptionner';
 const FICHE_CLIENT = '/clients/[clientId]';
 
@@ -154,7 +156,12 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   // Remises d'argent : « Mes remises » (apprenti), « Remises des apprentis » (principal).
   'profil/remises/index': { type: 'liste', parent: '/profil' },
   'profil/remises/nouvelle': { type: 'formulaire', parent: '/profil/remises' },
-  'profil/remises-apprentis': { type: 'liste', parent: '/profil' },
+  // Ouverte depuis la fiche apprenti (liste filtrée sur lui) : retour à la fiche.
+  'profil/remises-apprentis': {
+    type: 'liste',
+    parent: '/profil',
+    origines: { apprenti: '/profil/apprentis/[apprentiId]' },
+  },
 };
 
 /**

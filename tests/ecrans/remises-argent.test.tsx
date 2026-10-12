@@ -97,6 +97,11 @@ const remise = (
   clotureId: null,
   ...extra,
 });
+/** Bouton « Contester » de la fenêtre (rendue après la liste, donc le dernier). */
+const envoyerContestation = () => {
+  const boutons = screen.getAllByText('Contester');
+  fireEvent.press(boutons[boutons.length - 1]);
+};
 /** Dernier `dialog.confirm` : on simule l'appui sur le bouton de confirmation. */
 const confirmerDialogue = () => {
   const appels = (dialog.confirm as jest.Mock).mock.calls;
@@ -147,7 +152,14 @@ describe('Mes remises (apprenti)', () => {
     h.useMesRemises.mockReturnValue(lecture([remise('1')]));
     render(<MesRemises />);
     fireEvent.press(screen.getByText('Annuler'));
-    expect(dialog.confirm).toHaveBeenCalledWith(expect.objectContaining({ destructive: true }));
+    expect(dialog.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Annuler la remise REM-1 ?',
+        message: expect.stringMatching(/^5\s000 FCFA : la remise ne sera plus proposée à ton livreur principal\.$/),
+        confirmLabel: 'Annuler la remise',
+        destructive: true,
+      }),
+    );
     confirmerDialogue();
     confirmerDialogue();
     expect(annuler.mutate).toHaveBeenCalledTimes(1);
@@ -169,8 +181,8 @@ describe('Nouvelle remise (apprenti)', () => {
     expect(screen.getByText(/déclarée à ton principal/)).toBeTruthy();
     fireEvent.changeText(screen.getByLabelText('Montant remis'), '5000');
     fireEvent.changeText(screen.getByLabelText('Commentaire'), '  recette du matin ');
-    fireEvent.press(screen.getByText('Déclarer la remise'));
-    fireEvent.press(screen.getByText('Déclarer la remise'));
+    fireEvent.press(screen.getByText('Déclarer'));
+    fireEvent.press(screen.getByText('Déclarer'));
     expect(declarer.mutate).toHaveBeenCalledTimes(1);
     expect(declarer.mutate.mock.calls[0][0]).toEqual({ montant: 5000, commentaire: 'recette du matin' });
     declarer.mutate.mock.calls[0][1].onSuccess(remise('3'));
@@ -183,7 +195,7 @@ describe('Nouvelle remise (apprenti)', () => {
     h.useDeclarerRemise.mockReturnValue(declarer);
     render(<NouvelleRemise />);
     fireEvent.changeText(screen.getByLabelText('Montant remis'), '0');
-    fireEvent.press(screen.getByText('Déclarer la remise'));
+    fireEvent.press(screen.getByText('Déclarer'));
     expect(screen.getByText('Le montant doit être supérieur à 0.')).toBeTruthy();
     expect(declarer.mutate).not.toHaveBeenCalled();
   });
@@ -193,7 +205,7 @@ describe('Nouvelle remise (apprenti)', () => {
     h.useDeclarerRemise.mockReturnValue(declarer);
     render(<NouvelleRemise />);
     fireEvent.changeText(screen.getByLabelText('Montant remis'), '100');
-    fireEvent.press(screen.getByText('Déclarer la remise'));
+    fireEvent.press(screen.getByText('Déclarer'));
     act(() =>
       declarer.mutate.mock.calls[0][1].onError({
         response: { status: 403, data: { message: 'Accès refusé : Seul un apprenti peut déclarer une remise.' } },
@@ -243,13 +255,15 @@ describe('Remises des apprentis (principal)', () => {
     h.useRemisesApprentis.mockReturnValue(lecture([remise('1')]));
     render(<RemisesApprentis />);
     fireEvent.press(screen.getByText('Contester'));
+    expect(screen.getByText('Contester la remise REM-1')).toBeTruthy();
+    expect(screen.getByText('Motif')).toBeTruthy();
     fireEvent.changeText(screen.getByLabelText('Motif de la contestation'), '   ');
-    fireEvent.press(screen.getByText('Envoyer la contestation'));
+    envoyerContestation();
     expect(screen.getByText('Précisez le motif de la contestation.')).toBeTruthy();
     expect(contester.mutate).not.toHaveBeenCalled();
     fireEvent.changeText(screen.getByLabelText('Motif de la contestation'), ' Il manque 500 ');
-    fireEvent.press(screen.getByText('Envoyer la contestation'));
-    fireEvent.press(screen.getByText('Envoyer la contestation'));
+    envoyerContestation();
+    envoyerContestation();
     expect(contester.mutate).toHaveBeenCalledTimes(1);
     expect(contester.mutate.mock.calls[0][0]).toEqual({ id: '1', motif: 'Il manque 500' });
   });
@@ -280,7 +294,7 @@ describe('Fiche apprenti : section Remises', () => {
     expect(screen.getByText('REM-2')).toBeTruthy();
     expect(screen.queryByText('REM-1')).toBeNull();
     fireEvent.press(screen.getByText('Voir toutes les remises'));
-    expect(naviguer).toHaveBeenCalledWith('/(livreur)/profil/remises-apprentis', { apprentiId: 'A1' });
+    expect(naviguer).toHaveBeenCalledWith('/(livreur)/profil/remises-apprentis', { apprentiId: 'A1', depuis: 'apprenti' });
   });
 
   it('aucune remise, ou lecture impossible', () => {
@@ -310,7 +324,11 @@ describe('Navigation des remises', () => {
   it('ROUTES : écrans et parents', () => {
     expect(ROUTES['profil/remises/index']).toEqual({ type: 'liste', parent: '/profil' });
     expect(ROUTES['profil/remises/nouvelle']).toEqual({ type: 'formulaire', parent: '/profil/remises' });
-    expect(ROUTES['profil/remises-apprentis']).toEqual({ type: 'liste', parent: '/profil' });
+    expect(ROUTES['profil/remises-apprentis']).toEqual({
+      type: 'liste',
+      parent: '/profil',
+      origines: { apprenti: '/profil/apprentis/[apprentiId]' },
+    });
     expect(PILES_IMBRIQUEES.has('profil/remises')).toBe(true);
   });
 });

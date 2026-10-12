@@ -217,12 +217,14 @@ function ContestationDialog({
               style={{ maxWidth: 420, maxHeight: '90%' }}
             >
               <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-                <Text className="text-lg font-extrabold text-slate-900 dark:text-white">Contester la remise</Text>
+                <Text className="text-lg font-extrabold text-slate-900 dark:text-white">
+                  Contester la remise {remise.reference}
+                </Text>
                 <Text className="text-[13px] text-slate-600 dark:text-slate-300 mt-1">
-                  {remise.reference} · {formatMontant(num(remise.montant))} FCFA · {nomLivreur(remise.apprenti)}
+                  {formatMontant(num(remise.montant))} FCFA · {nomLivreur(remise.apprenti)}
                 </Text>
                 <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-4 mb-2">
-                  Motif (obligatoire)
+                  Motif
                 </Text>
                 <TextInput
                   value={motif}
@@ -266,7 +268,7 @@ function ContestationDialog({
                     {enCours ? (
                       <ActivityIndicator color="#fff" />
                     ) : (
-                      <Text className="font-extrabold text-[15px] text-white">Envoyer la contestation</Text>
+                      <Text className="font-extrabold text-[15px] text-white">Contester</Text>
                     )}
                   </Pressable>
                 </View>

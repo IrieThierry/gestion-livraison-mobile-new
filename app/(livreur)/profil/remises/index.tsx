@@ -32,10 +32,10 @@ export default function MesRemises() {
 
   const onAnnuler = (r: RemiseArgentResponse) =>
     dialog.confirm({
-      title: 'Annuler cette remise ?',
-      message: `${r.reference} · ${formatMontant(num(r.montant))} FCFA. Ton principal ne la verra plus à confirmer.`,
-      confirmLabel: 'Oui, annuler',
-      cancelLabel: 'Non, garder',
+      title: `Annuler la remise ${r.reference} ?`,
+      message: `${formatMontant(num(r.montant))} FCFA : la remise ne sera plus proposée à ton livreur principal.`,
+      confirmLabel: 'Annuler la remise',
+      cancelLabel: 'Garder',
       destructive: true,
       onConfirm: () =>
         lancerUneFois(verrou, (fin) =>

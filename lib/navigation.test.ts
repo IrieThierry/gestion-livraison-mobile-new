@@ -10,6 +10,7 @@ import {
   ecranActif,
   normaliserHref,
   DEPUIS_A_RECEPTIONNER,
+  DEPUIS_APPRENTI,
   DEPUIS_CLIENT,
   DEPUIS_ENCOURS,
   DEPUIS_NOTIFICATIONS,
@@ -160,6 +161,13 @@ describe('table des parents', () => {
     // Notifications → Commandes à réceptionner : retour à Notifications.
     expect(p('/cash/commandes/a-receptionner', { depuis: DEPUIS_NOTIFICATIONS })).toBe('/previsions/echues');
     expect(p('/cash/commandes/a-receptionner', {})).toBe('/');
+    // Fiche apprenti → Remises des apprentis (filtrée) : retour à la fiche ; sinon Moi.
+    expect(p('/profil/remises-apprentis', { apprentiId: 'A1', depuis: DEPUIS_APPRENTI })).toBe('/profil/apprentis/A1');
+    expect(p('/profil/remises-apprentis', { apprentiId: 'A1' })).toBe('/profil');
+    expect(p('/profil/remises-apprentis', { depuis: DEPUIS_APPRENTI })).toBe('/profil');
+    expect(p('/profil/remises-apprentis', { apprentiId: 'A1', depuis: 'client' })).toBe('/profil');
+    expect(p('/profil/remises-apprentis', { apprentiId: 'A1', depuis: '/profil/password' })).toBe('/profil');
+    expect(p('/profil/remises-apprentis', {})).toBe('/profil');
     // La fiche client garde la liste des clients pour parent.
     expect(p('/clients/c1', { id: 'c1', depuis: 'encours' })).toBe('/clients');
   });
@@ -266,6 +274,22 @@ describe('retour (parent logique)', () => {
 
   it('racine d’un onglet visible → Accueil', () => {
     expect(actionRetour(onglets('profil', { profil: [r('index')] }), PRINCIPAL)?.type).toBe('JUMP_TO');
+  });
+
+  it('Remises des apprentis ouverte depuis la fiche apprenti → retour à la fiche (dépilée)', () => {
+    const fiche = r('apprentis', undefined, [r('index'), r('[id]', { id: 'A1' })]);
+    const etat = onglets('profil', {
+      profil: [r('index'), fiche, r('remises-apprentis', { apprentiId: 'A1', depuis: DEPUIS_APPRENTI })],
+    });
+    expect(pileApres(actionRetour(etat, PRINCIPAL), 'profil').noms).toEqual(['index', 'apprentis>index,[id]']);
+    // Sans origine : retour à Moi.
+    const sansOrigine = onglets('profil', { profil: [r('index'), fiche, r('remises-apprentis', { apprentiId: 'A1' })] });
+    expect(pileApres(actionRetour(sansOrigine, PRINCIPAL), 'profil').noms).toEqual(['index']);
+  });
+
+  it('Remises des apprentis ouverte d’ailleurs avec l’origine apprenti → pile propre jusqu’à la fiche', () => {
+    const etat = onglets('profil', { profil: [r('remises-apprentis', { apprentiId: 'A1', depuis: DEPUIS_APPRENTI })] });
+    expect(pileApres(actionRetour(etat, PRINCIPAL), 'profil').noms).toEqual(['index', 'apprentis>index,[id]']);
   });
 
   it('après enregistrement : revenir à la liste (dépilée) sans doublon', () => {

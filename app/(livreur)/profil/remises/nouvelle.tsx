@@ -115,7 +115,7 @@ export default function NouvelleRemise() {
             {m.isPending ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text className="text-white font-bold text-base">Déclarer la remise</Text>
+              <Text className="text-white font-bold text-base">Déclarer</Text>
             )}
           </Pressable>
         </View>
