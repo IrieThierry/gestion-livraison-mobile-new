@@ -1,10 +1,7 @@
 import {
   Banknote,
   CalendarClock,
-  Coins,
-  ClipboardCheck,
   Package,
-  Receipt,
   RotateCcw,
   Truck,
   Users,
@@ -12,11 +9,11 @@ import {
 } from 'lucide-react-native';
 
 /**
- * Entrées du menu « Accéder à » (bouton + de la barre d'onglets) : les dix
- * listes du livreur, dans l'ordre affiché. Les droits suivent ceux des
+ * Entrées du menu « Accéder à » (bouton + de la barre d'onglets) : les sept
+ * listes du quotidien, dans l'ordre affiché. Les droits suivent ceux des
  * écrans : un apprenti ne voit pas « Mes versements » (réservé au livreur
- * principal) et ses « Commandes » sont celles à réceptionner ; les
- * Reversements restent ouverts à tous, comme dans le menu Moi.
+ * principal) et ses « Commandes » sont celles à réceptionner. Dépenses,
+ * Reversements et Clôtures s'ouvrent depuis l'onglet Moi.
  */
 export interface EntreeAccederA {
   cle: string;
@@ -88,24 +85,6 @@ export function entreesAccederA(user: { parentId?: string | null } | null | unde
       iconColor: '#be185d',
     },
     {
-      cle: 'reversements',
-      label: 'Reversements',
-      hint: 'Remise due aux clients, remise des fournisseurs',
-      chemin: '/(livreur)/cash/reversements',
-      icon: Coins,
-      iconBg: '#ede9fe',
-      iconColor: '#7c3aed',
-    },
-    {
-      cle: 'depenses',
-      label: 'Dépenses',
-      hint: 'Carburant, entretien, autre',
-      chemin: '/(livreur)/cash/depenses',
-      icon: Receipt,
-      iconBg: '#fee2e2',
-      iconColor: '#dc2626',
-    },
-    {
       cle: 'previsions',
       label: 'Prévisions',
       hint: 'Prévisions multi-produits par client',
@@ -113,15 +92,6 @@ export function entreesAccederA(user: { parentId?: string | null } | null | unde
       icon: CalendarClock,
       iconBg: '#dbeafe',
       iconColor: '#3b82f6',
-    },
-    {
-      cle: 'clotures',
-      label: 'Clôtures',
-      hint: 'Clôtures journalières et écarts de caisse',
-      chemin: '/(livreur)/clotures',
-      icon: ClipboardCheck,
-      iconBg: '#fef3c7',
-      iconColor: '#d97706',
     },
   ];
   return entrees.filter((e): e is EntreeAccederA => e !== null);

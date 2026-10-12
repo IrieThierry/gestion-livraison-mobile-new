@@ -24,7 +24,7 @@ beforeEach(() => {
 });
 
 describe('entreesAccederA', () => {
-  it('livreur principal : les 10 listes dans l’ordre', () => {
+  it('livreur principal : les 7 listes dans l’ordre', () => {
     expect(entreesAccederA({ parentId: null }).map((e) => [e.label, e.chemin])).toEqual([
       ['Mes livraisons', '/(livreur)/livraisons'],
       ['Mes clients', '/(livreur)/clients'],
@@ -32,14 +32,11 @@ describe('entreesAccederA', () => {
       ['Mes versements', '/(livreur)/cash/versements'],
       ['Commandes', '/(livreur)/cash/commandes'],
       ['Retours produits', '/(livreur)/cash/retours'],
-      ['Reversements', '/(livreur)/cash/reversements'],
-      ['Dépenses', '/(livreur)/cash/depenses'],
       ['Prévisions', '/(livreur)/previsions'],
-      ['Clôtures', '/(livreur)/clotures'],
     ]);
   });
 
-  it('apprenti : pas de versements, commandes à réceptionner, reversements gardés', () => {
+  it('apprenti : pas de versements, commandes à réceptionner, pas de Dépenses / Reversements / Clôtures', () => {
     const entrees = entreesAccederA({ parentId: 'p' });
     expect(entrees.map((e) => e.label)).toEqual([
       'Mes livraisons',
@@ -47,29 +44,26 @@ describe('entreesAccederA', () => {
       'Mes encaissements',
       'Commandes',
       'Retours produits',
-      'Reversements',
-      'Dépenses',
       'Prévisions',
-      'Clôtures',
     ]);
     expect(entrees.find((e) => e.cle === 'commandes')?.chemin).toBe('/(livreur)/cash/commandes/a-receptionner');
   });
 });
 
 describe('FabSheet « Accéder à »', () => {
-  it('titre, 10 entrées, un appui ferme la feuille et ouvre la liste sur une pile propre', () => {
+  it('titre, 7 entrées, un appui ferme la feuille et ouvre la liste sur une pile propre', () => {
     const onClose = jest.fn();
     render(<FabSheet open onClose={onClose} />);
     expect(screen.getByText('Accéder à')).toBeTruthy();
     expect(screen.queryByText('Créer')).toBeNull();
-    expect(screen.getAllByRole('button').filter((b) => b.props.accessibilityLabel !== 'Fermer')).toHaveLength(10);
+    expect(screen.getAllByRole('button').filter((b) => b.props.accessibilityLabel !== 'Fermer')).toHaveLength(7);
 
     fireEvent.press(screen.getByLabelText('Mes versements'));
     expect(onClose).toHaveBeenCalled();
     expect(ouvrir).toHaveBeenCalledWith('/(livreur)/cash/versements');
   });
 
-  it('apprenti : 9 entrées, Commandes → à réceptionner', () => {
+  it('apprenti : 6 entrées, Commandes → à réceptionner', () => {
     mockUser = { id: 'a', parentId: 'p' };
     render(<FabSheet open onClose={jest.fn()} />);
     expect(screen.queryByLabelText('Mes versements')).toBeNull();

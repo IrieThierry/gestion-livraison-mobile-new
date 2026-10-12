@@ -14,6 +14,9 @@
  * Reversements → Historique…) ont pour parent cette page ; l'étape 2 de la
  * création d'un client a pour parent l'étape 1.
  *
+ * Dépenses, Reversements et Clôtures s'ouvrent depuis l'onglet Moi : leur
+ * liste a pour parent Moi (`/profil`).
+ *
  * Ouvrir un écran depuis le menu +, l'Accueil ou un autre onglet repart
  * d'une pile propre : la pile de la rubrique est remplacée par la chaîne
  * des parents de l'écran restés dans la rubrique (ex. [Commandes, Commande
@@ -110,9 +113,10 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
     parent: listeCommandes,
     origines: { 'a-receptionner': A_RECEPTIONNER },
   },
-  'cash/depenses/index': { type: 'liste', parent: ACCUEIL },
+  // Dépenses, Reversements, Clôtures : ouverts depuis l'onglet Moi, qui est leur parent.
+  'cash/depenses/index': { type: 'liste', parent: '/profil' },
   'cash/depenses/nouvelle': { type: 'formulaire', parent: '/cash/depenses' },
-  'cash/reversements/index': { type: 'liste', parent: ACCUEIL },
+  'cash/reversements/index': { type: 'liste', parent: '/profil' },
   'cash/reversements/historique': { type: 'liste', parent: '/cash/reversements' },
   'cash/reversements/nouveau': { type: 'formulaire', parent: '/cash/reversements' },
 
@@ -125,7 +129,7 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   'previsions/index': { type: 'liste', parent: ACCUEIL },
   'previsions/nouvelle': { type: 'formulaire', parent: '/previsions' },
 
-  'clotures/index': { type: 'liste', parent: ACCUEIL },
+  'clotures/index': { type: 'liste', parent: '/profil' },
   'clotures/nouvelle': { type: 'formulaire', parent: '/clotures' },
 
   'profil/index': { type: 'liste', parent: ACCUEIL },

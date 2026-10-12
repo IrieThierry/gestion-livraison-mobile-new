@@ -114,9 +114,17 @@ describe('table des parents', () => {
     expect(p('/livraisons/42')).toBe('/livraisons');
     expect(p('/cash/commandes/42')).toBe('/cash/commandes');
     expect(p('/cash/commandes/42', APPRENTI)).toBe('/cash/commandes/a-receptionner');
-    for (const liste of ['/livraisons', '/clients', '/cash/encaissements', '/cash/encours', '/cash/depenses', '/previsions', '/profil'])
+    for (const liste of ['/livraisons', '/clients', '/cash/encaissements', '/cash/encours', '/previsions', '/profil'])
       expect(p(liste)).toBe(ACCUEIL);
     expect(p('/')).toBeNull();
+  });
+
+  it('Dépenses, Reversements, Clôtures : ouvertes depuis Moi, elles reviennent à Moi', () => {
+    const p = (chemin: string) => parentDe(trouverRoute(chemin)!, PRINCIPAL);
+    for (const liste of ['/cash/depenses', '/cash/reversements', '/clotures']) expect(p(liste)).toBe('/profil');
+    expect(p('/cash/depenses/nouvelle')).toBe('/cash/depenses');
+    expect(p('/cash/reversements/historique')).toBe('/cash/reversements');
+    expect(p('/clotures/nouvelle')).toBe('/clotures');
   });
 
   it('origine (depuis) : fiche client ou Encours, validée par la table', () => {
