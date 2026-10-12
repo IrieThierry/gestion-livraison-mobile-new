@@ -129,10 +129,10 @@ describe('reçu de reversement : contenu et fichier', () => {
     expect(champsRecu(recu).map((c) => c.libelle)).not.toContain('Motif');
   });
 
-  it('bénéficiaire inconnu : fichier « Beneficiaire » ; texte échappé', () => {
+  it('bénéficiaire inconnu : fichier « Non-precise » (comme le web) ; texte échappé', () => {
     const r = reversement({ type: 'FOURNISSEUR', beneficiaireId: 'f1', livreurId: null, commentaire: '<b>x</b>' });
     const recu = recuReversement(r, partiesReversement(r, annuaire), editeLe);
-    expect(recu.nomFichier).toBe('Recu-reversement_Beneficiaire_2026-10-08.pdf');
+    expect(recu.nomFichier).toBe('Recu-reversement_Non-precise_2026-10-08.pdf');
     expect(genererHtmlRecu(recu)).toContain('&lt;b&gt;x&lt;/b&gt;');
   });
 });

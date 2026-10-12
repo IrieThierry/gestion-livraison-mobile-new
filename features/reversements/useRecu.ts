@@ -58,14 +58,19 @@ export function usePartagerRecu() {
   return useCallback(
     (r: ReversementRecord, connu?: { beneficiaire?: string; payeur?: string }) => {
       lancerUneFois(verrou, (fin) => {
-        const parties = partiesReversement(r, annuaire);
-        const completer = (p: PartieRecu, nom?: string): PartieRecu =>
-          nom && p.nom === NON_PRECISE ? { ...p, nom } : p;
-        const recu = recuReversement(r, {
-          beneficiaire: completer(parties.beneficiaire, connu?.beneficiaire),
-          payeur: completer(parties.payeur, connu?.payeur),
-        });
-        partagerRecu(recu)
+        // Tout dans la promesse : une erreur synchrone (donnée inattendue)
+        // est affichée et le verrou est toujours libéré.
+        Promise.resolve()
+          .then(() => {
+            const parties = partiesReversement(r, annuaire);
+            const completer = (p: PartieRecu, nom?: string): PartieRecu =>
+              nom && p.nom === NON_PRECISE ? { ...p, nom } : p;
+            const recu = recuReversement(r, {
+              beneficiaire: completer(parties.beneficiaire, connu?.beneficiaire),
+              payeur: completer(parties.payeur, connu?.payeur),
+            });
+            return partagerRecu(recu);
+          })
           .catch((e: unknown) =>
             dialog.error(
               'Partage impossible',

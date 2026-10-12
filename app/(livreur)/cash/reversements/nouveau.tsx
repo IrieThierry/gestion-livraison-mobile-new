@@ -26,6 +26,9 @@ import type { BeneficiaireType } from '../../../../types/api';
 import { useRetourListe } from '../../../../lib/useRetourListe';
 import { usePartagerRecu } from '../../../../features/reversements/useRecu';
 
+/** Durée de l'animation de fermeture du dialogue global (AppDialog). */
+const DELAI_FERMETURE_DIALOGUE_MS = 350;
+
 export default function NouveauReversement() {
   const params = useLocalSearchParams<{
     type?: string;
@@ -94,8 +97,14 @@ export default function NouveauReversement() {
               {
                 label: 'Partager le reçu',
                 style: 'primary',
+                // Feuille de partage ouverte après la fermeture complète du
+                // dialogue (iOS refuse de la présenter pendant l'animation).
                 onPress: () =>
-                  partagerRecu(r, type === 'CLIENT' ? { beneficiaire: beneficiaireLabel } : { payeur: beneficiaireLabel }),
+                  setTimeout(
+                    () =>
+                      partagerRecu(r, type === 'CLIENT' ? { beneficiaire: beneficiaireLabel } : { payeur: beneficiaireLabel }),
+                    DELAI_FERMETURE_DIALOGUE_MS,
+                  ),
               },
               { label: 'Fermer', style: 'secondary' },
             ],

@@ -6,6 +6,7 @@ import {
   retourParent,
   revenirA,
   revenirApresEnregistrement,
+  origineDe,
   type RefNavigation,
 } from './navigation-app';
 import type { EtatNavigateur, RouteEtat } from './navigation';
@@ -130,7 +131,10 @@ describe('parcours de navigation (règle du parent logique)', () => {
     expect(affiche(ref)).toEqual({ onglet: 'clients', pile: ['index', '[id]/index'] });
     expect(ref.onglets().routes[1].state!.routes[1].key).toBe(cleFiche); // fiche conservée
     naviguer(href, { clientId: 'c1', depuis: 'client' });
-    revenirApresEnregistrement('/(livreur)/cash/encaissements');
+    // Origine capturée au montage du formulaire (useRetourListe).
+    const origine = origineDe(href, { clientId: 'c1', depuis: 'client' });
+    expect(origine).toBe('/clients/c1');
+    revenirApresEnregistrement('/(livreur)/cash/encaissements', origine);
     expect(affiche(ref)).toEqual({ onglet: 'clients', pile: ['index', '[id]/index'] });
     // La fiche garde la liste des clients pour parent, puis l'Accueil.
     retourParent();
@@ -176,6 +180,15 @@ describe('parcours de navigation (règle du parent logique)', () => {
     naviguer('/(livreur)/cash/retours');
     expect(affiche(ref).pile).toEqual(['retours']);
     expect(router.push).not.toHaveBeenCalled();
+  });
+});
+
+describe('écran déjà affiché', () => {
+  it('menu + vers la liste affichée : aucune action, aucun repli routeur', () => {
+    const ref = navigateur('cash', { cash: [{ name: 'encaissements' }] });
+    ouvrir('/(livreur)/cash/encaissements');
+    expect(ref.dispatch).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
   });
 });
 

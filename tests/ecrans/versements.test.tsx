@@ -14,6 +14,8 @@ jest.mock('../../lib/navigation-app', () => ({
   naviguer: jest.fn(),
   revenirA: jest.fn(),
   retourParent: jest.fn(),
+  revenirApresEnregistrement: jest.fn(),
+  origineDe: jest.fn(() => null),
 }));
 let mockUser: { id: string; prenom: string; nom: string; parentId: string | null } = {
   id: 'liv-1',

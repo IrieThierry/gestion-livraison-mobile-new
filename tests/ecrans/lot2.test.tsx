@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { naviguer, ouvrir, retourParent, revenirApresEnregistrement } from '../../lib/navigation-app';
 import { PageHeader } from '../../components/shared/PageHeader';
 import MesEncaissements from '../../app/(livreur)/cash/encaissements';
@@ -21,6 +21,7 @@ jest.mock('../../lib/navigation-app', () => ({
   naviguer: jest.fn(),
   revenirA: jest.fn(),
   revenirApresEnregistrement: jest.fn(),
+  origineDe: jest.fn(() => null),
   retourParent: jest.fn(),
 }));
 jest.mock('../../stores/authStore', () => {
@@ -153,10 +154,11 @@ describe('Retours produits : total par produit', () => {
 });
 
 describe('Reçu de reversement', () => {
-  it('historique : bouton « Reçu » sur chaque ligne', () => {
+  it('historique : bouton « Reçu » sur chaque ligne', async () => {
     (useReversementsListe as jest.Mock).mockReturnValue(lecture([reversement]));
     render(<ReversementsHistorique />);
     fireEvent.press(screen.getByLabelText('Partager le reçu'));
+    await waitFor(() => expect(partagerRecu).toHaveBeenCalled());
     expect(partagerRecu).toHaveBeenCalledWith(
       expect.objectContaining({
         nomFichier: 'Recu-reversement_Marie-Kouassi_2026-10-08.pdf',
@@ -166,18 +168,28 @@ describe('Reçu de reversement', () => {
     );
   });
 
-  it('après enregistrement : retour à la liste puis « Partager le reçu » proposé', () => {
+  it('après enregistrement : retour à la liste puis « Partager le reçu » proposé', async () => {
+    jest.useFakeTimers();
     const mutate = jest.fn((_req, opts) => opts.onSuccess(reversement));
     (useEnregistrerReversement as jest.Mock).mockReturnValue({ mutate, isPending: false });
     render(<NouveauReversement />);
     fireEvent.changeText(screen.getByPlaceholderText('0'), '300');
     fireEvent.press(screen.getByText(/^Reverser 300 FCFA$/));
-    expect(revenirApresEnregistrement).toHaveBeenCalledWith('/(livreur)/cash/reversements');
+    expect(revenirApresEnregistrement).toHaveBeenCalledWith('/(livreur)/cash/reversements', null);
     const d = useDialogStore.getState();
     expect(d.open).toBe(true);
     expect(d.actions?.map((a) => a.label)).toEqual(['Partager le reçu', 'Fermer']);
     d.actions?.[0].onPress?.();
-    expect(partagerRecu).toHaveBeenCalledWith(expect.objectContaining({ reference: 'rev-1' }));
+    // Partage différé : après la fermeture complète du dialogue.
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    expect(partagerRecu).not.toHaveBeenCalled();
+    await act(async () => {
+      jest.advanceTimersByTime(100);
+    });
+    jest.useRealTimers();
+    await waitFor(() => expect(partagerRecu).toHaveBeenCalledWith(expect.objectContaining({ reference: 'rev-1' })));
     expect(naviguer).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,6 @@
-import { useCallback } from 'react';
-import { revenirApresEnregistrement } from './navigation-app';
+import { useCallback, useRef } from 'react';
+import { useLocalSearchParams, usePathname } from 'expo-router';
+import { origineDe, revenirApresEnregistrement } from './navigation-app';
 
 /**
  * Renvoie la fonction à appeler après un enregistrement réussi : ramène à
@@ -8,5 +9,10 @@ import { revenirApresEnregistrement } from './navigation-app';
  * est, sinon la rubrique repart de [liste] (lib/navigation.ts).
  */
 export function useRetourListe(liste: string) {
-  return useCallback(() => revenirApresEnregistrement(liste), [liste]);
+  const pathname = usePathname();
+  const params = useLocalSearchParams();
+  // Origine capturée au montage du formulaire.
+  const origine = useRef<string | null | undefined>(undefined);
+  if (origine.current === undefined) origine.current = origineDe(pathname, params);
+  return useCallback(() => revenirApresEnregistrement(liste, origine.current), [liste]);
 }

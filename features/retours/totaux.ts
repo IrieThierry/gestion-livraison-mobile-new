@@ -16,8 +16,10 @@ export interface TotalRetourProduit {
  * Total par produit des retours affichés (même période, filtres et recherche
  * que la liste) : une ligne par produit avec la quantité nette retournée et sa
  * répartition remis en stock / perdu. Triée par quantité décroissante puis
- * désignation. Un produit dont tout s'annule (retour puis correction) n'a pas
- * de ligne. Même règle que le web (features/retours/totaux.ts).
+ * désignation. Seuls les produits à quantité nette positive ont une ligne : un
+ * produit dont tout s'annule (retour puis correction), ou dont seule la
+ * correction est chargée (retour sur une autre page), n'en a pas. Même règle
+ * que le web (features/retours/totaux.ts).
  */
 export function totalRetoursParProduit(retours: readonly RetourResponse[]): TotalRetourProduit[] {
   const parProduit = new Map<UUID, TotalRetourProduit>();
@@ -34,6 +36,6 @@ export function totalRetoursParProduit(retours: readonly RetourResponse[]): Tota
     else ligne.perdu += q;
   }
   return [...parProduit.values()]
-    .filter((l) => l.quantite !== 0 || l.remisEnStock !== 0 || l.perdu !== 0)
+    .filter((l) => l.quantite > 0)
     .sort((a, b) => b.quantite - a.quantite || a.designation.localeCompare(b.designation, 'fr'));
 }

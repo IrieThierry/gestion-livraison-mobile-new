@@ -55,11 +55,14 @@ export interface RouteApp {
 /**
  * Origines d'un écran (paramètre `depuis`) :
  *  - `client` : ouvert depuis la fiche client (paramètre `clientId`) ;
- *  - `encours` : ouvert depuis la liste Encours.
+ *  - `encours` : ouvert depuis la liste Encours ;
+ *  - `a-receptionner` : ouvert depuis « À réceptionner » (cloche de l'Accueil).
  */
-export type Origine = 'client' | 'encours';
+export type Origine = 'client' | 'encours' | 'a-receptionner';
 export const DEPUIS_CLIENT = 'client' as const;
 export const DEPUIS_ENCOURS = 'encours' as const;
+export const DEPUIS_A_RECEPTIONNER = 'a-receptionner' as const;
+const A_RECEPTIONNER = '/cash/commandes/a-receptionner';
 const FICHE_CLIENT = '/clients/[clientId]';
 
 const listeCommandes = (ctx: ContexteNavigation) =>
@@ -100,9 +103,13 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   'cash/versement': { type: 'formulaire', parent: '/cash/versements' },
   'cash/commandes/index': { type: 'liste', parent: ACCUEIL },
   'cash/commandes/a-receptionner': { type: 'liste', parent: ACCUEIL },
-  'cash/commandes/[id]': { type: 'fiche', parent: listeCommandes },
+  'cash/commandes/[id]': { type: 'fiche', parent: listeCommandes, origines: { 'a-receptionner': A_RECEPTIONNER } },
   'cash/commandes/nouvelle': { type: 'formulaire', parent: '/cash/commandes' },
-  'cash/commandes/receptions': { type: 'fiche', parent: listeCommandes },
+  'cash/commandes/receptions': {
+    type: 'fiche',
+    parent: listeCommandes,
+    origines: { 'a-receptionner': A_RECEPTIONNER },
+  },
   'cash/depenses/index': { type: 'liste', parent: ACCUEIL },
   'cash/depenses/nouvelle': { type: 'formulaire', parent: '/cash/depenses' },
   'cash/reversements/index': { type: 'liste', parent: ACCUEIL },
@@ -253,9 +260,14 @@ export function ongletDe(fichier: string): string {
  * valeur admise par la table, gabarit entièrement rempli, écran connu.
  */
 export function parentOrigine(cible: Cible): string | null {
-  const depuis = cible.params.depuis as Origine | undefined;
-  const gabarit = depuis ? ROUTES[cible.fichier]?.origines?.[depuis] : undefined;
-  if (!gabarit) return null;
+  const depuis = cible.params.depuis;
+  const origines = ROUTES[cible.fichier]?.origines;
+  // Propriété propre seulement : `constructor`, `__proto__`, `toString`… sont refusés.
+  const gabarit =
+    typeof depuis === 'string' && origines && Object.prototype.hasOwnProperty.call(origines, depuis)
+      ? origines[depuis as Origine]
+      : undefined;
+  if (typeof gabarit !== 'string') return null;
   const { chemin } = normaliserHref(gabarit, cible.params);
   if (chemin.includes('[') || !trouverRoute(chemin)) return null;
   return chemin;
@@ -400,6 +412,28 @@ export function ecranActif(onglets: EtatNavigateur | undefined): (Cible & { chem
   return { fichier: connu, params, chemin: cheminDe(connu, params) };
 }
 
+/** Écrans d'une pile d'onglet (fichier et paramètres), du bas vers le haut. */
+function ecransDePile(onglet: RouteEtat): Cible[] {
+  const pile = onglet.state;
+  if (!pile?.routes) return [];
+  const out: Cible[] = [];
+  for (const r of pile.routes) {
+    const dossier = `${onglet.name}/${r.name}`;
+    if (PILES_IMBRIQUEES.has(dossier)) {
+      if (!r.state?.routes) return [];
+      for (const x of r.state.routes) out.push({ fichier: `${dossier}/${x.name}`, params: paramsEcran(x.params) });
+    } else out.push({ fichier: dossier, params: paramsEcran(r.params) });
+  }
+  return out;
+}
+
+/** Vrai si la pile de l'onglet est exactement la chaîne demandée. */
+function pileIdentique(onglet: RouteEtat, chaine: Cible[]): boolean {
+  const actuelle = ecransDePile(onglet);
+  const cle = (c: Cible) => `${c.fichier}?${JSON.stringify(Object.entries(c.params).sort())}`;
+  return actuelle.length === chaine.length && actuelle.every((c, i) => cle(c) === cle(chaine[i]));
+}
+
 /** Pile (partielle) d'un onglet pour une chaîne d'écrans de cet onglet. */
 export function pileDe(chaine: Cible[]): PartielNavigateur {
   const routes: RouteEtat[] = [];
@@ -453,7 +487,14 @@ export function actionOuvrir(
   const cible = trouverRoute(chemin);
   if (!cible) return null;
   const chaine = chaineOuverture({ ...cible, params: { ...cible.params, ...requete } }, ctx);
-  const etat = avecOnglet(onglets, ongletDe(cible.fichier), pileDe(chaine));
+  const nom = ongletDe(cible.fichier);
+  // Pile déjà identique (mêmes écrans, mêmes paramètres) : pas de RESET, qui
+  // remonterait l'écran (recherche et défilement perdus) ; on affiche l'onglet.
+  const onglet = onglets.routes.find((r) => r.name === nom);
+  if (onglet && pileIdentique(onglet, chaine)) {
+    return onglets.routes[onglets.index]?.name === nom ? null : { type: 'JUMP_TO', payload: { name: nom }, target: onglets.key };
+  }
+  const etat = avecOnglet(onglets, nom, pileDe(chaine));
   return etat ? { type: 'RESET', payload: etat, target: onglets.key } : null;
 }
 

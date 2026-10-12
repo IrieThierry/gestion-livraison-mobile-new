@@ -15,6 +15,8 @@ jest.mock('../../lib/navigation-app', () => ({
   naviguer: jest.fn(),
   revenirA: jest.fn(),
   retourParent: jest.fn(),
+  revenirApresEnregistrement: jest.fn(),
+  origineDe: jest.fn(() => null),
 }));
 let mockUser: Record<string, unknown> = { id: 'liv-1', prenom: 'Awa', nom: 'Kone', parentId: null, statut: 'ACTIF' };
 jest.mock('../../stores/authStore', () => ({

@@ -21,6 +21,16 @@ describe('totalRetoursParProduit (même règle que le web)', () => {
     ]);
   });
 
+  it('jamais de ligne nette nulle ou négative (comme le web)', () => {
+    // Correction seule (son retour est sur une page non chargée).
+    expect(totalRetoursParProduit([r(PAIN, -3)])).toEqual([]);
+    // Net nul avec une répartition non nulle (+2 remis en stock, −2 perdu).
+    expect(totalRetoursParProduit([r(PAIN, 2), r(PAIN, -2, false)])).toEqual([]);
+    expect(totalRetoursParProduit([r(PAIN, 2), r(PAIN, -3, false), r(BRIOCHE, 1)]).map((l) => l.designation)).toEqual([
+      'Brioche',
+    ]);
+  });
+
   it('tri par quantité décroissante puis désignation ; un produit entièrement corrigé disparaît', () => {
     const lignes = totalRetoursParProduit([r(CAKE, 1), r(GATEAU, 5), r(BRIOCHE, 1), r(PAIN, 2), r(PAIN, -2)]);
     expect(lignes.map((l) => [l.designation, l.quantite])).toEqual([

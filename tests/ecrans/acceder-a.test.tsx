@@ -10,6 +10,8 @@ jest.mock('../../lib/navigation-app', () => ({
   naviguer: jest.fn(),
   revenirA: jest.fn(),
   retourParent: jest.fn(),
+  revenirApresEnregistrement: jest.fn(),
+  origineDe: jest.fn(() => null),
 }));
 let mockUser: { id: string; parentId: string | null } | null = { id: 'p', parentId: null };
 jest.mock('../../stores/authStore', () => ({

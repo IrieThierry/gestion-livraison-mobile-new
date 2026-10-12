@@ -103,7 +103,6 @@ export function recuReversement(
   editeLe: Date = new Date(),
 ): RecuReversement {
   const mois = r.periodeMois ? MOIS[r.periodeMois - 1] : undefined;
-  const beneficiaireConnu = parties.beneficiaire.nom !== NON_PRECISE;
   return {
     application: NOM_APPLICATION,
     titre: TITRE_RECU,
@@ -116,7 +115,8 @@ export function recuReversement(
     motif: r.commentaire?.trim() || null,
     informatif: !!r.informatif,
     editeLe: formatEdition(editeLe),
-    nomFichier: nomFichierRecu(beneficiaireConnu ? parties.beneficiaire.nom : '', r.dateReversement),
+    // Bénéficiaire inconnu : « Non-precise », comme le web.
+    nomFichier: nomFichierRecu(parties.beneficiaire.nom, r.dateReversement),
   };
 }
 

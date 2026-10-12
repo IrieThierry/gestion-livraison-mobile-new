@@ -9,6 +9,7 @@ import {
   chaineOuverture,
   ecranActif,
   normaliserHref,
+  DEPUIS_A_RECEPTIONNER,
   DEPUIS_CLIENT,
   DEPUIS_ENCOURS,
   parentDe,
@@ -131,6 +132,16 @@ describe('table des parents', () => {
     expect(p('/cash/encaisser', { depuis: 'client' })).toBe('/cash/encaissements');
     // Un identifiant ne peut pas sortir de la fiche client : il est encodé en un seul segment.
     expect(parentOrigine({ fichier: 'cash/encaisser', params: { clientId: '../profil', depuis: 'client' } })).toBe('/clients/..%2Fprofil');
+    // Clés du prototype : refusées, parent de la table (pas d'exception).
+    for (const depuis of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
+      expect(p('/cash/encaisser', { clientId: 'c1', depuis })).toBe('/cash/encaissements');
+      expect(p('/clients/c1/modifier', { id: 'c1', depuis })).toBe('/clients/c1');
+      expect(parentOrigine({ fichier: 'livraisons/index', params: { depuis } })).toBeNull();
+    }
+    // Cloche → À réceptionner → commande / réceptions : retour à À réceptionner (livreur principal aussi).
+    expect(p('/cash/commandes/9', { id: '9', depuis: DEPUIS_A_RECEPTIONNER })).toBe('/cash/commandes/a-receptionner');
+    expect(p('/cash/commandes/receptions', { id: '9', depuis: DEPUIS_A_RECEPTIONNER })).toBe('/cash/commandes/a-receptionner');
+    expect(p('/cash/commandes/9', { id: '9' })).toBe('/cash/commandes');
     // La fiche client garde la liste des clients pour parent.
     expect(p('/clients/c1', { id: 'c1', depuis: 'encours' })).toBe('/clients');
   });
@@ -180,6 +191,21 @@ describe('pile propre (ouvrir)', () => {
     );
     expect(p.noms).toEqual(['index', 'nouvelle']);
     expect(p.route.state?.routes[1].params).toEqual({ clientId: 'c1' });
+  });
+
+  it('écran déjà affiché sur sa pile propre : rien ; onglet caché avec la même pile : simple saut', () => {
+    const etat = onglets('cash', { cash: [r('encaissements')] });
+    expect(actionOuvrir(etat, '/(livreur)/cash/encaissements', undefined, PRINCIPAL)).toBeNull();
+    expect(actionOuvrir(onglets('index', { livraisons: [r('index')] }), '/(livreur)/livraisons', undefined, PRINCIPAL)).toEqual({
+      type: 'JUMP_TO',
+      payload: { name: 'livraisons' },
+      target: 'tabs',
+    });
+    // Paramètres différents ou pile plus haute : pile propre.
+    expect(actionOuvrir(onglets('cash', { cash: [r('encaissements'), r('encaisser')] }), '/(livreur)/cash/encaissements', undefined, PRINCIPAL)?.type).toBe('RESET');
+    expect(
+      actionOuvrir(onglets('index', { livraisons: [r('index'), r('nouvelle', { clientId: 'a' })] }), '/(livreur)/livraisons/nouvelle', { clientId: 'b' }, PRINCIPAL)?.type,
+    ).toBe('RESET');
   });
 
   it('Accueil : saut vers l’onglet Accueil', () => {

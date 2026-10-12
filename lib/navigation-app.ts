@@ -61,9 +61,18 @@ function hrefRouteur(href: string, params?: Params) {
  */
 export function ouvrir(href: string, params?: Params): void {
   const t = onglets();
-  const action = t ? actionOuvrir(t, href, params, contexte()) : null;
-  if (action && ref) ref.dispatch(action);
-  else router.navigate(hrefRouteur(href, params));
+  if (t && ref && trouverRoute(normaliserHref(href, params).chemin)) {
+    // null : l'écran est déjà affiché sur sa pile propre, rien à faire.
+    const action = actionOuvrir(t, href, params, contexte());
+    if (action) ref.dispatch(action);
+    return;
+  }
+  if (t && ref && normaliserHref(href).chemin === ACCUEIL) {
+    const action = actionOuvrir(t, href, params, contexte());
+    if (action) ref.dispatch(action);
+    return;
+  }
+  router.navigate(hrefRouteur(href, params));
 }
 
 /**
@@ -84,19 +93,31 @@ export function naviguer(href: string, params?: Params): void {
 /** Revient à un écran (après enregistrement : la liste du module). */
 export function revenirA(href: string): void {
   const t = onglets();
-  const action = t ? actionRevenirA(t, href, contexte()) : null;
-  if (action && ref) ref.dispatch(action);
-  else if (normaliserHref(href).chemin === ACCUEIL) router.navigate('/(livreur)' as never);
+  const connu = normaliserHref(href).chemin === ACCUEIL || !!trouverRoute(normaliserHref(href).chemin);
+  if (t && ref && connu) {
+    const action = actionRevenirA(t, href, contexte());
+    if (action) ref.dispatch(action);
+    return;
+  }
+  if (normaliserHref(href).chemin === ACCUEIL) router.navigate('/(livreur)' as never);
   else router.dismissTo(hrefRouteur(href));
 }
 
 /**
- * Après un enregistrement : retour à l'écran d'origine (`depuis`, ex. la
- * fiche client) s'il est valide, sinon à la liste du module.
+ * Origine valide (`depuis`, ex. la fiche client) d'un écran donné par son
+ * chemin et ses paramètres, ou null. Sert à la capturer au montage d'un
+ * formulaire (et non à la fin de la requête, quand l'écran affiché a pu changer).
  */
-export function revenirApresEnregistrement(liste: string): void {
-  const ecran = ecranActif(onglets());
-  const origine = ecran ? parentOrigine(ecran) : null;
+export function origineDe(chemin: string, params: Record<string, string | string[] | undefined>): string | null {
+  const cible = trouverRoute(normaliserHref(chemin).chemin);
+  if (!cible) return null;
+  const p: Record<string, string> = { ...cible.params };
+  for (const [k, v] of Object.entries(params ?? {})) if (typeof v === 'string') p[k] = v;
+  return parentOrigine({ ...cible, params: p });
+}
+
+/** Après un enregistrement : l'origine capturée si elle existe, sinon la liste du module. */
+export function revenirApresEnregistrement(liste: string, origine?: string | null): void {
   revenirA(origine ?? liste);
 }
 
