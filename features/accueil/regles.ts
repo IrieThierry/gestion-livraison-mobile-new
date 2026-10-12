@@ -70,19 +70,24 @@ export function produitsVendus(
   );
 }
 
-/** Quantité totale vendue : Σ des quantités de `produitsVendus` (livré seulement). */
-export function quantiteVendue(mouvements: MouvementStockResponse[], jour?: string): number {
-  return produitsVendus(mouvements, jour).reduce((a, l) => a + l.quantite, 0);
+/**
+ * Tuile « Produits vendus » : nombre de produits DIFFÉRENTS vendus (lignes
+ * de `produitsVendus`, livré seulement) — A×5 + B×3 → 2.
+ */
+export function nbProduitsVendus(mouvements: MouvementStockResponse[], jour?: string): number {
+  return produitsVendus(mouvements, jour).length;
 }
 
 /**
- * Quantité totale réceptionnée : Σ des quantités des mouvements RECEPTION
- * (entrées fournisseur). Ni les transferts reçus ni les retours ne comptent.
+ * Tuile « Réceptionnés » : nombre de produits DIFFÉRENTS reçus, d'après les
+ * mouvements RECEPTION (entrées fournisseur). Ni les transferts reçus ni les
+ * retours ne comptent.
  */
-export function quantiteRecue(mouvements: MouvementStockResponse[], jour?: string): number {
-  return mouvements
-    .filter((m) => m.type === 'RECEPTION' && duJour(m, jour) && m.quantite > 0)
-    .reduce((a, m) => a + m.quantite, 0);
+export function nbProduitsRecus(mouvements: MouvementStockResponse[], jour?: string): number {
+  return cumulerParProduit(
+    mouvements.filter((m) => m.type === 'RECEPTION' && duJour(m, jour) && m.quantite > 0),
+    (m) => m.quantite,
+  ).length;
 }
 
 /** Chiffre d'une sous-carte de l'accueil : `…` en chargement, `—` en erreur. */

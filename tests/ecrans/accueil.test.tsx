@@ -82,8 +82,9 @@ describe('Accueil : chiffres cliquables de la carte verte', () => {
     );
     render(<Tournee />);
     expect(screen.getByLabelText('Livraisons : 0')).toBeTruthy();
-    expect(screen.getByLabelText('Produits vendus : 8')).toBeTruthy();
-    expect(screen.getByLabelText('Réceptionnés : 20')).toBeTruthy();
+    // Nombre de produits différents : Pain et Lait vendus → 2 ; seul Pain réceptionné (transfert exclu) → 1.
+    expect(screen.getByLabelText('Produits vendus : 2')).toBeTruthy();
+    expect(screen.getByLabelText('Réceptionnés : 1')).toBeTruthy();
     // Les anciens blocs « Produits vendus · aujourd'hui » et « Réceptions » ont disparu.
     expect(screen.queryByText(/Produits vendus · aujourd/)).toBeNull();
     expect(screen.queryByText(/Réceptions · aujourd/)).toBeNull();

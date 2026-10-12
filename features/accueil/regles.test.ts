@@ -3,8 +3,8 @@ import {
   filtresDuJour,
   jourLocal,
   produitsVendus,
-  quantiteRecue,
-  quantiteVendue,
+  nbProduitsRecus,
+  nbProduitsVendus,
 } from './regles';
 import type { MouvementStockResponse, TypeMouvementStock } from '../../types/api';
 
@@ -70,7 +70,7 @@ describe('produitsVendus', () => {
   });
 });
 
-describe('quantiteVendue / quantiteRecue', () => {
+describe('nbProduitsVendus / nbProduitsRecus', () => {
   const mouvements = [
     mv('LIVRAISON', 'Pain', -5),
     mv('LIVRAISON', 'Lait', -12),
@@ -81,15 +81,16 @@ describe('quantiteVendue / quantiteRecue', () => {
     mv('RECEPTION', 'Pain', 9, 'Boulangerie Kouassi', '2026-10-09T08:00:00'),
   ];
 
-  it('vendus : somme des livraisons (retours non déduits)', () => {
-    expect(quantiteVendue(mouvements)).toBe(17);
-    expect(quantiteVendue([])).toBe(0);
+  it('vendus : nombre de produits différents livrés (A×5 + B×3 → 2)', () => {
+    expect(nbProduitsVendus(mouvements)).toBe(2);
+    expect(nbProduitsVendus([mv('LIVRAISON', 'A', -5), mv('LIVRAISON', 'B', -3), mv('LIVRAISON', 'A', -1)])).toBe(2);
+    expect(nbProduitsVendus([])).toBe(0);
   });
 
-  it('réceptionnés : somme des réceptions du jour, transferts exclus', () => {
-    expect(quantiteRecue(mouvements, '2026-10-10')).toBe(44);
-    expect(quantiteRecue(mouvements)).toBe(53);
-    expect(quantiteRecue([mv('LIVRAISON', 'Pain', -1)])).toBe(0);
+  it('réceptionnés : nombre de produits différents reçus du jour, transferts exclus', () => {
+    expect(nbProduitsRecus(mouvements, '2026-10-10')).toBe(2);
+    expect(nbProduitsRecus([mv('RECEPTION', 'Pain', 20, 'X'), mv('RECEPTION', 'Pain', 5, 'X'), mv('TRANSFERT_ENTREE', 'Lait', 6)])).toBe(1);
+    expect(nbProduitsRecus([mv('LIVRAISON', 'Pain', -1)])).toBe(0);
   });
 });
 
@@ -114,7 +115,7 @@ describe('mise à zéro (AJUSTEMENT)', () => {
   });
 
   it("n'apparaît pas dans les réceptions", () => {
-    expect(quantiteRecue(mouvements)).toBe(4);
+    expect(nbProduitsRecus(mouvements)).toBe(1);
   });
 });
 
