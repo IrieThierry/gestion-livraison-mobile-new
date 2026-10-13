@@ -1229,3 +1229,89 @@ export interface FiltresDocumentsVente {
   livraisonId?: UUID
   factureId?: UUID
 }
+
+// ── Organisation B2B (responsable) ──
+
+/** Ventes d'une journée (factures du jour, avoirs émis le jour, encaissements du jour). */
+export interface VentesJourTableauDeBord {
+  nombre: number
+  totalTtc: number
+  nombreAvoirs: number
+  totalAvoirsTtc: number
+  /** Facturé − avoirs du jour ; peut être négatif. */
+  netTtc: number
+  encaisse: number
+}
+
+/** Argent d'un commercial, cumulé jusqu'à la fin du jour. */
+export interface ArgentCommercialTableauDeBord {
+  encaisse: number
+  remisesConfirmees: number
+  /** Remises déclarées non confirmées : information, non déduites. */
+  remisesEnAttente: number
+  /** Encaissé − remises confirmées. */
+  nonRemis: number
+}
+
+export interface LigneStockTableauDeBord {
+  produitId: UUID
+  code: string | null
+  designation: string
+  quantite: number
+  /** Prix de la grille du responsable ; null sans prix fixé. */
+  prixUnitaire: number | null
+  valeur: number | null
+}
+
+/** Stock valorisé (dépôt, camion, camions) : état actuel. */
+export interface StockValoriseTableauDeBord {
+  quantiteTotale: number
+  /** Somme des lignes ayant un prix. */
+  valeur: number
+  /** Lignes sans prix : valeur incomplète si > 0. */
+  produitsSansPrix: number
+  lignes: LigneStockTableauDeBord[]
+}
+
+export interface CommercialTableauDeBord {
+  commercialId: UUID
+  nom: string | null
+  prenom: string | null
+  actif: boolean
+  ventes: VentesJourTableauDeBord
+  argent: ArgentCommercialTableauDeBord
+  camion: StockValoriseTableauDeBord
+}
+
+export interface TransitTableauDeBord {
+  versCommerciaux: number
+  versDepot: number
+  lignes: Array<{
+    produitId: UUID
+    code: string | null
+    designation: string
+    versCommerciaux: number
+    versDepot: number
+  }>
+}
+
+/** `GET /organisation/me/tableau-de-bord?date` (responsable, O16). */
+export interface TableauDeBordResponse {
+  date: string
+  ventes: VentesJourTableauDeBord
+  argentNonRemis: number
+  commerciaux: CommercialTableauDeBord[]
+  depot: StockValoriseTableauDeBord
+  camions: StockValoriseTableauDeBord
+  enTransit: TransitTableauDeBord
+  encours: { total: number; nombreClients: number; avances: number }
+  nombreDemandesEnAttente: number
+  demandesEnAttente: DemandeChargementResponse[]
+}
+
+/** Ligne de `GET /organisation/me/grille-prix` (responsable et commerciaux, O6). */
+export interface LigneGrillePrix {
+  produit: { id: UUID; code: string | null; designation: string; photoUrl: string | null }
+  /** Prix de la grille ; null s'il n'est pas fixé. */
+  prix: number | null
+}

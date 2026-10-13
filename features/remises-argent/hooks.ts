@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { remisesArgentApi } from './api';
 import { remiseArgentKeys } from './keys';
+import { organisationKeys } from '../organisation/keys';
 import { useAuthStore } from '../../stores/authStore';
 import type {
   ContesterRemiseArgentRequest,
@@ -49,7 +50,11 @@ function useEcritureRemise<V, R>(ecrire: (v: V) => Promise<R>) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ecrire,
-    onSettled: () => qc.invalidateQueries({ queryKey: remiseArgentKeys.all }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: remiseArgentKeys.all });
+      // Responsable : « Argent non remis » du tableau de bord.
+      qc.invalidateQueries({ queryKey: organisationKeys.tableauxDeBord() });
+    },
   });
 }
 

@@ -3,7 +3,7 @@ import { useAuthStore } from '../../stores/authStore';
 import type { CreerDemandeChargementRequest, FiltresDocumentsVente, UUID } from '../../types/api';
 import { organisationApi } from './api';
 import { organisationKeys } from './keys';
-import { estCommercial, estMembreOrganisation } from './regles';
+import { estCommercial, estMembreOrganisation, estResponsable } from './regles';
 
 /** Organisation de l'utilisateur (mentions, logo) ; désactivée hors organisation. */
 export function useMonOrganisation() {
@@ -13,6 +13,27 @@ export function useMonOrganisation() {
     queryFn: organisationApi.moi,
     enabled: estMembreOrganisation(user),
     staleTime: 5 * 60_000,
+  });
+}
+
+/** Grille de prix de l'organisation (O6), lue par ses membres ; désactivée hors organisation. */
+export function useGrillePrix() {
+  const user = useAuthStore((s) => s.user);
+  return useQuery({
+    queryKey: organisationKeys.grillePrix(),
+    queryFn: organisationApi.grillePrix,
+    enabled: estMembreOrganisation(user),
+  });
+}
+
+/** Tableau de bord du responsable (O16) pour un jour `yyyy-MM-dd` ; désactivé pour les autres. */
+export function useTableauDeBord(date: string) {
+  const user = useAuthStore((s) => s.user);
+  return useQuery({
+    queryKey: organisationKeys.tableauDeBord(date),
+    queryFn: () => organisationApi.tableauDeBord(date),
+    enabled: estResponsable(user),
+    staleTime: 0,
   });
 }
 

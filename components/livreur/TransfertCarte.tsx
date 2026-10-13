@@ -104,9 +104,10 @@ function ActionTransfert({
  * Actions sur un transfert en attente, selon le rôle du livreur connecté :
  * le décideur Accepte (confirmation) ou Refuse (motif obligatoire, dans une
  * fenêtre) ; l'initiateur Annule (confirmation). Envois protégés par
- * `lancerUneFois`. L'écran rend `dialogue`.
+ * `lancerUneFois`. L'écran rend `dialogue`. `annulation: false` : pas
+ * d'« Annuler » (responsable sur le mobile, qui ne fait qu'accepter ou refuser).
  */
-export function useDecisionTransfert(moiId: UUID | undefined) {
+export function useDecisionTransfert(moiId: UUID | undefined, { annulation = true }: { annulation?: boolean } = {}) {
   const mAccepter = useAccepterTransfert();
   const mRefuser = useRefuserTransfert();
   const mAnnuler = useAnnulerTransfert();
@@ -197,7 +198,7 @@ export function useDecisionTransfert(moiId: UUID | undefined) {
         </>
       );
     }
-    if (peutAnnulerTransfert(t, moiId)) {
+    if (annulation && peutAnnulerTransfert(t, moiId)) {
       return (
         <ActionTransfert
           libelle="Annuler"

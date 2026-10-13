@@ -5,6 +5,7 @@ import { useMouvementsStock } from '../../features/stock/hooks';
 import { useLivraisonsByLivreur } from '../../features/livraisons/hooks';
 import type { MouvementStockResponse, TypeMouvementStock } from '../../types/api';
 
+jest.mock('../../lib/api-client', () => ({ apiClient: { get: jest.fn(), post: jest.fn() } }));
 jest.mock('expo-router', () => ({
   usePathname: () => '/',
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), dismissTo: jest.fn(), canGoBack: () => true },

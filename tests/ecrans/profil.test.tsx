@@ -79,10 +79,10 @@ describe('Onglet Moi : organisation B2B', () => {
     expect(naviguer).toHaveBeenLastCalledWith('/(livreur)/profil/factures');
   });
 
-  it('responsable : « Mes commerciaux » et « Remises des commerciaux », pas de fournisseurs ni de factures ici', () => {
+  it('responsable (O15, espace en lecture) : « Remises des commerciaux », ni « Mes commerciaux », ni fournisseurs, ni factures', () => {
     mockUser = { ...mockUser, parentId: null, organisationId: 'o1', organisationRole: 'RESPONSABLE' };
     render(<Profil />);
-    expect(screen.getByText('Mes commerciaux')).toBeTruthy();
+    expect(screen.queryByText('Mes commerciaux')).toBeNull();
     expect(screen.getByText('Remises des commerciaux')).toBeTruthy();
     expect(screen.queryByText('Mes fournisseurs')).toBeNull();
     expect(screen.queryByText('Mes factures')).toBeNull();

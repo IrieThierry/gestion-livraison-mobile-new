@@ -33,9 +33,19 @@ import { extractApiErrorMessage } from '../../lib/api-error';
 // Accueil : chaque tuile / action ouvre sa rubrique sur une pile propre
 // (lib/navigation) ; retour depuis la liste ouverte = Accueil.
 import { ouvrir } from '../../lib/navigation-app';
-import { estMembreOrganisation } from '../../features/organisation/regles';
+import { estMembreOrganisation, estResponsable } from '../../features/organisation/regles';
+import { TableauDeBordResponsable } from '../../components/responsable/TableauDeBordResponsable';
 
-export default function Tournee() {
+/**
+ * Accueil : tableau de bord pour le responsable d'une organisation (son
+ * espace en lecture, O15 : aucune requête de vente lancée), Tournée sinon.
+ */
+export default function Accueil() {
+  const responsable = estResponsable(useAuthStore((s) => s.user));
+  return responsable ? <TableauDeBordResponsable /> : <Tournee />;
+}
+
+function Tournee() {
   const user = useAuthStore((s) => s.user);
   const livreurId = user?.id ?? '';
   const qLiv = useLivraisonsByLivreur(livreurId);

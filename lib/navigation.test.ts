@@ -19,6 +19,10 @@ import {
   DEPUIS_CLIENT,
   DEPUIS_ENCOURS,
   DEPUIS_NOTIFICATIONS,
+  DEPUIS_NOTIFICATIONS_RESPONSABLE,
+  ECRANS_RESPONSABLE,
+  estEcranResponsable,
+  ongletVisible,
   DEPUIS_PREVISIONS,
   parentDe,
   parentOrigine,
@@ -51,7 +55,7 @@ function ecrans(): string[] {
 
 /** État d'onglets factice : `actif` affiché, piles fournies. */
 function onglets(actif: string, piles: Record<string, RouteEtat[]> = {}): EtatNavigateur {
-  const noms = ['index', 'clients', 'fab', 'livraisons', 'profil', 'cash', 'stock', 'previsions', 'clotures'];
+  const noms = ['index', 'clients', 'fab', 'livraisons', 'profil', 'cash', 'stock', 'previsions', 'clotures', 'notifications'];
   return {
     key: 'tabs',
     index: noms.indexOf(actif),
@@ -390,5 +394,108 @@ describe('Plus d’écran d’attente de validation', () => {
     parcourir(path.join(__dirname, '..', 'app'));
     parcourir(path.join(__dirname, '..', 'components'));
     expect(trouves).toEqual([]);
+  });
+});
+
+describe('Espace responsable (O15)', () => {
+  const RESPONSABLE = { profile: 'LIVREUR', organisationId: 'o1', organisationRole: 'RESPONSABLE' as const };
+  const COMMERCIAL = { profile: 'LIVREUR', organisationId: 'o1', organisationRole: 'COMMERCIAL' as const };
+
+  it('Notifications du responsable : un onglet, liste dont le parent est l’Accueil (tableau de bord)', () => {
+    expect(ROUTES.notifications).toEqual({ type: 'liste', parent: ACCUEIL });
+    expect(parentDe(trouverRoute('/notifications')!, PRINCIPAL)).toBe(ACCUEIL);
+  });
+
+  it('Transferts et Remises ouverts depuis ses Notifications → retour à ses Notifications', () => {
+    const p = (chemin: string, params: Record<string, string>) =>
+      parentDe({ ...trouverRoute(chemin)!, params }, PRINCIPAL);
+    expect(p('/stock/transferts', { depuis: DEPUIS_NOTIFICATIONS_RESPONSABLE })).toBe('/notifications');
+    expect(p('/profil/remises-apprentis', { depuis: DEPUIS_NOTIFICATIONS_RESPONSABLE })).toBe('/notifications');
+    // Sans origine : parents habituels.
+    expect(p('/stock/transferts', {})).toBe('/stock');
+    expect(p('/profil/remises-apprentis', {})).toBe('/profil');
+    const etat = onglets('stock', {
+      stock: [r('transferts', undefined, [r('index', { depuis: DEPUIS_NOTIFICATIONS_RESPONSABLE })])],
+    });
+    expect(actionRetour(etat, PRINCIPAL)).toEqual({ type: 'JUMP_TO', payload: { name: 'notifications' }, target: 'tabs' });
+  });
+
+  it('écrans permis au responsable : tableau de bord, notifications, Moi (compte), transferts et remises', () => {
+    for (const f of [
+      'index',
+      'notifications',
+      'profil/index',
+      'profil/infos',
+      'profil/password',
+      'profil/remises-apprentis',
+      'stock/transferts/index',
+    ])
+      expect(estEcranResponsable(f)).toBe(true);
+    for (const f of [
+      'livraisons/index',
+      'livraisons/nouvelle',
+      'cash/encaisser',
+      'cash/retour-client',
+      'clients/index',
+      'fab',
+      'stock/index',
+      'stock/transferts/nouveau',
+      'previsions/echues',
+      'profil/prix',
+      'profil/apprentis/index',
+    ])
+      expect(estEcranResponsable(f)).toBe(false);
+    // Chaque écran permis est déclaré dans la table.
+    for (const f of ECRANS_RESPONSABLE) expect(ROUTES[f]).toBeDefined();
+  });
+
+  it('pas d’onglets de vente pour le responsable', () => {
+    for (const nom of ['clients', 'fab', 'livraisons']) {
+      expect(ongletVisible(nom, true)).toBe(false);
+      expect(ongletVisible(nom, false)).toBe(true);
+    }
+    for (const nom of ['index', 'notifications', 'profil']) expect(ongletVisible(nom, true)).toBe(true);
+    expect(ongletVisible('notifications', false)).toBe(false);
+  });
+
+  it('redirection : le responsable arrive sur son espace et n’entre pas dans un écran de vente', () => {
+    expect(accueilDuProfil('LIVREUR')).toBe(ACCUEIL_LIVREUR);
+    expect(redirectionRacine(RESPONSABLE, '(auth)')).toBe(ACCUEIL_LIVREUR);
+    expect(redirectionRacine(RESPONSABLE, 'portail-web')).toBe(ACCUEIL_LIVREUR);
+    expect(redirectionRacine(RESPONSABLE, '(livreur)', ['(livreur)'])).toBeNull();
+    expect(redirectionRacine(RESPONSABLE, '(livreur)', ['(livreur)', 'index'])).toBeNull();
+    expect(redirectionRacine(RESPONSABLE, '(livreur)', ['(livreur)', 'notifications'])).toBeNull();
+    expect(redirectionRacine(RESPONSABLE, '(livreur)', ['(livreur)', 'profil'])).toBeNull();
+    expect(redirectionRacine(RESPONSABLE, '(livreur)', ['(livreur)', 'profil', 'remises-apprentis'])).toBeNull();
+    expect(redirectionRacine(RESPONSABLE, '(livreur)', ['(livreur)', 'stock', 'transferts'])).toBeNull();
+    expect(redirectionRacine(RESPONSABLE, '(livreur)', ['(livreur)', 'stock', 'transferts', 'index'])).toBeNull();
+    expect(redirectionRacine(RESPONSABLE, '(livreur)', ['(livreur)', 'livraisons', 'nouvelle'])).toBe(ACCUEIL_LIVREUR);
+    expect(redirectionRacine(RESPONSABLE, '(livreur)', ['(livreur)', 'clients', '[id]'])).toBe(ACCUEIL_LIVREUR);
+    expect(redirectionRacine(RESPONSABLE, '(livreur)', ['(livreur)', 'cash', 'encaisser'])).toBe(ACCUEIL_LIVREUR);
+    expect(redirectionRacine(RESPONSABLE, '(livreur)', ['(livreur)', 'stock', 'transferts', 'nouveau'])).toBe(
+      ACCUEIL_LIVREUR,
+    );
+    expect(redirectionRacine(RESPONSABLE, '(livreur)', ['(livreur)', 'inconnu'])).toBe(ACCUEIL_LIVREUR);
+  });
+
+  it('commercial, livreur et ancienne session : aucune restriction', () => {
+    expect(redirectionRacine(COMMERCIAL, '(livreur)', ['(livreur)', 'livraisons', 'nouvelle'])).toBeNull();
+    expect(redirectionRacine({ profile: 'LIVREUR' }, '(livreur)', ['(livreur)', 'livraisons', 'nouvelle'])).toBeNull();
+    // Rôle sans organisation : pas responsable.
+    expect(
+      redirectionRacine({ profile: 'LIVREUR', organisationRole: 'RESPONSABLE' }, '(livreur)', ['(livreur)', 'fab']),
+    ).toBeNull();
+  });
+});
+
+describe('Espace responsable : branchement des layouts', () => {
+  it('onglet Notifications déclaré, onglets de vente masqués selon le rôle, segments passés à la redirection', () => {
+    const app = path.join(__dirname, '..', 'app');
+    const onglets = fs.readFileSync(path.join(app, '(livreur)', '_layout.tsx'), 'utf8');
+    expect(onglets).toMatch(/name="notifications"/);
+    for (const nom of ['clients', 'fab', 'livraisons', 'notifications']) expect(onglets).toContain(`masque('${nom}')`);
+    expect(onglets).toMatch(/ongletVisible\(nom, responsable\)/);
+    const racine = fs.readFileSync(path.join(app, '_layout.tsx'), 'utf8');
+    expect(racine).toMatch(/redirectionRacine\(user, segments\[0\], segments\)/);
   });
 });

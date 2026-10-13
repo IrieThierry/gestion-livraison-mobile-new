@@ -25,6 +25,7 @@ import type { ProduitResponse } from '../../../types/api';
 import { ProduitVignette } from '../../../components/shared/ProduitVignette';
 import { useAuthStore } from '../../../stores/authStore';
 import { estCommercial } from '../../../features/organisation/regles';
+import { useGrillePrix } from '../../../features/organisation/hooks';
 
 /**
  * « Mes prix de vente » — barème par défaut du livreur.
@@ -38,8 +39,10 @@ import { estCommercial } from '../../../features/organisation/regles';
  * est visible sur le web et inversement.
  */
 export default function MesPrixPage() {
-  // O6 : le commercial d'organisation consulte la grille fixée par son responsable (lecture seule).
+  // O6 : le commercial d'organisation consulte la grille fixée par son responsable (lecture seule),
+  // lue sur `GET /organisation/me/grille-prix` (catalogue de l'organisation et prix du responsable).
   const lectureSeule = estCommercial(useAuthStore((s) => s.user));
+  const qGrille = useGrillePrix();
   const qProduits = useProduits();
   const qPrix = useMesPrix();
   const upsertMut = useUpsertPrixLivreur();
@@ -50,16 +53,33 @@ export default function MesPrixPage() {
 
   const prixMap = useMemo(() => {
     const m = new Map<string, number>();
-    for (const p of qPrix.data ?? []) m.set(p.produit.id, p.prix);
+    if (lectureSeule) {
+      for (const l of qGrille.data ?? []) if (l.prix != null) m.set(l.produit.id, Number(l.prix));
+    } else {
+      for (const p of qPrix.data ?? []) m.set(p.produit.id, p.prix);
+    }
     return m;
-  }, [qPrix.data]);
+  }, [lectureSeule, qGrille.data, qPrix.data]);
 
-  const produitsAffiches = useMemo(
-    () => filtrerRecherche(qProduits.data ?? [], recherche, (p) => [p.designation, p.code]),
-    [qProduits.data, recherche],
+  const tousProduits = useMemo<ProduitResponse[]>(
+    () =>
+      lectureSeule
+        ? (qGrille.data ?? []).map((l) => ({
+            id: l.produit.id,
+            code: l.produit.code ?? '',
+            designation: l.produit.designation,
+            photoUrl: l.produit.photoUrl,
+          }))
+        : qProduits.data ?? [],
+    [lectureSeule, qGrille.data, qProduits.data],
   );
 
-  if (qProduits.isLoading || qPrix.isLoading) {
+  const produitsAffiches = useMemo(
+    () => filtrerRecherche(tousProduits, recherche, (p) => [p.designation, p.code]),
+    [tousProduits, recherche],
+  );
+
+  if (lectureSeule ? qGrille.isLoading : qProduits.isLoading || qPrix.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
         <ActivityIndicator color="#10b981" />
@@ -67,7 +87,8 @@ export default function MesPrixPage() {
     );
   }
 
-  const produits = qProduits.data ?? [];
+  const produits = tousProduits;
+  const grilleIndisponible = lectureSeule && qGrille.isError;
 
   const onSave = (produit: ProduitResponse) => {
     const raw = draftPrix[produit.id] ?? '';
@@ -111,8 +132,12 @@ export default function MesPrixPage() {
       <FormScreen
         refreshControl={
           <RefreshControl
-            refreshing={qPrix.isFetching && !qPrix.isLoading}
+            refreshing={lectureSeule ? qGrille.isFetching && !qGrille.isLoading : qPrix.isFetching && !qPrix.isLoading}
             onRefresh={() => {
+              if (lectureSeule) {
+                qGrille.refetch();
+                return;
+              }
               qPrix.refetch();
               qProduits.refetch();
             }}
@@ -140,10 +165,19 @@ export default function MesPrixPage() {
             />
           ) : null}
 
-          {produits.length === 0 ? (
+          {grilleIndisponible ? (
+            <EmptyState
+              title="Grille de prix indisponible"
+              message="Les prix n’ont pas pu être lus. Tire pour réessayer."
+            />
+          ) : produits.length === 0 ? (
             <EmptyState
               title="Aucun produit"
-              message="Demande à l'admin de créer des produits dans le référentiel."
+              message={
+                lectureSeule
+                  ? 'Ton responsable n’a pas encore de produit dans son catalogue.'
+                  : "Demande à l'admin de créer des produits dans le référentiel."
+              }
             />
           ) : produitsAffiches.length === 0 ? (
             <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center py-4">

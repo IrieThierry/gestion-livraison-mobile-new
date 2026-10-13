@@ -8,7 +8,7 @@ import { useTransfertsLivreur, useTransfertsParent } from '../../../../features/
 import { transfertsAffiches, type FiltreTransferts } from '../../../../features/transferts/regles';
 import { useAuthStore } from '../../../../stores/authStore';
 import { naviguer } from '../../../../lib/navigation-app';
-import { vocabulaire } from '../../../../features/organisation/regles';
+import { estResponsable, vocabulaire } from '../../../../features/organisation/regles';
 
 /**
  * Transferts de stock. Principal : ceux de l'équipe (`GET
@@ -22,7 +22,9 @@ export default function TransfertsList() {
   const qEquipe = useTransfertsParent(user && !estApprenti ? user.id : undefined);
   const qMiens = useTransfertsLivreur(user && estApprenti ? user.id : undefined);
   const q = estApprenti ? qMiens : qEquipe;
-  const decision = useDecisionTransfert(user?.id);
+  // Responsable (O15) : sur le mobile, il accepte ou refuse seulement (ni envoi, ni annulation).
+  const responsable = estResponsable(user);
+  const decision = useDecisionTransfert(user?.id, { annulation: !responsable });
   const [filtre, setFiltre] = useState<FiltreTransferts>('TOUS');
 
   if (!user) return null;
@@ -43,6 +45,7 @@ export default function TransfertsList() {
         title="Transferts de stock"
         subtitle={`${tous.length} transfert${tous.length > 1 ? 's' : ''}`}
         right={
+          responsable ? undefined : (
           <Pressable
             onPress={() => naviguer('/(livreur)/stock/transferts/nouveau')}
             accessibilityRole="button"
@@ -51,6 +54,7 @@ export default function TransfertsList() {
             {estApprenti ? <Undo2 color="#fff" size={14} /> : <Plus color="#fff" size={14} />}
             <Text className="text-white text-xs font-bold">{estApprenti ? v.rendreStock : 'Nouveau'}</Text>
           </Pressable>
+          )
         }
       />
 
@@ -99,7 +103,9 @@ export default function TransfertsList() {
             <EmptyState
               title="Aucun transfert"
               message={
-                estApprenti
+                responsable
+                  ? undefined
+                  : estApprenti
                   ? `Rends du stock à ${v.tonPrincipal} avec « ${v.rendreStock} ».`
                   : `Envoie du stock à un ${v.apprenti}, ou reprends-en, avec le bouton « Nouveau ».`
               }

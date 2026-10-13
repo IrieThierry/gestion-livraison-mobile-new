@@ -49,20 +49,39 @@ export function estProfilPortailWeb(profile: string | null | undefined): boolean
   return profile === 'ADMIN' || profile === 'FOURNISSEUR';
 }
 
-/** Écran d'arrivée après la connexion selon le profil. */
+/**
+ * Écran d'arrivée après la connexion selon le profil. Le responsable d'une
+ * organisation (profil LIVREUR) arrive lui aussi sur `(livreur)` : son
+ * Accueil y est le tableau de bord de son espace (O15).
+ */
 export function accueilDuProfil(profile: string | null | undefined): string {
   return estProfilPortailWeb(profile) ? PORTAIL_WEB : ACCUEIL_LIVREUR;
+}
+
+/** Utilisateur vu par la redirection racine (champs de session). */
+export interface UtilisateurRedirection {
+  profile?: string | null;
+  organisationId?: string | null;
+  organisationRole?: string | null;
+}
+
+/** Responsable d'une organisation (même règle que `estResponsable` de features/organisation). */
+function estResponsableOrganisation(user: UtilisateurRedirection): boolean {
+  return !!user.organisationId && user.organisationRole === 'RESPONSABLE';
 }
 
 /**
  * Redirection de la pile racine (`AuthGate`) : non connecté hors `(auth)` →
  * connexion ; connecté dans `(auth)` → écran de son profil ; ADMIN ou
  * FOURNISSEUR hors du portail web → portail web ; livreur sur le portail
- * web → onglets. Null : rester où l'on est.
+ * web → onglets. Responsable d'une organisation (O15) : hors des écrans de
+ * son espace (`ECRANS_RESPONSABLE`, d'après `segments`, les segments de
+ * route d'expo-router) → son Accueil. Null : rester où l'on est.
  */
 export function redirectionRacine(
-  user: { profile?: string | null } | null,
+  user: UtilisateurRedirection | null,
   premierSegment: string | undefined,
+  segments?: readonly string[],
 ): string | null {
   const dansAuth = premierSegment === '(auth)';
   if (!user) return dansAuth ? null : '/(auth)/login';
@@ -70,7 +89,50 @@ export function redirectionRacine(
   const portail = estProfilPortailWeb(user.profile);
   if (portail && premierSegment !== SEGMENT_PORTAIL_WEB) return PORTAIL_WEB;
   if (!portail && premierSegment === SEGMENT_PORTAIL_WEB) return ACCUEIL_LIVREUR;
+  if (!portail && premierSegment === GROUPE_LIVREUR && segments && estResponsableOrganisation(user)) {
+    const chemin = `/${segments.slice(1).filter((s) => s !== 'index').join('/')}`;
+    if (chemin === ACCUEIL) return null;
+    const cible = trouverRoute(chemin);
+    if (!cible || !estEcranResponsable(cible.fichier)) return ACCUEIL_LIVREUR;
+  }
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Espace responsable (O15) : lecture, sans onglets de vente
+// ---------------------------------------------------------------------------
+
+/**
+ * Écrans de l'espace du responsable sur le mobile : tableau de bord
+ * (Accueil), Notifications (déchargements à accepter ou refuser, remises
+ * d'argent à confirmer ou contester), Moi (compte), et les listes des
+ * transferts et des remises où il prend ces deux décisions. Le reste
+ * (ventes, clients, stock, gestion) se fait sur le portail web.
+ */
+export const ECRANS_RESPONSABLE: ReadonlySet<string> = new Set([
+  'index',
+  'notifications',
+  'profil/index',
+  'profil/infos',
+  'profil/password',
+  'profil/remises-apprentis',
+  'stock/transferts/index',
+]);
+
+export function estEcranResponsable(fichier: string): boolean {
+  return ECRANS_RESPONSABLE.has(fichier);
+}
+
+/** Onglets de vente, jamais proposés au responsable. */
+const ONGLETS_VENTE: ReadonlySet<string> = new Set(['clients', 'fab', 'livraisons']);
+
+/**
+ * Onglet affiché dans la barre : le responsable n'a pas les onglets de vente
+ * mais a « Notifications » ; les autres utilisateurs, l'inverse.
+ */
+export function ongletVisible(nom: string, responsable: boolean): boolean {
+  if (nom === 'notifications') return responsable;
+  return !(responsable && ONGLETS_VENTE.has(nom));
 }
 
 /** Chemin de l'Accueil (onglet Tournée). */
@@ -107,15 +169,26 @@ export interface RouteApp {
  *  - `a-receptionner` : ouvert depuis « À réceptionner » (cloche de l'Accueil) ;
  *  - `previsions` : ouvert depuis Prévisions (Commander depuis le cumul) ;
  *  - `notifications` : ouvert depuis l'écran Notifications (cloche de l'Accueil) ;
- *  - `apprenti` : ouvert depuis la fiche apprenti (paramètre `apprentiId`).
+ *  - `apprenti` : ouvert depuis la fiche apprenti (paramètre `apprentiId`) ;
+ *  - `notifications-responsable` : ouvert depuis les Notifications du responsable.
  */
-export type Origine = 'client' | 'encours' | 'a-receptionner' | 'previsions' | 'notifications' | 'apprenti';
+export type Origine =
+  | 'client'
+  | 'encours'
+  | 'a-receptionner'
+  | 'previsions'
+  | 'notifications'
+  | 'apprenti'
+  | 'notifications-responsable';
 export const DEPUIS_CLIENT = 'client' as const;
 export const DEPUIS_ENCOURS = 'encours' as const;
 export const DEPUIS_A_RECEPTIONNER = 'a-receptionner' as const;
 export const DEPUIS_PREVISIONS = 'previsions' as const;
 export const DEPUIS_NOTIFICATIONS = 'notifications' as const;
 export const DEPUIS_APPRENTI = 'apprenti' as const;
+export const DEPUIS_NOTIFICATIONS_RESPONSABLE = 'notifications-responsable' as const;
+/** Notifications du responsable (onglet de son espace). */
+const NOTIFICATIONS_RESPONSABLE = '/notifications';
 const A_RECEPTIONNER = '/cash/commandes/a-receptionner';
 const FICHE_CLIENT = '/clients/[clientId]';
 
@@ -129,6 +202,8 @@ const listeCommandes = (ctx: ContexteNavigation) =>
 export const ROUTES: Readonly<Record<string, RouteApp>> = {
   index: { type: 'accueil', parent: null },
   fab: { type: 'liste', parent: ACCUEIL },
+  // Espace responsable (O15) : onglet Notifications (déchargements, remises d'argent).
+  notifications: { type: 'liste', parent: ACCUEIL },
 
   'clients/index': { type: 'liste', parent: ACCUEIL },
   'clients/map': { type: 'liste', parent: '/clients' },
@@ -177,7 +252,12 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   'stock/mouvements': { type: 'liste', parent: '/stock' },
   'stock/equipe': { type: 'liste', parent: '/stock' },
   // Ouverte depuis Notifications (« Transferts à recevoir ») : retour à Notifications.
-  'stock/transferts/index': { type: 'liste', parent: '/stock', origines: { notifications: '/previsions/echues' } },
+  // Depuis les Notifications du responsable : retour à celles-ci.
+  'stock/transferts/index': {
+    type: 'liste',
+    parent: '/stock',
+    origines: { notifications: '/previsions/echues', 'notifications-responsable': NOTIFICATIONS_RESPONSABLE },
+  },
   'stock/transferts/nouveau': { type: 'formulaire', parent: '/stock/transferts' },
   // Organisation (O8) : demandes de chargement du commercial, ouvertes depuis Stock.
   'stock/demandes/index': { type: 'liste', parent: '/stock' },
@@ -211,7 +291,10 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   'profil/remises-apprentis': {
     type: 'liste',
     parent: '/profil',
-    origines: { apprenti: '/profil/apprentis/[apprentiId]' },
+    origines: {
+      apprenti: '/profil/apprentis/[apprentiId]',
+      'notifications-responsable': NOTIFICATIONS_RESPONSABLE,
+    },
   },
 };
 
@@ -562,8 +645,15 @@ export function actionOuvrir(
   if (chemin === ACCUEIL) return { type: 'JUMP_TO', payload: { name: 'index' }, target: onglets.key };
   const cible = trouverRoute(chemin);
   if (!cible) return null;
-  const chaine = chaineOuverture({ ...cible, params: { ...cible.params, ...requete } }, ctx);
   const nom = ongletDe(cible.fichier);
+  // Onglet d'un seul écran (Notifications du responsable) : pas de pile, on l'affiche.
+  if (cible.fichier === nom) {
+    if (!onglets.routes.some((r) => r.name === nom)) return null;
+    return onglets.routes[onglets.index]?.name === nom
+      ? null
+      : { type: 'JUMP_TO', payload: { name: nom }, target: onglets.key };
+  }
+  const chaine = chaineOuverture({ ...cible, params: { ...cible.params, ...requete } }, ctx);
   // Pile déjà identique (mêmes écrans, mêmes paramètres) : pas de RESET, qui
   // remonterait l'écran (recherche et défilement perdus) ; on affiche l'onglet.
   const onglet = onglets.routes.find((r) => r.name === nom);

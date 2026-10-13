@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Redirect, Tabs, useNavigationContainerRef } from 'expo-router';
-import { estProfilPortailWeb, PORTAIL_WEB } from '../../lib/navigation';
-import { TrendingUp, Truck, User, Plus, Users } from 'lucide-react-native';
+import { estProfilPortailWeb, ongletVisible, PORTAIL_WEB } from '../../lib/navigation';
+import { estResponsable } from '../../features/organisation/regles';
+import { TrendingUp, Truck, User, Plus, Users, LayoutDashboard, Bell } from 'lucide-react-native';
 import { OfflineBanner } from '../../components/shared/OfflineBanner';
 import { PreparationRecuBanner } from '../../components/shared/PreparationRecuBanner';
 import { FabSheet } from '../../components/livreur/FabSheet';
@@ -29,6 +30,9 @@ export default function LivreurLayout() {
   const user = useAuthStore((s) => s.user);
   const effective = useThemeStore((s) => s.effective);
   const isDark = effective === 'dark';
+  // Responsable (O15) : espace sans onglets de vente (tableau de bord, Notifications, Moi).
+  const responsable = estResponsable(user);
+  const masque = (nom: string) => (ongletVisible(nom, responsable) ? {} : { href: null });
 
   // Safe-area inset bottom : sur Android avec gesture nav OU bouton home
   // virtuel, sans ce padding la TabBar se fait recouvrir par les boutons
@@ -83,8 +87,13 @@ export default function LivreurLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Tournée',
-            tabBarIcon: ({ color }) => <TrendingUp color={color} size={23} strokeWidth={2.2} />,
+            title: responsable ? 'Tableau de bord' : 'Tournée',
+            tabBarIcon: ({ color }) =>
+              responsable ? (
+                <LayoutDashboard color={color} size={23} strokeWidth={2.2} />
+              ) : (
+                <TrendingUp color={color} size={23} strokeWidth={2.2} />
+              ),
           }}
           listeners={listenersRacineOnglet()}
         />
@@ -92,6 +101,7 @@ export default function LivreurLayout() {
           name="clients"
           options={{
             title: 'Clients',
+            ...masque('clients'),
             tabBarIcon: ({ color }) => <Users color={color} size={23} strokeWidth={2.2} />,
           }}
           listeners={listenersRacineOnglet()}
@@ -101,6 +111,7 @@ export default function LivreurLayout() {
           options={{
             title: '',
             tabBarShowLabel: false,
+            ...masque('fab'),
             tabBarIcon: () => (
               <View
                 className="bg-emerald-500 -mt-6 w-14 h-14 rounded-full items-center justify-center"
@@ -127,7 +138,17 @@ export default function LivreurLayout() {
           name="livraisons"
           options={{
             title: 'Livraisons',
+            ...masque('livraisons'),
             tabBarIcon: ({ color }) => <Truck color={color} size={23} strokeWidth={2.2} />,
+          }}
+          listeners={listenersRacineOnglet()}
+        />
+        <Tabs.Screen
+          name="notifications"
+          options={{
+            title: 'Notifications',
+            ...masque('notifications'),
+            tabBarIcon: ({ color }) => <Bell color={color} size={23} strokeWidth={2.2} />,
           }}
           listeners={listenersRacineOnglet()}
         />
@@ -145,7 +166,7 @@ export default function LivreurLayout() {
         <Tabs.Screen name="previsions" options={{ href: null }} />
         <Tabs.Screen name="clotures" options={{ href: null }} />
       </Tabs>
-      <FabSheet open={fabOpen} onClose={() => setFabOpen(false)} />
+      {!responsable ? <FabSheet open={fabOpen} onClose={() => setFabOpen(false)} /> : null}
     </SafeAreaView>
   );
 }

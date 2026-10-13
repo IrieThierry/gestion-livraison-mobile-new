@@ -53,4 +53,14 @@ describe('organisationApi', () => {
     await organisationApi.avoir('a1');
     expect(get).toHaveBeenLastCalledWith('/avoir/a1');
   });
+  it('tableau de bord du responsable : jour en paramètre', async () => {
+    get.mockResolvedValueOnce({ data: { date: '2026-10-13' } });
+    await expect(organisationApi.tableauDeBord('2026-10-13')).resolves.toEqual({ date: '2026-10-13' });
+    expect(get).toHaveBeenLastCalledWith('/organisation/me/tableau-de-bord', { params: { date: '2026-10-13' } });
+  });
+
+  it('grille de prix de l’organisation : GET /organisation/me/grille-prix', async () => {
+    await organisationApi.grillePrix();
+    expect(get).toHaveBeenLastCalledWith('/organisation/me/grille-prix');
+  });
 });

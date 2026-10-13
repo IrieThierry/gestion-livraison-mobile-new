@@ -11,6 +11,8 @@ import { LIBELLE_STATUT_REMISE, STATUTS_REMISE, nomLivreur } from '../../../feat
 import { num } from '../../../features/encaissements/regles';
 import { bornesPeriode, derniersJours, moisEnCours, type OptionPeriode, type ValeurPeriode } from '../../../lib/periode';
 import { formatMontant } from '../../../lib/format';
+import { useAuthStore } from '../../../stores/authStore';
+import { vocabulaire } from '../../../features/organisation/regles';
 import type { FiltresRemisesArgent, StatutRemiseArgent } from '../../../types/api';
 
 type Raccourci = 'tout' | 'mois' | '30j';
@@ -30,6 +32,8 @@ const PERIODES: ReadonlyArray<OptionPeriode<Raccourci>> = [
  */
 export default function RemisesApprentis() {
   const params = useLocalSearchParams<{ apprentiId?: string }>();
+  // Organisation (O4) : « Remises des commerciaux », filtre « Commercial ».
+  const v = vocabulaire(useAuthStore((s) => s.user));
   const apprentisQ = useApprentis();
   const [apprentiId, setApprentiId] = useState<string | null>(
     typeof params.apprentiId === 'string' && params.apprentiId ? params.apprentiId : null,
@@ -57,7 +61,7 @@ export default function RemisesApprentis() {
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
-        title="Remises des apprentis"
+        title={`Remises des ${v.apprentis}`}
         subtitle={
           q.data ? `${remises.length} remise${remises.length > 1 ? 's' : ''} · ${formatMontant(total)} FCFA` : undefined
         }
@@ -72,7 +76,7 @@ export default function RemisesApprentis() {
         }
         ListHeaderComponent={
           <View className="gap-3 mb-1">
-            <Filtre titre="Apprenti">
+            <Filtre titre={v.Apprenti}>
               <Puce
                 label="Tous"
                 aria="Apprenti Tous"

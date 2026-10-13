@@ -43,6 +43,7 @@ jest.mock('../../features/organisation/hooks', () => ({
   useCreerDemandeChargement: jest.fn(),
   useMesFactures: jest.fn(),
   useMesAvoirs: jest.fn(),
+  useGrillePrix: jest.fn(),
 }));
 const mockPartage = { enCours: null, facture: jest.fn(), factureDeLivraison: jest.fn(), avoir: jest.fn() };
 jest.mock('../../features/organisation/usePartageDocuments', () => ({
@@ -273,10 +274,28 @@ describe('Stock du commercial', () => {
 });
 
 describe('Mes prix de vente (O6)', () => {
-  it('commercial : grille du responsable en lecture seule, aucune écriture possible', () => {
+  const grille = (etat: Record<string, unknown> = {}) =>
+    (orgHooks.useGrillePrix as jest.Mock).mockReturnValue({
+      data: [
+        { produit: { id: 'g1', code: 'PROD-7', designation: 'Sprite org', photoUrl: null }, prix: 750 },
+        { produit: { id: 'g2', code: 'PROD-8', designation: 'Eau org', photoUrl: null }, prix: null },
+      ],
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      refetch: jest.fn(),
+      ...etat,
+    });
+
+  it('commercial : grille du responsable (GET /organisation/me/grille-prix) en lecture seule, aucune écriture possible', () => {
+    grille();
     render(<MesPrixPage />);
     expect(screen.getAllByText(/Prix fixés par ton responsable/).length).toBeGreaterThan(0);
-    expect(screen.getByText('500 FCFA')).toBeTruthy();
+    // Produits et prix de la grille, pas les prix personnels du commercial.
+    expect(screen.getByText('Sprite org')).toBeTruthy();
+    expect(screen.getByText('750 FCFA')).toBeTruthy();
+    expect(screen.queryByText('500 FCFA')).toBeNull();
+    expect(screen.queryByText('Coca 33cl')).toBeNull();
     expect(screen.getByText('Aucun prix fixé')).toBeTruthy();
     expect(screen.queryByText('Enregistrer')).toBeNull();
     expect(screen.queryByText('Modifier le prix')).toBeNull();
@@ -285,7 +304,15 @@ describe('Mes prix de vente (O6)', () => {
     expect(mockSupprimerPrix.mutate).not.toHaveBeenCalled();
   });
 
+  it('commercial : grille illisible, état d’erreur distinct', () => {
+    grille({ data: undefined, isError: true });
+    render(<MesPrixPage />);
+    expect(screen.getByText('Grille de prix indisponible')).toBeTruthy();
+    expect(screen.queryByText('Aucun produit')).toBeNull();
+  });
+
   it('apprenti hors organisation : saisie inchangée', () => {
+    grille();
     mockUser = { id: 'a1', prenom: 'Awa', nom: 'K', parentId: 'l1' };
     render(<MesPrixPage />);
     expect(screen.getAllByText('Enregistrer')).toHaveLength(2);

@@ -5,8 +5,10 @@ import type {
   DemandeChargementResponse,
   FactureResponse,
   FiltresDocumentsVente,
+  LigneGrillePrix,
   OrganisationResponse,
   StatutDemandeChargement,
+  TableauDeBordResponse,
   UUID,
 } from '../../types/api';
 
@@ -18,12 +20,21 @@ function parametres(filtres: object): Record<string, string> | undefined {
 }
 
 /**
- * Organisation B2B, routes du commercial : son organisation (lecture), ses
- * demandes de chargement, ses factures et avoirs (cloisonnés par le back).
+ * Organisation B2B : son organisation (lecture), les demandes de chargement
+ * et les factures et avoirs du commercial (cloisonnés par le back), la grille
+ * de prix (membres) et le tableau de bord du responsable.
  */
 export const organisationApi = {
   moi: async (): Promise<OrganisationResponse> =>
     (await apiClient.get<OrganisationResponse>('/organisation/me')).data,
+
+  /** Grille de prix de l'organisation (O6), en lecture : produit et prix (null s'il n'est pas fixé). */
+  grillePrix: async (): Promise<LigneGrillePrix[]> =>
+    (await apiClient.get<LigneGrillePrix[]>('/organisation/me/grille-prix')).data,
+
+  /** Tableau de bord du responsable (O16) pour un jour (yyyy-MM-dd). */
+  tableauDeBord: async (date: string): Promise<TableauDeBordResponse> =>
+    (await apiClient.get<TableauDeBordResponse>('/organisation/me/tableau-de-bord', { params: { date } })).data,
 
   // --- Demandes de chargement (O8) ---
   mesDemandes: async (statut?: StatutDemandeChargement): Promise<DemandeChargementResponse[]> =>

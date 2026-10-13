@@ -56,6 +56,8 @@ function useEcritureTransfert<V, R>(ecrire: (v: V) => Promise<R>) {
       qc.invalidateQueries({ queryKey: etatsKeys.all });
       // Organisation : le statut du transfert d'un chargement se lit sur la demande.
       qc.invalidateQueries({ queryKey: organisationKeys.demandes() });
+      // Responsable : dépôt, camions et transit du tableau de bord.
+      qc.invalidateQueries({ queryKey: organisationKeys.tableauxDeBord() });
     },
   });
 }

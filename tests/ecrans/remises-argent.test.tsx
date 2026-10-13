@@ -327,7 +327,7 @@ describe('Navigation des remises', () => {
     expect(ROUTES['profil/remises-apprentis']).toEqual({
       type: 'liste',
       parent: '/profil',
-      origines: { apprenti: '/profil/apprentis/[apprentiId]' },
+      origines: { apprenti: '/profil/apprentis/[apprentiId]', 'notifications-responsable': '/notifications' },
     });
     expect(PILES_IMBRIQUEES.has('profil/remises')).toBe(true);
   });
