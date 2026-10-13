@@ -289,11 +289,14 @@ describe('Stock du commercial', () => {
     expect(naviguer).toHaveBeenLastCalledWith('/(livreur)/stock/demandes');
     fireEvent.press(screen.getByText('Rendre au dépôt'));
     expect(naviguer).toHaveBeenLastCalledWith('/(livreur)/stock/transferts/nouveau');
-    expect(screen.getByText('Avec ton responsable')).toBeTruthy();
+    fireEvent.press(screen.getByText('Mes bons de transfert'));
+    expect(naviguer).toHaveBeenLastCalledWith('/(livreur)/stock/transferts');
+    expect(screen.getByText('Chargements reçus et retours au dépôt')).toBeTruthy();
   });
 
-  it('transferts : bouton « Rendre au dépôt »', () => {
+  it('transferts : « Mes bons de transfert » et bouton « Rendre au dépôt »', () => {
     render(<TransfertsList />);
+    expect(screen.getByText('Mes bons de transfert')).toBeTruthy();
     expect(screen.getByText('Rendre au dépôt')).toBeTruthy();
   });
 
@@ -301,6 +304,8 @@ describe('Stock du commercial', () => {
     mockUser = { id: 'a1', prenom: 'Awa', nom: 'K', parentId: 'l1' };
     render(<StockCourant />);
     expect(screen.getByText('Rendre du stock')).toBeTruthy();
+    expect(screen.getByText('Transferts')).toBeTruthy();
+    expect(screen.queryByText('Mes bons de transfert')).toBeNull();
     expect(screen.queryByText('Demandes de chargement')).toBeNull();
   });
 });

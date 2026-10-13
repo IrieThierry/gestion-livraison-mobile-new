@@ -204,9 +204,15 @@ function StockCourant() {
               <View className="flex-row items-center gap-3 flex-1">
                 <ArrowLeftRight color="#3b82f6" size={20} />
                 <View className="flex-1">
-                  <Text className="font-extrabold text-slate-900 dark:text-white">Transferts</Text>
+                  <Text className="font-extrabold text-slate-900 dark:text-white">
+                    {commercial ? 'Mes bons de transfert' : 'Transferts'}
+                  </Text>
                   <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {user.parentId ? `Avec ${v.tonPrincipal}` : `Vers / depuis tes ${v.apprentis}`}
+                    {commercial
+                      ? 'Chargements reçus et retours au dépôt'
+                      : user.parentId
+                        ? `Avec ${v.tonPrincipal}`
+                        : `Vers / depuis tes ${v.apprentis}`}
                   </Text>
                 </View>
               </View>

@@ -8,7 +8,7 @@ import { useTransfertsLivreur, useTransfertsParent } from '../../../../features/
 import { transfertsAffiches, type FiltreTransferts } from '../../../../features/transferts/regles';
 import { useAuthStore } from '../../../../stores/authStore';
 import { naviguer } from '../../../../lib/navigation-app';
-import { estResponsable, vocabulaire } from '../../../../features/organisation/regles';
+import { estCommercial, estResponsable, vocabulaire } from '../../../../features/organisation/regles';
 
 /**
  * Transferts de stock. Principal : ceux de l'équipe (`GET
@@ -24,6 +24,7 @@ export default function TransfertsList() {
   const q = estApprenti ? qMiens : qEquipe;
   // Responsable (O15) : sur le mobile, il accepte ou refuse seulement (ni envoi, ni annulation).
   const responsable = estResponsable(user);
+  const commercial = estCommercial(user);
   const decision = useDecisionTransfert(user?.id, { annulation: !responsable });
   const [filtre, setFiltre] = useState<FiltreTransferts>('TOUS');
 
@@ -42,8 +43,8 @@ export default function TransfertsList() {
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
-        title="Transferts de stock"
-        subtitle={`${tous.length} transfert${tous.length > 1 ? 's' : ''}`}
+        title={commercial ? 'Mes bons de transfert' : 'Transferts de stock'}
+        subtitle={`${tous.length} ${commercial ? 'bon' : 'transfert'}${tous.length > 1 ? 's' : ''}`}
         right={
           responsable ? undefined : (
           <Pressable
