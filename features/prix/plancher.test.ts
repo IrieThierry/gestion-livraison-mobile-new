@@ -2,6 +2,7 @@ import {
   avecPrixAchat,
   erreurPlancher,
   erreurPlancherLignes,
+  prixSaisiAMain,
   indexPrixAchat,
   messagePlancher,
   montantPlancher,
@@ -70,6 +71,21 @@ describe('plancher du prix de vente (P5)', () => {
       "Le prix de vente de Lait (200 F) est inférieur au prix d'achat (250,5 F).",
     );
     expect(erreurPlancherLignes(table, [{ produitId: 'pain', designation: 'Pain', prix: 1500 }])).toBeNull();
+  });
+
+  it('création : une ligne au prix proposé n\'est jamais bloquée, un prix saisi l\'est', () => {
+    const sous = { produitId: 'pain', designation: 'Pain', prix: 1000 };
+    // Prix proposé sous le prix d'achat : accepté tel quel.
+    expect(erreurPlancherLignes(table, [{ ...sous, prixPropose: 1000 }])).toBeNull();
+    // Prix tapé différent du prix proposé, sous le prix d'achat : refusé.
+    expect(erreurPlancherLignes(table, [{ ...sous, prix: 900, prixPropose: 1000 }])).toBe(
+      "Le prix de vente de Pain (900 F) est inférieur au prix d'achat (1 500 F).",
+    );
+    // Sans prix proposé connu : contrôlé.
+    expect(erreurPlancherLignes(table, [sous])).not.toBeNull();
+    expect(erreurPlancherLignes(table, [{ ...sous, prixPropose: null }])).not.toBeNull();
+    expect(prixSaisiAMain(1000, 1000)).toBe(false);
+    expect(prixSaisiAMain(1001, 1000)).toBe(true);
   });
 
   it('livreur indépendant seulement (principal ou apprenti), pas une organisation', () => {

@@ -1,5 +1,6 @@
 import { estMembreOrganisation } from '../organisation/regles';
 import { filtrerRecherche } from '../../lib/recherche';
+import { comparerDesignations } from '../../lib/tri';
 import type {
   AuthResponse,
   ClientResponse,
@@ -49,7 +50,7 @@ export function ciblesReaffectation(
   const actifs = (apprentis ?? [])
     .filter((a) => a.actif !== false)
     .map((a) => ({ id: a.id, label: nomComplet(a.prenom, a.nom) || a.username, hint: 'Apprenti' }))
-    .sort((a, b) => a.label.localeCompare(b.label, 'fr', { sensitivity: 'base' }));
+    .sort((a, b) => comparerDesignations(a.label, b.label));
   return [{ id: moi.id, label: `Moi (${nomComplet(moi.prenom, moi.nom) || 'livreur principal'})`, hint: 'Livreur principal' }, ...actifs];
 }
 
@@ -67,7 +68,7 @@ export function clientsAffiches(
   moiId: UUID,
 ): ClientResponse[] {
   const tries = [...(clients ?? [])].sort((a, b) =>
-    nomComplet(a.prenom, a.nom).localeCompare(nomComplet(b.prenom, b.nom), 'fr', { sensitivity: 'base' }),
+    comparerDesignations(nomComplet(a.prenom, a.nom), nomComplet(b.prenom, b.nom)),
   );
   return filtrerRecherche(tries, recherche, (c) => [
     nomComplet(c.prenom, c.nom),

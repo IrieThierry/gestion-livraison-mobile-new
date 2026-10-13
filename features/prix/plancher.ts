@@ -60,12 +60,22 @@ export function erreurPlancher(
   return vente < prixAchat ? messagePlancher(achat.designation || designation, vente, prixAchat) : null;
 }
 
-/** Première ligne sous son prix d'achat, dans l'ordre des lignes (comme le back) ; null si aucune. */
+/**
+ * Prix saisi à la main : différent du prix proposé par le système. Sans prix
+ * proposé connu, le prix est considéré comme saisi (contrôlé).
+ */
+export function prixSaisiAMain(prix: number | null | undefined, prixPropose: number | null | undefined): boolean {
+  return prixPropose == null || !(Number(prixPropose) > 0) || Number(prix) !== Number(prixPropose);
+}
+
+/**
+ * Première ligne sous son prix d'achat, dans l'ordre des lignes (comme le back) ; null si aucune. */
 export function erreurPlancherLignes(
   table: TablePrixAchat | null | undefined,
-  lignes: ReadonlyArray<{ produitId: UUID; designation: string; prix: number }>,
+  lignes: ReadonlyArray<{ produitId: UUID; designation: string; prix: number; prixPropose?: number | null }>,
 ): string | null {
   for (const l of lignes) {
+    if (!prixSaisiAMain(l.prix, l.prixPropose)) continue;
     const e = erreurPlancher(table, l.produitId, l.designation, l.prix);
     if (e) return e;
   }

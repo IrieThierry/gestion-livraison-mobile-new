@@ -15,7 +15,7 @@ import {
   messageAucunPrix,
   messagePrixIndisponible,
 } from '../../features/organisation/regles';
-import { erreurPlancher, type TablePrixAchat } from '../../features/prix/plancher';
+import { erreurPlancher, prixSaisiAMain, type TablePrixAchat } from '../../features/prix/plancher';
 
 export type Ligne = LigneSaisie;
 
@@ -215,7 +215,11 @@ export function ProduitPicker({
             remiseClient={remiseClient}
             memoriserPossible={memoriserPossible && !prixImpose}
             prixImpose={prixImpose}
-            alertePlancher={prixImpose ? null : erreurPlancher(prixAchat, l.produitId, l.designation, l.prix)}
+            alertePlancher={
+              prixImpose || !prixSaisiAMain(l.prix, l.prixPropose)
+                ? null
+                : erreurPlancher(prixAchat, l.produitId, l.designation, l.prix)
+            }
             onUpdate={(patch) => updateProduit(l.produitId, patch)}
             onRemove={() => removeProduit(l.produitId)}
           />
@@ -318,7 +322,10 @@ function LigneRow({
     if (lastQueryKey.current !== queryKey) {
       lastQueryKey.current = queryKey;
       if (resolved.prix !== null && resolved.prix > 0) {
-        onUpdate({ prix: resolved.prix });
+        onUpdate({ prix: resolved.prix, prixPropose: resolved.prix });
+      } else {
+        // Aucun prix enregistré : le prix par défaut déjà posé sur la ligne est le prix proposé.
+        onUpdate({ prixPropose: line.prix > 0 ? line.prix : null });
       }
       setResolvedPrix(resolved.prix);
       setResolvedLoaded(true);

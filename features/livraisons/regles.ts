@@ -19,6 +19,12 @@ export interface LigneSaisie {
    * aucun). Absent hors prix imposé.
    */
   prixStatut?: 'en-lecture' | 'erreur' | 'resolu';
+  /**
+   * Prix proposé par le système (prix client, sinon prix par défaut) lu pour
+   * cette ligne. Une ligne au prix proposé n'est jamais bloquée par le contrôle
+   * du plancher (P5) ; seul un prix saisi à la main l'est.
+   */
+  prixPropose?: number | null;
 }
 
 /**

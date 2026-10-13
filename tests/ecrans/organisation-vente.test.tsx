@@ -245,18 +245,32 @@ describe('Nouvelle livraison du commercial', () => {
     expect(mockCreer.mutate).toHaveBeenCalledTimes(1);
   });
 
-  it('livreur indépendant : prix sous le prix d’achat, vente refusée avec le message du back (P5)', () => {
+  it('livreur indépendant : prix tapé sous le prix d’achat, vente refusée avec le message du back (P5)', () => {
     mockUser = { id: 'l9', prenom: 'Awa', nom: 'K', parentId: null };
     achatCoca(1500);
-    vendre();
+    wrap(<NouvelleLivraison />);
+    fireEvent.press(screen.getByText('choisir-client'));
+    fireEvent.press(screen.getByText('Coca 33cl'));
+    fireEvent.changeText(screen.getByDisplayValue('500'), '400');
+    fireEvent.press(screen.getByText('Enregistrer'));
     expect(prixAchat).toHaveBeenCalledWith(true);
     expect(mockCreer.mutate).not.toHaveBeenCalled();
     expect(dialog.error).toHaveBeenCalledWith(
       'Prix refusé',
-      "Le prix de vente de Coca 33cl (500 F) est inférieur au prix d'achat (1 500 F).",
+      "Le prix de vente de Coca 33cl (400 F) est inférieur au prix d'achat (1 500 F).",
     );
     // L'alerte est aussi affichée sur la ligne.
-    expect(screen.getByText("Le prix de vente de Coca 33cl (500 F) est inférieur au prix d'achat (1 500 F).")).toBeTruthy();
+    expect(screen.getByText("Le prix de vente de Coca 33cl (400 F) est inférieur au prix d'achat (1 500 F).")).toBeTruthy();
+  });
+
+  it('livreur indépendant : prix proposé par le système sous le prix d’achat, jamais bloqué (P5)', () => {
+    mockUser = { id: 'l9', prenom: 'Awa', nom: 'K', parentId: null };
+    achatCoca(1500);
+    vendre();
+    expect(prixAchat).toHaveBeenCalledWith(true);
+    expect(mockCreer.mutate).toHaveBeenCalledTimes(1);
+    expect(dialog.error).not.toHaveBeenCalled();
+    expect(screen.queryByText(/est inférieur au prix d'achat/)).toBeNull();
   });
 
   it('livreur indépendant : prix égal au prix d’achat ou sans prix d’achat connu, vente envoyée', () => {
