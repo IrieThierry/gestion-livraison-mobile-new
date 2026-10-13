@@ -738,12 +738,20 @@ export interface ModifierDepenseRequest {
 }
 
 // ---------- Transferts stock (Plan 23) ----------
-export interface TransfertStockResponse {
-  id: UUID
-  source: LivreurResponse
-  destinataire: LivreurResponse
+/** Ligne d'un bon de transfert (P7), dans l'ordre de saisie. */
+export interface LigneTransfertResponse {
   produit: ProduitResponse
   qte: number
+}
+
+/** Bon de transfert (P7) : en-tête et lignes (`produit`/`qte` au premier niveau n'existent plus). */
+export interface TransfertStockResponse {
+  id: UUID
+  /** `TRF-n`, numéroté par équipe. */
+  reference: string
+  source: LivreurResponse
+  destinataire: LivreurResponse
+  lignes: LigneTransfertResponse[]
   dateTransfert: ISODate
   commentaire: string | null
   statut: StatutTransfert
@@ -770,11 +778,16 @@ export interface StockEnTransitResponse {
   lignes: Array<{ produit: ProduitResponse; sortant: number; entrant: number }>
 }
 
+export interface LigneTransfertRequest {
+  produitId: UUID
+  qte: number
+}
+
+/** `POST /transfert-stock` : un bon d'au moins une ligne, produits distincts, quantités > 0. */
 export interface EffectuerTransfertRequest {
   sourceId: UUID
   destinataireId: UUID
-  produitId: UUID
-  qte: number
+  lignes: LigneTransfertRequest[]
   commentaire?: string
 }
 
@@ -1131,8 +1144,9 @@ export interface LigneDemandeChargementResponse {
   quantiteDemandee: number
   /** Null tant que la demande n'est pas servie ; 0 pour un produit non servi. */
   quantiteServie: number | null
+  /** P7 : le bon unique créé au service, le même pour toutes les lignes servies ; null pour une ligne servie à 0. */
   transfertId: UUID | null
-  /** Statut vivant du transfert créé au service (EN_ATTENTE, puis ACCEPTE ou REFUSE). */
+  /** Statut vivant du bon créé au service (EN_ATTENTE, puis ACCEPTE ou REFUSE), le même sur chaque ligne servie. */
   statutTransfert: StatutTransfert | null
 }
 

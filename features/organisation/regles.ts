@@ -163,3 +163,18 @@ export function libelleStatutDemande(statut: StatutDemandeChargement): string {
 export function peutAnnulerDemande(d: Pick<DemandeChargementResponse, 'statut'>): boolean {
   return d.statut === 'EN_ATTENTE';
 }
+
+/**
+ * P7 : bon(s) de transfert créé(s) au service d'une demande, sans doublon,
+ * dans l'ordre des lignes. Une demande servie n'en a qu'un (porté par toutes
+ * les lignes servies) ; une ligne servie à 0 n'en a pas.
+ */
+export function bonsServis(
+  d: Pick<DemandeChargementResponse, 'lignes'>,
+): { transfertId: string; statut: NonNullable<DemandeChargementResponse['lignes'][number]['statutTransfert']> }[] {
+  const bons = new Map<string, NonNullable<DemandeChargementResponse['lignes'][number]['statutTransfert']>>();
+  for (const l of d.lignes ?? []) {
+    if (l.transfertId && l.statutTransfert && !bons.has(l.transfertId)) bons.set(l.transfertId, l.statutTransfert);
+  }
+  return Array.from(bons, ([transfertId, statut]) => ({ transfertId, statut }));
+}

@@ -77,8 +77,8 @@ const tr = (id: string, statut: StatutTransfert = 'EN_ATTENTE', extra: Partial<T
     id,
     source: { id: 'P1', prenom: 'Awa', nom: 'K' },
     destinataire: { id: 'A1', prenom: 'Issa', nom: 'B' },
-    produit: { id: 'p1', designation: `Pain ${id}` },
-    qte: 4,
+    reference: `TRF-${id}`,
+    lignes: [{ produit: { id: 'p1', designation: `Pain ${id}` }, qte: 4 }],
     dateTransfert: '2026-10-12T10:00:00',
     commentaire: null,
     statut,
@@ -203,27 +203,87 @@ describe('Transferts : actions selon le rôle', () => {
   });
 });
 
-describe('Nouveau transfert', () => {
-  it('apprenti : « Rendre du stock », destinataire fixe = le principal', () => {
+describe('Nouveau transfert (bon multi-produits, comme une vente)', () => {
+  it('apprenti : « Rendre du stock », destinataire fixe = le principal ; envoi unique', () => {
     h.useTransfertsLivreur.mockReturnValue(lecture([tr('1')]));
     render(<NouveauTransfert />);
     expect(screen.queryByText('Choisir un apprenti')).toBeNull();
     expect(screen.getByText('Le transfert devra être accepté par Awa K.')).toBeTruthy();
-    fireEvent.press(screen.getByText('Choisir un produit'));
-    fireEvent.press(screen.getByText('Pain · stock 10'));
-    fireEvent.changeText(screen.getByLabelText('Quantité'), '3');
+    fireEvent.press(screen.getByLabelText('Ajouter Pain'));
+    expect(screen.getByText('Lignes (1)')).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText('Quantité Pain'), '3');
     fireEvent.changeText(screen.getByLabelText('Commentaire'), 'Trop de pain');
     expect(screen.getByText('Commentaire (facultatif)')).toBeTruthy();
     fireEvent.press(screen.getByText('Rendre'));
     fireEvent.press(screen.getByText('Rendre'));
     expect(mutations.useEffectuerTransfert.mutate).toHaveBeenCalledTimes(1);
     expect(mutations.useEffectuerTransfert.mutate).toHaveBeenCalledWith(
-      { sourceId: 'A1', destinataireId: 'P1', produitId: 'p1', qte: 3, commentaire: 'Trop de pain' },
+      { sourceId: 'A1', destinataireId: 'P1', lignes: [{ produitId: 'p1', qte: 3 }], commentaire: 'Trop de pain' },
       expect.anything(),
     );
     const opts = mutations.useEffectuerTransfert.mutate.mock.calls[0][1];
-    opts.onSuccess();
+    opts.onSuccess({ reference: 'TRF-7' });
     expect(revenirApresEnregistrement).toHaveBeenCalledWith('/(livreur)/stock/transferts', null);
+    expect(dialog.success).toHaveBeenCalledWith('Transfert TRF-7 envoyé', 'Le transfert devra être accepté par Awa K.');
+  });
+
+  it('principal : Envoyer plusieurs produits, le dernier ajouté en tête, triés au catalogue', () => {
+    mockUser = PRINCIPAL;
+    sh.useStockCourant.mockReturnValue(
+      lecture([
+        { produit: { id: 'p1', designation: 'Pain' }, qteVendable: 10, qteRetourneeSurPeriode: 0 },
+        { produit: { id: 'p2', designation: 'Lait' }, qteVendable: 4, qteRetourneeSurPeriode: 0 },
+        { produit: { id: 'p3', designation: 'Sel' }, qteVendable: 0, qteRetourneeSurPeriode: 0 },
+      ]),
+    );
+    render(<NouveauTransfert />);
+    // Catalogue : produits en stock seulement, triés par désignation.
+    expect(screen.getAllByLabelText(/^Ajouter /).map((n) => n.props.accessibilityLabel)).toEqual([
+      'Ajouter Lait',
+      'Ajouter Pain',
+    ]);
+    fireEvent.press(screen.getByText('Choisir un apprenti'));
+    fireEvent.press(screen.getByText('Issa B'));
+    expect(screen.getByText('Le transfert devra être accepté par Issa B.')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Ajouter Pain'));
+    fireEvent.press(screen.getByLabelText('Ajouter Lait'));
+    expect(screen.getAllByLabelText(/^Ligne /).map((n) => n.props.accessibilityLabel)).toEqual([
+      'Ligne Lait',
+      'Ligne Pain',
+    ]);
+    fireEvent.changeText(screen.getByLabelText('Quantité Pain'), '2');
+    fireEvent.changeText(screen.getByLabelText('Quantité Lait'), '4');
+    expect(screen.getByText('Envoyer à un apprenti')).toBeTruthy();
+    fireEvent.press(screen.getByText('Envoyer'));
+    expect(mutations.useEffectuerTransfert.mutate).toHaveBeenCalledWith(
+      {
+        sourceId: 'P1',
+        destinataireId: 'A1',
+        lignes: [
+          { produitId: 'p2', qte: 4 },
+          { produitId: 'p1', qte: 2 },
+        ],
+      },
+      expect.anything(),
+    );
+  });
+
+  it('quantité limitée au stock : ligne signalée, envoi bloqué ; retirer une ligne', () => {
+    mockUser = PRINCIPAL;
+    render(<NouveauTransfert />);
+    fireEvent.press(screen.getByText('Choisir un apprenti'));
+    fireEvent.press(screen.getByText('Issa B'));
+    fireEvent.press(screen.getByLabelText('Ajouter Pain'));
+    fireEvent.changeText(screen.getByLabelText('Quantité Pain'), '11');
+    expect(screen.getByText('Quantité supérieure au stock disponible (10).')).toBeTruthy();
+    fireEvent.press(screen.getByText('Envoyer'));
+    expect(mutations.useEffectuerTransfert.mutate).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByLabelText('Retirer Pain'));
+    expect(screen.getByText('Lignes (0)')).toBeTruthy();
+    // Bon vide : message de la spec, rien n'est envoyé.
+    fireEvent.press(screen.getByText('Envoyer'));
+    expect(screen.getByText('Ajoutez au moins un produit au transfert.')).toBeTruthy();
+    expect(mutations.useEffectuerTransfert.mutate).not.toHaveBeenCalled();
   });
 
   it('principal : Reprendre du stock → source = apprenti, destinataire = moi, stock de l’apprenti', () => {
@@ -232,42 +292,53 @@ describe('Nouveau transfert', () => {
       lecture(id === 'A2' ? [{ produit: { id: 'p9', designation: 'Lait' }, qte: 6 }] : []),
     );
     render(<NouveauTransfert />);
+    // Lignes saisies en envoi : vidées au changement de mode (autre source).
+    fireEvent.press(screen.getByLabelText('Ajouter Pain'));
     fireEvent.press(screen.getByText('Reprendre du stock'));
+    expect(screen.getByText('Lignes (0)')).toBeTruthy();
+    expect(screen.getByText('Choisis d’abord un apprenti.')).toBeTruthy();
     fireEvent.press(screen.getByText('Choisir un apprenti'));
     fireEvent.press(screen.getByText('Moussa C'));
     expect(sh.useStockActuel).toHaveBeenLastCalledWith('A2');
     expect(screen.getByText('Le transfert devra être accepté par Moussa C.')).toBeTruthy();
-    fireEvent.press(screen.getByText('Choisir un produit'));
-    fireEvent.press(screen.getByText('Lait · stock 6'));
-    fireEvent.changeText(screen.getByLabelText('Quantité'), '7');
+    fireEvent.press(screen.getByLabelText('Ajouter Lait'));
+    fireEvent.changeText(screen.getByLabelText('Quantité Lait'), '7');
     expect(screen.getByText('Quantité supérieure au stock disponible (6).')).toBeTruthy();
     fireEvent.press(screen.getByText('Reprendre'));
     expect(mutations.useEffectuerTransfert.mutate).not.toHaveBeenCalled();
-    fireEvent.changeText(screen.getByLabelText('Quantité'), '6');
+    fireEvent.changeText(screen.getByLabelText('Quantité Lait'), '6');
     fireEvent.press(screen.getByText('Reprendre'));
     expect(mutations.useEffectuerTransfert.mutate).toHaveBeenCalledWith(
-      { sourceId: 'A2', destinataireId: 'P1', produitId: 'p9', qte: 6 },
+      { sourceId: 'A2', destinataireId: 'P1', lignes: [{ produitId: 'p9', qte: 6 }] },
       expect.anything(),
     );
     mutations.useEffectuerTransfert.mutate.mock.calls[0][1].onSuccess();
     expect(dialog.success).toHaveBeenCalledWith('Demande de reprise envoyée', 'Le transfert devra être accepté par Moussa C.');
   });
+});
 
-  it('principal : Envoyer → source = moi, destinataire = l’apprenti', () => {
-    mockUser = PRINCIPAL;
-    render(<NouveauTransfert />);
-    fireEvent.press(screen.getByText('Choisir un apprenti'));
-    fireEvent.press(screen.getByText('Issa B'));
-    expect(screen.getByText('Le transfert devra être accepté par Issa B.')).toBeTruthy();
-    fireEvent.press(screen.getByText('Choisir un produit'));
-    fireEvent.press(screen.getByText('Pain · stock 10'));
-    fireEvent.changeText(screen.getByLabelText('Quantité'), '2');
-    expect(screen.getByText('Envoyer à un apprenti')).toBeTruthy();
-    fireEvent.press(screen.getByText('Envoyer'));
-    expect(mutations.useEffectuerTransfert.mutate).toHaveBeenCalledWith(
-      { sourceId: 'P1', destinataireId: 'A1', produitId: 'p1', qte: 2 },
-      expect.anything(),
+describe('Bon de transfert dans les listes', () => {
+  it('référence et toutes les lignes ; Accepter et Refuser portent sur le bon entier', () => {
+    h.useTransfertsLivreur.mockReturnValue(
+      lecture([
+        tr('3', 'EN_ATTENTE', {
+          lignes: [
+            { produit: { id: 'p2', designation: 'Lait' }, qte: 2 },
+            { produit: { id: 'p1', designation: 'Pain' }, qte: 5 },
+          ] as never,
+        }),
+      ]),
     );
+    render(<TransfertsList />);
+    expect(screen.getByText('TRF-3')).toBeTruthy();
+    expect(screen.getByText('Lait × 2')).toBeTruthy();
+    expect(screen.getByText('Pain × 5')).toBeTruthy();
+    fireEvent.press(screen.getByText('Accepter'));
+    expect(dernierConfirm().message).toBe(
+      'TRF-3 · 2 × Lait, 5 × Pain envoyé par Awa K : la quantité entrera dans ton stock.',
+    );
+    fireEvent.press(screen.getByText('Refuser'));
+    expect(screen.getByText(/^TRF-3 · 2 × Lait, 5 × Pain\./)).toBeTruthy();
   });
 });
 

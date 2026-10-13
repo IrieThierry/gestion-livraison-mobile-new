@@ -27,6 +27,19 @@ describe('transfertsApi', () => {
     expect(post).toHaveBeenCalledWith('/transfert-stock/t1/annuler');
   });
 
+  it('effectuer : POST /transfert-stock avec les lignes du bon', async () => {
+    const corps = {
+      sourceId: 'P1',
+      destinataireId: 'A1',
+      lignes: [
+        { produitId: 'p2', qte: 2 },
+        { produitId: 'p1', qte: 3 },
+      ],
+    };
+    await transfertsApi.effectuer(corps);
+    expect(post).toHaveBeenCalledWith('/transfert-stock', corps);
+  });
+
   it('refuser : POST avec {motif}', async () => {
     await transfertsApi.refuser('t1', 'Pas commandé');
     expect(post).toHaveBeenCalledWith('/transfert-stock/t1/refuser', { motif: 'Pas commandé' });
