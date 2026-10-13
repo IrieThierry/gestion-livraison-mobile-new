@@ -37,7 +37,7 @@ export default function NotificationsResponsable() {
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={
           <RefreshControl
-            refreshing={false}
+            refreshing={[transfertsQ, remisesQ].some((x) => x.isFetching && !x.isLoading)}
             onRefresh={() => {
               transfertsQ.refetch();
               remisesQ.refetch();

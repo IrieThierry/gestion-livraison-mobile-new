@@ -191,7 +191,7 @@ export default function Profil() {
                 que sur `parentId` : ça gère aussi les sessions legacy où
                 le back ne renvoyait pas `role` (la version la plus
                 permissive — un admin sera de toute façon bloqué côté API). */}
-            {!user.parentId && !responsable ? (
+            {!user.parentId ? (
               <Pressable
                 onPress={() =>
                   naviguer('/(livreur)/profil/apprentis')
@@ -205,7 +205,7 @@ export default function Profil() {
                       {v.mesApprentis}
                     </Text>
                     <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                      {membre ? 'Crée et gère les comptes de tes commerciaux' : 'Crée et gère les comptes de tes apprentis livreurs'}
+                      {responsable ? 'Consulte tes commerciaux et leur activité' : membre ? 'Crée et gère les comptes de tes commerciaux' : 'Crée et gère les comptes de tes apprentis livreurs'}
                     </Text>
                   </View>
                 </View>

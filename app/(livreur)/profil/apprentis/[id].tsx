@@ -36,6 +36,8 @@ import { dernieresRemises } from '../../../../features/remises-argent/regles';
 import { RemiseArgentCarte } from '../../../../components/livreur/RemiseArgentCarte';
 import { naviguer } from '../../../../lib/navigation-app';
 import { DEPUIS_APPRENTI } from '../../../../lib/navigation';
+import { useAuthStore } from '../../../../stores/authStore';
+import { estResponsable, vocabulaire } from '../../../../features/organisation/regles';
 import { callPhone } from '../../../../lib/linking';
 import { formatMontant } from '../../../../lib/format';
 import { num, totalAEncaisser, totalMontantDu } from '../../../../features/encaissements/regles';
@@ -58,6 +60,10 @@ export default function ApprentiDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const apprentisQ = useApprentis();
   const toggleMut = useToggleApprentiActif();
+  // Responsable (O15) : fiche du commercial en lecture sur le mobile (pas d'activation).
+  const user = useAuthStore((s) => s.user);
+  const lectureSeule = estResponsable(user);
+  const v = vocabulaire(user);
 
   const livQ = useLivraisonsByLivreur(id);
   const encQ = useEncaissementsByLivreur(id);
@@ -212,7 +218,7 @@ export default function ApprentiDetail() {
                 ) : null}
               </View>
               <Text className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">
-                Apprenti livreur
+                {v.role ? v.Apprenti : 'Apprenti livreur'}
               </Text>
             </View>
           </View>
@@ -242,6 +248,7 @@ export default function ApprentiDetail() {
                 </Text>
               </Pressable>
             ) : null}
+            {!lectureSeule ? (
             <Pressable
               onPress={onToggle}
               disabled={toggleMut.isPending}
@@ -262,6 +269,7 @@ export default function ApprentiDetail() {
                 {actif ? 'Désactiver' : 'Activer'}
               </Text>
             </Pressable>
+            ) : null}
           </View>
 
           {/* KPIs activité */}

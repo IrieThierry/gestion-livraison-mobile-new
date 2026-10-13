@@ -4,6 +4,11 @@ import NotificationsResponsable from '../../app/(livreur)/notifications';
 import Profil from '../../app/(livreur)/profil/index';
 import TransfertsList from '../../app/(livreur)/stock/transferts/index';
 import RemisesApprentis from '../../app/(livreur)/profil/remises-apprentis';
+import MesCommerciaux from '../../app/(livreur)/profil/apprentis/index';
+import FicheCommercial from '../../app/(livreur)/profil/apprentis/[id]';
+import { useEncaissementsByLivreur } from '../../features/encaissements/hooks';
+import { useClientsByLivreur, useEncoursByLivreur } from '../../features/clients/hooks';
+import { useStockActuel } from '../../features/stock/hooks';
 import { naviguer, ouvrir } from '../../lib/navigation-app';
 import { dialog } from '../../lib/dialog';
 import { useTableauDeBord } from '../../features/organisation/hooks';
@@ -13,7 +18,7 @@ import type { RemiseArgentResponse, TableauDeBordResponse, TransfertStockRespons
 
 jest.mock('expo-router', () => ({
   usePathname: () => '/',
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => ({ id: 'k1' }),
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), navigate: jest.fn(), canGoBack: () => true },
   useNavigation: () => ({ getState: () => undefined }),
 }));
@@ -62,8 +67,12 @@ const lecture = (data: unknown, etat: Record<string, unknown> = {}) => ({
 // Hooks de vente : jamais appelés pour le responsable.
 jest.mock('../../features/livraisons/hooks', () => ({ useLivraisonsByLivreur: jest.fn() }));
 jest.mock('../../features/encaissements/hooks', () => ({ useEncaissementsByLivreur: jest.fn() }));
-jest.mock('../../features/clients/hooks', () => ({ useEncoursByLivreur: jest.fn() }));
-jest.mock('../../features/stock/hooks', () => ({ useStockCourant: jest.fn(), useMouvementsStock: jest.fn() }));
+jest.mock('../../features/clients/hooks', () => ({ useEncoursByLivreur: jest.fn(), useClientsByLivreur: jest.fn() }));
+jest.mock('../../features/stock/hooks', () => ({
+  useStockCourant: jest.fn(),
+  useMouvementsStock: jest.fn(),
+  useStockActuel: jest.fn(),
+}));
 jest.mock('../../features/commandes/hooks', () => ({ useCommandesAReceptionner: jest.fn() }));
 jest.mock('../../features/previsions/hooks', () => ({ usePrevisionsEchues: jest.fn() }));
 
@@ -87,8 +96,11 @@ jest.mock('../../features/remises-argent/hooks', () => ({
   useConfirmerRemise: () => mockConfirmer,
   useContesterRemise: () => ({ mutate: jest.fn(), isPending: false }),
 }));
+const mockToggle = { mutate: jest.fn(), isPending: false };
 jest.mock('../../features/apprentis/hooks', () => ({
-  useApprentis: () => lecture([{ id: 'k1', prenom: 'Ali', nom: 'Kone' }]),
+  useApprentis: () =>
+    lecture([{ id: 'k1', prenom: 'Ali', nom: 'Kone', username: 'ali', contact: null, email: null, actif: true }]),
+  useToggleApprentiActif: () => mockToggle,
 }));
 
 const ventes = (totalTtc: number, totalAvoirsTtc: number, encaisse: number) => ({
@@ -311,7 +323,8 @@ describe('Moi, Transferts et Remises du responsable', () => {
     expect(screen.getByText('rita · Responsable')).toBeTruthy();
     expect(screen.getByText('Modifier mes infos')).toBeTruthy();
     expect(screen.getByText('Changer le mot de passe')).toBeTruthy();
-    for (const absent of ['Mes prix de vente', 'Mes commerciaux', 'Mes fournisseurs', 'États', 'Prévisions', 'Dépenses', 'Mes reversements', 'Clôtures journalières'])
+    expect(screen.getByText('Mes commerciaux')).toBeTruthy();
+    for (const absent of ['Mes prix de vente', 'Mes fournisseurs', 'États', 'Prévisions', 'Dépenses', 'Mes reversements', 'Clôtures journalières'])
       expect(screen.queryByText(absent)).toBeNull();
     fireEvent.press(screen.getByText('Transferts de stock'));
     expect(naviguer).toHaveBeenLastCalledWith('/(livreur)/stock/transferts');
@@ -341,5 +354,25 @@ describe('Moi, Transferts et Remises du responsable', () => {
     render(<RemisesApprentis />);
     expect(screen.getByText('Remises des commerciaux')).toBeTruthy();
     expect(screen.getByText('Commercial')).toBeTruthy();
+  });
+  it('Mes commerciaux : liste en lecture, ni « Nouveau » ni activation', () => {
+    render(<MesCommerciaux />);
+    expect(screen.getByText('Mes commerciaux')).toBeTruthy();
+    expect(screen.getByText('Ali Kone')).toBeTruthy();
+    expect(screen.queryByText('Nouveau')).toBeNull();
+    fireEvent.press(screen.getByText('Ali Kone'));
+    expect(naviguer).toHaveBeenLastCalledWith('/(livreur)/profil/apprentis/[id]', { id: 'k1' });
+    expect(mockToggle.mutate).not.toHaveBeenCalled();
+  });
+
+  it('fiche commercial : lecture seule, sans Activer ni Désactiver', () => {
+    for (const h of [useLivraisonsByLivreur, useEncaissementsByLivreur, useClientsByLivreur, useEncoursByLivreur, useStockActuel])
+      (h as jest.Mock).mockReturnValue(lecture([]));
+    render(<FicheCommercial />);
+    expect(screen.getAllByText('Ali Kone').length).toBeGreaterThan(0);
+    expect(screen.getByText('Commercial')).toBeTruthy();
+    expect(screen.queryByText('Désactiver')).toBeNull();
+    expect(screen.queryByText('Activer')).toBeNull();
+    expect(screen.getByText('Voir toutes les remises')).toBeTruthy();
   });
 });

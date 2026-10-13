@@ -72,7 +72,11 @@ export function TableauDeBordResponsable() {
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, gap: 12 }}
         refreshControl={
-          <RefreshControl refreshing={q.isFetching && !q.isLoading} onRefresh={rafraichir} tintColor="#10b981" />
+          <RefreshControl
+            refreshing={[q, transfertsQ, remisesQ].some((x) => x.isFetching && !x.isLoading)}
+            onRefresh={rafraichir}
+            tintColor="#10b981"
+          />
         }
       >
         <AbonnementExpireBanner />

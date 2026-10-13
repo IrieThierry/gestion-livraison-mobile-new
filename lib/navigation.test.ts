@@ -427,6 +427,8 @@ describe('Espace responsable (O15)', () => {
       'profil/index',
       'profil/infos',
       'profil/password',
+      'profil/apprentis/index',
+      'profil/apprentis/[id]',
       'profil/remises-apprentis',
       'stock/transferts/index',
     ])
@@ -442,7 +444,7 @@ describe('Espace responsable (O15)', () => {
       'stock/transferts/nouveau',
       'previsions/echues',
       'profil/prix',
-      'profil/apprentis/index',
+      'profil/apprentis/nouveau',
     ])
       expect(estEcranResponsable(f)).toBe(false);
     // Chaque écran permis est déclaré dans la table.
@@ -497,5 +499,36 @@ describe('Espace responsable : branchement des layouts', () => {
     expect(onglets).toMatch(/ongletVisible\(nom, responsable\)/);
     const racine = fs.readFileSync(path.join(app, '_layout.tsx'), 'utf8');
     expect(racine).toMatch(/redirectionRacine\(user, segments\[0\], segments\)/);
+  });
+});
+
+describe('Transferts du responsable ouverts depuis Moi (ou par un lien)', () => {
+  const RESP = { apprenti: false, responsable: true };
+
+  it('pile [Transferts] seule (jamais Stock dessous), retour à Moi', () => {
+    const depuisMoi = onglets('profil', { profil: [r('index')] });
+    const action = actionNaviguer(depuisMoi, '/(livreur)/stock/transferts', undefined, RESP);
+    const p = pileApres(action as ReturnType<typeof actionOuvrir>, 'stock');
+    expect(p.actif).toBe('stock');
+    expect(p.noms).toEqual(['transferts>index']);
+    expect(p.noms).not.toContain('index');
+
+    const affiche = onglets('stock', { stock: [r('transferts', undefined, [r('index')])], profil: [r('index')] });
+    const retour = actionRetour(affiche, RESP);
+    expect(retour?.type).toBe('RESET');
+    expect(pileApres(retour, 'profil').actif).toBe('profil');
+  });
+
+  it('lien profond (Stock monté dessous) : le retour va aussi à Moi, pas à Stock', () => {
+    const lien = onglets('stock', { stock: [r('index'), r('transferts', undefined, [r('index')])] });
+    expect(parentDe(trouverRoute('/stock/transferts')!, RESP)).toBe('/profil');
+    expect(pileApres(actionRetour(lien, RESP), 'profil').actif).toBe('profil');
+    // Livreur principal : parent Stock inchangé.
+    expect(parentDe(trouverRoute('/stock/transferts')!, PRINCIPAL)).toBe('/stock');
+  });
+
+  it('ouverte depuis les Notifications du responsable : retour aux Notifications', () => {
+    const cible = { ...trouverRoute('/stock/transferts')!, params: { depuis: DEPUIS_NOTIFICATIONS_RESPONSABLE } };
+    expect(parentDe(cible, RESP)).toBe('/notifications');
   });
 });

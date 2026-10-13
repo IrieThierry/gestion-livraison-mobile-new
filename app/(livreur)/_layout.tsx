@@ -1,8 +1,15 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Redirect, Tabs, useNavigationContainerRef } from 'expo-router';
-import { estProfilPortailWeb, ongletVisible, PORTAIL_WEB } from '../../lib/navigation';
+import { Redirect, Tabs, useNavigationContainerRef, useSegments } from 'expo-router';
+import {
+  ACCUEIL_LIVREUR,
+  estProfilPortailWeb,
+  GROUPE_LIVREUR,
+  ongletVisible,
+  PORTAIL_WEB,
+  redirectionRacine,
+} from '../../lib/navigation';
 import { estResponsable } from '../../features/organisation/regles';
 import { TrendingUp, Truck, User, Plus, Users, LayoutDashboard, Bell } from 'lucide-react-native';
 import { OfflineBanner } from '../../components/shared/OfflineBanner';
@@ -40,6 +47,7 @@ export default function LivreurLayout() {
   // restent à leur place et que seule la zone de bas s'agrandisse.
   const insets = useSafeAreaInsets();
 
+  const segments = useSegments();
   const navigationRef = useNavigationContainerRef();
   useEffect(() => {
     brancherNavigation(navigationRef as unknown as RefNavigation);
@@ -54,6 +62,13 @@ export default function LivreurLayout() {
   // ADMIN / FOURNISSEUR : pas d'onglets livreur (aucune requête livreur
   // lancée), écran « Utilisez le portail web » à la place.
   if (estProfilPortailWeb(user?.profile)) return <Redirect href={PORTAIL_WEB as never} />;
+
+  // Responsable (O15) : garde au rendu. Un écran hors de son espace (lien
+  // profond vers une vente…) n'est jamais monté : retour à son Accueil avant
+  // toute requête (la redirection de la pile racine arrive après le rendu).
+  if (user && redirectionRacine(user, GROUPE_LIVREUR, segments) === ACCUEIL_LIVREUR) {
+    return <Redirect href={ACCUEIL_LIVREUR as never} />;
+  }
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-slate-50 dark:bg-slate-950">

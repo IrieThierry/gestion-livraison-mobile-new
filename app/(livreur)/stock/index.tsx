@@ -11,7 +11,7 @@ import { useStockCourant, useStockEnTransit } from '../../../features/stock/hook
 import { peutMettreAZero } from '../../../features/stock/regles';
 import { useAuthStore } from '../../../stores/authStore';
 import { naviguer } from '../../../lib/navigation-app';
-import { estCommercial, vocabulaire } from '../../../features/organisation/regles';
+import { estCommercial, estResponsable, vocabulaire } from '../../../features/organisation/regles';
 
 /**
  * Écran "Mon stock" — affiche le **stock courant livreur** Plan D
@@ -26,7 +26,17 @@ import { estCommercial, vocabulaire } from '../../../features/organisation/regle
  * fournisseur, qui ne déduit pas les livraisons et donc affichait du
  * "stock à l'achat" trompeur).
  */
-export default function StockCourant() {
+/**
+ * Responsable (O15) : Stock n'est pas dans son espace. Montée sous ses
+ * Transferts par un lien profond (`initialRouteName`), la liste ne rend rien
+ * et ne lance aucune requête.
+ */
+export default function Stock() {
+  const responsable = estResponsable(useAuthStore((s) => s.user));
+  return responsable ? null : <StockCourant />;
+}
+
+function StockCourant() {
   const user = useAuthStore((s) => s.user);
   const q = useStockCourant();
   // Transferts en attente (hors reprises) : sortant et entrant par produit.

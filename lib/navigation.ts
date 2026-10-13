@@ -105,7 +105,8 @@ export function redirectionRacine(
 /**
  * Écrans de l'espace du responsable sur le mobile : tableau de bord
  * (Accueil), Notifications (déchargements à accepter ou refuser, remises
- * d'argent à confirmer ou contester), Moi (compte), et les listes des
+ * d'argent à confirmer ou contester), Moi (compte, « Mes commerciaux » en
+ * lecture), et les listes des
  * transferts et des remises où il prend ces deux décisions. Le reste
  * (ventes, clients, stock, gestion) se fait sur le portail web.
  */
@@ -115,6 +116,9 @@ export const ECRANS_RESPONSABLE: ReadonlySet<string> = new Set([
   'profil/index',
   'profil/infos',
   'profil/password',
+  // « Mes commerciaux » en lecture (ni création ni activation sur le mobile).
+  'profil/apprentis/index',
+  'profil/apprentis/[id]',
   'profil/remises-apprentis',
   'stock/transferts/index',
 ]);
@@ -143,6 +147,11 @@ export type TypeEcran = 'accueil' | 'liste' | 'fiche' | 'formulaire';
 export interface ContexteNavigation {
   /** Apprenti : ses « Commandes » sont celles à réceptionner. */
   apprenti: boolean;
+  /**
+   * Responsable d'une organisation (O15) : Stock n'est pas dans son espace,
+   * ses Transferts ont pour parent Moi (`/profil`).
+   */
+  responsable?: boolean;
 }
 
 type Parametres = Record<string, string>;
@@ -191,6 +200,9 @@ export const DEPUIS_NOTIFICATIONS_RESPONSABLE = 'notifications-responsable' as c
 const NOTIFICATIONS_RESPONSABLE = '/notifications';
 const A_RECEPTIONNER = '/cash/commandes/a-receptionner';
 const FICHE_CLIENT = '/clients/[clientId]';
+
+/** Parent des Transferts : Stock, ou Moi pour le responsable (sans Stock dans son espace). */
+const parentTransferts = (ctx: ContexteNavigation) => (ctx.responsable ? '/profil' : '/stock');
 
 const listeCommandes = (ctx: ContexteNavigation) =>
   ctx.apprenti ? '/cash/commandes/a-receptionner' : '/cash/commandes';
@@ -252,10 +264,11 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   'stock/mouvements': { type: 'liste', parent: '/stock' },
   'stock/equipe': { type: 'liste', parent: '/stock' },
   // Ouverte depuis Notifications (« Transferts à recevoir ») : retour à Notifications.
-  // Depuis les Notifications du responsable : retour à celles-ci.
+  // Depuis les Notifications du responsable : retour à celles-ci. Responsable
+  // (ouverte depuis Moi ou par un lien) : parent Moi, pile [Transferts] seule.
   'stock/transferts/index': {
     type: 'liste',
-    parent: '/stock',
+    parent: parentTransferts,
     origines: { notifications: '/previsions/echues', 'notifications-responsable': NOTIFICATIONS_RESPONSABLE },
   },
   'stock/transferts/nouveau': { type: 'formulaire', parent: '/stock/transferts' },

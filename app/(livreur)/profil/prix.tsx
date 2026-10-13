@@ -43,8 +43,9 @@ export default function MesPrixPage() {
   // lue sur `GET /organisation/me/grille-prix` (catalogue de l'organisation et prix du responsable).
   const lectureSeule = estCommercial(useAuthStore((s) => s.user));
   const qGrille = useGrillePrix();
-  const qProduits = useProduits();
-  const qPrix = useMesPrix();
+  // Commercial : ni le référentiel ni ses prix personnels ne sont lus (la grille suffit).
+  const qProduits = useProduits(!lectureSeule);
+  const qPrix = useMesPrix(!lectureSeule);
   const upsertMut = useUpsertPrixLivreur();
   const deleteMut = useSupprimerPrixLivreur();
 
