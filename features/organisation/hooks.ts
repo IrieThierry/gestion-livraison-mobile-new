@@ -63,3 +63,16 @@ export function useMesAvoirs(filtres: FiltresDocumentsVente) {
     enabled: estMembreOrganisation(user),
   });
 }
+
+/**
+ * Facture d'une vente (0 ou 1), pour n'offrir « Partager la facture » que
+ * sur une vente facturée (vente d'un commercial d'organisation).
+ */
+export function useFactureDeLivraison(livraisonId: UUID | undefined) {
+  const user = useAuthStore((s) => s.user);
+  return useQuery({
+    queryKey: [...organisationKeys.all, 'facture-livraison', livraisonId ?? ''] as const,
+    queryFn: () => organisationApi.factureDeLivraison(livraisonId as UUID),
+    enabled: !!livraisonId && estCommercial(user),
+  });
+}

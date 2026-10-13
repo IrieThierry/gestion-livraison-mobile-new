@@ -17,7 +17,7 @@ import {
 import { num, prixUnitaireClient } from '../../../features/encaissements/regles';
 import { ProduitVignette } from '../../../components/shared/ProduitVignette';
 import { naviguer } from '../../../lib/navigation-app';
-import { estCommercial } from '../../../features/organisation/regles';
+import { useFactureDeLivraison } from '../../../features/organisation/hooks';
 import { usePartageDocuments } from '../../../features/organisation/usePartageDocuments';
 
 /**
@@ -41,6 +41,8 @@ export default function LivraisonDetail() {
   const q = useLivraisonsByLivreur(user?.id ?? '');
   // O17 : la vente d'un commercial est facturée ; sa facture se partage depuis la fiche.
   const partage = usePartageDocuments();
+  // Bouton seulement si la vente a une facture (pas pour une vente non facturée).
+  const qFacture = useFactureDeLivraison(id);
 
   if (!user) return null;
 
@@ -234,7 +236,7 @@ export default function LivraisonDetail() {
             </Pressable>
           ) : null}
 
-          {estCommercial(user) ? (
+          {qFacture.data ? (
             <Pressable
               disabled={!isOnline || partage.enCours === livraison.id}
               onPress={() => partage.factureDeLivraison(livraison.id)}

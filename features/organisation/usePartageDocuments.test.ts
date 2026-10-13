@@ -42,6 +42,7 @@ describe('usePartageDocuments', () => {
       result.current.factureDeLivraison('l2');
     });
     await waitFor(() => expect(dialog.error).toHaveBeenCalledWith('Partage impossible', MESSAGE_FACTURE_INTROUVABLE));
+    await waitFor(() => expect(result.current.enCours).toBeNull());
     expect(partagerFacture).not.toHaveBeenCalled();
   });
 
@@ -52,6 +53,7 @@ describe('usePartageDocuments', () => {
       result.current.avoir('a1');
     });
     await waitFor(() => expect(partagerAvoir).toHaveBeenCalledWith(avoir));
+    await waitFor(() => expect(result.current.enCours).toBeNull());
 
     lireAvoir.mockRejectedValueOnce({ response: { status: 403, data: { message: 'Accès refusé : ressource inaccessible' } } });
     await act(async () => {
@@ -60,5 +62,6 @@ describe('usePartageDocuments', () => {
     await waitFor(() =>
       expect(dialog.error).toHaveBeenCalledWith('Partage impossible', 'Accès refusé : ressource inaccessible'),
     );
+    await waitFor(() => expect(result.current.enCours).toBeNull());
   });
 });

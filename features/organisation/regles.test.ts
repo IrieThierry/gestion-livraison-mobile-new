@@ -6,6 +6,7 @@ import {
   erreurPrixImposes,
   libelleStatutDemande,
   messageAucunPrix,
+  MESSAGE_PRIX_EN_LECTURE,
   payloadDemandeChargement,
   peutAnnulerDemande,
   vocabulaire,
@@ -80,6 +81,16 @@ describe('prix imposés (O6)', () => {
     expect(erreurPrixImposes(<LigneSaisie[]>[{ produitId: 'p1', designation: 'Coca 33cl', prix: 500, qte: 2 }])).toBeNull();
     // Ligne à 0 : non envoyée, donc pas bloquante.
     expect(erreurPrixImposes(<LigneSaisie[]>[{ produitId: 'p2', designation: 'Fanta', prix: 0, qte: 0 }])).toBeNull();
+  });
+});
+
+describe('prix imposés : lecture du prix', () => {
+  it('en lecture, en échec ou sans prix : messages distincts', () => {
+    const l = (prixStatut: LigneSaisie['prixStatut'], prix = 0): LigneSaisie => ({ produitId: 'p1', designation: 'Fanta', prix, qte: 1, prixStatut });
+    expect(erreurPrixImposes([l('en-lecture')])).toBe(MESSAGE_PRIX_EN_LECTURE);
+    expect(erreurPrixImposes([l('erreur')])).toBe('Prix de Fanta indisponible : vérifie ta connexion puis réessaie.');
+    expect(erreurPrixImposes([l('resolu')])).toBe('Aucun prix fixé pour Fanta : contactez votre responsable.');
+    expect(erreurPrixImposes([l('resolu', 500)])).toBeNull();
   });
 });
 

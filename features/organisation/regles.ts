@@ -94,15 +94,32 @@ export function messageAucunPrix(designation: string): string {
   return `Aucun prix fixé pour ${designation} : contactez votre responsable.`;
 }
 
+export const MESSAGE_PRIX_EN_LECTURE = 'Prix en cours de lecture…';
+
+/** Lecture du prix en échec (réseau, erreur serveur) : distinct de « aucun prix fixé ». */
+export function messagePrixIndisponible(designation: string): string {
+  return `Prix de ${designation} indisponible : vérifie ta connexion puis réessaie.`;
+}
+
 /**
- * Vente d'un commercial : chaque ligne vendue doit avoir un prix fixé par le
- * responsable (prix résolu > 0). Renvoie le message de la spec pour la
- * première ligne sans prix, ou null.
+ * Vente d'un commercial : chaque ligne vendue doit avoir un prix lu et fixé
+ * par le responsable (prix résolu > 0). Renvoie, pour la première ligne en
+ * défaut : « Prix en cours de lecture… », le message de prix indisponible
+ * (lecture en échec) ou le message de la spec (aucun prix fixé) ; sinon null.
  */
 export function erreurPrixImposes(
-  lignes: ReadonlyArray<{ designation: string; prix: number; qte: number }>,
+  lignes: ReadonlyArray<{
+    designation: string;
+    prix: number;
+    qte: number;
+    prixStatut?: 'en-lecture' | 'erreur' | 'resolu';
+  }>,
 ): string | null {
-  const sansPrix = lignes.find((l) => l.qte > 0 && !(l.prix > 0));
+  const vendues = lignes.filter((l) => l.qte > 0);
+  if (vendues.some((l) => l.prixStatut === 'en-lecture')) return MESSAGE_PRIX_EN_LECTURE;
+  const enEchec = vendues.find((l) => l.prixStatut === 'erreur');
+  if (enEchec) return messagePrixIndisponible(enEchec.designation);
+  const sansPrix = vendues.find((l) => !(l.prix > 0));
   return sansPrix ? messageAucunPrix(sansPrix.designation) : null;
 }
 

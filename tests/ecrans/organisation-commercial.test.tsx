@@ -1,9 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import DemandesChargement from '../../app/(livreur)/stock/demandes/index';
 import NouvelleDemandeChargement from '../../app/(livreur)/stock/demandes/nouvelle';
 import MesFactures from '../../app/(livreur)/profil/factures';
 import StockCourant from '../../app/(livreur)/stock/index';
 import TransfertsList from '../../app/(livreur)/stock/transferts/index';
+import MesPrixPage from '../../app/(livreur)/profil/prix';
 import { dialog } from '../../lib/dialog';
 import { naviguer, revenirApresEnregistrement } from '../../lib/navigation-app';
 import * as orgHooks from '../../features/organisation/hooks';
@@ -69,6 +70,18 @@ jest.mock('../../features/transferts/hooks', () => ({
   useAccepterTransfert: () => ({ mutate: jest.fn(), isPending: false }),
   useRefuserTransfert: () => ({ mutate: jest.fn(), isPending: false }),
   useAnnulerTransfert: () => ({ mutate: jest.fn(), isPending: false }),
+}));
+const mockUpsertPrix = { mutate: jest.fn(), isPending: false };
+const mockSupprimerPrix = { mutate: jest.fn(), isPending: false };
+jest.mock('../../features/prix/hooks', () => ({
+  useMesPrix: () => ({
+    data: [{ produit: { id: 'p1' }, prix: 500 }],
+    isLoading: false,
+    isFetching: false,
+    refetch: jest.fn(),
+  }),
+  useUpsertPrixLivreur: () => mockUpsertPrix,
+  useSupprimerPrixLivreur: () => mockSupprimerPrix,
 }));
 jest.mock('@react-native-community/datetimepicker', () => ({ __esModule: true, default: () => null }));
 
@@ -191,7 +204,7 @@ describe('Demandes de chargement (O8)', () => {
         { produitId: 'p2', quantite: 4 },
       ],
     });
-    creer.mutate.mock.calls[0][1].onSuccess(demande({ reference: 'DCH-7' }));
+    act(() => creer.mutate.mock.calls[0][1].onSuccess(demande({ reference: 'DCH-7' })));
     expect(revenirApresEnregistrement).toHaveBeenCalledWith('/(livreur)/stock/demandes', null);
     expect(dialog.success).toHaveBeenCalledWith('Demande DCH-7 envoyée', 'Ton responsable va la servir ou la refuser.');
   });
@@ -256,5 +269,27 @@ describe('Stock du commercial', () => {
     render(<StockCourant />);
     expect(screen.getByText('Rendre du stock')).toBeTruthy();
     expect(screen.queryByText('Demandes de chargement')).toBeNull();
+  });
+});
+
+describe('Mes prix de vente (O6)', () => {
+  it('commercial : grille du responsable en lecture seule, aucune écriture possible', () => {
+    render(<MesPrixPage />);
+    expect(screen.getAllByText(/Prix fixés par ton responsable/).length).toBeGreaterThan(0);
+    expect(screen.getByText('500 FCFA')).toBeTruthy();
+    expect(screen.getByText('Aucun prix fixé')).toBeTruthy();
+    expect(screen.queryByText('Enregistrer')).toBeNull();
+    expect(screen.queryByText('Modifier le prix')).toBeNull();
+    expect(screen.queryByText('Définir un prix')).toBeNull();
+    expect(mockUpsertPrix.mutate).not.toHaveBeenCalled();
+    expect(mockSupprimerPrix.mutate).not.toHaveBeenCalled();
+  });
+
+  it('apprenti hors organisation : saisie inchangée', () => {
+    mockUser = { id: 'a1', prenom: 'Awa', nom: 'K', parentId: 'l1' };
+    render(<MesPrixPage />);
+    expect(screen.getAllByText('Enregistrer')).toHaveLength(2);
+    expect(screen.getByText('Modifier le prix')).toBeTruthy();
+    expect(screen.queryByText(/Prix fixés par ton responsable/)).toBeNull();
   });
 });

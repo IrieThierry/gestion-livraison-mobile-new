@@ -13,6 +13,12 @@ export interface LigneSaisie {
   qte: number;
   /** Le livreur a choisi de mémoriser le prix saisi pour ce client. */
   memoriserPrix?: boolean;
+  /**
+   * Prix imposé (O6) : `en-lecture` (client changé ou lecture en cours),
+   * `erreur` (lecture du prix en échec), `resolu` (prix lu, éventuellement
+   * aucun). Absent hors prix imposé.
+   */
+  prixStatut?: 'en-lecture' | 'erreur' | 'resolu';
 }
 
 /**

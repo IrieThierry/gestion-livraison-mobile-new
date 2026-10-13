@@ -23,6 +23,8 @@ import { formatFCFA } from '../../../lib/format';
 import { dialog } from '../../../lib/dialog';
 import type { ProduitResponse } from '../../../types/api';
 import { ProduitVignette } from '../../../components/shared/ProduitVignette';
+import { useAuthStore } from '../../../stores/authStore';
+import { estCommercial } from '../../../features/organisation/regles';
 
 /**
  * « Mes prix de vente » — barème par défaut du livreur.
@@ -36,6 +38,8 @@ import { ProduitVignette } from '../../../components/shared/ProduitVignette';
  * est visible sur le web et inversement.
  */
 export default function MesPrixPage() {
+  // O6 : le commercial d'organisation consulte la grille fixée par son responsable (lecture seule).
+  const lectureSeule = estCommercial(useAuthStore((s) => s.user));
   const qProduits = useProduits();
   const qPrix = useMesPrix();
   const upsertMut = useUpsertPrixLivreur();
@@ -100,7 +104,7 @@ export default function MesPrixPage() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
         title="Mes prix de vente"
-        subtitle="Barème par défaut"
+        subtitle={lectureSeule ? 'Prix fixés par ton responsable' : 'Barème par défaut'}
       />
 
       {/* FormScreen : le clavier numérique ne recouvre pas les prix du bas. */}
@@ -121,9 +125,9 @@ export default function MesPrixPage() {
           <View className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-md p-3 flex-row items-start gap-2 mb-3">
             <Tag color="#059669" size={14} />
             <Text className="flex-1 text-[12px] text-emerald-700 dark:text-emerald-400">
-              Ces prix s'appliquent à toutes tes livraisons. Tu peux les
-              modifier à tout moment — ils sont aussi visibles sur le portail
-              web. Pour un prix spécifique à un client, va sur sa fiche client.
+              {lectureSeule
+                ? 'Prix fixés par ton responsable. Ils s’appliquent à tes ventes et ne se modifient pas ici.'
+                : "Ces prix s'appliquent à toutes tes livraisons. Tu peux les modifier à tout moment — ils sont aussi visibles sur le portail web. Pour un prix spécifique à un client, va sur sa fiche client."}
             </Text>
           </View>
 
@@ -188,6 +192,7 @@ export default function MesPrixPage() {
                           <Text className="font-extrabold text-emerald-700 dark:text-emerald-400">
                             {formatFCFA(prixActuel)} FCFA
                           </Text>
+                          {!lectureSeule ? (
                           <Pressable
                             onPress={() => onDelete(produit)}
                             disabled={deleteMut.isPending}
@@ -196,11 +201,17 @@ export default function MesPrixPage() {
                           >
                             <Trash2 color="#ef4444" size={16} />
                           </Pressable>
+                          ) : null}
                         </View>
                       </View>
                     ) : null}
 
-                    {/* Input + bouton enregistrer */}
+                    {lectureSeule && !hasPrix ? (
+                      <Text className="text-[12px] text-slate-500 dark:text-slate-400">Aucun prix fixé</Text>
+                    ) : null}
+
+                    {/* Input + bouton enregistrer (pas pour le commercial d'organisation) */}
+                    {!lectureSeule ? (
                     <View className="flex-row gap-2 items-end">
                       <View className="flex-1">
                         <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-1">
@@ -240,6 +251,7 @@ export default function MesPrixPage() {
                         </Text>
                       </Pressable>
                     </View>
+                    ) : null}
                   </View>
                 );
               })}
