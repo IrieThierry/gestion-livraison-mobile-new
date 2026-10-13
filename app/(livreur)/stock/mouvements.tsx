@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { comparerDesignations } from '../../../lib/tri';
 import { ScrollView, View, Text, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
 import { X } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
@@ -53,7 +54,7 @@ export default function MouvementsStock() {
   const produitOptions = useMemo(
     () =>
       [...(qProduits.data ?? [])]
-        .sort((a, b) => a.designation.localeCompare(b.designation, 'fr'))
+        .sort((a, b) => comparerDesignations(a.designation, b.designation))
         .map((p) => ({ id: p.id, label: p.designation })),
     [qProduits.data],
   );

@@ -1,4 +1,5 @@
 import { apiClient } from '../../lib/api-client';
+import { trierParDesignation } from '../../lib/tri';
 import type { ProduitResponse } from '../../types/api';
 
 // Port de gestion-livraison-front/src/features/lookups/api.ts (`produits`).
@@ -8,6 +9,7 @@ import type { ProduitResponse } from '../../types/api';
 export const produitsApi = {
   list: async (): Promise<ProduitResponse[]> => {
     const { data } = await apiClient.get<ProduitResponse[]>('/produit');
-    return data;
+    // P3 : référentiel trié par désignation (le back trie aussi).
+    return trierParDesignation(data, (p) => p.designation);
   },
 };

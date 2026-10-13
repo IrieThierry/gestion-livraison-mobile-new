@@ -738,12 +738,20 @@ export interface ModifierDepenseRequest {
 }
 
 // ---------- Transferts stock (Plan 23) ----------
-export interface TransfertStockResponse {
-  id: UUID
-  source: LivreurResponse
-  destinataire: LivreurResponse
+/** Ligne d'un bon de transfert (P7), dans l'ordre de saisie. */
+export interface LigneTransfertResponse {
   produit: ProduitResponse
   qte: number
+}
+
+/** Bon de transfert (P7) : en-tête et lignes (`produit`/`qte` au premier niveau n'existent plus). */
+export interface TransfertStockResponse {
+  id: UUID
+  /** `TRF-n`, numéroté par équipe. */
+  reference: string
+  source: LivreurResponse
+  destinataire: LivreurResponse
+  lignes: LigneTransfertResponse[]
   dateTransfert: ISODate
   commentaire: string | null
   statut: StatutTransfert
@@ -770,11 +778,16 @@ export interface StockEnTransitResponse {
   lignes: Array<{ produit: ProduitResponse; sortant: number; entrant: number }>
 }
 
+export interface LigneTransfertRequest {
+  produitId: UUID
+  qte: number
+}
+
+/** `POST /transfert-stock` : un bon d'au moins une ligne, produits distincts, quantités > 0. */
 export interface EffectuerTransfertRequest {
   sourceId: UUID
   destinataireId: UUID
-  produitId: UUID
-  qte: number
+  lignes: LigneTransfertRequest[]
   commentaire?: string
 }
 
@@ -951,6 +964,26 @@ export interface UpsertPrixClientRequest {
   prix: number
 }
 
+// ---------- Prix d'achat du livreur indépendant (P2) ----------
+/** Prix d'achat d'un produit chez un fournisseur partenaire (après prix particulier et remise). */
+export interface PrixAchatFournisseur {
+  fournisseurId: UUID
+  libelle: string
+  prixAchat: number
+}
+/**
+ * Ligne de `GET /prix-achat/me` (livreur indépendant, principal ou apprenti) :
+ * prix d'achat le plus bas, fournisseur qui le pratique, détail par fournisseur
+ * (prix croissant). Un produit absent de la liste n'a aucun prix d'achat connu.
+ */
+export interface PrixAchatProduitResponse {
+  produitId: UUID
+  designation: string
+  prixAchat: number
+  fournisseur: { id: UUID; libelle: string }
+  detail: PrixAchatFournisseur[]
+}
+
 // ---------- Prix résolu (Plan D — résolveur) ----------
 /**
  * Réponse de `GET /prix/resoudre?clientId=X&produitId=Y` — donne le prix
@@ -1111,8 +1144,9 @@ export interface LigneDemandeChargementResponse {
   quantiteDemandee: number
   /** Null tant que la demande n'est pas servie ; 0 pour un produit non servi. */
   quantiteServie: number | null
+  /** P7 : le bon unique créé au service, le même pour toutes les lignes servies ; null pour une ligne servie à 0. */
   transfertId: UUID | null
-  /** Statut vivant du transfert créé au service (EN_ATTENTE, puis ACCEPTE ou REFUSE). */
+  /** Statut vivant du bon créé au service (EN_ATTENTE, puis ACCEPTE ou REFUSE), le même sur chaque ligne servie. */
   statutTransfert: StatutTransfert | null
 }
 
@@ -1314,4 +1348,33 @@ export interface LigneGrillePrix {
   produit: { id: UUID; code: string | null; designation: string; photoUrl: string | null }
   /** Prix de la grille ; null s'il n'est pas fixé. */
   prix: number | null
+}
+
+// ---------- Réaffectation des clients par la racine d'équipe (P8) ----------
+/** `POST /equipe/clients/reaffecter` : clients sélectionnés ou zone, vers un membre de l'équipe. */
+export interface ReaffecterClientsEquipeRequest {
+  clientIds?: UUID[]
+  zoneId?: UUID
+  livreurId: UUID
+}
+export interface ReaffecterClientsEquipeResponse {
+  reaffectes: number
+  clientIds: UUID[]
+}
+/** Ligne de `GET /equipe/reaffectations` (champs « commercial » = membre de l'équipe), plus récentes d'abord. */
+export interface ReaffectationEquipeResponse {
+  id: UUID
+  date: string
+  clientId: UUID
+  clientNom: string | null
+  clientPrenom: string | null
+  ancienCommercialId: UUID | null
+  ancienCommercialNom: string | null
+  ancienCommercialPrenom: string | null
+  nouveauCommercialId: UUID | null
+  nouveauCommercialNom: string | null
+  nouveauCommercialPrenom: string | null
+  parId: UUID | null
+  parNom: string | null
+  parPrenom: string | null
 }

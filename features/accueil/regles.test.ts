@@ -37,7 +37,7 @@ describe('jourLocal / filtresDuJour', () => {
 });
 
 describe('produitsVendus', () => {
-  it('somme les livraisons par produit, sans déduire les retours, tri quantité décroissante', () => {
+  it('somme les livraisons par produit, sans déduire les retours, tri alphabétique (P3)', () => {
     const res = produitsVendus([
       mv('LIVRAISON', 'Pain', -5),
       mv('LIVRAISON', 'Lait', -12),
@@ -64,9 +64,9 @@ describe('produitsVendus', () => {
     expect(produitsVendus([mv('RECEPTION', 'Pain', 10, 'X')])).toEqual([]);
   });
 
-  it('à quantité égale, tri alphabétique', () => {
-    const res = produitsVendus([mv('LIVRAISON', 'Sucre', -2), mv('LIVRAISON', 'Beurre', -2)]);
-    expect(res.map((l) => l.designation)).toEqual(['Beurre', 'Sucre']);
+  it('tri alphabétique quelle que soit la quantité', () => {
+    const res = produitsVendus([mv('LIVRAISON', 'Sucre', -9), mv('LIVRAISON', 'Éclair', -1), mv('LIVRAISON', 'Beurre', -2)]);
+    expect(res.map((l) => l.designation)).toEqual(['Beurre', 'Éclair', 'Sucre']);
   });
 });
 

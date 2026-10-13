@@ -1,4 +1,5 @@
 import { apiClient } from '../../lib/api-client';
+import { trierParProduit } from '../../lib/tri';
 import type {
   AvoirResponse,
   CreerDemandeChargementRequest,
@@ -30,7 +31,7 @@ export const organisationApi = {
 
   /** Grille de prix de l'organisation (O6), en lecture : produit et prix (null s'il n'est pas fixé). */
   grillePrix: async (): Promise<LigneGrillePrix[]> =>
-    (await apiClient.get<LigneGrillePrix[]>('/organisation/me/grille-prix')).data,
+    trierParProduit((await apiClient.get<LigneGrillePrix[]>('/organisation/me/grille-prix')).data),
 
   /** Tableau de bord du responsable (O16) pour un jour (yyyy-MM-dd). */
   tableauDeBord: async (date: string): Promise<TableauDeBordResponse> =>

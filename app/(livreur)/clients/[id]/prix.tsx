@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { Save, Trash2, Tag, User } from 'lucide-react-native';
+import { Save, Trash2, Tag, User, AlertCircle, ShoppingCart } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import { FormScreen } from '../../../../components/shared/FormScreen';
@@ -21,7 +21,10 @@ import {
   usePrixClient,
   useUpsertPrixClient,
   useSupprimerPrixClient,
+  useMesPrixAchat,
 } from '../../../../features/prix/hooks';
+import { avecPrixAchat, erreurPlancher, montantPlancher } from '../../../../features/prix/plancher';
+import { creerVerrou, lancerUneFois } from '../../../../features/commandes/verrou';
 import { peutFixerConditions } from '../../../../features/remise/regles';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
@@ -44,6 +47,9 @@ import { ProduitVignette } from '../../../../components/shared/ProduitVignette';
  *
  * On utilise les mêmes endpoints que la dialog `PrixClientDialog` du portail
  * web — ce qui rend les changements immédiatement visibles côté admin/web.
+ *
+ * Livreur indépendant (P2 / P5) : prix d'achat le plus bas affiché, et un prix
+ * sous le prix d'achat est signalé et refusé avant l'envoi (message du back).
  */
 export default function PrixClientPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -59,6 +65,10 @@ export default function PrixClientPage() {
   const upsertMut = useUpsertPrixClient();
   const deleteMut = useSupprimerPrixClient();
   const isOnline = useNetworkStore((s) => s.isOnline);
+  const avecAchat = avecPrixAchat(user);
+  const qAchat = useMesPrixAchat(avecAchat);
+  const achats = avecAchat ? qAchat.data : undefined;
+  const verrou = useRef(creerVerrou()).current;
 
   const [draftPrix, setDraftPrix] = useState<Record<string, string>>({});
   const [recherche, setRecherche] = useState('');
@@ -122,16 +132,25 @@ export default function PrixClientPage() {
       dialog.error('Erreur', 'Saisis un prix supérieur à 0');
       return;
     }
-    upsertMut.mutate(
-      { clientId: client.id, produitId: produit.id, prix },
-      {
-        onSuccess: () => {
-          setDraftPrix((d) => ({ ...d, [produit.id]: '' }));
+    // P5 : même règle et même message que le back (qui reste juge).
+    const plancher = erreurPlancher(achats, produit.id, produit.designation, prix);
+    if (plancher) {
+      dialog.error('Prix refusé', plancher);
+      return;
+    }
+    lancerUneFois(verrou, (fin) =>
+      upsertMut.mutate(
+        { clientId: client.id, produitId: produit.id, prix },
+        {
+          onSuccess: () => {
+            setDraftPrix((d) => ({ ...d, [produit.id]: '' }));
+          },
+          onError: (err: unknown) => {
+            dialog.error('Erreur', extractApiErrorMessage(err, 'Échec'));
+          },
+          onSettled: fin,
         },
-        onError: (err: unknown) => {
-          dialog.error('Erreur', extractApiErrorMessage(err, 'Échec'));
-        },
-      },
+      ),
     );
   };
 
@@ -168,6 +187,7 @@ export default function PrixClientPage() {
               qPrixClient.refetch();
               qPrixLivreur.refetch();
               qProduits.refetch();
+              if (avecAchat) qAchat.refetch();
             }}
             tintColor="#10b981"
           />
@@ -210,6 +230,13 @@ export default function PrixClientPage() {
                 const prixCustom = prixClientMap.get(produit.id);
                 const prixDefaut = prixLivreurMap.get(produit.id);
                 const draft = draftPrix[produit.id] ?? '';
+                const achat = achats?.get(produit.id);
+                // P5 : prix négocié ou saisi sous le prix d'achat.
+                const alerteActuel =
+                  prixCustom !== undefined ? erreurPlancher(achats, produit.id, produit.designation, prixCustom) : null;
+                const alerteSaisie = draft.trim()
+                  ? erreurPlancher(achats, produit.id, produit.designation, parseInt(draft.replace(/[^0-9]/g, ''), 10))
+                  : null;
 
                 let badgeColor = '#94a3b8';
                 let badgeBg = 'bg-slate-100 dark:bg-slate-800';
@@ -296,6 +323,28 @@ export default function PrixClientPage() {
                           Prix par défaut livreur :{' '}
                           <Text className="font-bold">{formatFCFA(prixDefaut)} FCFA</Text>
                         </Text>
+                      </View>
+                    ) : null}
+
+                    {/* P2 : prix d'achat le plus bas (livreur indépendant) */}
+                    {avecAchat && qAchat.isSuccess ? (
+                      <View className="flex-row items-center gap-1.5 mb-2">
+                        <ShoppingCart color="#64748b" size={11} />
+                        <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                          {achat
+                            ? `Prix d'achat : ${montantPlancher(achat.prixAchat)} F · ${achat.fournisseur.libelle}`
+                            : "Prix d'achat : aucun fournisseur ne le propose"}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {alerteActuel || alerteSaisie ? (
+                      <View
+                        accessibilityRole="alert"
+                        className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-md p-2.5 flex-row items-start gap-1.5 mb-2"
+                      >
+                        <AlertCircle color="#ef4444" size={13} />
+                        <Text className="flex-1 text-[12px] text-red-600 dark:text-red-400">{alerteSaisie ?? alerteActuel}</Text>
                       </View>
                     ) : null}
 

@@ -5,6 +5,8 @@ import type { UUID } from '../../types/api';
 export const clientKeys = {
   all: ['clients'] as const,
   byLivreur: (livreurId: UUID) => [...clientKeys.all, 'by-livreur', livreurId] as const,
+  /** Clients de l'équipe (principal et apprentis). */
+  byParent: (parentId: UUID) => [...clientKeys.all, 'by-parent', parentId] as const,
 };
 
 // Encours et soldes calculés par le serveur (`/client/encours/...`).

@@ -16,6 +16,15 @@ export function useClientsByLivreur(livreurId: UUID | undefined) {
 }
 
 /** Encours (serveur) de tous les clients d'un livreur. */
+/** Clients de l'équipe du livreur principal (lui et ses apprentis). */
+export function useClientsEquipe(parentId: UUID | undefined, enabled = true) {
+  return useQuery({
+    queryKey: clientKeys.byParent(parentId ?? ''),
+    queryFn: () => clientsApi.byParent(parentId as UUID),
+    enabled: enabled && !!parentId,
+  });
+}
+
 export function useEncoursByLivreur(livreurId: UUID | undefined) {
   return useQuery({
     queryKey: encoursKeys.byLivreur(livreurId ?? ''),

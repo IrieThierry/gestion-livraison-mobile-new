@@ -8,7 +8,7 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
-import { Plus, Phone, MapPin, Truck, Banknote, Map } from 'lucide-react-native';
+import { Plus, Phone, MapPin, Truck, Banknote, Map, ArrowRightLeft } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { useClientsByLivreur, useEncoursByLivreur } from '../../../features/clients/hooks';
@@ -18,7 +18,9 @@ import { callPhone, navigateTo } from '../../../lib/linking';
 import { formatMontant } from '../../../lib/format';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import type { ClientResponse, EncoursClientResponse } from '../../../types/api';
-import { naviguer } from '../../../lib/navigation-app';
+import { naviguer, ouvrir } from '../../../lib/navigation-app';
+import { DEPUIS_CLIENTS } from '../../../lib/navigation';
+import { peutReaffecter } from '../../../features/equipe/regles';
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
   if (!s) return null;
@@ -35,6 +37,8 @@ export default function ClientsList() {
   const qEncours = useEncoursByLivreur(livreurId);
   const encoursParClient = useMemo(() => indexerEncours(qEncours.data), [qEncours.data]);
   const [search, setSearch] = useState('');
+  // P8 : le livreur principal indépendant réaffecte les clients de son équipe.
+  const reaffectation = peutReaffecter(user);
 
   const filtered = useMemo(() => {
     // Tri stable alphabétique par prénom puis nom — l'ordre est figé peu
@@ -72,6 +76,16 @@ export default function ClientsList() {
         showBack={false}
         right={
           <View className="flex-row gap-2">
+            {reaffectation ? (
+              <Pressable
+                onPress={() => ouvrir('/(livreur)/profil/apprentis/reaffecter', { depuis: DEPUIS_CLIENTS })}
+                accessibilityRole="button"
+                accessibilityLabel="Réaffecter des clients"
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 py-1.5 rounded-md flex-row items-center active:opacity-70"
+              >
+                <ArrowRightLeft color="#8b5cf6" size={14} />
+              </Pressable>
+            ) : null}
             <Pressable
               onPress={() => naviguer('/(livreur)/clients/map')}
               className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-70"

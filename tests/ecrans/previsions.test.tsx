@@ -112,6 +112,9 @@ jest.mock('../../components/livreur/ProduitPicker', () => {
     ),
   };
 });
+jest.mock('../../features/prix/hooks', () => ({
+  useMesPrixAchat: () => ({ data: undefined, isSuccess: false, isError: false }),
+}));
 jest.mock('@react-native-community/datetimepicker', () => ({ __esModule: true, default: () => null }));
 
 const h = hooks as unknown as Record<string, jest.Mock>;
@@ -222,9 +225,9 @@ describe('Notifications (cloche)', () => {
   });
 
   const transfert = {
-    id: 't1', qte: 4, dateTransfert: '2026-10-12T10:00:00', statut: 'EN_ATTENTE', commentaire: null, motifRefus: null,
+    id: 't1', reference: 'TRF-1', dateTransfert: '2026-10-12T10:00:00', statut: 'EN_ATTENTE', commentaire: null, motifRefus: null,
     source: { id: 'P0', prenom: 'Awa', nom: 'K' }, destinataire: { id: 'L1', prenom: 'Ali', nom: 'K' },
-    produit: { id: 'p1', designation: 'Pain' }, initieParId: 'P0', decideurId: 'L1', reprise: false,
+    lignes: [{ produit: { id: 'p1', designation: 'Pain' }, qte: 4 }], initieParId: 'P0', decideurId: 'L1', reprise: false,
     decideParId: null, dateDecision: null,
   };
 
@@ -233,7 +236,8 @@ describe('Notifications (cloche)', () => {
     mockTransferts = [transfert];
     render(<Notifications />);
     expect(screen.getByText('Transferts à recevoir')).toBeTruthy();
-    expect(screen.getByText(/Pain ×/)).toBeTruthy();
+    expect(screen.getByText('TRF-1')).toBeTruthy();
+    expect(screen.getByText('Pain × 4')).toBeTruthy();
     fireEvent.press(screen.getByText('Accepter'));
     (dialog.confirm as jest.Mock).mock.calls[0][0].onConfirm();
     expect(mockAccepter.mutate).toHaveBeenCalledWith('t1', expect.anything());

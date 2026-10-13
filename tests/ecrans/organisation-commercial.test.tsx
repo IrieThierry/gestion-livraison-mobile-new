@@ -65,9 +65,10 @@ jest.mock('../../features/stock/hooks', () => ({
   useStockEnTransit: () => ({ data: { lignes: [] } }),
   useMettreAZeroStock: () => ({ mutate: jest.fn(), isPending: false }),
 }));
+let mockTransfertsLivreur: unknown[] = [];
 jest.mock('../../features/transferts/hooks', () => ({
   useTransfertsParent: () => ({ data: [], isLoading: false, isFetching: false, refetch: jest.fn() }),
-  useTransfertsLivreur: () => ({ data: [], isLoading: false, isFetching: false, refetch: jest.fn() }),
+  useTransfertsLivreur: () => ({ data: mockTransfertsLivreur, isLoading: false, isFetching: false, refetch: jest.fn() }),
   useAccepterTransfert: () => ({ mutate: jest.fn(), isPending: false }),
   useRefuserTransfert: () => ({ mutate: jest.fn(), isPending: false }),
   useAnnulerTransfert: () => ({ mutate: jest.fn(), isPending: false }),
@@ -83,6 +84,8 @@ jest.mock('../../features/prix/hooks', () => ({
   }),
   useUpsertPrixLivreur: () => mockUpsertPrix,
   useSupprimerPrixLivreur: () => mockSupprimerPrix,
+  // P2 : aucun prix d'achat connu (pas d'alerte).
+  useMesPrixAchat: () => ({ data: new Map(), isSuccess: true, isError: false, refetch: jest.fn() }),
 }));
 jest.mock('@react-native-community/datetimepicker', () => ({ __esModule: true, default: () => null }));
 
@@ -124,6 +127,7 @@ let creer: ReturnType<typeof mutation>;
 beforeEach(() => {
   jest.clearAllMocks();
   mockUser = COMMERCIAL;
+  mockTransfertsLivreur = [];
   annuler = mutation();
   creer = mutation();
   h.useAnnulerDemandeChargement.mockReturnValue(annuler);
@@ -162,6 +166,34 @@ describe('Demandes de chargement (O8)', () => {
     expect(screen.getByLabelText('Annuler la demande DCH-1')).toBeTruthy();
     expect(screen.queryByLabelText('Annuler la demande DCH-2')).toBeNull();
     expect(screen.queryByLabelText('Annuler la demande DCH-3')).toBeNull();
+  });
+
+  it('demande servie : un seul bon pour toutes les lignes, avec sa référence et son statut', () => {
+    mockTransfertsLivreur = [{ id: 't7', reference: 'TRF-7' }];
+    h.useMesDemandesChargement.mockReturnValue(
+      lecture([
+        demande({
+          statut: 'SERVIE',
+          quantiteTotaleServie: 8,
+          lignes: [
+            { produitId: 'p1', code: 'PROD-1', designation: 'Coca 33cl', quantiteDemandee: 10, quantiteServie: 5, transfertId: 't7', statutTransfert: 'ACCEPTE' },
+            { produitId: 'p2', code: 'PROD-2', designation: 'Fanta', quantiteDemandee: 4, quantiteServie: 3, transfertId: 't7', statutTransfert: 'ACCEPTE' },
+            { produitId: 'p3', code: 'PROD-3', designation: 'Sprite', quantiteDemandee: 2, quantiteServie: 0, transfertId: null, statutTransfert: null },
+          ],
+        }),
+      ]),
+    );
+    const { unmount } = render(<DemandesChargement />);
+    expect(screen.getByText('Transfert TRF-7')).toBeTruthy();
+    expect(screen.getAllByText('Accepté')).toHaveLength(1);
+    expect(screen.getByText('0 / 2')).toBeTruthy();
+    expect(screen.queryByText('Accepte le chargement dans Transferts pour l’avoir dans ton stock.')).toBeNull();
+    unmount();
+    // Transferts pas encore lus : le bon s'affiche sans référence.
+    mockTransfertsLivreur = [];
+    render(<DemandesChargement />);
+    expect(screen.getByText('Transfert')).toBeTruthy();
+    expect(screen.getAllByText('Accepté')).toHaveLength(1);
   });
 
   it('annulation confirmée : POST annuler de la demande', () => {

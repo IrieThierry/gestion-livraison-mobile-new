@@ -1,4 +1,10 @@
-import { listeEncaissements, nomClientEncaissement } from './liste';
+import {
+  PERIODES_ENCAISSEMENTS,
+  PERIODE_ENCAISSEMENTS_DEFAUT,
+  listeEncaissements,
+  nomClientEncaissement,
+} from './liste';
+import { bornesPeriode } from '../../lib/periode';
 import type { EncaissementLivraisonResponse } from '../../types/api';
 
 const enc = (
@@ -43,5 +49,22 @@ describe('listeEncaissements', () => {
   it('nom du client, vide sans client', () => {
     expect(nomClientEncaissement(liste[0])).toBe('Awa Koné');
     expect(nomClientEncaissement(liste[2])).toBe('');
+  });
+});
+
+describe('période de Mes encaissements', () => {
+  it("7 j par défaut, avec Aujourd'hui, 7 j et 30 j", () => {
+    expect(PERIODE_ENCAISSEMENTS_DEFAUT).toBe('7j');
+    expect(PERIODES_ENCAISSEMENTS.map((o) => o.label)).toEqual(["Aujourd'hui", '7 j', '30 j']);
+    const now = new Date(2026, 9, 13, 15, 0);
+    expect(bornesPeriode({ cle: '7j' }, PERIODES_ENCAISSEMENTS, now)).toEqual({ debut: '2026-10-07', fin: '2026-10-13' });
+  });
+
+  it('la liste et le total suivent la période (jours entiers, bornes incluses)', () => {
+    const r = listeEncaissements(liste, '', { debut: '2026-10-02', fin: '2026-10-03' });
+    expect(r.lignes.map((e) => e.reference)).toEqual(['ENC-3', 'ENC-2']);
+    expect(r.total).toBe(3000.5);
+    expect(listeEncaissements(liste, 'kone', { debut: '2026-10-02' })).toEqual({ lignes: [], total: 0 });
+    expect(listeEncaissements(liste, '', { debut: '2026-10-01', fin: '2026-10-01' }).total).toBe(1000);
   });
 });

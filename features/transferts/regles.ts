@@ -33,12 +33,33 @@ export const COMMENTAIRE_TRANSFERT_TROP_LONG = `Le commentaire ne doit pas dépa
 export const messageQuantiteSuperieure = (disponible: number) =>
   `Quantité supérieure au stock disponible (${disponible}).`;
 
+/** P7 : bon sans ligne (message de la spec et du back). */
+export const MESSAGE_BON_VIDE = 'Ajoutez au moins un produit au transfert.';
+/** P7 : produit en double dans un bon (message de la spec et du back). */
+export const MESSAGE_PRODUIT_EN_DOUBLE = "Un produit ne peut figurer qu'une fois dans le transfert.";
+
+/** Lignes d'un bon (P7), jamais absentes. */
+export const lignesTransfert = (t: Pick<TransfertStockResponse, 'lignes'>) => t.lignes ?? [];
+
+/** « 4 × Pain, 2 × Lait » : les lignes du bon, dans l'ordre de saisie. */
+export function resumeLignesTransfert(t: Pick<TransfertStockResponse, 'lignes'>): string {
+  const lignes = lignesTransfert(t);
+  if (lignes.length === 0) return '—';
+  return lignes.map((l) => `${l.qte} × ${l.produit?.designation ?? '—'}`).join(', ');
+}
+
+/** « TRF-3 · 4 × Pain, 2 × Lait » : référence du bon puis ses lignes. */
+export function libelleBonTransfert(t: Pick<TransfertStockResponse, 'reference' | 'lignes'>): string {
+  const resume = resumeLignesTransfert(t);
+  return t.reference ? `${t.reference} · ${resume}` : resume;
+}
+
 /** Fenêtre d'annulation (comme le web) : titre et message. */
 export const TITRE_ANNULATION_TRANSFERT = 'Annuler le transfert ?';
 export function messageAnnulationTransfert(
-  t: Pick<TransfertStockResponse, 'qte' | 'produit' | 'destinataire' | 'reprise'>,
+  t: Pick<TransfertStockResponse, 'lignes' | 'destinataire' | 'reprise'>,
 ): string {
-  const vers = `${t.qte} × ${t.produit?.designation ?? '—'} vers ${nomLivreurTransfert(t.destinataire)}`;
+  const vers = `${resumeLignesTransfert(t)} vers ${nomLivreurTransfert(t.destinataire)}`;
   return t.reprise ? `${vers}.` : `${vers} : la quantité revient dans le stock de l’expéditeur.`;
 }
 
@@ -86,11 +107,42 @@ export interface SaisieTransfert {
   parentId?: UUID | null;
   /** Principal : l'apprenti choisi (destinataire d'un envoi, source d'une reprise). */
   apprentiId?: UUID | null;
-  produitId: UUID | null;
-  qte: string;
+  /** Lignes du bon, la dernière ajoutée en tête. */
+  lignes: ReadonlyArray<LigneTransfertSaisie>;
   commentaire: string;
-  /** Stock vendable de la source pour ce produit. */
-  stockDispo: number;
+  /** Stock de la source par produit (vendable, ou compteur de l'apprenti pour une reprise). */
+  stock: ReadonlyMap<UUID, number>;
+}
+
+/** Ligne d'un bon en cours de saisie (comme une vente : quantité 0 = à saisir). */
+export interface LigneTransfertSaisie {
+  produitId: UUID;
+  designation: string;
+  qte: number;
+}
+
+/**
+ * Ajoute un produit au bon : la nouvelle ligne s'insère en tête (quantité 1),
+ * les lignes déjà saisies gardent leur ordre ; un produit déjà présent n'est
+ * pas ajouté deux fois.
+ */
+export function ajouterLigneTransfert(
+  lignes: ReadonlyArray<LigneTransfertSaisie>,
+  produit: { id: UUID; designation: string },
+): LigneTransfertSaisie[] {
+  if (lignes.some((l) => l.produitId === produit.id)) return [...lignes];
+  return [{ produitId: produit.id, designation: produit.designation, qte: 1 }, ...lignes];
+}
+
+/** Quantité saisie : chiffres seulement, vide = 0. */
+export const qteSaisie = (brut: string) => parseInt(brut.replace(/[^0-9]/g, ''), 10) || 0;
+
+/** Lignes dont la quantité dépasse le stock de la source. */
+export function lignesAuDelaDuStock(
+  lignes: ReadonlyArray<LigneTransfertSaisie>,
+  stock: ReadonlyMap<UUID, number>,
+): LigneTransfertSaisie[] {
+  return lignes.filter((l) => l.qte > (stock.get(l.produitId) ?? 0));
 }
 
 /** Valide la saisie et construit le corps de `POST /transfert-stock`. */
@@ -106,16 +158,26 @@ export function construireTransfert(s: SaisieTransfert): Resultat<EffectuerTrans
     sourceId = s.mode === 'reprendre' ? s.apprentiId : s.moiId;
     destinataireId = s.mode === 'reprendre' ? s.moiId : s.apprentiId;
   }
-  if (!s.produitId) return { ok: false, erreur: 'Choisis un produit.' };
-  const brut = s.qte.trim();
-  const qte = /^\d+$/.test(brut) ? parseInt(brut, 10) : 0;
-  if (!(qte > 0)) return { ok: false, erreur: 'Quantité invalide.' };
-  if (qte > s.stockDispo) return { ok: false, erreur: messageQuantiteSuperieure(s.stockDispo) };
+  if (s.lignes.length === 0) return { ok: false, erreur: MESSAGE_BON_VIDE };
+  const vus = new Set<UUID>();
+  for (const l of s.lignes) {
+    if (vus.has(l.produitId)) return { ok: false, erreur: MESSAGE_PRODUIT_EN_DOUBLE };
+    vus.add(l.produitId);
+    if (!Number.isInteger(l.qte) || !(l.qte > 0)) {
+      return { ok: false, erreur: `Quantité invalide pour ${l.designation}.` };
+    }
+    const dispo = s.stock.get(l.produitId) ?? 0;
+    if (l.qte > dispo) return { ok: false, erreur: `${l.designation} : ${messageQuantiteSuperieure(dispo)}` };
+  }
   const commentaire = s.commentaire.trim();
   if (commentaire.length > COMMENTAIRE_TRANSFERT_MAX) {
     return { ok: false, erreur: COMMENTAIRE_TRANSFERT_TROP_LONG };
   }
-  const valeur: EffectuerTransfertRequest = { sourceId, destinataireId, produitId: s.produitId, qte };
+  const valeur: EffectuerTransfertRequest = {
+    sourceId,
+    destinataireId,
+    lignes: s.lignes.map((l) => ({ produitId: l.produitId, qte: l.qte })),
+  };
   if (commentaire) valeur.commentaire = commentaire;
   return { ok: true, valeur };
 }

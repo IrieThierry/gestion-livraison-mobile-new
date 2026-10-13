@@ -1,4 +1,5 @@
 import type { MouvementStockResponse, UUID } from '../../types/api';
+import { comparerDesignations } from '../../lib/tri';
 
 /**
  * Agrégats de l'écran d'accueil (Tournée) à partir du journal des
@@ -51,14 +52,14 @@ function cumulerParProduit(
   }
   return [...parProduit.values()]
     .filter((l) => l.quantite > 0)
-    .sort((a, b) => b.quantite - a.quantite || a.designation.localeCompare(b.designation, 'fr'));
+    .sort((a, b) => comparerDesignations(a.designation, b.designation));
 }
 
 /**
  * Produits vendus : Σ des quantités livrées (mouvements LIVRAISON, sortie
  * de stock donc quantité négative) par produit. Les retours ne sont PAS
- * déduits, et une mise à zéro (AJUSTEMENT) n'est pas une vente. Tri par
- * quantité décroissante.
+ * déduits, et une mise à zéro (AJUSTEMENT) n'est pas une vente. Tri
+ * alphabétique par désignation (P3).
  */
 export function produitsVendus(
   mouvements: MouvementStockResponse[],

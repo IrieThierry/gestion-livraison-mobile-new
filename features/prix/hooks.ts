@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { prixApi } from './api';
 import { prixKeys } from './keys';
+import { indexPrixAchat } from './plancher';
 import type {
   UpsertPrixClientRequest,
   UpsertPrixLivreurRequest,
@@ -22,6 +23,22 @@ export function useMesPrix(enabled = true) {
     queryFn: prixApi.mesPrix,
     enabled,
     staleTime: 60_000,
+  });
+}
+
+/**
+ * P2 : prix d'achat du livreur indépendant, indexés par produit (absent =
+ * aucun prix d'achat connu). `enabled` faux pour une organisation (B2B) :
+ * rien n'est lu. Une lecture en échec donne une table vide (aucune alerte),
+ * le back reste juge du plancher.
+ */
+export function useMesPrixAchat(enabled = true) {
+  return useQuery({
+    queryKey: prixKeys.prixAchat(),
+    queryFn: prixApi.mesPrixAchat,
+    enabled,
+    staleTime: 60_000,
+    select: indexPrixAchat,
   });
 }
 

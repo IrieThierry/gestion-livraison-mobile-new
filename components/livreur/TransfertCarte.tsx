@@ -19,6 +19,8 @@ import {
 } from '../../features/transferts/hooks';
 import {
   construireRefus,
+  libelleBonTransfert,
+  lignesTransfert,
   messageAnnulationTransfert,
   MOTIF_REFUS_MAX,
   nomLivreurTransfert,
@@ -33,18 +35,20 @@ import { formatDateShort } from '../../lib/format';
 import type { TransfertStockResponse, UUID } from '../../types/api';
 
 /**
- * Carte d'un transfert de stock : produit × quantité, source → destinataire,
- * date, badge de statut, mention « Reprise », commentaire et motif du refus.
- * `actions` s'affiche sous la carte.
+ * Carte d'un bon de transfert (P7) : référence `TRF-n`, source →
+ * destinataire, ses lignes (produit × quantité), date, badge de statut,
+ * mention « Reprise », commentaire et motif du refus. `actions` s'affiche
+ * sous la carte.
  */
 export function TransfertCarte({ transfert: t, actions }: { transfert: TransfertStockResponse; actions?: ReactNode }) {
   return (
-    <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3">
+    <View
+      accessibilityLabel={t.reference ? `Transfert ${t.reference}` : undefined}
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3"
+    >
       <View className="flex-row items-start gap-2">
         <View className="flex-1">
-          <Text className="font-extrabold text-slate-900 dark:text-white">
-            {t.produit?.designation ?? '—'} × {t.qte}
-          </Text>
+          <Text className="font-extrabold text-slate-900 dark:text-white">{t.reference || 'Transfert'}</Text>
           <View className="flex-row items-center gap-1 mt-1 flex-wrap">
             <Text className="text-[12px] text-slate-700 dark:text-slate-300">{nomLivreurTransfert(t.source)}</Text>
             <ArrowRight color="#10b981" size={12} />
@@ -59,6 +63,15 @@ export function TransfertCarte({ transfert: t, actions }: { transfert: Transfert
             <Text className="text-[10px] font-bold text-violet-700 dark:text-violet-300">Reprise</Text>
           ) : null}
         </View>
+      </View>
+      <View className="mt-2 gap-1">
+        {lignesTransfert(t).map((l, i) => (
+          <View key={l.produit?.id ?? i} className="flex-row items-center justify-between gap-2">
+            <Text className="text-[13px] text-slate-800 dark:text-slate-200 flex-1">
+              {l.produit?.designation ?? '—'} × {l.qte}
+            </Text>
+          </View>
+        ))}
       </View>
       <Text className="text-[10px] text-slate-400 mt-1">
         {formatDateShort(t.dateTransfert)}
@@ -115,7 +128,7 @@ export function useDecisionTransfert(moiId: UUID | undefined, { annulation = tru
   const [aRefuser, setARefuser] = useState<TransfertStockResponse | null>(null);
   const enCours = mAccepter.isPending || mRefuser.isPending || mAnnuler.isPending;
 
-  const quoi = (t: TransfertStockResponse) => `${t.qte} × ${t.produit?.designation ?? '—'}`;
+  const quoi = (t: TransfertStockResponse) => libelleBonTransfert(t);
 
   const accepter = (t: TransfertStockResponse) =>
     dialog.confirm({
@@ -263,7 +276,7 @@ function RefusDialog({
               <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
                 <Text className="text-lg font-extrabold text-slate-900 dark:text-white">Refuser le transfert</Text>
                 <Text className="text-[13px] text-slate-600 dark:text-slate-300 mt-1">
-                  {transfert.qte} × {transfert.produit?.designation ?? '—'}. {retour} Ton motif sera visible par
+                  {libelleBonTransfert(transfert)}. {retour} Ton motif sera visible par
                   l’autre livreur.
                 </Text>
                 <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-4 mb-2">

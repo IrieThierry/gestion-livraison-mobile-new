@@ -101,9 +101,18 @@ describe('Mes encaissements', () => {
     livraisons: [],
   });
 
+  /** Jour local il y a `n` jours, à 9 h (`yyyy-MM-ddT09:00:00`). */
+  const ilYa = (n: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const j = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${m}-${j}T09:00:00`;
+  };
+
   it('liste récente d’abord, total, recherche, bouton Encaisser → livraisons', () => {
     (useEncaissementsByLivreur as jest.Mock).mockReturnValue(
-      lecture([enc('ENC-1', '2026-10-01T09:00:00', 1000, 'Awa'), enc('ENC-2', '2026-10-03T09:00:00', 3600, 'Jean')]),
+      lecture([enc('ENC-1', ilYa(3), 1000, 'Awa'), enc('ENC-2', ilYa(1), 3600, 'Jean')]),
     );
     render(<MesEncaissements />);
     expect(screen.getByText('Mes encaissements')).toBeTruthy();
@@ -114,6 +123,34 @@ describe('Mes encaissements', () => {
     expect(screen.getByLabelText(/^Total : 1\s000 FCFA$/)).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Encaisser'));
     expect(ouvrir).toHaveBeenCalledWith('/(livreur)/livraisons');
+  });
+
+  it('période : 7 j par défaut, la liste et le total suivent la période (P6)', () => {
+    (useEncaissementsByLivreur as jest.Mock).mockReturnValue(
+      lecture([
+        enc('ENC-1', ilYa(0), 1000, 'Awa'),
+        enc('ENC-2', ilYa(3), 2000, 'Jean'),
+        enc('ENC-3', ilYa(20), 4000, 'Marc'),
+      ]),
+    );
+    render(<MesEncaissements />);
+    // 7 j par défaut : l'encaissement d'il y a 20 jours est hors période.
+    expect(screen.getByLabelText('7 j').props.accessibilityState).toEqual({ selected: true });
+    expect(screen.getByLabelText(/^Total : 3\s000 FCFA$/)).toBeTruthy();
+    expect(screen.queryByText('Marc K')).toBeNull();
+    fireEvent.press(screen.getByLabelText('30 j'));
+    expect(screen.getByLabelText(/^Total : 7\s000 FCFA$/)).toBeTruthy();
+    expect(screen.getByText('Marc K')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Aujourd'hui"));
+    expect(screen.getByLabelText(/^Total : 1\s000 FCFA$/)).toBeTruthy();
+    expect(screen.queryByText('Jean K')).toBeNull();
+  });
+
+  it('aucun encaissement sur la période : message distinct de l’état vide', () => {
+    (useEncaissementsByLivreur as jest.Mock).mockReturnValue(lecture([enc('ENC-3', ilYa(20), 4000, 'Marc')]));
+    render(<MesEncaissements />);
+    expect(screen.getByText('Aucun encaissement sur cette période.')).toBeTruthy();
+    expect(screen.queryByText('Aucun encaissement')).toBeNull();
   });
 
   it('état vide', () => {

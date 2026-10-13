@@ -4,7 +4,8 @@ import { ProduitPicker, type Ligne } from '../../components/livreur/ProduitPicke
 import NouvelleLivraison from '../../app/(livreur)/livraisons/nouvelle';
 import RetourClient from '../../app/(livreur)/cash/retour-client';
 import { dialog } from '../../lib/dialog';
-import { useResoudrePrix } from '../../features/prix/hooks';
+import { useMesPrixAchat, useResoudrePrix } from '../../features/prix/hooks';
+import { indexPrixAchat } from '../../features/prix/plancher';
 import LivraisonDetail from '../../app/(livreur)/livraisons/[id]';
 import { useFactureDeLivraison } from '../../features/organisation/hooks';
 
@@ -41,7 +42,7 @@ jest.mock('../../features/stock/hooks', () => ({
   useStockCourant: () => ({ data: [{ produit: { id: 'p1' }, qteVendable: 50 }] }),
 }));
 jest.mock('../../features/organisation/hooks', () => ({ useFactureDeLivraison: jest.fn() }));
-jest.mock('../../features/prix/hooks', () => ({ useResoudrePrix: jest.fn() }));
+jest.mock('../../features/prix/hooks', () => ({ useResoudrePrix: jest.fn(), useMesPrixAchat: jest.fn() }));
 jest.mock('../../features/previsions/hooks', () => ({
   usePrevisionsLivreur: () => ({ data: [] }),
   useLivraisonsDuJour: () => ({ data: [] }),
@@ -89,11 +90,26 @@ const lectureEnEchec = () => resoudre.mockReturnValue({ data: undefined, isError
 const wrap = (ui: React.ReactElement) =>
   render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
 
+const prixAchat = useMesPrixAchat as jest.Mock;
+const achatCoca = (prix: number) =>
+  prixAchat.mockReturnValue({
+    data: indexPrixAchat([
+      {
+        produitId: 'p1',
+        designation: 'Coca 33cl',
+        prixAchat: prix,
+        fournisseur: { id: 'f1', libelle: 'Brasserie' },
+        detail: [{ fournisseurId: 'f1', libelle: 'Brasserie', prixAchat: prix }],
+      },
+    ]),
+  });
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockUser = COMMERCIAL;
   mockLivraisons = [];
   prixResolu(500);
+  prixAchat.mockReturnValue({ data: undefined });
 });
 
 describe('ProduitPicker : prix imposé (O6)', () => {
@@ -220,6 +236,49 @@ describe('Nouvelle livraison du commercial', () => {
       'Ligne invalide',
       'Prix de Coca 33cl indisponible : vérifie ta connexion puis réessaie.',
     );
+  });
+
+  it('commercial : ni prix d’achat lu ni plancher (B2B hors périmètre)', () => {
+    achatCoca(1500);
+    vendre();
+    expect(prixAchat).toHaveBeenCalledWith(false);
+    expect(mockCreer.mutate).toHaveBeenCalledTimes(1);
+  });
+
+  it('livreur indépendant : prix tapé sous le prix d’achat, vente refusée avec le message du back (P5)', () => {
+    mockUser = { id: 'l9', prenom: 'Awa', nom: 'K', parentId: null };
+    achatCoca(1500);
+    wrap(<NouvelleLivraison />);
+    fireEvent.press(screen.getByText('choisir-client'));
+    fireEvent.press(screen.getByText('Coca 33cl'));
+    fireEvent.changeText(screen.getByDisplayValue('500'), '400');
+    fireEvent.press(screen.getByText('Enregistrer'));
+    expect(prixAchat).toHaveBeenCalledWith(true);
+    expect(mockCreer.mutate).not.toHaveBeenCalled();
+    expect(dialog.error).toHaveBeenCalledWith(
+      'Prix refusé',
+      "Le prix de vente de Coca 33cl (400 F) est inférieur au prix d'achat (1 500 F).",
+    );
+    // L'alerte est aussi affichée sur la ligne.
+    expect(screen.getByText("Le prix de vente de Coca 33cl (400 F) est inférieur au prix d'achat (1 500 F).")).toBeTruthy();
+  });
+
+  it('livreur indépendant : prix proposé par le système sous le prix d’achat, jamais bloqué (P5)', () => {
+    mockUser = { id: 'l9', prenom: 'Awa', nom: 'K', parentId: null };
+    achatCoca(1500);
+    vendre();
+    expect(prixAchat).toHaveBeenCalledWith(true);
+    expect(mockCreer.mutate).toHaveBeenCalledTimes(1);
+    expect(dialog.error).not.toHaveBeenCalled();
+    expect(screen.queryByText(/est inférieur au prix d'achat/)).toBeNull();
+  });
+
+  it('livreur indépendant : prix égal au prix d’achat ou sans prix d’achat connu, vente envoyée', () => {
+    mockUser = { id: 'l9', prenom: 'Awa', nom: 'K', parentId: null };
+    achatCoca(500);
+    vendre();
+    expect(mockCreer.mutate).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/est inférieur au prix d'achat/)).toBeNull();
   });
 
   it('livreur indépendant : pas de facture proposée', () => {
