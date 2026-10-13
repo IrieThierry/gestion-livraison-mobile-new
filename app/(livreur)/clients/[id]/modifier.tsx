@@ -23,6 +23,7 @@ import {
   useCategories,
 } from '../../../../features/lookups/hooks';
 import { useAuthStore } from '../../../../stores/authStore';
+import { estMembreOrganisation } from '../../../../features/organisation/regles';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { dialog } from '../../../../lib/dialog';
 import { useNetworkStore } from '../../../../stores/networkStore';
@@ -333,6 +334,8 @@ export default function ModifierClient() {
                 <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                   {conditionsFixables
                     ? "Le reversement de marge ne s'applique qu'à ce client si activé"
+                    : estMembreOrganisation(user)
+                    ? 'Pas de remise client dans une organisation'
                     : "Réservé au livreur principal ou à l'administrateur"}
                 </Text>
               </View>

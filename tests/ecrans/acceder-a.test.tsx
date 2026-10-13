@@ -48,6 +48,19 @@ describe('entreesAccederA', () => {
     ]);
     expect(entrees.find((e) => e.cle === 'commandes')?.chemin).toBe('/(livreur)/cash/commandes/a-receptionner');
   });
+
+  it('commercial d’organisation : ni versements ni commandes fournisseur', () => {
+    const entrees = entreesAccederA({ parentId: 'r', organisationId: 'o1', organisationRole: 'COMMERCIAL' });
+    expect(entrees.map((e) => e.label)).toEqual([
+      'Mes livraisons',
+      'Mes clients',
+      'Mes encaissements',
+      'Retours produits',
+      'Prévisions',
+    ]);
+    const responsable = entreesAccederA({ parentId: null, organisationId: 'o1', organisationRole: 'RESPONSABLE' });
+    expect(responsable.some((e) => e.cle === 'versements' || e.cle === 'commandes')).toBe(false);
+  });
 });
 
 describe('FabSheet « Accéder à »', () => {

@@ -15,9 +15,11 @@ import {
   messageAcceptationPar,
   messageQuantiteSuperieure,
   nomPrincipal,
+  LIBELLE_PRINCIPAL_PAR_DEFAUT,
   type ModeTransfert,
 } from '../../../../features/transferts/regles';
 import { creerVerrou, lancerUneFois } from '../../../../features/commandes/verrou';
+import { vocabulaire } from '../../../../features/organisation/regles';
 import { useAuthStore } from '../../../../stores/authStore';
 import { dialog } from '../../../../lib/dialog';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
@@ -42,6 +44,8 @@ const LIBELLE_ENVOI: Record<ModeTransfert, string> = {
 export default function NouveauTransfert() {
   const user = useAuthStore((s) => s.user);
   const estApprenti = !!user?.parentId;
+  // O4/O9 : commercial d'organisation, « Rendre au dépôt » de son responsable.
+  const v = vocabulaire(user);
   const apprentisQ = useApprentis();
   const monStockQ = useStockCourant();
   // Apprenti : ses transferts donnent le nom de son principal (la session n'a que `parentId`).
@@ -101,7 +105,9 @@ export default function NouveauTransfert() {
   if (!user) return null;
 
   const nomApprenti = apprentiId ? apprentisOptions.find((o) => o.id === apprentiId)?.label ?? null : null;
-  const nomPrincipalApprenti = nomPrincipal(mesTransfertsQ.data, user.parentId, mesRemisesQ.data);
+  const nomLu = nomPrincipal(mesTransfertsQ.data, user.parentId, mesRemisesQ.data);
+  // Nom inconnu : « ton responsable » pour un commercial d'organisation.
+  const nomPrincipalApprenti = nomLu === LIBELLE_PRINCIPAL_PAR_DEFAUT ? v.tonPrincipal : nomLu;
   const moi = `${user.prenom} ${user.nom} (toi)`;
   // Qui devra accepter : le principal (rendre) ou l'apprenti choisi (envoyer, reprendre).
   const accepteur = estApprenti ? nomPrincipalApprenti : nomApprenti;
@@ -162,8 +168,8 @@ export default function NouveauTransfert() {
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
-        title={estApprenti ? 'Rendre du stock' : 'Nouveau transfert'}
-        subtitle={estApprenti ? 'À ton livreur principal' : 'Avec un apprenti'}
+        title={estApprenti ? v.rendreStock : 'Nouveau transfert'}
+        subtitle={estApprenti ? `À ${v.tonPrincipal}` : `Avec un ${v.apprenti}`}
       />
 
       <FormScreen>

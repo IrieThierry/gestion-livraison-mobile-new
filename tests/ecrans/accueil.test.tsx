@@ -184,6 +184,16 @@ describe('Accueil : chiffres cliquables de la carte verte', () => {
     expect(ouvrir).toHaveBeenLastCalledWith('/(livreur)/cash/retour-client');
   });
 
+  it('commercial d’organisation : Réceptionnés ouvre les transferts, aucune commande comptée', () => {
+    mockUser = { ...mockUser, parentId: 'r1', organisationId: 'o1', organisationRole: 'COMMERCIAL' };
+    mockNbCommandes = 2;
+    mouvements.mockReturnValue(lecture([]));
+    render(<Tournee />);
+    expect(screen.getByLabelText('Notifications : 0')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Réceptionnés : 0'));
+    expect(ouvrir).toHaveBeenLastCalledWith('/(livreur)/stock/transferts');
+  });
+
   it('apprenti : Réceptionnés ouvre les commandes à réceptionner', () => {
     mockUser = { ...mockUser, parentId: 'p' };
     mouvements.mockReturnValue(lecture([]));

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native';
-import { ArrowLeftRight, Users, ArrowRight, History, Undo2, Hourglass } from 'lucide-react-native';
+import { ArrowLeftRight, Users, ArrowRight, History, Undo2, Hourglass, ClipboardList } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { SearchInput } from '../../../components/shared/SearchInput';
@@ -11,6 +11,7 @@ import { useStockCourant, useStockEnTransit } from '../../../features/stock/hook
 import { peutMettreAZero } from '../../../features/stock/regles';
 import { useAuthStore } from '../../../stores/authStore';
 import { naviguer } from '../../../lib/navigation-app';
+import { estCommercial, vocabulaire } from '../../../features/organisation/regles';
 
 /**
  * Écran "Mon stock" — affiche le **stock courant livreur** Plan D
@@ -49,6 +50,10 @@ export default function StockCourant() {
 
   // Produits en transit (au moins une quantité envoyée ou à recevoir).
   const transit = (qTransit.data?.lignes ?? []).filter((l) => l.sortant > 0 || l.entrant > 0);
+
+  // Organisation : « Rendre au dépôt » (O9) et demandes de chargement (O8) du commercial.
+  const v = vocabulaire(user);
+  const commercial = estCommercial(user);
 
   // « Mettre à zéro » : livreur principal seulement (jamais l'apprenti).
   const miseAZeroPossible = peutMettreAZero(user, user.id);
@@ -149,6 +154,24 @@ export default function StockCourant() {
 
           {/* Transferts (tous) ; « Rendre du stock » (apprenti) ; « Stock équipe » (principal) */}
           <View className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+            {commercial ? (
+              <Pressable
+                onPress={() => naviguer('/(livreur)/stock/demandes')}
+                accessibilityRole="button"
+                className="flex-row items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 active:opacity-70"
+              >
+                <View className="flex-row items-center gap-3 flex-1">
+                  <ClipboardList color="#0ea5e9" size={20} />
+                  <View className="flex-1">
+                    <Text className="font-extrabold text-slate-900 dark:text-white">Demandes de chargement</Text>
+                    <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Demande du stock au dépôt, suis et annule tes demandes
+                    </Text>
+                  </View>
+                </View>
+                <ArrowRight color="#94a3b8" size={16} />
+              </Pressable>
+            ) : null}
             {user.parentId ? (
               <Pressable
                 onPress={() => naviguer('/(livreur)/stock/transferts/nouveau')}
@@ -158,9 +181,9 @@ export default function StockCourant() {
                 <View className="flex-row items-center gap-3 flex-1">
                   <Undo2 color="#10b981" size={20} />
                   <View className="flex-1">
-                    <Text className="font-extrabold text-slate-900 dark:text-white">Rendre du stock</Text>
+                    <Text className="font-extrabold text-slate-900 dark:text-white">{v.rendreStock}</Text>
                     <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                      À ton livreur principal, qui devra l’accepter
+                      {v.rendreStockAide}
                     </Text>
                   </View>
                 </View>
@@ -177,7 +200,7 @@ export default function StockCourant() {
                 <View className="flex-1">
                   <Text className="font-extrabold text-slate-900 dark:text-white">Transferts</Text>
                   <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {user.parentId ? 'Avec ton livreur principal' : 'Vers / depuis tes apprentis'}
+                    {user.parentId ? `Avec ${v.tonPrincipal}` : `Vers / depuis tes ${v.apprentis}`}
                   </Text>
                 </View>
               </View>

@@ -33,6 +33,7 @@ import { extractApiErrorMessage } from '../../lib/api-error';
 // Accueil : chaque tuile / action ouvre sa rubrique sur une pile propre
 // (lib/navigation) ; retour depuis la liste ouverte = Accueil.
 import { ouvrir } from '../../lib/navigation-app';
+import { estMembreOrganisation } from '../../features/organisation/regles';
 
 export default function Tournee() {
   const user = useAuthStore((s) => s.user);
@@ -43,7 +44,9 @@ export default function Tournee() {
   // Stock courant (Plan D) — somme des `qteVendable` (= achats − livraisons
   // + retours sur la période). C'est ce que l'écran Stock affiche aussi.
   const qStock = useStockCourant();
-  const qARecep = useCommandesAReceptionner(!!user);
+  // Organisation : pas de commandes fournisseur (routes fermées), le stock arrive par transferts.
+  const organisation = estMembreOrganisation(user);
+  const qARecep = useCommandesAReceptionner(!!user && !organisation);
   // Prévisions échues du livreur connecté (pas celles des apprentis), hors « Plus tard ».
   const qEchues = usePrevisionsEchues(user?.id);
   // Abonnement effectif : bandeau en EXPIRE (relu au tirer-pour-rafraîchir).
@@ -101,10 +104,11 @@ export default function Tournee() {
   // + (principal) remises déclarées par ses apprentis, à confirmer + transferts à recevoir.
   const nbRemises = user.parentId ? 0 : nbRemisesAConfirmer(qRemises.data);
   const nbTransferts = nbTransfertsADecider(qTransferts.data, user.id);
-  const notifCount = (qARecep.data?.length ?? 0) + qEchues.echues.length + nbRemises + nbTransferts;
+  const nbCommandes = organisation ? 0 : qARecep.data?.length ?? 0;
+  const notifCount = nbCommandes + qEchues.echues.length + nbRemises + nbTransferts;
 
   const onRefresh = () => {
-    qARecep.refetch();
+    if (!organisation) qARecep.refetch();
     qEchues.refetch();
     if (!user.parentId) qRemises.refetch();
     qTransferts.refetch();
@@ -218,9 +222,12 @@ export default function Tournee() {
               libelle="Réceptionnés"
               valeur={chiffreAccueil(qMv, recus)}
               // Commandes (et leurs réceptions) ; apprenti : commandes à réceptionner, comme le menu « Accéder à ».
+              // Organisation : les chargements reçus sont des transferts.
               onPress={() =>
                 ouvrir(
-                  user.parentId
+                  organisation
+                    ? '/(livreur)/stock/transferts'
+                    : user.parentId
                     ? '/(livreur)/cash/commandes/a-receptionner'
                     : '/(livreur)/cash/commandes',
                 )

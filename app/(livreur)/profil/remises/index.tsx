@@ -13,6 +13,8 @@ import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatMontant } from '../../../../lib/format';
 import { naviguer } from '../../../../lib/navigation-app';
 import type { RemiseArgentResponse } from '../../../../types/api';
+import { useAuthStore } from '../../../../stores/authStore';
+import { vocabulaire } from '../../../../features/organisation/regles';
 
 /**
  * « Mes remises » (apprenti) : l'argent remis à son principal, la plus
@@ -22,6 +24,8 @@ import type { RemiseArgentResponse } from '../../../../types/api';
  */
 export default function MesRemises() {
   const q = useMesRemises();
+  // O4 : « ton responsable » pour un commercial d'organisation.
+  const v = vocabulaire(useAuthStore((s) => s.user));
   const mAnnuler = useAnnulerRemise();
   const verrou = useRef(creerVerrou()).current;
   const remises = q.data ?? [];
@@ -33,7 +37,7 @@ export default function MesRemises() {
   const onAnnuler = (r: RemiseArgentResponse) =>
     dialog.confirm({
       title: `Annuler la remise ${r.reference} ?`,
-      message: `${formatMontant(num(r.montant))} FCFA : la remise ne sera plus proposée à ton livreur principal.`,
+      message: `${formatMontant(num(r.montant))} FCFA : la remise ne sera plus proposée à ${v.tonPrincipal}.`,
       confirmLabel: 'Annuler la remise',
       cancelLabel: 'Garder',
       destructive: true,
@@ -84,7 +88,7 @@ export default function MesRemises() {
           ) : (
             <EmptyState
               title="Aucune remise"
-              message="Déclare l’argent remis à ton principal avec « Nouvelle remise »."
+              message={`Déclare l’argent remis à ${v.tonPrincipalCourt} avec « Nouvelle remise ».`}
             />
           )
         }

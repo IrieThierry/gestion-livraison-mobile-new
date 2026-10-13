@@ -66,3 +66,32 @@ describe('Onglet Moi', () => {
     expect(naviguer).toHaveBeenLastCalledWith('/(livreur)/profil/remises-apprentis');
   });
 });
+
+describe('Onglet Moi : organisation B2B', () => {
+  it('commercial : rôle affiché, « Mes factures », ni fournisseurs ni « Mes apprentis », remises à « ton responsable »', () => {
+    mockUser = { ...mockUser, parentId: 'r1', organisationId: 'o1', organisationRole: 'COMMERCIAL', profile: 'LIVREUR' };
+    render(<Profil />);
+    expect(screen.getByText(/awa · Commercial/)).toBeTruthy();
+    expect(screen.queryByText('Mes fournisseurs')).toBeNull();
+    expect(screen.queryByText('Mes apprentis')).toBeNull();
+    expect(screen.getByText('Argent remis à ton responsable')).toBeTruthy();
+    fireEvent.press(screen.getByText('Mes factures'));
+    expect(naviguer).toHaveBeenLastCalledWith('/(livreur)/profil/factures');
+  });
+
+  it('responsable : « Mes commerciaux » et « Remises des commerciaux », pas de fournisseurs ni de factures ici', () => {
+    mockUser = { ...mockUser, parentId: null, organisationId: 'o1', organisationRole: 'RESPONSABLE' };
+    render(<Profil />);
+    expect(screen.getByText('Mes commerciaux')).toBeTruthy();
+    expect(screen.getByText('Remises des commerciaux')).toBeTruthy();
+    expect(screen.queryByText('Mes fournisseurs')).toBeNull();
+    expect(screen.queryByText('Mes factures')).toBeNull();
+  });
+
+  it('livreur indépendant : « Mes fournisseurs » toujours présent, pas de « Mes factures »', () => {
+    render(<Profil />);
+    expect(screen.getByText('Mes fournisseurs')).toBeTruthy();
+    expect(screen.getByText('Mes apprentis')).toBeTruthy();
+    expect(screen.queryByText('Mes factures')).toBeNull();
+  });
+});

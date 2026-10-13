@@ -10,6 +10,7 @@ import { AUCUN_RESULTAT, filtrerRecherche } from '../../lib/recherche';
 import { SearchInput } from '../shared/SearchInput';
 import type { ProduitResponse } from '../../types/api';
 import { ProduitVignette } from '../shared/ProduitVignette';
+import { messageAucunPrix } from '../../features/organisation/regles';
 
 export type Ligne = LigneSaisie;
 
@@ -22,6 +23,7 @@ export function ProduitPicker({
   onValidityChange,
   remiseClient,
   memoriserPossible = true,
+  prixImpose = false,
 }: {
   lignes: Ligne[];
   onChange: (l: Ligne[]) => void;
@@ -37,6 +39,12 @@ export function ProduitPicker({
   remiseClient?: number;
   /** Faux (apprenti, D20) : option « Mémoriser le prix » masquée. */
   memoriserPossible?: boolean;
+  /**
+   * O6 (commercial d'organisation) : prix de chaque ligne fixé par le
+   * responsable (résolveur), affiché et non modifiable ; ni remise ni
+   * « Mémoriser le prix ».
+   */
+  prixImpose?: boolean;
 }) {
   const { data: referentiel = [] } = useProduits();
   const [recherche, setRecherche] = useState('');
@@ -76,7 +84,7 @@ export function ProduitPicker({
     const courantes = lignesRef.current;
     if (courantes.find((l) => l.produitId === item.id)) return;
     // Un prix par défaut du client à 0 ou absent ne fixe rien : le prix reste à saisir.
-    const prix = prixInitialLigne(prixDeVenteParDefaut);
+    const prix = prixImpose ? 0 : prixInitialLigne(prixDeVenteParDefaut);
     const next = [
       ...courantes,
       { produitId: item.id, designation: item.designation, prix, qte: 1 },
@@ -192,7 +200,8 @@ export function ProduitPicker({
             stockDispo={stockMap.get(l.produitId) ?? 0}
             enforceStock={enforceStock}
             remiseClient={remiseClient}
-            memoriserPossible={memoriserPossible}
+            memoriserPossible={memoriserPossible && !prixImpose}
+            prixImpose={prixImpose}
             onUpdate={(patch) => updateProduit(l.produitId, patch)}
             onRemove={() => removeProduit(l.produitId)}
           />
@@ -223,6 +232,7 @@ function LigneRow({
   enforceStock,
   remiseClient,
   memoriserPossible,
+  prixImpose,
   onUpdate,
   onRemove,
 }: {
@@ -233,6 +243,7 @@ function LigneRow({
   enforceStock: boolean;
   remiseClient?: number;
   memoriserPossible: boolean;
+  prixImpose: boolean;
   onUpdate: (patch: Partial<Ligne>) => void;
   onRemove: () => void;
 }) {
@@ -259,7 +270,10 @@ function LigneRow({
     //   - on stocke le prix résolu pour comparer plus tard
     if (lastQueryKey.current !== queryKey) {
       lastQueryKey.current = queryKey;
-      if (resolved.prix !== null && resolved.prix > 0) {
+      if (prixImpose) {
+        // Prix imposé : toujours celui du résolveur, 0 s'il n'y en a pas (vente bloquée).
+        onUpdate({ prix: resolved.prix !== null && resolved.prix > 0 ? resolved.prix : 0 });
+      } else if (resolved.prix !== null && resolved.prix > 0) {
         onUpdate({ prix: resolved.prix });
       }
       setResolvedPrix(resolved.prix);
@@ -268,7 +282,8 @@ function LigneRow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolved, clientId, line.produitId]);
 
-  const avecRemise = remiseClient !== undefined;
+  const avecRemise = !prixImpose && remiseClient !== undefined;
+  const aucunPrixFixe = prixImpose && resolvedLoaded && !(resolvedPrix !== null && resolvedPrix > 0);
   const remiseLigne = remiseClient ?? 0;
   const sousTotal = montantLigneEstime(line.prix, remiseLigne, line.qte);
   const prixZero = line.prix <= 0;
@@ -276,6 +291,7 @@ function LigneRow({
   // « Mémoriser » est proposé si le prix saisi diffère du prix résolu, ou
   // s'il n'existe encore aucun prix pour ce client (premier prix saisi).
   const prixModifie =
+    !prixImpose &&
     !!clientId &&
     resolvedLoaded &&
     line.prix > 0 &&
@@ -317,7 +333,9 @@ function LigneRow({
         <View className="flex-row items-center gap-1 mb-2">
           <Tag color="#059669" size={11} />
           <Text className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">
-            {resolved.source === 'CLIENT'
+            {prixImpose
+              ? 'Prix fixé par ton responsable'
+              : resolved.source === 'CLIENT'
               ? 'Prix mémorisé pour ce client'
               : 'Prix par défaut livreur'}
             {resolvedPrix !== null ? ` · ${formatFCFA(resolvedPrix)} FCFA` : ''}
@@ -327,6 +345,21 @@ function LigneRow({
 
       {/* Inputs : Prix + Qté */}
       <View className="flex-row gap-2">
+        {prixImpose ? (
+          <View className="flex-1">
+            <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-1">
+              Prix unitaire TTC (FCFA)
+            </Text>
+            <View
+              accessibilityLabel={`Prix imposé : ${line.prix > 0 ? formatFCFA(line.prix) : 'aucun'}`}
+              className="px-3 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60"
+            >
+              <Text className="text-base font-extrabold text-slate-900 dark:text-white">
+                {line.prix > 0 ? formatFCFA(line.prix) : '—'}
+              </Text>
+            </View>
+          </View>
+        ) : (
         <View className="flex-1">
           <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-1">
             Prix unitaire (FCFA)
@@ -349,6 +382,7 @@ function LigneRow({
             }`}
           />
         </View>
+        )}
         <View className="w-24">
           <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-1">
             Quantité
@@ -439,8 +473,21 @@ function LigneRow({
         </View>
       ) : null}
 
+      {/* Prix imposé : aucun prix fixé par le responsable (vente refusée) ; sans client, prix à venir */}
+      {aucunPrixFixe ? (
+        <View className="flex-row items-center gap-1.5 mt-2">
+          <AlertCircle color="#ef4444" size={12} />
+          <Text className="text-[11px] text-red-500 flex-1">{messageAucunPrix(line.designation)}</Text>
+        </View>
+      ) : null}
+      {prixImpose && !clientId ? (
+        <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+          Choisis le client : le prix est celui fixé par ton responsable.
+        </Text>
+      ) : null}
+
       {/* Warn empty price */}
-      {prixZero ? (
+      {prixZero && !prixImpose ? (
         <View className="flex-row items-center gap-1.5 mt-2">
           <AlertCircle color="#ef4444" size={12} />
           <Text className="text-[11px] text-red-500">

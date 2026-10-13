@@ -8,6 +8,7 @@ import { useTransfertsLivreur, useTransfertsParent } from '../../../../features/
 import { transfertsAffiches, type FiltreTransferts } from '../../../../features/transferts/regles';
 import { useAuthStore } from '../../../../stores/authStore';
 import { naviguer } from '../../../../lib/navigation-app';
+import { vocabulaire } from '../../../../features/organisation/regles';
 
 /**
  * Transferts de stock. Principal : ceux de l'équipe (`GET
@@ -25,6 +26,7 @@ export default function TransfertsList() {
   const [filtre, setFiltre] = useState<FiltreTransferts>('TOUS');
 
   if (!user) return null;
+  const v = vocabulaire(user);
 
   const tous = q.data ?? [];
   const nbEnAttente = tous.filter((t) => t.statut === 'EN_ATTENTE').length;
@@ -47,7 +49,7 @@ export default function TransfertsList() {
             className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             {estApprenti ? <Undo2 color="#fff" size={14} /> : <Plus color="#fff" size={14} />}
-            <Text className="text-white text-xs font-bold">{estApprenti ? 'Rendre du stock' : 'Nouveau'}</Text>
+            <Text className="text-white text-xs font-bold">{estApprenti ? v.rendreStock : 'Nouveau'}</Text>
           </Pressable>
         }
       />
@@ -98,8 +100,8 @@ export default function TransfertsList() {
               title="Aucun transfert"
               message={
                 estApprenti
-                  ? 'Rends du stock à ton livreur principal avec « Rendre du stock ».'
-                  : 'Envoie du stock à un apprenti, ou reprends-en, avec le bouton « Nouveau ».'
+                  ? `Rends du stock à ${v.tonPrincipal} avec « ${v.rendreStock} ».`
+                  : `Envoie du stock à un ${v.apprenti}, ou reprends-en, avec le bouton « Nouveau ».`
               }
             />
           )

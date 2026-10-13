@@ -17,6 +17,11 @@ jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), navigate: jest.fn(), dismissTo: jest.fn(), canGoBack: () => true },
   useNavigation: () => ({ getState: () => undefined }),
 }));
+// Partage de la facture du commercial (PDF natif) : hors de ce test.
+jest.mock('../../features/organisation/usePartageDocuments', () => ({
+  usePartageDocuments: () => ({ enCours: null, facture: jest.fn(), factureDeLivraison: jest.fn(), avoir: jest.fn() }),
+  apresFermetureDialogue: jest.fn(),
+}));
 jest.mock('../../lib/navigation-app', () => ({
   ouvrir: jest.fn(),
   naviguer: jest.fn(),

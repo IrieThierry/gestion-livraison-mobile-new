@@ -11,6 +11,8 @@ import { dialog } from '../../../../lib/dialog';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { formatMontant } from '../../../../lib/format';
 import { useRetourListe } from '../../../../lib/useRetourListe';
+import { useAuthStore } from '../../../../stores/authStore';
+import { vocabulaire } from '../../../../features/organisation/regles';
 
 /**
  * « Nouvelle remise » (apprenti) : montant remis à son principal et
@@ -19,6 +21,8 @@ import { useRetourListe } from '../../../../lib/useRetourListe';
  */
 export default function NouvelleRemise() {
   const m = useDeclarerRemise();
+  // O4 : « ton responsable » pour un commercial d'organisation.
+  const v = vocabulaire(useAuthStore((s) => s.user));
   const verrou = useRef(creerVerrou()).current;
   const retourListe = useRetourListe('/(livreur)/profil/remises');
   const [montant, setMontant] = useState('');
@@ -38,7 +42,7 @@ export default function NouvelleRemise() {
           retourListe();
           dialog.success(
             'Remise déclarée',
-            `${remise.reference} · ${formatMontant(num(remise.montant))} FCFA, en attente de confirmation par ton principal.`,
+            `${remise.reference} · ${formatMontant(num(remise.montant))} FCFA, en attente de confirmation par ${v.tonPrincipalCourt}.`,
           );
         },
         onError: (e) => setErreur(extractApiErrorMessage(e, 'La remise n’a pas pu être déclarée.')),
@@ -56,7 +60,7 @@ export default function NouvelleRemise() {
           <View className="flex-row items-start gap-2 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-md p-3">
             <Info color="#2563eb" size={16} />
             <Text className="flex-1 text-[12px] text-blue-800 dark:text-blue-200">
-              La remise sera déclarée à ton principal, qui devra la confirmer.
+              La remise sera déclarée à {v.tonPrincipalCourt}, qui devra la confirmer.
             </Text>
           </View>
 

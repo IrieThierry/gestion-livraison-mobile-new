@@ -179,6 +179,9 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   // Ouverte depuis Notifications (« Transferts à recevoir ») : retour à Notifications.
   'stock/transferts/index': { type: 'liste', parent: '/stock', origines: { notifications: '/previsions/echues' } },
   'stock/transferts/nouveau': { type: 'formulaire', parent: '/stock/transferts' },
+  // Organisation (O8) : demandes de chargement du commercial, ouvertes depuis Stock.
+  'stock/demandes/index': { type: 'liste', parent: '/stock' },
+  'stock/demandes/nouvelle': { type: 'formulaire', parent: '/stock/demandes' },
 
   'previsions/index': { type: 'liste', parent: ACCUEIL },
   'previsions/nouvelle': { type: 'formulaire', parent: '/previsions' },
@@ -199,6 +202,8 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   'profil/apprentis/nouveau': { type: 'formulaire', parent: '/profil/apprentis' },
   'profil/etats/index': { type: 'liste', parent: '/profil' },
   'profil/etats/[famille]': { type: 'fiche', parent: '/profil/etats' },
+  // Organisation (O17) : « Mes factures » (factures et avoirs) du commercial.
+  'profil/factures': { type: 'liste', parent: '/profil' },
   // Remises d'argent : « Mes remises » (apprenti), « Remises des apprentis » (principal).
   'profil/remises/index': { type: 'liste', parent: '/profil' },
   'profil/remises/nouvelle': { type: 'formulaire', parent: '/profil/remises' },
@@ -223,6 +228,7 @@ export const PILES_IMBRIQUEES: ReadonlySet<string> = new Set([
   'profil/etats',
   'profil/remises',
   'stock/transferts',
+  'stock/demandes',
 ]);
 
 /** Nom de la route du groupe des écrans du livreur dans la pile racine. */
