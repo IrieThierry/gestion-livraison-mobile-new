@@ -8,7 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { Plus, UsersRound, Power, ChevronRight } from 'lucide-react-native';
+import { Plus, UsersRound, Power, ChevronRight, ArrowRightLeft } from 'lucide-react-native';
 import { dialog } from '../../../../lib/dialog';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
@@ -20,6 +20,7 @@ import { useAuthStore } from '../../../../stores/authStore';
 import type { LivreurResponse } from '../../../../types/api';
 import { naviguer } from '../../../../lib/navigation-app';
 import { estResponsable, vocabulaire } from '../../../../features/organisation/regles';
+import { peutReaffecter } from '../../../../features/equipe/regles';
 
 /**
  * « Mes apprentis » — page accessible depuis le Profil pour les livreurs
@@ -95,13 +96,27 @@ export default function ApprentisList() {
         subtitle={`${q.data?.length ?? 0} ${(q.data?.length ?? 0) > 1 ? v.apprentis : v.apprenti}`}
         right={
           lectureSeule ? undefined : (
-          <Pressable
-            onPress={() => naviguer('/(livreur)/profil/apprentis/nouveau')}
-            className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
-          >
-            <Plus color="#fff" size={14} />
-            <Text className="text-white text-xs font-bold">Nouveau</Text>
-          </Pressable>
+          <View className="flex-row gap-2">
+            {/* P8 : réaffectation des clients (livreur principal indépendant). */}
+            {peutReaffecter(user) ? (
+              <Pressable
+                onPress={() => naviguer('/(livreur)/profil/apprentis/reaffecter')}
+                accessibilityRole="button"
+                accessibilityLabel="Réaffecter des clients"
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-70"
+              >
+                <ArrowRightLeft color="#8b5cf6" size={14} />
+                <Text className="text-slate-700 dark:text-slate-300 text-xs font-bold">Réaffecter</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={() => naviguer('/(livreur)/profil/apprentis/nouveau')}
+              className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
+            >
+              <Plus color="#fff" size={14} />
+              <Text className="text-white text-xs font-bold">Nouveau</Text>
+            </Pressable>
+          </View>
           )
         }
       />

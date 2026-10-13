@@ -60,6 +60,15 @@ export function derniersJours(jours: number, now: Date = new Date()): Required<B
   };
 }
 
+/** Raccourcis « Aujourd'hui / 7 j / 30 j » partagés par plusieurs listes. */
+export type RaccourciJours = 'today' | '7j' | '30j';
+
+export const PERIODES_JOURS: ReadonlyArray<OptionPeriode<RaccourciJours>> = [
+  { cle: 'today', label: "Aujourd'hui", bornes: (n) => aujourdhui(n) },
+  { cle: '7j', label: '7 j', bornes: (n) => derniersJours(7, n) },
+  { cle: '30j', label: '30 j', bornes: (n) => derniersJours(30, n) },
+];
+
 export function estPeriodePerso<K extends string>(v: ValeurPeriode<K>): v is { du: string; au: string } {
   return 'du' in v;
 }

@@ -15,6 +15,7 @@ import {
   messageAucunPrix,
   messagePrixIndisponible,
 } from '../../features/organisation/regles';
+import { erreurPlancher, type TablePrixAchat } from '../../features/prix/plancher';
 
 export type Ligne = LigneSaisie;
 
@@ -28,6 +29,7 @@ export function ProduitPicker({
   remiseClient,
   memoriserPossible = true,
   prixImpose = false,
+  prixAchat,
 }: {
   lignes: Ligne[];
   onChange: (l: Ligne[]) => void;
@@ -49,6 +51,12 @@ export function ProduitPicker({
    * « Mémoriser le prix ».
    */
   prixImpose?: boolean;
+  /**
+   * P5 (livreur indépendant) : prix d'achat par produit ; une ligne dont le
+   * prix est sous le prix d'achat affiche le message du back. Absent : aucun
+   * contrôle.
+   */
+  prixAchat?: TablePrixAchat;
 }) {
   const { data: referentiel = [] } = useProduits();
   const [recherche, setRecherche] = useState('');
@@ -92,7 +100,8 @@ export function ProduitPicker({
     const ligne: Ligne = { produitId: item.id, designation: item.designation, prix, qte: 1 };
     // Prix imposé : à lire par le résolveur avant toute vente.
     if (prixImpose) ligne.prixStatut = 'en-lecture';
-    const next = [...courantes, ligne];
+    // P4 : le produit ajouté s'insère en tête ; les lignes déjà saisies gardent leur ordre.
+    const next = [ligne, ...courantes];
     lignesRef.current = next;
     onChange(next);
   };
@@ -206,6 +215,7 @@ export function ProduitPicker({
             remiseClient={remiseClient}
             memoriserPossible={memoriserPossible && !prixImpose}
             prixImpose={prixImpose}
+            alertePlancher={prixImpose ? null : erreurPlancher(prixAchat, l.produitId, l.designation, l.prix)}
             onUpdate={(patch) => updateProduit(l.produitId, patch)}
             onRemove={() => removeProduit(l.produitId)}
           />
@@ -237,6 +247,7 @@ function LigneRow({
   remiseClient,
   memoriserPossible,
   prixImpose,
+  alertePlancher,
   onUpdate,
   onRemove,
 }: {
@@ -248,6 +259,8 @@ function LigneRow({
   remiseClient?: number;
   memoriserPossible: boolean;
   prixImpose: boolean;
+  /** P5 : message du refus si le prix est sous le prix d'achat, sinon null. */
+  alertePlancher: string | null;
   onUpdate: (patch: Partial<Ligne>) => void;
   onRemove: () => void;
 }) {
@@ -537,6 +550,14 @@ function LigneRow({
         <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
           Choisis le client : le prix est celui fixé par ton responsable.
         </Text>
+      ) : null}
+
+      {/* P5 : prix de vente sous le prix d'achat */}
+      {alertePlancher ? (
+        <View accessibilityRole="alert" className="flex-row items-start gap-1.5 mt-2">
+          <AlertCircle color="#ef4444" size={12} />
+          <Text className="text-[11px] text-red-500 flex-1">{alertePlancher}</Text>
+        </View>
       ) : null}
 
       {/* Warn empty price */}

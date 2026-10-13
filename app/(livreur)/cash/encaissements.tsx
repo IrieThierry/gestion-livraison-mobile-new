@@ -5,7 +5,15 @@ import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { SearchInput } from '../../../components/shared/SearchInput';
 import { useEncaissementsByLivreur } from '../../../features/encaissements/hooks';
-import { listeEncaissements, nomClientEncaissement } from '../../../features/encaissements/liste';
+import {
+  PERIODES_ENCAISSEMENTS,
+  PERIODE_ENCAISSEMENTS_DEFAUT,
+  listeEncaissements,
+  nomClientEncaissement,
+  type RaccourciEncaissements,
+} from '../../../features/encaissements/liste';
+import { FiltrePeriode } from '../../../components/shared/FiltrePeriode';
+import { bornesPeriode, type ValeurPeriode } from '../../../lib/periode';
 import { useAuthStore } from '../../../stores/authStore';
 import { AUCUN_RESULTAT } from '../../../lib/recherche';
 import { extractApiErrorMessage } from '../../../lib/api-error';
@@ -16,6 +24,8 @@ import { ouvrir } from '../../../lib/navigation-app';
  * « Mes encaissements » — encaissements du livreur connecté (même source que
  * l'ancien écran Cash : `GET /encaissement/livraison/livreur/{id}`), du plus
  * récent au plus ancien, recherche (client, référence), total de la liste.
+ * Période (Aujourd'hui, 7 j par défaut, 30 j, Période…) : la route ne prend
+ * pas de dates, la liste et le total sont filtrés localement.
  *
  * « Encaisser » : l'encaissement se fait pour un client ou une livraison ; le
  * bouton ouvre la liste des livraisons, comme l'action « Encaisser » de
@@ -26,8 +36,16 @@ export default function MesEncaissements() {
   const livreurId = user?.id ?? '';
   const q = useEncaissementsByLivreur(livreurId);
   const [recherche, setRecherche] = useState('');
+  const [periode, setPeriode] = useState<ValeurPeriode<RaccourciEncaissements>>({
+    cle: PERIODE_ENCAISSEMENTS_DEFAUT,
+  });
+  // Bornes recalculées à chaque rendu (jour courant).
+  const { debut, fin } = bornesPeriode(periode, PERIODES_ENCAISSEMENTS);
 
-  const { lignes, total } = useMemo(() => listeEncaissements(q.data ?? [], recherche), [q.data, recherche]);
+  const { lignes, total } = useMemo(
+    () => listeEncaissements(q.data ?? [], recherche, { debut, fin }),
+    [q.data, recherche, debut, fin],
+  );
 
   if (!user) return null;
 
@@ -65,6 +83,15 @@ export default function MesEncaissements() {
         }
       >
         <View className="px-4 pt-3">
+          <View className="mb-3">
+            <FiltrePeriode
+              options={PERIODES_ENCAISSEMENTS}
+              valeur={periode}
+              defaut={PERIODE_ENCAISSEMENTS_DEFAUT}
+              onChange={setPeriode}
+              titre={null}
+            />
+          </View>
           <SearchInput value={recherche} onChangeText={setRecherche} placeholder="Client, référence…" />
 
           {!aucun ? (
@@ -96,7 +123,9 @@ export default function MesEncaissements() {
               />
             </View>
           ) : nb === 0 ? (
-            <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center py-4">{AUCUN_RESULTAT}</Text>
+            <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center py-4">
+              {recherche.trim() ? AUCUN_RESULTAT : 'Aucun encaissement sur cette période.'}
+            </Text>
           ) : (
             <View className="gap-2 mt-3">
               {lignes.map((e) => {

@@ -1,4 +1,5 @@
 import { apiClient } from '../../lib/api-client';
+import { trierParProduit } from '../../lib/tri';
 import type {
   AjustementStockResponse,
   FiltresMouvementsStock,
@@ -24,7 +25,7 @@ export const stockApi = {
     const { data } = await apiClient.get<StockLivreurResponse[]>(
       `/stock-livreur/${livreurId}/actuel`,
     );
-    return data;
+    return trierParProduit(data);
   },
 
   /**
@@ -37,7 +38,7 @@ export const stockApi = {
     const { data } = await apiClient.get<StockLivreurResponse[]>(
       `/stock-livreur/parent/${parentId}/actuel`,
     );
-    return data;
+    return trierParProduit(data);
   },
 
   /**
@@ -50,7 +51,7 @@ export const stockApi = {
     const { data } = await apiClient.get<StockEquipeLigneResponse[]>(
       '/stock-livreur/equipe',
     );
-    return data;
+    return trierParProduit(data);
   },
 
   /**
@@ -65,7 +66,7 @@ export const stockApi = {
     const qs = params.toString();
     const url = `/stock-livreur/me/courant${qs ? `?${qs}` : ''}`;
     const { data } = await apiClient.get<StockCourantLigneResponse[]>(url);
-    return data;
+    return trierParProduit(data);
   },
 
   /**

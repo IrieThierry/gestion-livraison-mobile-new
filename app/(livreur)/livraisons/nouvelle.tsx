@@ -39,6 +39,8 @@ import { formatFCFA } from '../../../lib/format';
 import { useRetourListe } from '../../../lib/useRetourListe';
 import type { ClientResponse } from '../../../types/api';
 import { creerVerrou, lancerUneFois } from '../../../features/commandes/verrou';
+import { useMesPrixAchat } from '../../../features/prix/hooks';
+import { avecPrixAchat, erreurPlancherLignes } from '../../../features/prix/plancher';
 import { erreurPrixImposes, estCommercial } from '../../../features/organisation/regles';
 import { apresFermetureDialogue, usePartageDocuments } from '../../../features/organisation/usePartageDocuments';
 
@@ -50,6 +52,11 @@ const LISTE_LIVRAISONS = '/(livreur)/livraisons';
  * Les retours clients ne se saisissent plus ici : ils ont leur écran dédié
  * (« Retour client », `cash/retour-client`). Après enregistrement, on
  * arrive sur la liste des livraisons.
+ *
+ * P4 : chaque produit ajouté s'insère en tête des lignes ; le préremplissage
+ * (prévisions) garde l'ordre alphabétique. P5 (livreur indépendant) : une
+ * ligne sous le prix d'achat est signalée et la vente refusée avant l'envoi,
+ * avec le message du back (qui reste juge).
  */
 export default function NouvelleLivraison() {
   const user = useAuthStore((s) => s.user);
@@ -65,6 +72,10 @@ export default function NouvelleLivraison() {
   const verrou = useRef(creerVerrou()).current;
   // O6 : commercial d'organisation, prix imposés (ni remise ni mémorisation) et facture après la vente.
   const prixImpose = estCommercial(user);
+  // P5 : plancher du prix de vente, livreur indépendant seulement.
+  const avecAchat = avecPrixAchat(user);
+  const qAchat = useMesPrixAchat(avecAchat);
+  const prixAchat = avecAchat ? qAchat.data : undefined;
   const partage = usePartageDocuments();
   const avecRemise = !prixImpose && client?.avecOuSansRemise === true;
   const conditionsFixables = peutFixerConditions(user) && !prixImpose;
@@ -172,6 +183,12 @@ export default function NouvelleLivraison() {
       dialog.warning('Ligne invalide', erreurLignes);
       return;
     }
+    // P5 : première ligne sous son prix d'achat, dans l'ordre envoyé (comme le back).
+    const plancher = prixImpose ? null : erreurPlancherLignes(prixAchat, validLignes);
+    if (plancher) {
+      dialog.error('Prix refusé', plancher);
+      return;
+    }
     if (insufficientCount > 0) {
       dialog.error(
         'Stock insuffisant',
@@ -272,6 +289,7 @@ export default function NouvelleLivraison() {
               remiseClient={avecRemise ? remise : undefined}
               memoriserPossible={conditionsFixables}
               prixImpose={prixImpose}
+              prixAchat={prixAchat}
             />
           </View>
 

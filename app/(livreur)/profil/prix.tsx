@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { Save, Trash2, Tag } from 'lucide-react-native';
+import { Save, Trash2, Tag, AlertCircle, ShoppingCart } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { FormScreen } from '../../../components/shared/FormScreen';
@@ -18,7 +18,12 @@ import {
   useMesPrix,
   useUpsertPrixLivreur,
   useSupprimerPrixLivreur,
+  useMesPrixAchat,
 } from '../../../features/prix/hooks';
+import { avecPrixAchat, erreurPlancher, montantPlancher } from '../../../features/prix/plancher';
+import { creerVerrou, lancerUneFois } from '../../../features/commandes/verrou';
+import { extractApiErrorMessage } from '../../../lib/api-error';
+import type { PrixAchatProduitResponse } from '../../../types/api';
 import { formatFCFA } from '../../../lib/format';
 import { dialog } from '../../../lib/dialog';
 import type { ProduitResponse } from '../../../types/api';
@@ -37,11 +42,22 @@ import { useGrillePrix } from '../../../features/organisation/hooks';
  * L'écran est volontairement le miroir de la page web `MesPrixPage`. Les
  * deux portails partagent les mêmes endpoints, donc une modification ici
  * est visible sur le web et inversement.
+ *
+ * Livreur indépendant (principal ou apprenti, P2) : prix d'achat le plus bas
+ * de chaque produit (fournisseur et détail par fournisseur). P5 : un prix de
+ * vente sous le prix d'achat est signalé et refusé avant l'envoi, avec le
+ * message du back (qui reste juge).
  */
 export default function MesPrixPage() {
   // O6 : le commercial d'organisation consulte la grille fixée par son responsable (lecture seule),
   // lue sur `GET /organisation/me/grille-prix` (catalogue de l'organisation et prix du responsable).
-  const lectureSeule = estCommercial(useAuthStore((s) => s.user));
+  const user = useAuthStore((s) => s.user);
+  const lectureSeule = estCommercial(user);
+  // P2 / P5 : livreur indépendant seulement (rien pour une organisation).
+  const avecAchat = avecPrixAchat(user);
+  const qAchat = useMesPrixAchat(avecAchat);
+  const achats = avecAchat ? qAchat.data : undefined;
+  const verrou = useRef(creerVerrou()).current;
   const qGrille = useGrillePrix();
   // Commercial : ni le référentiel ni ses prix personnels ne sont lus (la grille suffit).
   const qProduits = useProduits(!lectureSeule);
@@ -98,17 +114,25 @@ export default function MesPrixPage() {
       dialog.error('Erreur', 'Saisis un prix supérieur à 0');
       return;
     }
-    upsertMut.mutate(
-      { produitId: produit.id, prix },
-      {
-        onSuccess: () => {
-          setDraftPrix((d) => ({ ...d, [produit.id]: '' }));
+    // P5 : même règle et même message que le back (qui reste juge).
+    const plancher = erreurPlancher(achats, produit.id, produit.designation, prix);
+    if (plancher) {
+      dialog.error('Prix refusé', plancher);
+      return;
+    }
+    lancerUneFois(verrou, (fin) =>
+      upsertMut.mutate(
+        { produitId: produit.id, prix },
+        {
+          onSuccess: () => {
+            setDraftPrix((d) => ({ ...d, [produit.id]: '' }));
+          },
+          onError: (err: unknown) => {
+            dialog.error('Erreur', extractApiErrorMessage(err, 'Échec'));
+          },
+          onSettled: fin,
         },
-        onError: (err: unknown) => {
-          const e = err as { response?: { data?: { message?: string } } };
-          dialog.error('Erreur', e.response?.data?.message ?? 'Échec');
-        },
-      },
+      ),
     );
   };
 
@@ -141,6 +165,7 @@ export default function MesPrixPage() {
               }
               qPrix.refetch();
               qProduits.refetch();
+              if (avecAchat) qAchat.refetch();
             }}
             tintColor="#10b981"
           />
@@ -156,6 +181,15 @@ export default function MesPrixPage() {
                 : "Ces prix s'appliquent à toutes tes livraisons. Tu peux les modifier à tout moment — ils sont aussi visibles sur le portail web. Pour un prix spécifique à un client, va sur sa fiche client."}
             </Text>
           </View>
+
+          {avecAchat && qAchat.isError ? (
+            <View className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md p-3 flex-row items-start gap-2 mb-3">
+              <AlertCircle color="#b45309" size={14} />
+              <Text className="flex-1 text-[12px] text-amber-700 dark:text-amber-400">
+                {extractApiErrorMessage(qAchat.error, "Les prix d'achat n'ont pas pu être lus.")} Tire pour réessayer.
+              </Text>
+            </View>
+          ) : null}
 
           {produits.length > 0 ? (
             <SearchInput
@@ -190,6 +224,11 @@ export default function MesPrixPage() {
                 const prixActuel = prixMap.get(produit.id);
                 const draft = draftPrix[produit.id] ?? '';
                 const hasPrix = prixActuel !== undefined;
+                const achat = achats?.get(produit.id);
+                // P5 : prix enregistré ou saisi sous le prix d'achat.
+                const alerteActuel = hasPrix ? erreurPlancher(achats, produit.id, produit.designation, prixActuel) : null;
+                const prixSaisi = parseInt(draft.replace(/[^0-9]/g, ''), 10);
+                const alerteSaisie = draft.trim() ? erreurPlancher(achats, produit.id, produit.designation, prixSaisi) : null;
 
                 return (
                   <View
@@ -238,6 +277,18 @@ export default function MesPrixPage() {
                           </Pressable>
                           ) : null}
                         </View>
+                      </View>
+                    ) : null}
+
+                    {avecAchat && qAchat.isSuccess ? <PrixAchat achat={achat} /> : null}
+
+                    {alerteActuel || alerteSaisie ? (
+                      <View
+                        accessibilityRole="alert"
+                        className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-md p-2.5 flex-row items-start gap-1.5 mb-2"
+                      >
+                        <AlertCircle color="#ef4444" size={13} />
+                        <Text className="flex-1 text-[12px] text-red-600 dark:text-red-400">{alerteSaisie ?? alerteActuel}</Text>
                       </View>
                     ) : null}
 
@@ -294,6 +345,53 @@ export default function MesPrixPage() {
           )}
         </View>
       </FormScreen>
+    </View>
+  );
+}
+
+/**
+ * P2 : prix d'achat le plus bas du produit, fournisseur qui le pratique et
+ * détail par fournisseur (prix croissant). Absent : aucun fournisseur
+ * partenaire ne propose le produit.
+ */
+function PrixAchat({ achat }: { achat: PrixAchatProduitResponse | undefined }) {
+  if (!achat) {
+    return (
+      <View className="flex-row items-center gap-1.5 mb-2">
+        <ShoppingCart color="#94a3b8" size={12} />
+        <Text className="text-[12px] text-slate-500 dark:text-slate-400">
+          Prix d'achat : aucun fournisseur ne le propose
+        </Text>
+      </View>
+    );
+  }
+  const detail = achat.detail.length > 1 ? achat.detail : [];
+  return (
+    <View className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-md p-2.5 mb-2">
+      <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center gap-1.5 flex-1 pr-2">
+          <ShoppingCart color="#64748b" size={12} />
+          <Text className="text-[12px] text-slate-600 dark:text-slate-300" numberOfLines={1}>
+            Prix d'achat · {achat.fournisseur.libelle}
+          </Text>
+        </View>
+        <Text
+          accessibilityLabel={`Prix d'achat : ${montantPlancher(achat.prixAchat)} F chez ${achat.fournisseur.libelle}`}
+          className="font-extrabold text-slate-900 dark:text-white"
+        >
+          {montantPlancher(achat.prixAchat)} F
+        </Text>
+      </View>
+      {detail.map((d) => (
+        <View key={d.fournisseurId} className="flex-row items-center justify-between mt-1 pl-4">
+          <Text className="text-[11px] text-slate-500 dark:text-slate-400 flex-1 pr-2" numberOfLines={1}>
+            {d.libelle}
+          </Text>
+          <Text className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+            {montantPlancher(d.prixAchat)} F
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }

@@ -17,6 +17,14 @@ export const clientsApi = {
     );
     return data;
   },
+  /**
+   * Clients de l'équipe : ceux du livreur principal et de ses apprentis
+   * (`GET /client/parent/{parentId}`), chacun avec son `livreur`.
+   */
+  byParent: async (parentId: UUID): Promise<ClientResponse[]> => {
+    const { data } = await apiClient.get<ClientResponse[]>(`/client/parent/${parentId}`);
+    return data;
+  },
   // Le back renvoie un corps texte (pas de ClientResponse) : rien à lire.
   enregistrer: async (payload: CreerClientRequest): Promise<void> => {
     await apiClient.post('/client', payload);

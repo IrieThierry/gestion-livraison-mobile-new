@@ -951,6 +951,26 @@ export interface UpsertPrixClientRequest {
   prix: number
 }
 
+// ---------- Prix d'achat du livreur indépendant (P2) ----------
+/** Prix d'achat d'un produit chez un fournisseur partenaire (après prix particulier et remise). */
+export interface PrixAchatFournisseur {
+  fournisseurId: UUID
+  libelle: string
+  prixAchat: number
+}
+/**
+ * Ligne de `GET /prix-achat/me` (livreur indépendant, principal ou apprenti) :
+ * prix d'achat le plus bas, fournisseur qui le pratique, détail par fournisseur
+ * (prix croissant). Un produit absent de la liste n'a aucun prix d'achat connu.
+ */
+export interface PrixAchatProduitResponse {
+  produitId: UUID
+  designation: string
+  prixAchat: number
+  fournisseur: { id: UUID; libelle: string }
+  detail: PrixAchatFournisseur[]
+}
+
 // ---------- Prix résolu (Plan D — résolveur) ----------
 /**
  * Réponse de `GET /prix/resoudre?clientId=X&produitId=Y` — donne le prix
@@ -1314,4 +1334,33 @@ export interface LigneGrillePrix {
   produit: { id: UUID; code: string | null; designation: string; photoUrl: string | null }
   /** Prix de la grille ; null s'il n'est pas fixé. */
   prix: number | null
+}
+
+// ---------- Réaffectation des clients par la racine d'équipe (P8) ----------
+/** `POST /equipe/clients/reaffecter` : clients sélectionnés ou zone, vers un membre de l'équipe. */
+export interface ReaffecterClientsEquipeRequest {
+  clientIds?: UUID[]
+  zoneId?: UUID
+  livreurId: UUID
+}
+export interface ReaffecterClientsEquipeResponse {
+  reaffectes: number
+  clientIds: UUID[]
+}
+/** Ligne de `GET /equipe/reaffectations` (champs « commercial » = membre de l'équipe), plus récentes d'abord. */
+export interface ReaffectationEquipeResponse {
+  id: UUID
+  date: string
+  clientId: UUID
+  clientNom: string | null
+  clientPrenom: string | null
+  ancienCommercialId: UUID | null
+  ancienCommercialNom: string | null
+  ancienCommercialPrenom: string | null
+  nouveauCommercialId: UUID | null
+  nouveauCommercialNom: string | null
+  nouveauCommercialPrenom: string | null
+  parId: UUID | null
+  parNom: string | null
+  parPrenom: string | null
 }

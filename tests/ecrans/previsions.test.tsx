@@ -112,6 +112,9 @@ jest.mock('../../components/livreur/ProduitPicker', () => {
     ),
   };
 });
+jest.mock('../../features/prix/hooks', () => ({
+  useMesPrixAchat: () => ({ data: undefined, isSuccess: false, isError: false }),
+}));
 jest.mock('@react-native-community/datetimepicker', () => ({ __esModule: true, default: () => null }));
 
 const h = hooks as unknown as Record<string, jest.Mock>;

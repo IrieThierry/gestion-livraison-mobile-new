@@ -179,7 +179,8 @@ export interface RouteApp {
  *  - `previsions` : ouvert depuis Prévisions (Commander depuis le cumul) ;
  *  - `notifications` : ouvert depuis l'écran Notifications (cloche de l'Accueil) ;
  *  - `apprenti` : ouvert depuis la fiche apprenti (paramètre `apprentiId`) ;
- *  - `notifications-responsable` : ouvert depuis les Notifications du responsable.
+ *  - `notifications-responsable` : ouvert depuis les Notifications du responsable ;
+ *  - `clients` : ouvert depuis la liste « Mes clients ».
  */
 export type Origine =
   | 'client'
@@ -188,7 +189,8 @@ export type Origine =
   | 'previsions'
   | 'notifications'
   | 'apprenti'
-  | 'notifications-responsable';
+  | 'notifications-responsable'
+  | 'clients';
 export const DEPUIS_CLIENT = 'client' as const;
 export const DEPUIS_ENCOURS = 'encours' as const;
 export const DEPUIS_A_RECEPTIONNER = 'a-receptionner' as const;
@@ -196,6 +198,7 @@ export const DEPUIS_PREVISIONS = 'previsions' as const;
 export const DEPUIS_NOTIFICATIONS = 'notifications' as const;
 export const DEPUIS_APPRENTI = 'apprenti' as const;
 export const DEPUIS_NOTIFICATIONS_RESPONSABLE = 'notifications-responsable' as const;
+export const DEPUIS_CLIENTS = 'clients' as const;
 /** Notifications du responsable (onglet de son espace). */
 const NOTIFICATIONS_RESPONSABLE = '/notifications';
 const A_RECEPTIONNER = '/cash/commandes/a-receptionner';
@@ -293,6 +296,10 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   'profil/apprentis/index': { type: 'liste', parent: '/profil' },
   'profil/apprentis/[id]': { type: 'fiche', parent: '/profil/apprentis' },
   'profil/apprentis/nouveau': { type: 'formulaire', parent: '/profil/apprentis' },
+  // P8 : réaffectation des clients par le livreur principal indépendant, ouverte depuis
+  // « Mes apprentis » ou « Mes clients » (retour à la liste des clients).
+  'profil/apprentis/reaffecter': { type: 'formulaire', parent: '/profil/apprentis', origines: { clients: '/clients' } },
+  'profil/apprentis/reaffectations': { type: 'liste', parent: '/profil/apprentis/reaffecter' },
   'profil/etats/index': { type: 'liste', parent: '/profil' },
   'profil/etats/[famille]': { type: 'fiche', parent: '/profil/etats' },
   // Organisation (O17) : « Mes factures » (factures et avoirs) du commercial.

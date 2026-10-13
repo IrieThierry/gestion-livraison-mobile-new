@@ -1,4 +1,5 @@
 import { apiClient } from '../../lib/api-client';
+import { trierParProduit } from '../../lib/tri';
 import type {
   CommandeResponse,
   CreerCommandeRequest,
@@ -30,7 +31,7 @@ export const commandesApi = {
 
   /** Catalogue (produits et prix) d'un fournisseur. */
   catalogue: async (fournisseurId: UUID): Promise<ProduitFournisseurResponse[]> =>
-    (await apiClient.get<ProduitFournisseurResponse[]>('/produit-fournisseur', { params: { fournisseurId } })).data,
+    trierParProduit((await apiClient.get<ProduitFournisseurResponse[]>('/produit-fournisseur', { params: { fournisseurId } })).data),
 
   /** Détail d'une commande (titulaire, apprenti affecté). */
   detail: async (id: UUID): Promise<CommandeResponse> =>

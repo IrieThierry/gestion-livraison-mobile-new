@@ -83,6 +83,8 @@ jest.mock('../../features/prix/hooks', () => ({
   }),
   useUpsertPrixLivreur: () => mockUpsertPrix,
   useSupprimerPrixLivreur: () => mockSupprimerPrix,
+  // P2 : aucun prix d'achat connu (pas d'alerte).
+  useMesPrixAchat: () => ({ data: new Map(), isSuccess: true, isError: false, refetch: jest.fn() }),
 }));
 jest.mock('@react-native-community/datetimepicker', () => ({ __esModule: true, default: () => null }));
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { trierParProduit } from '../../../lib/tri';
 import { ScrollView, View, Text, Pressable, RefreshControl } from 'react-native';
 import { ArrowLeftRight, Users, ArrowRight, History, Undo2, Hourglass, ClipboardList } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
@@ -44,12 +45,7 @@ function StockCourant() {
   const [recherche, setRecherche] = useState('');
   const [cible, setCible] = useState<CibleMiseAZero | null>(null);
   // Tri stable alphabétique par désignation produit
-  const items = [...(q.data ?? [])].sort((a, b) =>
-    (a.produit?.designation ?? '').localeCompare(
-      b.produit?.designation ?? '',
-      'fr',
-    ),
-  );
+  const items = trierParProduit(q.data);
 
   const itemsAffiches = filtrerRecherche(items, recherche, (s) => [
     s.produit?.designation,

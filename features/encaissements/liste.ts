@@ -1,6 +1,19 @@
 import { filtrerRecherche } from '../../lib/recherche';
+import { PERIODES_JOURS, dansBornes, type Bornes, type RaccourciJours } from '../../lib/periode';
 import type { EncaissementLivraisonResponse } from '../../types/api';
 import { num } from './regles';
+
+/** Raccourcis de période de « Mes encaissements ». */
+export type RaccourciEncaissements = RaccourciJours;
+
+/**
+ * Période de « Mes encaissements » (7 j par défaut, `PERIODE_ENCAISSEMENTS_DEFAUT`).
+ * La route `GET /encaissement/livraison/livreur/{id}` ne prend pas de dates :
+ * la période filtre la liste localement, sur la date d'encaissement.
+ */
+export const PERIODES_ENCAISSEMENTS = PERIODES_JOURS;
+
+export const PERIODE_ENCAISSEMENTS_DEFAUT: RaccourciEncaissements = '7j';
 
 /** Nom affiché du client d'un encaissement (« Prénom Nom »), vide si inconnu. */
 export function nomClientEncaissement(e: EncaissementLivraisonResponse): string {
@@ -8,15 +21,18 @@ export function nomClientEncaissement(e: EncaissementLivraisonResponse): string 
 }
 
 /**
- * Liste « Mes encaissements » : recherche sur le client et les références
+ * Liste « Mes encaissements » : période (jours entiers, bornes incluses, sur
+ * la date d'encaissement), recherche sur le client et les références
  * (encaissement et livraisons réglées), tri du plus récent au plus ancien,
  * total des encaissements affichés.
  */
 export function listeEncaissements(
   encaissements: readonly EncaissementLivraisonResponse[],
   recherche: string,
+  bornes: Bornes = {},
 ): { lignes: EncaissementLivraisonResponse[]; total: number } {
-  const lignes = filtrerRecherche(encaissements, recherche, (e) => [
+  const dansPeriode = encaissements.filter((e) => dansBornes(e.dateEncaissement, bornes));
+  const lignes = filtrerRecherche(dansPeriode, recherche, (e) => [
     nomClientEncaissement(e),
     e.reference,
     ...(e.livraisons ?? []).map((l) => l.reference),

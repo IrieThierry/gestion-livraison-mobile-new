@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { comparerDesignations } from '../../../lib/tri';
 import { ScrollView, View, Text, RefreshControl, Pressable } from 'react-native';
 import { Package } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
@@ -107,9 +108,7 @@ export default function StockEquipe() {
         }
       }
     }
-    return Array.from(acc.values()).sort((a, b) =>
-      a.designation.localeCompare(b.designation, 'fr'),
-    );
+    return Array.from(acc.values()).sort((a, b) => comparerDesignations(a.designation, b.designation));
   }, [q.data, livreurFilter]);
 
   const totals = useMemo(() => {

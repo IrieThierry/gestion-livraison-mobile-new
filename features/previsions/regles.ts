@@ -7,6 +7,7 @@ import type {
   ProduitResponse,
   UUID,
 } from '../../types/api';
+import { comparerDesignations } from '../../lib/tri';
 
 /**
  * Règles des prévisions (fonctions pures, mêmes règles que le web) :
@@ -447,7 +448,9 @@ export function lignesDepuisPrevisions(
     livraisons,
   )
     .filter((g) => g.reste > 0)
-    .map((g) => ({ produitId: g.produit.id, designation: g.produit.designation, qte: g.reste }));
+    .map((g) => ({ produitId: g.produit.id, designation: g.produit.designation, qte: g.reste }))
+    // P4 : le préremplissage garde l'ordre alphabétique.
+    .sort((a, b) => comparerDesignations(a.designation, b.designation));
 }
 
 /** Commande préremplie depuis le cumul : quantités par produit proposé, produits non proposés à part. */

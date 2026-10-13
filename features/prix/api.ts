@@ -1,5 +1,7 @@
 import { apiClient } from '../../lib/api-client';
+import { trierParProduit } from '../../lib/tri';
 import type {
+  PrixAchatProduitResponse,
   PrixClientProduitResponse,
   PrixLivreurProduitResponse,
   ResoudrePrixResponse,
@@ -16,7 +18,15 @@ import type {
 export const prixApi = {
   // --- Prix par défaut du livreur connecté ---
   mesPrix: async (): Promise<PrixLivreurProduitResponse[]> =>
-    (await apiClient.get<PrixLivreurProduitResponse[]>('/prix-livreur/me')).data,
+    trierParProduit((await apiClient.get<PrixLivreurProduitResponse[]>('/prix-livreur/me')).data),
+
+  /**
+   * P2 : prix d'achat le plus bas par produit chez les fournisseurs partenaires
+   * (livreur indépendant, principal ou apprenti ; 403 pour une organisation).
+   * Un produit absent n'a aucun prix d'achat connu.
+   */
+  mesPrixAchat: async (): Promise<PrixAchatProduitResponse[]> =>
+    (await apiClient.get<PrixAchatProduitResponse[]>('/prix-achat/me')).data,
 
   upsertPrixLivreur: async (
     p: UpsertPrixLivreurRequest,
@@ -29,7 +39,7 @@ export const prixApi = {
 
   // --- Prix custom par client ---
   prixClient: async (clientId: UUID): Promise<PrixClientProduitResponse[]> =>
-    (await apiClient.get<PrixClientProduitResponse[]>(`/prix-client/${clientId}`)).data,
+    trierParProduit((await apiClient.get<PrixClientProduitResponse[]>(`/prix-client/${clientId}`)).data),
 
   upsertPrixClient: async (
     p: UpsertPrixClientRequest,
