@@ -7,6 +7,8 @@ import {
   Users,
   Wallet,
 } from 'lucide-react-native';
+import { estMembreOrganisation } from '../features/organisation/regles';
+import type { AuthResponse } from '../types/api';
 
 /**
  * Entrées du menu « Accéder à » (bouton + de la barre d'onglets) : les sept
@@ -14,6 +16,9 @@ import {
  * écrans : un apprenti ne voit pas « Mes versements » (réservé au livreur
  * principal) et ses « Commandes » sont celles à réceptionner. Dépenses,
  * Reversements et Clôtures s'ouvrent depuis l'onglet Moi.
+ *
+ * Organisation B2B : les routes fournisseur sont fermées à ses membres, ni
+ * « Mes versements » ni « Commandes » (le dépôt charge le commercial).
  */
 export interface EntreeAccederA {
   cle: string;
@@ -25,8 +30,11 @@ export interface EntreeAccederA {
   iconColor: string;
 }
 
-export function entreesAccederA(user: { parentId?: string | null } | null | undefined): EntreeAccederA[] {
+export function entreesAccederA(
+  user: (Pick<AuthResponse, 'parentId' | 'organisationId' | 'organisationRole'>) | null | undefined,
+): EntreeAccederA[] {
   const apprenti = !!user?.parentId;
+  const organisation = estMembreOrganisation(user);
   const entrees: Array<EntreeAccederA | null> = [
     {
       cle: 'livraisons',
@@ -55,7 +63,7 @@ export function entreesAccederA(user: { parentId?: string | null } | null | unde
       iconBg: '#d1fae5',
       iconColor: '#059669',
     },
-    apprenti
+    apprenti || organisation
       ? null
       : {
           cle: 'versements',
@@ -66,15 +74,17 @@ export function entreesAccederA(user: { parentId?: string | null } | null | unde
           iconBg: '#fef3c7',
           iconColor: '#b45309',
         },
-    {
-      cle: 'commandes',
-      label: 'Commandes',
-      hint: apprenti ? 'Commandes à réceptionner' : 'Commandes auprès des fournisseurs',
-      chemin: apprenti ? '/(livreur)/cash/commandes/a-receptionner' : '/(livreur)/cash/commandes',
-      icon: Package,
-      iconBg: '#dbeafe',
-      iconColor: '#1d4ed8',
-    },
+    organisation
+      ? null
+      : {
+          cle: 'commandes',
+          label: 'Commandes',
+          hint: apprenti ? 'Commandes à réceptionner' : 'Commandes auprès des fournisseurs',
+          chemin: apprenti ? '/(livreur)/cash/commandes/a-receptionner' : '/(livreur)/cash/commandes',
+          icon: Package,
+          iconBg: '#dbeafe',
+          iconColor: '#1d4ed8',
+        },
     {
       cle: 'retours',
       label: 'Retours produits',

@@ -16,10 +16,11 @@ import type {
  * la page « Mes prix » (mobile + web). Visible aussi par les apprentis
  * du livreur (héritage hiérarchique côté back).
  */
-export function useMesPrix() {
+export function useMesPrix(enabled = true) {
   return useQuery({
     queryKey: prixKeys.mesPrix(),
     queryFn: prixApi.mesPrix,
+    enabled,
     staleTime: 60_000,
   });
 }

@@ -4,6 +4,7 @@ import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { ChiffresPrevision, PastilleStatut } from '../../../components/previsions/LignePrevision';
 import { useCommandesAReceptionner } from '../../../features/commandes/hooks';
+import { estMembreOrganisation } from '../../../features/organisation/regles';
 import { useRemisesAConfirmer } from '../../../features/remises-argent/hooks';
 import { peutDecider } from '../../../features/remises-argent/regles';
 import { RemiseArgentCarte, useDecisionRemise } from '../../../components/livreur/RemiseArgentCarte';
@@ -45,7 +46,9 @@ export default function Notifications() {
   const user = useAuthStore((s) => s.user);
   const aujourdhui = jourLocal();
   const demain = ajouterJours(aujourdhui, 1);
-  const qARecep = useCommandesAReceptionner(!!user);
+  // Organisation : commandes fournisseur fermées, la section est masquée.
+  const organisation = estMembreOrganisation(user);
+  const qARecep = useCommandesAReceptionner(!!user && !organisation);
   const echuesQ = usePrevisionsEchues(user?.id, aujourdhui);
   const supprimer = useSupprimerGroupes();
   const reporter = useReporterGroupes();
@@ -134,7 +137,7 @@ export default function Notifications() {
           <RefreshControl
             refreshing={false}
             onRefresh={() => {
-              qARecep.refetch();
+              if (!organisation) qARecep.refetch();
               echuesQ.refetch();
               if (estPrincipal) remisesQ.refetch();
               transfertsQ.refetch();
@@ -144,6 +147,8 @@ export default function Notifications() {
         }
       >
         <View className="px-4 pt-3 gap-3">
+          {!organisation ? (
+          <>
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
             Commandes à réceptionner
           </Text>
@@ -162,8 +167,10 @@ export default function Notifications() {
             </Text>
             <ChevronRight color="#94a3b8" size={18} />
           </Pressable>
+          </>
+          ) : null}
 
-          <View className="flex-row items-center mt-3">
+          <View className={`flex-row items-center ${organisation ? '' : 'mt-3'}`}>
             <Text className="flex-1 text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
               Transferts à recevoir
             </Text>

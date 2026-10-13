@@ -26,6 +26,7 @@ import { peutFixerConditions } from '../../../../features/remise/regles';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { useAuthStore } from '../../../../stores/authStore';
+import { estMembreOrganisation } from '../../../../features/organisation/regles';
 import { formatFCFA } from '../../../../lib/format';
 import { dialog } from '../../../../lib/dialog';
 import type { ProduitResponse } from '../../../../types/api';
@@ -179,6 +180,8 @@ export default function PrixClientPage() {
             <Text className="flex-1 text-[12px] text-emerald-700 dark:text-emerald-400">
               {conditionsFixables
                 ? 'Les prix mémorisés ici remplacent ton barème par défaut pour ce client uniquement. Ils sont visibles aussi sur le portail web.'
+                : estMembreOrganisation(user)
+                ? 'Prix fixés par ton responsable pour ce client (lecture seule).'
                 : "Prix négociés pour ce client (lecture seule). Seul le livreur principal ou l'administrateur peut les modifier."}
             </Text>
           </View>

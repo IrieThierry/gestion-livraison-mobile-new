@@ -23,6 +23,9 @@ import { formatFCFA } from '../../../lib/format';
 import { dialog } from '../../../lib/dialog';
 import type { ProduitResponse } from '../../../types/api';
 import { ProduitVignette } from '../../../components/shared/ProduitVignette';
+import { useAuthStore } from '../../../stores/authStore';
+import { estCommercial } from '../../../features/organisation/regles';
+import { useGrillePrix } from '../../../features/organisation/hooks';
 
 /**
  * « Mes prix de vente » — barème par défaut du livreur.
@@ -36,8 +39,13 @@ import { ProduitVignette } from '../../../components/shared/ProduitVignette';
  * est visible sur le web et inversement.
  */
 export default function MesPrixPage() {
-  const qProduits = useProduits();
-  const qPrix = useMesPrix();
+  // O6 : le commercial d'organisation consulte la grille fixée par son responsable (lecture seule),
+  // lue sur `GET /organisation/me/grille-prix` (catalogue de l'organisation et prix du responsable).
+  const lectureSeule = estCommercial(useAuthStore((s) => s.user));
+  const qGrille = useGrillePrix();
+  // Commercial : ni le référentiel ni ses prix personnels ne sont lus (la grille suffit).
+  const qProduits = useProduits(!lectureSeule);
+  const qPrix = useMesPrix(!lectureSeule);
   const upsertMut = useUpsertPrixLivreur();
   const deleteMut = useSupprimerPrixLivreur();
 
@@ -46,16 +54,33 @@ export default function MesPrixPage() {
 
   const prixMap = useMemo(() => {
     const m = new Map<string, number>();
-    for (const p of qPrix.data ?? []) m.set(p.produit.id, p.prix);
+    if (lectureSeule) {
+      for (const l of qGrille.data ?? []) if (l.prix != null) m.set(l.produit.id, Number(l.prix));
+    } else {
+      for (const p of qPrix.data ?? []) m.set(p.produit.id, p.prix);
+    }
     return m;
-  }, [qPrix.data]);
+  }, [lectureSeule, qGrille.data, qPrix.data]);
 
-  const produitsAffiches = useMemo(
-    () => filtrerRecherche(qProduits.data ?? [], recherche, (p) => [p.designation, p.code]),
-    [qProduits.data, recherche],
+  const tousProduits = useMemo<ProduitResponse[]>(
+    () =>
+      lectureSeule
+        ? (qGrille.data ?? []).map((l) => ({
+            id: l.produit.id,
+            code: l.produit.code ?? '',
+            designation: l.produit.designation,
+            photoUrl: l.produit.photoUrl,
+          }))
+        : qProduits.data ?? [],
+    [lectureSeule, qGrille.data, qProduits.data],
   );
 
-  if (qProduits.isLoading || qPrix.isLoading) {
+  const produitsAffiches = useMemo(
+    () => filtrerRecherche(tousProduits, recherche, (p) => [p.designation, p.code]),
+    [tousProduits, recherche],
+  );
+
+  if (lectureSeule ? qGrille.isLoading : qProduits.isLoading || qPrix.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
         <ActivityIndicator color="#10b981" />
@@ -63,7 +88,8 @@ export default function MesPrixPage() {
     );
   }
 
-  const produits = qProduits.data ?? [];
+  const produits = tousProduits;
+  const grilleIndisponible = lectureSeule && qGrille.isError;
 
   const onSave = (produit: ProduitResponse) => {
     const raw = draftPrix[produit.id] ?? '';
@@ -100,15 +126,19 @@ export default function MesPrixPage() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
         title="Mes prix de vente"
-        subtitle="Barème par défaut"
+        subtitle={lectureSeule ? 'Prix fixés par ton responsable' : 'Barème par défaut'}
       />
 
       {/* FormScreen : le clavier numérique ne recouvre pas les prix du bas. */}
       <FormScreen
         refreshControl={
           <RefreshControl
-            refreshing={qPrix.isFetching && !qPrix.isLoading}
+            refreshing={lectureSeule ? qGrille.isFetching && !qGrille.isLoading : qPrix.isFetching && !qPrix.isLoading}
             onRefresh={() => {
+              if (lectureSeule) {
+                qGrille.refetch();
+                return;
+              }
               qPrix.refetch();
               qProduits.refetch();
             }}
@@ -121,9 +151,9 @@ export default function MesPrixPage() {
           <View className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-md p-3 flex-row items-start gap-2 mb-3">
             <Tag color="#059669" size={14} />
             <Text className="flex-1 text-[12px] text-emerald-700 dark:text-emerald-400">
-              Ces prix s'appliquent à toutes tes livraisons. Tu peux les
-              modifier à tout moment — ils sont aussi visibles sur le portail
-              web. Pour un prix spécifique à un client, va sur sa fiche client.
+              {lectureSeule
+                ? 'Prix fixés par ton responsable. Ils s’appliquent à tes ventes et ne se modifient pas ici.'
+                : "Ces prix s'appliquent à toutes tes livraisons. Tu peux les modifier à tout moment — ils sont aussi visibles sur le portail web. Pour un prix spécifique à un client, va sur sa fiche client."}
             </Text>
           </View>
 
@@ -136,10 +166,19 @@ export default function MesPrixPage() {
             />
           ) : null}
 
-          {produits.length === 0 ? (
+          {grilleIndisponible ? (
+            <EmptyState
+              title="Grille de prix indisponible"
+              message="Les prix n’ont pas pu être lus. Tire pour réessayer."
+            />
+          ) : produits.length === 0 ? (
             <EmptyState
               title="Aucun produit"
-              message="Demande à l'admin de créer des produits dans le référentiel."
+              message={
+                lectureSeule
+                  ? 'Ton responsable n’a pas encore de produit dans son catalogue.'
+                  : "Demande à l'admin de créer des produits dans le référentiel."
+              }
             />
           ) : produitsAffiches.length === 0 ? (
             <Text className="text-[12px] text-slate-400 dark:text-slate-500 text-center py-4">
@@ -188,6 +227,7 @@ export default function MesPrixPage() {
                           <Text className="font-extrabold text-emerald-700 dark:text-emerald-400">
                             {formatFCFA(prixActuel)} FCFA
                           </Text>
+                          {!lectureSeule ? (
                           <Pressable
                             onPress={() => onDelete(produit)}
                             disabled={deleteMut.isPending}
@@ -196,11 +236,17 @@ export default function MesPrixPage() {
                           >
                             <Trash2 color="#ef4444" size={16} />
                           </Pressable>
+                          ) : null}
                         </View>
                       </View>
                     ) : null}
 
-                    {/* Input + bouton enregistrer */}
+                    {lectureSeule && !hasPrix ? (
+                      <Text className="text-[12px] text-slate-500 dark:text-slate-400">Aucun prix fixé</Text>
+                    ) : null}
+
+                    {/* Input + bouton enregistrer (pas pour le commercial d'organisation) */}
+                    {!lectureSeule ? (
                     <View className="flex-row gap-2 items-end">
                       <View className="flex-1">
                         <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-1">
@@ -240,6 +286,7 @@ export default function MesPrixPage() {
                         </Text>
                       </Pressable>
                     </View>
+                    ) : null}
                   </View>
                 );
               })}

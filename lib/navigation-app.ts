@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BackHandler } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { useAuthStore } from '../stores/authStore';
+import { estResponsable } from '../features/organisation/regles';
 import {
   ACCUEIL,
   actionNaviguer,
@@ -42,7 +43,8 @@ export function brancherNavigation(r: RefNavigation | null): void {
 }
 
 function contexte(): ContexteNavigation {
-  return { apprenti: !!useAuthStore.getState().user?.parentId };
+  const user = useAuthStore.getState().user;
+  return { apprenti: !!user?.parentId, responsable: estResponsable(user) };
 }
 
 function onglets(): EtatNavigateur | undefined {

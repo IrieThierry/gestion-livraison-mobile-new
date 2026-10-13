@@ -109,6 +109,21 @@ describe('buildCreerLivraisonPayload', () => {
     expect(p.produitsLivraison[0].prixDeVente).toBe(80);
   });
 
+  it('commercial d’organisation (O6) : prix résolu envoyé, jamais de remise ni de mémorisation', () => {
+    const p = buildCreerLivraisonPayload({
+      livreurId: 'k-1',
+      // Même avec des conditions fixables, le prix imposé l'emporte.
+      conditionsFixables: true,
+      client: { id: 'c-1', avecOuSansRemise: true },
+      lignes: [l({ prix: 500, memoriserPrix: true })],
+      prixImpose: true,
+    });
+    expect(p.avecRemise).toBe(false);
+    expect(p.produitsLivraison[0].memoriserPrixClient).toBe(false);
+    expect(p.produitsLivraison[0].prixDeVente).toBe(500);
+    expect(p.produitsLivraison[0]).not.toHaveProperty('remiseUnitaire');
+  });
+
   it('lignes à quantité 0 non envoyées', () => {
     const p = buildCreerLivraisonPayload({
       livreurId: 'l-1',

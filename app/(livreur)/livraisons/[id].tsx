@@ -1,6 +1,6 @@
 import { ScrollView, View, Text, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { Phone, MapPin, Banknote } from 'lucide-react-native';
+import { Phone, MapPin, Banknote, FileText } from 'lucide-react-native';
 import { useLivraisonsByLivreur } from '../../../features/livraisons/hooks';
 import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
@@ -17,6 +17,8 @@ import {
 import { num, prixUnitaireClient } from '../../../features/encaissements/regles';
 import { ProduitVignette } from '../../../components/shared/ProduitVignette';
 import { naviguer } from '../../../lib/navigation-app';
+import { useFactureDeLivraison } from '../../../features/organisation/hooks';
+import { usePartageDocuments } from '../../../features/organisation/usePartageDocuments';
 
 /**
  * The backend stores client coords as a single string "lat,lng".
@@ -37,6 +39,10 @@ export default function LivraisonDetail() {
   const user = useAuthStore((s) => s.user);
   const isOnline = useNetworkStore((s) => s.isOnline);
   const q = useLivraisonsByLivreur(user?.id ?? '');
+  // O17 : la vente d'un commercial est facturée ; sa facture se partage depuis la fiche.
+  const partage = usePartageDocuments();
+  // Bouton seulement si la vente a une facture (pas pour une vente non facturée).
+  const qFacture = useFactureDeLivraison(id);
 
   if (!user) return null;
 
@@ -226,6 +232,26 @@ export default function LivraisonDetail() {
               <Banknote color={isOnline ? '#fff' : '#94a3b8'} size={18} />
               <Text className={`font-bold ${isOnline ? 'text-white' : 'text-slate-400'}`}>
                 {isOnline ? 'Encaisser' : 'Hors ligne — réessaye en ligne'}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {qFacture.data ? (
+            <Pressable
+              disabled={!isOnline || partage.enCours === livraison.id}
+              onPress={() => partage.factureDeLivraison(livraison.id)}
+              accessibilityRole="button"
+              className={`mt-3 rounded-md py-3 flex-row items-center justify-center gap-2 border ${
+                isOnline ? 'border-emerald-500 active:opacity-70' : 'border-slate-200 dark:border-slate-800'
+              }`}
+            >
+              {partage.enCours === livraison.id ? (
+                <ActivityIndicator color="#10b981" />
+              ) : (
+                <FileText color={isOnline ? '#059669' : '#94a3b8'} size={18} />
+              )}
+              <Text className={`font-bold ${isOnline ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-400'}`}>
+                Partager la facture
               </Text>
             </Pressable>
           ) : null}

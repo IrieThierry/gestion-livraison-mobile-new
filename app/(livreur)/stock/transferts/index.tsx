@@ -8,6 +8,7 @@ import { useTransfertsLivreur, useTransfertsParent } from '../../../../features/
 import { transfertsAffiches, type FiltreTransferts } from '../../../../features/transferts/regles';
 import { useAuthStore } from '../../../../stores/authStore';
 import { naviguer } from '../../../../lib/navigation-app';
+import { estResponsable, vocabulaire } from '../../../../features/organisation/regles';
 
 /**
  * Transferts de stock. Principal : ceux de l'équipe (`GET
@@ -21,10 +22,13 @@ export default function TransfertsList() {
   const qEquipe = useTransfertsParent(user && !estApprenti ? user.id : undefined);
   const qMiens = useTransfertsLivreur(user && estApprenti ? user.id : undefined);
   const q = estApprenti ? qMiens : qEquipe;
-  const decision = useDecisionTransfert(user?.id);
+  // Responsable (O15) : sur le mobile, il accepte ou refuse seulement (ni envoi, ni annulation).
+  const responsable = estResponsable(user);
+  const decision = useDecisionTransfert(user?.id, { annulation: !responsable });
   const [filtre, setFiltre] = useState<FiltreTransferts>('TOUS');
 
   if (!user) return null;
+  const v = vocabulaire(user);
 
   const tous = q.data ?? [];
   const nbEnAttente = tous.filter((t) => t.statut === 'EN_ATTENTE').length;
@@ -41,14 +45,16 @@ export default function TransfertsList() {
         title="Transferts de stock"
         subtitle={`${tous.length} transfert${tous.length > 1 ? 's' : ''}`}
         right={
+          responsable ? undefined : (
           <Pressable
             onPress={() => naviguer('/(livreur)/stock/transferts/nouveau')}
             accessibilityRole="button"
             className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             {estApprenti ? <Undo2 color="#fff" size={14} /> : <Plus color="#fff" size={14} />}
-            <Text className="text-white text-xs font-bold">{estApprenti ? 'Rendre du stock' : 'Nouveau'}</Text>
+            <Text className="text-white text-xs font-bold">{estApprenti ? v.rendreStock : 'Nouveau'}</Text>
           </Pressable>
+          )
         }
       />
 
@@ -97,9 +103,11 @@ export default function TransfertsList() {
             <EmptyState
               title="Aucun transfert"
               message={
-                estApprenti
-                  ? 'Rends du stock à ton livreur principal avec « Rendre du stock ».'
-                  : 'Envoie du stock à un apprenti, ou reprends-en, avec le bouton « Nouveau ».'
+                responsable
+                  ? undefined
+                  : estApprenti
+                  ? `Rends du stock à ${v.tonPrincipal} avec « ${v.rendreStock} ».`
+                  : `Envoie du stock à un ${v.apprenti}, ou reprends-en, avec le bouton « Nouveau ».`
               }
             />
           )

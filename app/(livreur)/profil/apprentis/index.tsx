@@ -19,6 +19,7 @@ import {
 import { useAuthStore } from '../../../../stores/authStore';
 import type { LivreurResponse } from '../../../../types/api';
 import { naviguer } from '../../../../lib/navigation-app';
+import { estResponsable, vocabulaire } from '../../../../features/organisation/regles';
 
 /**
  * « Mes apprentis » — page accessible depuis le Profil pour les livreurs
@@ -33,6 +34,9 @@ export default function ApprentisList() {
   const q = useApprentis();
   const toggleMut = useToggleApprentiActif();
   const [search, setSearch] = useState('');
+  // Responsable (O15) : « Mes commerciaux » en lecture sur le mobile (ni création, ni activation).
+  const lectureSeule = estResponsable(user);
+  const v = vocabulaire(user);
 
   // Tu es root si tu n'as pas de parentId. On relaxe la condition par
   // rapport à `role === 'LIVREUR'` car certaines sessions legacy n'ont
@@ -87,9 +91,10 @@ export default function ApprentisList() {
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
-        title="Mes apprentis"
-        subtitle={`${q.data?.length ?? 0} apprenti${(q.data?.length ?? 0) > 1 ? 's' : ''}`}
+        title={v.mesApprentis}
+        subtitle={`${q.data?.length ?? 0} ${(q.data?.length ?? 0) > 1 ? v.apprentis : v.apprenti}`}
         right={
+          lectureSeule ? undefined : (
           <Pressable
             onPress={() => naviguer('/(livreur)/profil/apprentis/nouveau')}
             className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
@@ -97,6 +102,7 @@ export default function ApprentisList() {
             <Plus color="#fff" size={14} />
             <Text className="text-white text-xs font-bold">Nouveau</Text>
           </Pressable>
+          )
         }
       />
 
@@ -133,10 +139,12 @@ export default function ApprentisList() {
             </View>
           ) : (
             <EmptyState
-              title="Aucun apprenti"
+              title={`Aucun ${v.apprenti}`}
               message={
                 search
-                  ? 'Aucun apprenti ne correspond à ta recherche.'
+                  ? `Aucun ${v.apprenti} ne correspond à ta recherche.`
+                  : lectureSeule
+                  ? 'Tes commerciaux se créent sur le portail web.'
                   : 'Crée ton premier apprenti avec le bouton « Nouveau » en haut.'
               }
             />
@@ -148,7 +156,7 @@ export default function ApprentisList() {
             onPress={() =>
               naviguer('/(livreur)/profil/apprentis/[id]', { id: item.id })
             }
-            onToggle={() => onToggle(item)}
+            onToggle={lectureSeule ? undefined : () => onToggle(item)}
           />
         )}
       />
@@ -163,7 +171,8 @@ function ApprentiRow({
 }: {
   apprenti: LivreurResponse;
   onPress: () => void;
-  onToggle: () => void;
+  /** Absent : pas de bouton d'activation (lecture seule). */
+  onToggle?: () => void;
 }) {
   const initials = `${apprenti.prenom[0] ?? ''}${apprenti.nom[0] ?? ''}`.toUpperCase();
   const actif = apprenti.actif !== false;
@@ -213,6 +222,7 @@ function ApprentiRow({
       </View>
 
       {/* Toggle */}
+      {onToggle ? (
       <Pressable
         onPress={onToggle}
         hitSlop={6}
@@ -224,6 +234,7 @@ function ApprentiRow({
       >
         <Power color={actif ? '#dc2626' : '#059669'} size={14} />
       </Pressable>
+      ) : null}
 
       <ChevronRight color="#94a3b8" size={16} />
     </Pressable>

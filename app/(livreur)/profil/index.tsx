@@ -20,12 +20,16 @@ import {
   FileText,
   Receipt,
   HandCoins,
+  FileStack,
+  ArrowLeftRight,
+  Monitor,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { Avatar } from '../../../components/shared/Avatar';
 import { useAuthStore } from '../../../stores/authStore';
 import { useThemeStore, type Theme } from '../../../stores/themeStore';
 import { naviguer } from '../../../lib/navigation-app';
+import { estCommercial, estMembreOrganisation, estResponsable, vocabulaire } from '../../../features/organisation/regles';
 
 const THEMES: Array<{
   key: Theme;
@@ -44,6 +48,13 @@ export default function Profil() {
   const setTheme = useThemeStore((s) => s.setTheme);
 
   if (!user) return null;
+
+  // Organisation B2B : vocabulaire (O4), pas de fournisseurs, factures du commercial (O17).
+  const v = vocabulaire(user);
+  const membre = estMembreOrganisation(user);
+  const commercial = estCommercial(user);
+  // Responsable (O15) : espace en lecture, ses deux actions (déchargements, remises) ; la gestion est sur le web.
+  const responsable = estResponsable(user);
 
   const onLogout = () => {
     dialog.confirm({
@@ -87,7 +98,7 @@ export default function Profil() {
             </Text>
             <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
               {user.username}
-              {user.profile ? ` · ${user.profile}` : ''}
+              {v.role ? ` · ${v.role}` : user.profile ? ` · ${user.profile}` : ''}
             </Text>
             {user.contact ? (
               <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
@@ -135,6 +146,7 @@ export default function Profil() {
               </View>
               <ChevronRight color="#94a3b8" size={18} />
             </Pressable>
+            {!responsable ? (
             <Pressable
               onPress={() => naviguer('/(livreur)/profil/prix')}
               className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
@@ -152,6 +164,9 @@ export default function Profil() {
               </View>
               <ChevronRight color="#94a3b8" size={18} />
             </Pressable>
+            ) : null}
+            {/* Fournisseurs : fermés aux organisations (le dépôt est approvisionné par le responsable). */}
+            {!membre ? (
             <Pressable
               onPress={() => naviguer('/(livreur)/profil/fournisseurs')}
               className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
@@ -169,6 +184,7 @@ export default function Profil() {
               </View>
               <ChevronRight color="#94a3b8" size={18} />
             </Pressable>
+            ) : null}
             {/* Mes apprentis — visible pour les livreurs racines uniquement.
                 Un apprenti (parentId défini) ne peut pas avoir lui-même
                 des sous-apprentis dans la hiérarchie actuelle. On ne filtre
@@ -186,10 +202,10 @@ export default function Profil() {
                   <UsersRound color="#8b5cf6" size={20} />
                   <View>
                     <Text className="font-extrabold text-slate-900 dark:text-white">
-                      Mes apprentis
+                      {v.mesApprentis}
                     </Text>
                     <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Crée et gère les comptes de tes apprentis livreurs
+                      {responsable ? 'Consulte tes commerciaux et leur activité' : membre ? 'Crée et gère les comptes de tes commerciaux' : 'Crée et gère les comptes de tes apprentis livreurs'}
                     </Text>
                   </View>
                 </View>
@@ -198,11 +214,33 @@ export default function Profil() {
             ) : null}
           </View>
 
+          {responsable ? <EspaceResponsable remisesTitre={`Remises des ${v.apprentis}`} /> : null}
+
           {/* Activité — pages métier accessibles aussi via tournée */}
+          {!responsable ? (
+          <>
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
             Activité
           </Text>
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+            {commercial ? (
+              <Pressable
+                onPress={() => naviguer('/(livreur)/profil/factures')}
+                accessibilityRole="button"
+                className="flex-row items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 active:opacity-70"
+              >
+                <View className="flex-row items-center gap-3">
+                  <FileStack color="#0ea5e9" size={20} />
+                  <View>
+                    <Text className="font-extrabold text-slate-900 dark:text-white">Mes factures</Text>
+                    <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Factures et avoirs de tes ventes, en PDF à partager
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight color="#94a3b8" size={18} />
+              </Pressable>
+            ) : null}
             <Pressable
               onPress={() => naviguer('/(livreur)/profil/etats')}
               className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
@@ -303,7 +341,7 @@ export default function Profil() {
                       Mes remises
                     </Text>
                     <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Argent remis à ton principal
+                      Argent remis à {v.tonPrincipalCourt}
                     </Text>
                   </View>
                 </View>
@@ -319,7 +357,7 @@ export default function Profil() {
                   <HandCoins color="#0d9488" size={20} />
                   <View>
                     <Text className="font-extrabold text-slate-900 dark:text-white">
-                      Remises des apprentis
+                      Remises des {v.apprentis}
                     </Text>
                     <Text className="text-[11px] text-slate-500 dark:text-slate-400">
                       Confirme ou conteste l’argent remis
@@ -330,6 +368,8 @@ export default function Profil() {
               </Pressable>
             ) : null}
           </View>
+          </>
+          ) : null}
 
           {/* Apparence */}
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
@@ -372,5 +412,60 @@ export default function Profil() {
         </View>
       </ScrollView>
     </View>
+  );
+}
+
+/**
+ * Moi du responsable (O15) : ses deux actions du mobile, et le rappel que
+ * la gestion de l'organisation se fait sur le portail web.
+ */
+function EspaceResponsable({ remisesTitre }: { remisesTitre: string }) {
+  return (
+    <>
+      <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2">
+        Mon espace
+      </Text>
+      <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+        <Pressable
+          onPress={() => naviguer('/(livreur)/stock/transferts')}
+          accessibilityRole="button"
+          className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
+        >
+          <View className="flex-row items-center gap-3">
+            <ArrowLeftRight color="#0ea5e9" size={20} />
+            <View>
+              <Text className="font-extrabold text-slate-900 dark:text-white">Transferts de stock</Text>
+              <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                Accepte ou refuse les déchargements au dépôt
+              </Text>
+            </View>
+          </View>
+          <ChevronRight color="#94a3b8" size={18} />
+        </Pressable>
+        <Pressable
+          onPress={() => naviguer('/(livreur)/profil/remises-apprentis')}
+          accessibilityRole="button"
+          className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
+        >
+          <View className="flex-row items-center gap-3">
+            <HandCoins color="#0d9488" size={20} />
+            <View>
+              <Text className="font-extrabold text-slate-900 dark:text-white">{remisesTitre}</Text>
+              <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                Confirme ou conteste l’argent remis
+              </Text>
+            </View>
+          </View>
+          <ChevronRight color="#94a3b8" size={18} />
+        </Pressable>
+      </View>
+      <View className="flex-row items-start gap-2 bg-sky-50 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-500/30 rounded-md p-3 mt-3">
+        <Monitor color="#0284c7" size={14} />
+        <Text className="flex-1 text-[12px] text-sky-800 dark:text-sky-200">
+          Commerciaux, catalogue, prix, dépôt, demandes de chargement, clients, factures et états se gèrent sur le
+          portail web.
+        </Text>
+      </View>
+    </>
   );
 }

@@ -12,6 +12,7 @@ import type {
 } from '../../types/api';
 import { encaissementsApi } from './api';
 import { encaissementKeys } from './keys';
+import { organisationKeys } from '../organisation/keys';
 import { apercuAJour, peutValiderEncaissement } from './regles';
 import { livraisonKeys } from '../livraisons/keys';
 import { clientKeys, encoursKeys } from '../clients/keys';
@@ -89,6 +90,8 @@ export function useCreerEncaissement() {
     mutationFn: (payload: CreerEncaissementLivraisonRequest) =>
       encaissementsApi.creer(payload),
     onSuccess: () => {
+      // Organisation : factures et avoirs (émission, situation payé / reste dû).
+      qc.invalidateQueries({ queryKey: organisationKeys.all });
       qc.invalidateQueries({ queryKey: livraisonKeys.all });
       qc.invalidateQueries({ queryKey: encaissementKeys.all });
       qc.invalidateQueries({ queryKey: etatsKeys.all });

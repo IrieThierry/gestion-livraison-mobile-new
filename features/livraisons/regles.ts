@@ -13,6 +13,12 @@ export interface LigneSaisie {
   qte: number;
   /** Le livreur a choisi de mémoriser le prix saisi pour ce client. */
   memoriserPrix?: boolean;
+  /**
+   * Prix imposé (O6) : `en-lecture` (client changé ou lecture en cours),
+   * `erreur` (lecture du prix en échec), `resolu` (prix lu, éventuellement
+   * aucun). Absent hors prix imposé.
+   */
+  prixStatut?: 'en-lecture' | 'erreur' | 'resolu';
 }
 
 /**
@@ -61,8 +67,15 @@ export function buildCreerLivraisonPayload(input: {
   lignes: LigneSaisie[];
   /** D14/D20 : faux pour un apprenti (le back ne mémorise rien) : memoriserPrixClient à false. */
   conditionsFixables: boolean;
+  /**
+   * O6 : commercial d'organisation. Le prix de chaque ligne est imposé par le
+   * back (le prix envoyé, obligatoire, est ignoré : on envoie le prix résolu),
+   * jamais de remise ni de mémorisation du prix client.
+   */
+  prixImpose?: boolean;
 }): CreerLivraisonRequest {
-  const avecRemise = input.client.avecOuSansRemise === true;
+  const avecRemise = !input.prixImpose && input.client.avecOuSansRemise === true;
+  const memoriser = input.conditionsFixables && !input.prixImpose;
   return {
     livreurId: input.livreurId,
     clientId: input.client.id,
@@ -75,7 +88,7 @@ export function buildCreerLivraisonPayload(input: {
         qteRetournee: 0,
         qteRetourneeEnStock: 0,
         prixDeVente: l.prix,
-        memoriserPrixClient: input.conditionsFixables && l.memoriserPrix === true,
+        memoriserPrixClient: memoriser && l.memoriserPrix === true,
       })),
   };
 }

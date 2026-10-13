@@ -10,6 +10,11 @@ import { AUCUN_RESULTAT, filtrerRecherche } from '../../lib/recherche';
 import { SearchInput } from '../shared/SearchInput';
 import type { ProduitResponse } from '../../types/api';
 import { ProduitVignette } from '../shared/ProduitVignette';
+import {
+  MESSAGE_PRIX_EN_LECTURE,
+  messageAucunPrix,
+  messagePrixIndisponible,
+} from '../../features/organisation/regles';
 
 export type Ligne = LigneSaisie;
 
@@ -22,6 +27,7 @@ export function ProduitPicker({
   onValidityChange,
   remiseClient,
   memoriserPossible = true,
+  prixImpose = false,
 }: {
   lignes: Ligne[];
   onChange: (l: Ligne[]) => void;
@@ -37,6 +43,12 @@ export function ProduitPicker({
   remiseClient?: number;
   /** Faux (apprenti, D20) : option « Mémoriser le prix » masquée. */
   memoriserPossible?: boolean;
+  /**
+   * O6 (commercial d'organisation) : prix de chaque ligne fixé par le
+   * responsable (résolveur), affiché et non modifiable ; ni remise ni
+   * « Mémoriser le prix ».
+   */
+  prixImpose?: boolean;
 }) {
   const { data: referentiel = [] } = useProduits();
   const [recherche, setRecherche] = useState('');
@@ -76,11 +88,11 @@ export function ProduitPicker({
     const courantes = lignesRef.current;
     if (courantes.find((l) => l.produitId === item.id)) return;
     // Un prix par défaut du client à 0 ou absent ne fixe rien : le prix reste à saisir.
-    const prix = prixInitialLigne(prixDeVenteParDefaut);
-    const next = [
-      ...courantes,
-      { produitId: item.id, designation: item.designation, prix, qte: 1 },
-    ];
+    const prix = prixImpose ? 0 : prixInitialLigne(prixDeVenteParDefaut);
+    const ligne: Ligne = { produitId: item.id, designation: item.designation, prix, qte: 1 };
+    // Prix imposé : à lire par le résolveur avant toute vente.
+    if (prixImpose) ligne.prixStatut = 'en-lecture';
+    const next = [...courantes, ligne];
     lignesRef.current = next;
     onChange(next);
   };
@@ -192,7 +204,8 @@ export function ProduitPicker({
             stockDispo={stockMap.get(l.produitId) ?? 0}
             enforceStock={enforceStock}
             remiseClient={remiseClient}
-            memoriserPossible={memoriserPossible}
+            memoriserPossible={memoriserPossible && !prixImpose}
+            prixImpose={prixImpose}
             onUpdate={(patch) => updateProduit(l.produitId, patch)}
             onRemove={() => removeProduit(l.produitId)}
           />
@@ -223,6 +236,7 @@ function LigneRow({
   enforceStock,
   remiseClient,
   memoriserPossible,
+  prixImpose,
   onUpdate,
   onRemove,
 }: {
@@ -233,10 +247,16 @@ function LigneRow({
   enforceStock: boolean;
   remiseClient?: number;
   memoriserPossible: boolean;
+  prixImpose: boolean;
   onUpdate: (patch: Partial<Ligne>) => void;
   onRemove: () => void;
 }) {
-  const { data: resolved } = useResoudrePrix(clientId, line.produitId);
+  const {
+    data: resolved,
+    isError: resolutionEnEchec,
+    isFetching: resolutionEnCours,
+    refetch: relireResolution,
+  } = useResoudrePrix(clientId, line.produitId);
 
   // Track le dernier prix résolu pour comparer au prix actuel et savoir
   // s'il a été modifié manuellement (cas où on doit afficher le bouton
@@ -248,7 +268,32 @@ function LigneRow({
   const [resolvedLoaded, setResolvedLoaded] = useState(false);
   const lastQueryKey = useRef<string>('');
 
+  // Prix imposé (O6) : la ligne porte toujours le prix lu pour le client courant.
+  // Changement de client ou lecture en cours : prix vidé, statut « en-lecture »
+  // (vente bloquée) ; lecture en échec : statut « erreur » (réessayer), distinct
+  // de « aucun prix fixé ». Jamais l'ancien prix d'un autre client.
+  const appliquePour = useRef<string>('');
   useEffect(() => {
+    if (!prixImpose) return;
+    const cle = `${clientId ?? ''}__${line.produitId}`;
+    if (clientId && resolved) {
+      if (appliquePour.current !== cle || line.prixStatut !== 'resolu') {
+        appliquePour.current = cle;
+        onUpdate({ prix: resolved.prix !== null && resolved.prix > 0 ? resolved.prix : 0, prixStatut: 'resolu' });
+      }
+      setResolvedPrix(resolved.prix);
+      setResolvedLoaded(true);
+      return;
+    }
+    appliquePour.current = '';
+    setResolvedLoaded(false);
+    const statut = clientId && resolutionEnEchec && !resolutionEnCours ? 'erreur' : 'en-lecture';
+    if (line.prix !== 0 || line.prixStatut !== statut) onUpdate({ prix: 0, prixStatut: statut });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prixImpose, resolved, resolutionEnEchec, resolutionEnCours, clientId, line.produitId, line.prix, line.prixStatut]);
+
+  useEffect(() => {
+    if (prixImpose) return;
     if (!resolved) {
       setResolvedLoaded(false);
       return;
@@ -268,7 +313,10 @@ function LigneRow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolved, clientId, line.produitId]);
 
-  const avecRemise = remiseClient !== undefined;
+  const avecRemise = !prixImpose && remiseClient !== undefined;
+  const aucunPrixFixe = prixImpose && line.prixStatut === 'resolu' && !(line.prix > 0);
+  const prixEnLecture = prixImpose && !!clientId && line.prixStatut === 'en-lecture';
+  const prixIndisponible = prixImpose && line.prixStatut === 'erreur';
   const remiseLigne = remiseClient ?? 0;
   const sousTotal = montantLigneEstime(line.prix, remiseLigne, line.qte);
   const prixZero = line.prix <= 0;
@@ -276,6 +324,7 @@ function LigneRow({
   // « Mémoriser » est proposé si le prix saisi diffère du prix résolu, ou
   // s'il n'existe encore aucun prix pour ce client (premier prix saisi).
   const prixModifie =
+    !prixImpose &&
     !!clientId &&
     resolvedLoaded &&
     line.prix > 0 &&
@@ -317,7 +366,9 @@ function LigneRow({
         <View className="flex-row items-center gap-1 mb-2">
           <Tag color="#059669" size={11} />
           <Text className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">
-            {resolved.source === 'CLIENT'
+            {prixImpose
+              ? 'Prix fixé par ton responsable'
+              : resolved.source === 'CLIENT'
               ? 'Prix mémorisé pour ce client'
               : 'Prix par défaut livreur'}
             {resolvedPrix !== null ? ` · ${formatFCFA(resolvedPrix)} FCFA` : ''}
@@ -327,6 +378,21 @@ function LigneRow({
 
       {/* Inputs : Prix + Qté */}
       <View className="flex-row gap-2">
+        {prixImpose ? (
+          <View className="flex-1">
+            <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-1">
+              Prix unitaire TTC (FCFA)
+            </Text>
+            <View
+              accessibilityLabel={`Prix imposé : ${line.prix > 0 ? formatFCFA(line.prix) : 'aucun'}`}
+              className="px-3 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60"
+            >
+              <Text className="text-base font-extrabold text-slate-900 dark:text-white">
+                {line.prix > 0 ? formatFCFA(line.prix) : '—'}
+              </Text>
+            </View>
+          </View>
+        ) : (
         <View className="flex-1">
           <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-1">
             Prix unitaire (FCFA)
@@ -349,6 +415,7 @@ function LigneRow({
             }`}
           />
         </View>
+        )}
         <View className="w-24">
           <Text className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-1">
             Quantité
@@ -439,8 +506,41 @@ function LigneRow({
         </View>
       ) : null}
 
+      {/* Prix imposé : aucun prix fixé par le responsable (vente refusée) ; sans client, prix à venir */}
+      {aucunPrixFixe ? (
+        <View className="flex-row items-center gap-1.5 mt-2">
+          <AlertCircle color="#ef4444" size={12} />
+          <Text className="text-[11px] text-red-500 flex-1">{messageAucunPrix(line.designation)}</Text>
+        </View>
+      ) : null}
+      {prixEnLecture ? (
+        <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">{MESSAGE_PRIX_EN_LECTURE}</Text>
+      ) : null}
+      {prixIndisponible ? (
+        <View className="flex-row items-center gap-1.5 mt-2">
+          <AlertCircle color="#f59e0b" size={12} />
+          <Text className="text-[11px] text-amber-700 dark:text-amber-400 flex-1">
+            {messagePrixIndisponible(line.designation)}
+          </Text>
+          <Pressable
+            onPress={() => relireResolution()}
+            accessibilityRole="button"
+            accessibilityLabel={`Relire le prix de ${line.designation}`}
+            hitSlop={6}
+            className="px-2 py-1 rounded-md border border-amber-400 active:opacity-70"
+          >
+            <Text className="text-[11px] font-bold text-amber-700 dark:text-amber-400">Réessayer</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {prixImpose && !clientId ? (
+        <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+          Choisis le client : le prix est celui fixé par ton responsable.
+        </Text>
+      ) : null}
+
       {/* Warn empty price */}
-      {prixZero ? (
+      {prixZero && !prixImpose ? (
         <View className="flex-row items-center gap-1.5 mt-2">
           <AlertCircle color="#ef4444" size={12} />
           <Text className="text-[11px] text-red-500">

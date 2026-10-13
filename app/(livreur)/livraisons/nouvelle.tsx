@@ -38,6 +38,9 @@ import { extractApiErrorMessage } from '../../../lib/api-error';
 import { formatFCFA } from '../../../lib/format';
 import { useRetourListe } from '../../../lib/useRetourListe';
 import type { ClientResponse } from '../../../types/api';
+import { creerVerrou, lancerUneFois } from '../../../features/commandes/verrou';
+import { erreurPrixImposes, estCommercial } from '../../../features/organisation/regles';
+import { apresFermetureDialogue, usePartageDocuments } from '../../../features/organisation/usePartageDocuments';
 
 const LISTE_LIVRAISONS = '/(livreur)/livraisons';
 
@@ -59,11 +62,14 @@ export default function NouvelleLivraison() {
   const [refreshing, setRefreshing] = useState(false);
   const [insufficientCount, setInsufficientCount] = useState(0);
   // Garde synchrone contre le double appui (isPending arrive un rendu trop tard).
-  const submittingRef = useRef(false);
-  const avecRemise = client?.avecOuSansRemise === true;
-  const conditionsFixables = peutFixerConditions(user);
+  const verrou = useRef(creerVerrou()).current;
+  // O6 : commercial d'organisation, prix imposés (ni remise ni mémorisation) et facture après la vente.
+  const prixImpose = estCommercial(user);
+  const partage = usePartageDocuments();
+  const avecRemise = !prixImpose && client?.avecOuSansRemise === true;
+  const conditionsFixables = peutFixerConditions(user) && !prixImpose;
   // D21 : remise unique du client, lecture seule, identique pour toutes les lignes.
-  const remise = remiseLivraison(client);
+  const remise = prixImpose ? 0 : remiseLivraison(client);
   const total = totalLivraisonEstime(lignes, remise);
   const m = useCreerLivraison();
   const qc = useQueryClient();
@@ -143,7 +149,7 @@ export default function NouvelleLivraison() {
   }, [client?.id]);
 
   const onSubmit = () => {
-    if (submittingRef.current) return;
+    if (verrou.enCours) return;
     if (!user) {
       dialog.error('Session invalide', 'Reconnecte-toi pour continuer.');
       return;
@@ -161,7 +167,7 @@ export default function NouvelleLivraison() {
       dialog.warning('Rien à enregistrer', 'Ajoute au moins une ligne livrée.');
       return;
     }
-    const erreurLignes = erreurLignesLivraison(validLignes);
+    const erreurLignes = prixImpose ? erreurPrixImposes(validLignes) : erreurLignesLivraison(validLignes);
     if (erreurLignes) {
       dialog.warning('Ligne invalide', erreurLignes);
       return;
@@ -174,29 +180,44 @@ export default function NouvelleLivraison() {
       return;
     }
 
-    submittingRef.current = true;
     const payload = buildCreerLivraisonPayload({
       livreurId: user.id,
       client,
       lignes: validLignes,
       conditionsFixables,
+      prixImpose,
     });
-    m.mutate(payload, {
-      onSuccess: () => {
-        setClient(null);
-        setLignes([]);
-        setPrerempliPour(null);
-        tentePour.current = null;
-        retourListe();
-        dialog.success('Livraison enregistrée');
-      },
-      onError: (err) => {
-        dialog.error('Livraison non enregistrée', extractApiErrorMessage(err, "Échec de l'enregistrement"));
-      },
-      onSettled: () => {
-        submittingRef.current = false;
-      },
-    });
+    lancerUneFois(verrou, (fin) =>
+      m.mutate(payload, {
+        onSuccess: (livraison) => {
+          setClient(null);
+          setLignes([]);
+          setPrerempliPour(null);
+          tentePour.current = null;
+          retourListe();
+          if (prixImpose) {
+            // O13/O17 : la vente est facturée ; facture proposée au partage sans bloquer.
+            dialog.success('Livraison enregistrée', 'La facture de la vente est émise.', {
+              autoDismissMs: 0,
+              actions: [
+                {
+                  label: 'Partager la facture',
+                  style: 'primary',
+                  onPress: () => apresFermetureDialogue(() => partage.factureDeLivraison(livraison.id)),
+                },
+                { label: 'Fermer', style: 'secondary' },
+              ],
+            });
+          } else {
+            dialog.success('Livraison enregistrée');
+          }
+        },
+        onError: (err) => {
+          dialog.error('Livraison non enregistrée', extractApiErrorMessage(err, "Échec de l'enregistrement"));
+        },
+        onSettled: fin,
+      }),
+    );
   };
 
   const isPending = m.isPending;
@@ -250,6 +271,7 @@ export default function NouvelleLivraison() {
               onValidityChange={setInsufficientCount}
               remiseClient={avecRemise ? remise : undefined}
               memoriserPossible={conditionsFixables}
+              prixImpose={prixImpose}
             />
           </View>
 

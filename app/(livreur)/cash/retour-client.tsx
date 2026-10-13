@@ -32,6 +32,8 @@ import { formatFCFA, formatDateShort } from '../../../lib/format';
 import { num } from '../../../features/encaissements/regles';
 import type { LivraisonResponse } from '../../../types/api';
 import { useRetourListe } from '../../../lib/useRetourListe';
+import { creerVerrou, lancerUneFois } from '../../../features/commandes/verrou';
+import { apresFermetureDialogue, usePartageDocuments } from '../../../features/organisation/usePartageDocuments';
 
 /**
  * Formulaire « Retour produit ».
@@ -59,7 +61,9 @@ export default function RetourClient() {
   const m = useEnregistrerRetour();
   const retourListe = useRetourListe('/(livreur)/cash/retours');
   // Garde synchrone contre le double appui.
-  const submittingRef = useRef(false);
+  const verrou = useRef(creerVerrou()).current;
+  // O14 : un retour sur une vente facturée émet un avoir, proposé au partage.
+  const partage = usePartageDocuments();
 
   const [livraisonId, setLivraisonId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -125,7 +129,7 @@ export default function RetourClient() {
   };
 
   const onSubmit = () => {
-    if (submittingRef.current || m.isPending) return;
+    if (verrou.enCours || m.isPending) return;
     if (!selected) {
       dialog.warning('Champ requis', 'Choisis une livraison');
       return;
@@ -160,8 +164,7 @@ export default function RetourClient() {
       return;
     }
 
-    submittingRef.current = true;
-    m.mutate(
+    lancerUneFois(verrou, (fin) => m.mutate(
       {
         livraisonId: selected.id,
         lignes: lignes.map((l) => ({
@@ -171,20 +174,33 @@ export default function RetourClient() {
         })),
       },
       {
-        onSuccess: () => {
+        onSuccess: (r) => {
           setLivraisonId(null);
           setQtes({});
           retourListe();
-          dialog.success('Retour produit enregistré', 'Stock et dû du client mis à jour');
+          const avoir = r?.avoir;
+          if (avoir) {
+            dialog.success('Retour produit enregistré', `Avoir ${avoir.numero} émis : stock et dû du client mis à jour`, {
+              autoDismissMs: 0,
+              actions: [
+                {
+                  label: 'Partager l’avoir',
+                  style: 'primary',
+                  onPress: () => apresFermetureDialogue(() => partage.avoir(avoir.id)),
+                },
+                { label: 'Fermer', style: 'secondary' },
+              ],
+            });
+          } else {
+            dialog.success('Retour produit enregistré', 'Stock et dû du client mis à jour');
+          }
         },
         onError: (err: unknown) => {
           dialog.error('Erreur', extractApiErrorMessage(err, 'Échec de l’enregistrement'));
         },
-        onSettled: () => {
-          submittingRef.current = false;
-        },
+        onSettled: fin,
       },
-    );
+    ));
   };
 
   return (

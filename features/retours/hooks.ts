@@ -8,6 +8,7 @@ import { encaissementKeys } from '../encaissements/keys';
 import { clientKeys, encoursKeys } from '../clients/keys';
 import { reversementKeys } from '../reversements/keys';
 import { etatsKeys } from '../etats/keys';
+import { organisationKeys } from '../organisation/keys';
 
 /** Journal des retours, paginé (page à partir de 0) ; les filtres excluent `page`. */
 export function useRetours(filtres: Omit<FiltresRetours, 'page'>) {
@@ -31,6 +32,8 @@ export function useEnregistrerRetour() {
   return useMutation({
     mutationFn: (payload: EnregistrerRetourRequest) => retoursApi.enregistrer(payload),
     onSuccess: () => {
+      // Organisation : factures et avoirs (émission, situation payé / reste dû).
+      qc.invalidateQueries({ queryKey: organisationKeys.all });
       qc.invalidateQueries({ queryKey: retourKeys.all });
       qc.invalidateQueries({ queryKey: livraisonKeys.all });
       qc.invalidateQueries({ queryKey: stockKeys.all });

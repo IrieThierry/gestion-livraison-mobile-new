@@ -57,7 +57,13 @@ export interface AuthResponse {
   // URL absolue ou relative de la photo de profil. `null` ou `undefined`
   // signifie qu'aucune photo n'est définie (fallback initiales).
   photoUrl?: string | null
+  /** Organisation B2B (O1) : son id pour le responsable et ses commerciaux, null sinon. */
+  organisationId?: UUID | null
+  /** RESPONSABLE (racine de l'organisation), COMMERCIAL (son apprenti), null hors organisation. */
+  organisationRole?: RoleOrganisation | null
 }
+
+export type RoleOrganisation = 'RESPONSABLE' | 'COMMERCIAL'
 
 export interface PhotoUploadResponse {
   photoUrl: string
@@ -175,6 +181,8 @@ export interface ProduitResponse {
   creeParFournisseurId?: UUID | null
   /** Chemin de la photo (`/uploads/produit/…`), null sans photo. */
   photoUrl?: string | null
+  /** Produit du catalogue d'une organisation (absent pour le référentiel global). */
+  organisationId?: UUID | null
 }
 
 // ---------- Clients ----------
@@ -1075,4 +1083,235 @@ export interface EnregistrerRetourRequest {
 export interface EnregistrerRetourResponse {
   retours: RetourResponse[]
   livraison: LivraisonResponse
+  /** Avoir émis (O14), présent seulement pour un retour sur une vente facturée. */
+  avoir?: ResumeAvoir | null
+}
+
+// ── Organisation B2B (commercial) ──
+
+/** `GET /organisation/me` (responsable ou commercial). */
+export interface OrganisationResponse {
+  id: UUID
+  raisonSociale: string
+  ncc: string | null
+  rccm: string | null
+  adresse: string | null
+  telephone: string | null
+  email: string | null
+  photoUrl: string | null
+  responsableId: UUID
+}
+
+export type StatutDemandeChargement = 'EN_ATTENTE' | 'SERVIE' | 'REFUSEE' | 'ANNULEE'
+
+export interface LigneDemandeChargementResponse {
+  produitId: UUID
+  code: string | null
+  designation: string
+  quantiteDemandee: number
+  /** Null tant que la demande n'est pas servie ; 0 pour un produit non servi. */
+  quantiteServie: number | null
+  transfertId: UUID | null
+  /** Statut vivant du transfert créé au service (EN_ATTENTE, puis ACCEPTE ou REFUSE). */
+  statutTransfert: StatutTransfert | null
+}
+
+/** Demande de chargement (O8), `DCH-n` par organisation. */
+export interface DemandeChargementResponse {
+  id: UUID
+  reference: string
+  date: string
+  statut: StatutDemandeChargement
+  commercialId: UUID
+  commercialNom: string | null
+  commercialPrenom: string | null
+  motifRefus: string | null
+  dateTraitement: string | null
+  traiteParId: UUID | null
+  quantiteTotaleDemandee: number
+  quantiteTotaleServie: number | null
+  lignes: LigneDemandeChargementResponse[]
+}
+
+export interface CreerDemandeChargementRequest {
+  lignes: Array<{ produitId: UUID; quantite: number }>
+}
+
+/** Mentions de l'organisation figées sur le document (logo : le logo actuel). */
+export interface MentionsDocumentVente {
+  id: UUID
+  raisonSociale: string
+  ncc: string | null
+  rccm: string | null
+  adresse: string | null
+  telephone: string | null
+  email: string | null
+  logoUrl: string | null
+}
+
+export interface ClientDocumentVente {
+  id: UUID
+  nom: string | null
+  prenom: string | null
+  contact: string | null
+  adresse: string | null
+  quartier: string | null
+}
+
+export interface CommercialDocumentVente {
+  id: UUID
+  nom: string
+  prenom: string | null
+  contact: string | null
+}
+
+export interface LigneDocumentVente {
+  produitId: UUID
+  code: string | null
+  designation: string
+  quantite: number
+  prixUnitaireTtc: number
+  montantTtc: number
+}
+
+/** Résumé d'un avoir (liste de la facture, réponse de `POST /retour`). */
+export interface ResumeAvoir {
+  id: UUID
+  numero: string
+  date: string
+  totalTtc: number
+}
+
+/** Facture d'une vente (O13) : figée à l'émission, situation calculée à la lecture. */
+export interface FactureResponse {
+  id: UUID
+  numero: string
+  date: string
+  livraisonId: UUID
+  livraisonReference: string | null
+  organisation: MentionsDocumentVente
+  client: ClientDocumentVente
+  commercial: CommercialDocumentVente
+  lignes: LigneDocumentVente[]
+  totalTtc: number
+  payeALaVente: number
+  resteDuALaVente: number
+  mentionPrix: string
+  avoirs: ResumeAvoir[]
+  totalAvoirs: number
+  /** Situation actuelle (lecture) : payé et reste dû de la vente. */
+  montantPaye: number
+  resteDu: number
+}
+
+/** Avoir (O14) : retour produit sur une vente facturée, au prix de la facture. */
+export interface AvoirResponse {
+  id: UUID
+  numero: string
+  date: string
+  motif: string
+  factureId: UUID
+  factureNumero: string
+  livraisonId: UUID
+  organisation: MentionsDocumentVente
+  client: ClientDocumentVente
+  commercial: CommercialDocumentVente
+  lignes: LigneDocumentVente[]
+  totalTtc: number
+  mentionPrix: string
+}
+
+/** Filtres de `GET /facture` et `GET /avoir` (`debut` / `fin` : jours inclus). */
+export interface FiltresDocumentsVente {
+  debut?: string
+  fin?: string
+  clientId?: UUID
+  livraisonId?: UUID
+  factureId?: UUID
+}
+
+// ── Organisation B2B (responsable) ──
+
+/** Ventes d'une journée (factures du jour, avoirs émis le jour, encaissements du jour). */
+export interface VentesJourTableauDeBord {
+  nombre: number
+  totalTtc: number
+  nombreAvoirs: number
+  totalAvoirsTtc: number
+  /** Facturé − avoirs du jour ; peut être négatif. */
+  netTtc: number
+  encaisse: number
+}
+
+/** Argent d'un commercial, cumulé jusqu'à la fin du jour. */
+export interface ArgentCommercialTableauDeBord {
+  encaisse: number
+  remisesConfirmees: number
+  /** Remises déclarées non confirmées : information, non déduites. */
+  remisesEnAttente: number
+  /** Encaissé − remises confirmées. */
+  nonRemis: number
+}
+
+export interface LigneStockTableauDeBord {
+  produitId: UUID
+  code: string | null
+  designation: string
+  quantite: number
+  /** Prix de la grille du responsable ; null sans prix fixé. */
+  prixUnitaire: number | null
+  valeur: number | null
+}
+
+/** Stock valorisé (dépôt, camion, camions) : état actuel. */
+export interface StockValoriseTableauDeBord {
+  quantiteTotale: number
+  /** Somme des lignes ayant un prix. */
+  valeur: number
+  /** Lignes sans prix : valeur incomplète si > 0. */
+  produitsSansPrix: number
+  lignes: LigneStockTableauDeBord[]
+}
+
+export interface CommercialTableauDeBord {
+  commercialId: UUID
+  nom: string | null
+  prenom: string | null
+  actif: boolean
+  ventes: VentesJourTableauDeBord
+  argent: ArgentCommercialTableauDeBord
+  camion: StockValoriseTableauDeBord
+}
+
+export interface TransitTableauDeBord {
+  versCommerciaux: number
+  versDepot: number
+  lignes: Array<{
+    produitId: UUID
+    code: string | null
+    designation: string
+    versCommerciaux: number
+    versDepot: number
+  }>
+}
+
+/** `GET /organisation/me/tableau-de-bord?date` (responsable, O16). */
+export interface TableauDeBordResponse {
+  date: string
+  ventes: VentesJourTableauDeBord
+  argentNonRemis: number
+  commerciaux: CommercialTableauDeBord[]
+  depot: StockValoriseTableauDeBord
+  camions: StockValoriseTableauDeBord
+  enTransit: TransitTableauDeBord
+  encours: { total: number; nombreClients: number; avances: number }
+  nombreDemandesEnAttente: number
+  demandesEnAttente: DemandeChargementResponse[]
+}
+
+/** Ligne de `GET /organisation/me/grille-prix` (responsable et commerciaux, O6). */
+export interface LigneGrillePrix {
+  produit: { id: UUID; code: string | null; designation: string; photoUrl: string | null }
+  /** Prix de la grille ; null s'il n'est pas fixé. */
+  prix: number | null
 }

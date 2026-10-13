@@ -15,6 +15,7 @@ import { prixKeys } from '../prix/keys';
 import { reversementKeys } from '../reversements/keys';
 import { retourKeys } from '../retours/keys';
 import { etatsKeys } from '../etats/keys';
+import { organisationKeys } from '../organisation/keys';
 
 // Le portail web n'expose pas de hooks dédiés (il appelle `useQuery` /
 // `useMutation` inline avec `livraisonsApi`). On les expose ici pour
@@ -68,6 +69,8 @@ export function useCreerLivraison() {
   return useMutation({
     mutationFn: (payload: CreerLivraisonRequest) => livraisonsApi.create(payload),
     onSuccess: () => {
+      // Organisation : factures et avoirs (émission, situation payé / reste dû).
+      qc.invalidateQueries({ queryKey: organisationKeys.all });
       qc.invalidateQueries({ queryKey: livraisonKeys.all });
       qc.invalidateQueries({ queryKey: stockKeys.all });
       qc.invalidateQueries({ queryKey: etatsKeys.all });

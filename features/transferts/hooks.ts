@@ -3,6 +3,7 @@ import { transfertsApi } from './api';
 import { stockKeys } from '../stock/keys';
 import type { EffectuerTransfertRequest, UUID } from '../../types/api';
 import { etatsKeys } from '../etats/keys';
+import { organisationKeys } from '../organisation/keys';
 import { useAuthStore } from '../../stores/authStore';
 
 export const transfertKeys = {
@@ -53,6 +54,10 @@ function useEcritureTransfert<V, R>(ecrire: (v: V) => Promise<R>) {
       qc.invalidateQueries({ queryKey: transfertKeys.all });
       qc.invalidateQueries({ queryKey: stockKeys.all });
       qc.invalidateQueries({ queryKey: etatsKeys.all });
+      // Organisation : le statut du transfert d'un chargement se lit sur la demande.
+      qc.invalidateQueries({ queryKey: organisationKeys.demandes() });
+      // Responsable : dépôt, camions et transit du tableau de bord.
+      qc.invalidateQueries({ queryKey: organisationKeys.tableauxDeBord() });
     },
   });
 }
