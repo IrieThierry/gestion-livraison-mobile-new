@@ -1,5 +1,5 @@
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { PageHeader } from '../../components/shared/PageHeader';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { EcranNotifications } from '../../components/notifications/EcranNotifications';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { RemiseArgentCarte, useDecisionRemise } from '../../components/livreur/RemiseArgentCarte';
 import { TransfertCarte, useDecisionTransfert } from '../../components/livreur/TransfertCarte';
@@ -12,7 +12,8 @@ import { DEPUIS_NOTIFICATIONS_RESPONSABLE } from '../../lib/navigation';
 import { ouvrir } from '../../lib/navigation-app';
 
 /**
- * Notifications du responsable (onglet de son espace, O15) : ses deux
+ * Notifications du responsable (onglet de son espace, O15) : même écran que
+ * la cloche du livreur (N8, fil de notifications), avec en « À traiter » ses deux
  * actions sur le mobile. « Déchargements à accepter » : stock rendu au dépôt
  * par ses commerciaux (Accepter, Refuser avec motif). « Remises à
  * confirmer » : argent déclaré par ses commerciaux (Confirmer, Contester avec
@@ -31,22 +32,20 @@ export default function NotificationsResponsable() {
   const remises = (remisesQ.data ?? []).filter(peutDecider);
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Notifications" subtitle="À traiter" showBack={false} />
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 32 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={[transfertsQ, remisesQ].some((x) => x.isFetching && !x.isLoading)}
-            onRefresh={() => {
-              transfertsQ.refetch();
-              remisesQ.refetch();
-            }}
-            tintColor="#10b981"
-          />
-        }
-      >
-        <View className="px-4 pt-3 gap-3">
+    <EcranNotifications
+      showBack={false}
+      onRafraichir={() => {
+        transfertsQ.refetch();
+        remisesQ.refetch();
+      }}
+      pied={
+        <>
+          {decisionTransfert.dialogue}
+          {decisionRemise.dialogue}
+        </>
+      }
+      aTraiter={
+        <>
           <EnTete
             titre="Déchargements à accepter"
             lien="Voir tous les transferts"
@@ -82,11 +81,9 @@ export default function NotificationsResponsable() {
               <RemiseArgentCarte key={r.id} remise={r} avecApprenti actions={decisionRemise.actions(r)} />
             ))
           )}
-        </View>
-      </ScrollView>
-      {decisionTransfert.dialogue}
-      {decisionRemise.dialogue}
-    </View>
+        </>
+      }
+    />
   );
 }
 

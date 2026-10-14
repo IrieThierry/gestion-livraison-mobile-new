@@ -177,7 +177,8 @@ export interface RouteApp {
  *  - `encours` : ouvert depuis la liste Encours ;
  *  - `a-receptionner` : ouvert depuis « À réceptionner » (cloche de l'Accueil) ;
  *  - `previsions` : ouvert depuis Prévisions (Commander depuis le cumul) ;
- *  - `notifications` : ouvert depuis l'écran Notifications (cloche de l'Accueil) ;
+ *  - `notifications` : ouvert depuis l'écran Notifications (cloche de l'Accueil),
+ *    par une action rapide ou par une notification du fil (N8) ;
  *  - `apprenti` : ouvert depuis la fiche apprenti (paramètre `apprentiId`) ;
  *  - `notifications-responsable` : ouvert depuis les Notifications du responsable ;
  *  - `clients` : ouvert depuis la liste « Mes clients » ;
@@ -204,6 +205,8 @@ export const DEPUIS_CLIENTS = 'clients' as const;
 export const DEPUIS_MOI = 'moi' as const;
 /** Notifications du responsable (onglet de son espace). */
 const NOTIFICATIONS_RESPONSABLE = '/notifications';
+/** Notifications du livreur (cloche de l'Accueil, N8) : retour depuis l'écran ouvert par une notification. */
+const NOTIFICATIONS_LIVREUR = '/previsions/echues';
 const A_RECEPTIONNER = '/cash/commandes/a-receptionner';
 const FICHE_CLIENT = '/clients/[clientId]';
 
@@ -223,7 +226,7 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   // Espace responsable (O15) : onglet Notifications (déchargements, remises d'argent).
   notifications: { type: 'liste', parent: ACCUEIL },
 
-  'clients/index': { type: 'liste', parent: ACCUEIL },
+  'clients/index': { type: 'liste', parent: ACCUEIL, origines: { notifications: NOTIFICATIONS_LIVREUR } },
   'clients/map': { type: 'liste', parent: '/clients' },
   'clients/[id]/index': { type: 'fiche', parent: '/clients' },
   // Ouverts seulement depuis la fiche : elle est leur parent.
@@ -249,12 +252,20 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   'cash/versements/index': { type: 'liste', parent: ACCUEIL },
   'cash/versement': { type: 'formulaire', parent: '/cash/versements' },
   // N7 : demandes de modification de versement, ouvertes depuis « Mes versements » ou Moi.
-  'cash/versements/demandes': { type: 'liste', parent: '/cash/versements', origines: { moi: '/profil' } },
+  'cash/versements/demandes': {
+    type: 'liste',
+    parent: '/cash/versements',
+    origines: { moi: '/profil', notifications: NOTIFICATIONS_LIVREUR },
+  },
   'cash/versements/modifier': { type: 'formulaire', parent: '/cash/versements' },
-  'cash/commandes/index': { type: 'liste', parent: ACCUEIL },
+  'cash/commandes/index': { type: 'liste', parent: ACCUEIL, origines: { notifications: NOTIFICATIONS_LIVREUR } },
   // Ouverte depuis Notifications (cloche) : retour à Notifications.
-  'cash/commandes/a-receptionner': { type: 'liste', parent: ACCUEIL, origines: { notifications: '/previsions/echues' } },
-  'cash/commandes/[id]': { type: 'fiche', parent: listeCommandes, origines: { 'a-receptionner': A_RECEPTIONNER } },
+  'cash/commandes/a-receptionner': { type: 'liste', parent: ACCUEIL, origines: { notifications: NOTIFICATIONS_LIVREUR } },
+  'cash/commandes/[id]': {
+    type: 'fiche',
+    parent: listeCommandes,
+    origines: { 'a-receptionner': A_RECEPTIONNER, notifications: NOTIFICATIONS_LIVREUR },
+  },
   // Commander depuis le cumul des prévisions : retour aux Prévisions.
   'cash/commandes/nouvelle': { type: 'formulaire', parent: '/cash/commandes', origines: { previsions: '/previsions' } },
   'cash/commandes/receptions': {
@@ -278,26 +289,27 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   'stock/transferts/index': {
     type: 'liste',
     parent: parentTransferts,
-    origines: { notifications: '/previsions/echues', 'notifications-responsable': NOTIFICATIONS_RESPONSABLE },
+    origines: { notifications: NOTIFICATIONS_LIVREUR, 'notifications-responsable': NOTIFICATIONS_RESPONSABLE },
   },
   'stock/transferts/nouveau': { type: 'formulaire', parent: '/stock/transferts' },
   // Organisation (O8) : demandes de chargement du commercial, ouvertes depuis Stock.
-  'stock/demandes/index': { type: 'liste', parent: '/stock' },
+  'stock/demandes/index': { type: 'liste', parent: '/stock', origines: { notifications: NOTIFICATIONS_LIVREUR } },
   'stock/demandes/nouvelle': { type: 'formulaire', parent: '/stock/demandes' },
 
   'previsions/index': { type: 'liste', parent: ACCUEIL },
   'previsions/nouvelle': { type: 'formulaire', parent: '/previsions' },
-  // Cloche de l'Accueil : commandes à réceptionner et prévisions échues.
+  // Cloche de l'Accueil : écran Notifications (À traiter, puis fil N8). Les écrans
+  // ouverts par une notification (`depuis: notifications`) y reviennent.
   'previsions/echues': { type: 'liste', parent: ACCUEIL },
 
-  'clotures/index': { type: 'liste', parent: '/profil' },
+  'clotures/index': { type: 'liste', parent: '/profil', origines: { notifications: NOTIFICATIONS_LIVREUR } },
   'clotures/nouvelle': { type: 'formulaire', parent: '/clotures' },
 
   'profil/index': { type: 'liste', parent: ACCUEIL },
   'profil/infos': { type: 'formulaire', parent: '/profil' },
   'profil/password': { type: 'formulaire', parent: '/profil' },
   'profil/prix': { type: 'formulaire', parent: '/profil' },
-  'profil/fournisseurs': { type: 'liste', parent: '/profil' },
+  'profil/fournisseurs': { type: 'liste', parent: '/profil', origines: { notifications: NOTIFICATIONS_LIVREUR } },
   'profil/fournisseur-commandes': { type: 'liste', parent: '/profil/fournisseurs' },
   'profil/apprentis/index': { type: 'liste', parent: '/profil' },
   'profil/apprentis/[id]': { type: 'fiche', parent: '/profil/apprentis' },
@@ -311,7 +323,7 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   // Organisation (O17) : « Mes factures » (factures et avoirs) du commercial.
   'profil/factures': { type: 'liste', parent: '/profil' },
   // Remises d'argent : « Mes remises » (apprenti), « Remises des apprentis » (principal).
-  'profil/remises/index': { type: 'liste', parent: '/profil' },
+  'profil/remises/index': { type: 'liste', parent: '/profil', origines: { notifications: NOTIFICATIONS_LIVREUR } },
   'profil/remises/nouvelle': { type: 'formulaire', parent: '/profil/remises' },
   // Ouverte depuis la fiche apprenti (liste filtrée sur lui) : retour à la fiche.
   'profil/remises-apprentis': {
@@ -319,6 +331,7 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
     parent: '/profil',
     origines: {
       apprenti: '/profil/apprentis/[apprentiId]',
+      notifications: NOTIFICATIONS_LIVREUR,
       'notifications-responsable': NOTIFICATIONS_RESPONSABLE,
     },
   },

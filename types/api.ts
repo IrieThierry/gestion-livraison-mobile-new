@@ -1414,3 +1414,37 @@ export interface CreerDemandeModifVersementRequest {
   payloadModif: DemandeModifVersementPayload
   motifDemande?: string
 }
+
+// ---------------------------------------------------------------------------
+// N8 : notifications (`/notification/me`)
+// ---------------------------------------------------------------------------
+
+/** Type d'objet visé par une notification. */
+export type TypeCibleNotification =
+  | 'TRANSFERT'
+  | 'REMISE_ARGENT'
+  | 'DEMANDE_MODIF_VERSEMENT'
+  | 'COMMANDE'
+  | 'DEMANDE_CHARGEMENT'
+  | 'CLIENTS'
+  | 'CLOTURE'
+  | 'RELATION'
+
+/** Élément de `GET /notification/me` (plus récent d'abord). */
+export interface NotificationResponse {
+  id: UUID
+  /** TRANSFERT_RECU, REMISE_DECLAREE, COMMANDE_LIVREE… (27 types côté back). */
+  type: string
+  titre: string
+  texte: string
+  /** `route` : clé logique (`transferts.a-decider`, `commandes`…) traduite par chaque front. */
+  cible: { type: TypeCibleNotification | string; id: UUID | null; route: string }
+  auteur: { id: UUID; nom: string } | null
+  /** `yyyy-MM-dd'T'HH:mm:ss`. */
+  creeLe: string
+  lue: boolean
+}
+
+export interface CompteNonLuesResponse {
+  nonLues: number
+}
