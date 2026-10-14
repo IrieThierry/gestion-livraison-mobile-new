@@ -1,18 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { depensesApi } from './api';
+import { CIBLE_MOI, filtreDepenses, idCible, type CibleDepenses } from './regles';
 import { etatsKeys } from '../etats/keys';
 import type { CreerDepenseRequest, ModifierDepenseRequest, UUID } from '../../types/api';
 
 const depenseKeys = {
   all: ['depenses'] as const,
-  list: (start?: string, end?: string) =>
-    ['depenses', 'list', start ?? null, end ?? null] as const,
+  list: (start?: string, end?: string, cible: string = 'moi') =>
+    ['depenses', 'list', start ?? null, end ?? null, cible] as const,
 };
 
-export function useDepenses(start?: string, end?: string) {
+/** Dépenses : les siennes (« Moi »), celles de l'équipe ou d'un apprenti (S5). */
+export function useDepenses(start?: string, end?: string, cible: CibleDepenses = CIBLE_MOI) {
   return useQuery({
-    queryKey: depenseKeys.list(start, end),
-    queryFn: () => depensesApi.list({ startDate: start, endDate: end }),
+    queryKey: depenseKeys.list(start, end, idCible(cible)),
+    queryFn: () => depensesApi.list({ startDate: start, endDate: end, ...filtreDepenses(cible) }),
   });
 }
 

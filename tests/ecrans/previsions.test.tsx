@@ -84,8 +84,9 @@ jest.mock('../../features/transferts/hooks', () => ({
   useRefuserTransfert: () => mockRefuser,
   useAnnulerTransfert: () => mockAnnuler,
 }));
+let mockCommandes: unknown = [{}, {}];
 jest.mock('../../features/commandes/hooks', () => ({
-  useCommandesAReceptionner: () => ({ data: [{}, {}], isError: false, refetch: jest.fn() }),
+  useCommandesAReceptionner: () => ({ data: mockCommandes, isLoading: false, isError: mockCommandes === undefined, refetch: jest.fn() }),
 }));
 jest.mock('../../features/lookups/hooks', () => ({
   useFournisseursPartenaires: () => ({ data: [{ id: 'f1', libelle: 'Boulangerie' }], isLoading: false, isError: false }),
@@ -157,6 +158,7 @@ beforeEach(() => {
   mockParams = {};
   mockRemises = [];
   mockTransferts = [];
+  mockCommandes = [{}, {}];
   for (const n of ['useSupprimerGroupes', 'useReporterGroupes', 'usePlusTard', 'useModifierGroupe', 'useEnregistrerPrevisions'])
     h[n].mockReturnValue(mutation());
 });
@@ -252,9 +254,10 @@ describe('Notifications (cloche)', () => {
     expect(mockContester.mutate).not.toHaveBeenCalled();
   });
 
-  it('principal : aucune remise, ou lecture impossible', () => {
+  it('principal : aucune remise (rubrique masquée), ou lecture impossible (rubrique visible)', () => {
     const { unmount } = render(<Notifications />);
-    expect(screen.getByText('Aucune remise à confirmer')).toBeTruthy();
+    expect(screen.queryByText('Remises à confirmer')).toBeNull();
+    expect(screen.queryByText('Aucune remise à confirmer')).toBeNull();
     unmount();
     mockRemises = undefined;
     render(<Notifications />);
@@ -284,9 +287,40 @@ describe('Notifications (cloche)', () => {
     expect(ouvrir).toHaveBeenCalledWith('/(livreur)/stock/transferts', { depuis: 'notifications' });
   });
 
-  it('« Transferts à recevoir » : aucun, ou lecture impossible', () => {
+  it('S1 : tout est vide → ni rubrique ni « À traiter » ni « Fil d’activité », un seul « Aucune notification »', () => {
+    mockCommandes = [];
+    h.usePrevisionsEchues.mockReturnValue({ echues: [], isLoading: false, isError: false, partiel: false, refetch: jest.fn() });
+    render(<Notifications />);
+    for (const absent of ['À traiter', 'Commandes à réceptionner', 'Transferts à recevoir', 'Remises à confirmer', 'Demandes de modification de versement', 'Prévisions échues', 'Fil d’activité', 'Tout marquer comme lu'])
+      expect(screen.queryByText(absent)).toBeNull();
+    expect(screen.queryByText(/^Aucune? (commande|transfert|remise|demande|prévision)/)).toBeNull();
+    expect(screen.getAllByText('Aucune notification')).toHaveLength(1);
+  });
+
+  it('S1 : pendant le chargement, ni bloc vide ni « Aucune notification »', () => {
+    mockCommandes = [];
+    h.usePrevisionsEchues.mockReturnValue({ echues: [], isLoading: true, isError: false, partiel: false, refetch: jest.fn() });
+    render(<Notifications />);
+    expect(screen.queryByText('Prévisions échues')).toBeNull();
+    expect(screen.queryByText('Aucune notification')).toBeNull();
+    expect(screen.queryByText('À traiter')).toBeNull();
+  });
+
+  it('S1 : seules les rubriques non vides s’affichent ; une erreur reste visible', () => {
+    mockCommandes = undefined;
+    h.usePrevisionsEchues.mockReturnValue({ echues: [], isLoading: false, isError: false, partiel: false, refetch: jest.fn() });
+    render(<Notifications />);
+    expect(screen.getByText('À traiter')).toBeTruthy();
+    expect(screen.getByText('Commandes à réceptionner indisponibles')).toBeTruthy();
+    expect(screen.queryByText('Prévisions échues')).toBeNull();
+    expect(screen.queryByText('Aucune notification')).toBeNull();
+  });
+
+  it('« Transferts à recevoir » : aucun (rubrique masquée), ou lecture impossible (rubrique visible)', () => {
     const { unmount } = render(<Notifications />);
-    expect(screen.getByText('Aucun transfert à recevoir')).toBeTruthy();
+    expect(screen.queryByText('Transferts à recevoir')).toBeNull();
+    expect(screen.queryByText('Voir tous les transferts')).toBeNull();
+    expect(screen.queryByText('Aucun transfert à recevoir')).toBeNull();
     unmount();
     mockTransferts = undefined;
     render(<Notifications />);

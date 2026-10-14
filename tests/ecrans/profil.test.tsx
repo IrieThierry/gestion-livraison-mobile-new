@@ -1,6 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { naviguer } from '../../lib/navigation-app';
 import Profil from '../../app/(livreur)/profil/index';
+import { Biometric } from '../../lib/biometric';
+import { enregistrerChoixBiometrie, lireChoixBiometrie } from '../../lib/biometrie-choix';
 
 jest.mock('expo-router', () => ({
   usePathname: () => '/profil',
@@ -18,6 +20,13 @@ jest.mock('../../lib/navigation-app', () => ({
 let mockUser: Record<string, unknown> = { id: 'liv-1', prenom: 'Awa', nom: 'Kone', username: 'awa', parentId: null };
 jest.mock('../../stores/authStore', () => ({
   useAuthStore: (sel: (s: unknown) => unknown) => sel({ user: mockUser, logout: jest.fn() }),
+}));
+jest.mock('../../lib/biometric', () => ({
+  Biometric: { isAvailable: jest.fn(async () => false), authenticate: jest.fn(async () => false) },
+}));
+jest.mock('../../lib/biometrie-choix', () => ({
+  lireChoixBiometrie: jest.fn(async () => null),
+  enregistrerChoixBiometrie: jest.fn(async () => undefined),
 }));
 jest.mock('../../stores/themeStore', () => ({
   useThemeStore: (sel: (s: unknown) => unknown) => sel({ theme: 'system', setTheme: jest.fn() }),
@@ -93,5 +102,64 @@ describe('Onglet Moi : organisation B2B', () => {
     expect(screen.getByText('Mes fournisseurs')).toBeTruthy();
     expect(screen.getByText('Mes apprentis')).toBeTruthy();
     expect(screen.queryByText('Mes factures')).toBeNull();
+  });
+});
+
+describe('Profil : déverrouillage biométrique (S4)', () => {
+  const LIBELLE = 'Déverrouiller avec Face ID / empreinte';
+
+  it('appareil non compatible : pas d’interrupteur', async () => {
+    render(<Profil />);
+    await act(async () => {});
+    expect(screen.queryByText(LIBELLE)).toBeNull();
+  });
+
+  it('activer : biométrie refusée ou annulée → rien enregistré, interrupteur désactivé', async () => {
+    (Biometric.isAvailable as jest.Mock).mockResolvedValueOnce(true);
+    (lireChoixBiometrie as jest.Mock).mockResolvedValueOnce('refusee');
+    (Biometric.authenticate as jest.Mock).mockResolvedValueOnce(false);
+    render(<Profil />);
+    expect(await screen.findByText(LIBELLE)).toBeTruthy();
+    await act(async () => {
+      fireEvent(screen.getByLabelText(LIBELLE), 'valueChange', true);
+    });
+    expect(Biometric.authenticate).toHaveBeenCalled();
+    expect(enregistrerChoixBiometrie).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(LIBELLE).props.value).toBe(false);
+  });
+
+  it('activer : erreur du capteur → rien enregistré', async () => {
+    (Biometric.isAvailable as jest.Mock).mockResolvedValueOnce(true);
+    (lireChoixBiometrie as jest.Mock).mockResolvedValueOnce(null);
+    (Biometric.authenticate as jest.Mock).mockRejectedValueOnce(new Error('capteur'));
+    render(<Profil />);
+    expect(await screen.findByText(LIBELLE)).toBeTruthy();
+    await act(async () => {
+      fireEvent(screen.getByLabelText(LIBELLE), 'valueChange', true);
+    });
+    expect(enregistrerChoixBiometrie).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(LIBELLE).props.value).toBe(false);
+  });
+
+  it('appareil compatible : biométrie réussie → « active » ; désactiver → « refusee » sans authentification', async () => {
+    (Biometric.isAvailable as jest.Mock).mockResolvedValueOnce(true);
+    (lireChoixBiometrie as jest.Mock).mockResolvedValueOnce('refusee');
+    (Biometric.authenticate as jest.Mock).mockResolvedValueOnce(true);
+    render(<Profil />);
+    expect(await screen.findByText(LIBELLE)).toBeTruthy();
+    expect(lireChoixBiometrie).toHaveBeenCalledWith('awa');
+    const interrupteur = screen.getByLabelText(LIBELLE);
+    expect(interrupteur.props.value).toBe(false);
+    await act(async () => {
+      fireEvent(interrupteur, 'valueChange', true);
+    });
+    expect(Biometric.authenticate).toHaveBeenCalledTimes(1);
+    expect(enregistrerChoixBiometrie).toHaveBeenLastCalledWith('awa', 'active');
+    await waitFor(() => expect(screen.getByLabelText(LIBELLE).props.value).toBe(true));
+    await act(async () => {
+      fireEvent(screen.getByLabelText(LIBELLE), 'valueChange', false);
+    });
+    expect(enregistrerChoixBiometrie).toHaveBeenLastCalledWith('awa', 'refusee');
+    expect(Biometric.authenticate).toHaveBeenCalledTimes(1);
   });
 });

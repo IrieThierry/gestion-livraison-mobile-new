@@ -55,12 +55,18 @@ type Ligne = { cle: string; groupe: string } | { cle: string; notification: Noti
  */
 export function EcranNotifications({
   aTraiter,
+  aTraiterVisible = true,
+  aTraiterEnChargement = false,
   onRafraichir,
   showBack = true,
   pied,
 }: {
-  /** Section « À traiter » (actions rapides de l'écran). */
+  /** Section « À traiter » (actions rapides de l'écran) : ses rubriques non vides seulement. */
   aTraiter: ReactNode;
+  /** S1 : au moins une rubrique à afficher (élément ou erreur). Sinon le titre « À traiter » est masqué. */
+  aTraiterVisible?: boolean;
+  /** Une rubrique est encore en lecture : évite d'afficher « Aucune notification » trop tôt. */
+  aTraiterEnChargement?: boolean;
   /** Relecture des actions rapides (tirer pour rafraîchir, retour sur l'écran). */
   onRafraichir: () => void;
   showBack?: boolean;
@@ -119,13 +125,19 @@ export function EcranNotifications({
       }),
     );
 
+  // S1 : « À traiter » seulement s'il a une rubrique ; « Fil d'activité » et
+  // « Tout marquer comme lu » seulement si le fil a des notifications.
   const enTete = (
-    <View className="px-4 pt-3 gap-3">
-      <Text className={SECTION}>À traiter</Text>
-      {aTraiter}
-      <View className="flex-row items-center mt-5 mb-1">
+    <View className="px-4 pt-3">
+      {aTraiterVisible ? (
+        <View className="gap-3">
+          <Text className={SECTION}>À traiter</Text>
+          <View className="gap-6">{aTraiter}</View>
+        </View>
+      ) : null}
+      {elements.length > 0 ? (
+      <View className={`flex-row items-center mb-1 ${aTraiterVisible ? 'mt-5' : ''}`}>
         <Text className="flex-1 font-extrabold text-base text-slate-900 dark:text-white">Fil d’activité</Text>
-        {elements.length > 0 ? (
           <Pressable
             onPress={onToutLu}
             disabled={aucuneNonLue || toutLu.isPending}
@@ -137,12 +149,15 @@ export function EcranNotifications({
             <CheckCheck color="#2563eb" size={14} />
             <Text className="text-[12px] font-bold text-blue-700 dark:text-blue-400">Tout marquer comme lu</Text>
           </Pressable>
-        ) : null}
       </View>
+      ) : null}
     </View>
   );
 
-  const vide = fil.isLoading ? (
+  // Fil vide : un seul indicateur tant que quelque chose se lit (pas de bloc
+  // vide qui clignote), l'erreur du fil si sa lecture a échoué, rien si
+  // « À traiter » a des rubriques, sinon un seul message sobre.
+  const vide = fil.isLoading || (aTraiterEnChargement && !aTraiterVisible) ? (
     <ActivityIndicator color="#10b981" style={{ marginTop: 16 }} />
   ) : fil.isError ? (
     <View className="px-4">
@@ -151,15 +166,12 @@ export function EcranNotifications({
         <Text className="text-[13px] font-bold text-emerald-700 dark:text-emerald-400">Réessayer</Text>
       </Pressable>
     </View>
-  ) : (
+  ) : aTraiterVisible ? null : (
     <View className="items-center px-6 pt-8">
       <View className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 items-center justify-center">
         <BellOff color="#94a3b8" size={28} />
       </View>
-      <EmptyState
-        title="Aucune notification"
-        message="Tu seras prévenu ici des transferts, remises, commandes et demandes qui te concernent."
-      />
+      <EmptyState title="Aucune notification" />
     </View>
   );
 

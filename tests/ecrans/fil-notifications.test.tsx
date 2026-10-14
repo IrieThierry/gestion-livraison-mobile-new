@@ -95,14 +95,17 @@ afterEach(() => {
   cleanup();
   clients.splice(0).forEach((qc) => qc.clear());
 });
-function rendre(aTraiter: React.ReactNode = <Text>Section à traiter</Text>) {
+function rendre(
+  aTraiter: React.ReactNode = <Text>Section à traiter</Text>,
+  options: { aTraiterVisible?: boolean; aTraiterEnChargement?: boolean } = {},
+) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { gcTime: Infinity } },
   });
   clients.push(qc);
   return render(
     <QueryClientProvider client={qc}>
-      <EcranNotifications aTraiter={aTraiter} onRafraichir={rafraichir} />
+      <EcranNotifications aTraiter={aTraiter} onRafraichir={rafraichir} {...options} />
     </QueryClientProvider>,
   );
 }
@@ -240,9 +243,12 @@ describe('Écran Notifications : fil façon Facebook', () => {
   it('état vide illustré, distinct de l’état d’erreur', async () => {
     pages.debut = [];
     nonLues = 0;
-    const { unmount } = rendre();
+    const { unmount } = rendre(null, { aTraiterVisible: false });
     expect(await screen.findByText('Aucune notification')).toBeTruthy();
+    // S1 : un seul message sobre, sans « À traiter » ni « Fil d’activité ».
     expect(screen.queryByText('Tout marquer comme lu')).toBeNull();
+    expect(screen.queryByText('Fil d’activité')).toBeNull();
+    expect(screen.queryByText('À traiter')).toBeNull();
     unmount();
     echecFil = true;
     rendre();
@@ -250,6 +256,28 @@ describe('Écran Notifications : fil façon Facebook', () => {
     expect(screen.queryByText('Aucune notification')).toBeNull();
     // La section « À traiter » reste affichée.
     expect(screen.getByText('Section à traiter')).toBeTruthy();
+  });
+
+  it('S1 : fil vide mais « À traiter » non vide → rubriques seules, sans « Fil d’activité » ni « Aucune notification »', async () => {
+    pages.debut = [];
+    nonLues = 0;
+    rendre();
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/notification/me', expect.anything()));
+    await act(async () => {});
+    expect(screen.getByText('À traiter')).toBeTruthy();
+    expect(screen.getByText('Section à traiter')).toBeTruthy();
+    expect(screen.queryByText('Fil d’activité')).toBeNull();
+    expect(screen.queryByText('Aucune notification')).toBeNull();
+  });
+
+  it('S1 : « À traiter » encore en lecture → pas de « Aucune notification » prématuré', async () => {
+    pages.debut = [];
+    nonLues = 0;
+    rendre(null, { aTraiterVisible: false, aTraiterEnChargement: true });
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/notification/me', expect.anything()));
+    await act(async () => {});
+    expect(screen.queryByText('Aucune notification')).toBeNull();
+    expect(screen.queryByText('À traiter')).toBeNull();
   });
 
   it('le spinner du tirer-pour-rafraîchir ne suit pas la relecture de fond', async () => {

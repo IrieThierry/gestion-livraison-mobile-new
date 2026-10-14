@@ -28,6 +28,23 @@ describe('état Dépenses', () => {
     expect(e.totaux).toEqual({ nb: 3, montant: 20000 });
   });
 
+  it('vue équipe : colonne Livreur (proprietaire.nom) en 2e position, absente sinon', () => {
+    const ds = [
+      { ...dep('d1', '2026-10-05', 'CARBURANT', 1000, 'Plein'), proprietaire: { id: 'u1', nom: 'Awa' } },
+      { ...dep('d2', '2026-10-06', 'ENTRETIEN', 500, 'Vidange'), proprietaire: null },
+    ] as DepenseResponse[];
+    const etat = calculerEtatDepenses(ds, P);
+    expect(etat.depenses.map((d) => d.livreur)).toEqual(['Awa', '']);
+    const entete = { livreur: 'Équipe', periode: P, editeLe: new Date(2026, 9, 31, 8, 0), filtres: AUCUN_FILTRE };
+    const eq = documentDepenses(etat, { ...entete, equipe: true }).sections[0];
+    expect(eq.colonnes.map((c) => c.libelle)).toEqual(['Date', 'Livreur', 'Catégorie', 'Libellé', 'Montant']);
+    expect(eq.lignes[0]).toEqual(['05/10/2026', 'Awa', 'Carburant', 'Plein', expect.any(String)]);
+    expect(eq.totaux).toHaveLength(5);
+    const solo = documentDepenses(etat, { ...entete, equipe: false }).sections[0];
+    expect(solo.colonnes).toHaveLength(4);
+    expect(solo.lignes[0]).toHaveLength(4);
+  });
+
   it('filtre catégorie', () => {
     const e = calculerEtatDepenses(depenses, P, { categorie: 'CARBURANT' });
     expect(e.depenses.map((d) => d.id)).toEqual(['d1', 'd3']);

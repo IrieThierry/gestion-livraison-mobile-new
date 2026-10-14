@@ -7,7 +7,13 @@ import type {
 } from '../../types/api';
 
 export const depensesApi = {
-  list: async (params?: { startDate?: string; endDate?: string }): Promise<DepenseResponse[]> =>
+  /** S5 : `livreurId` (un apprenti) ou `equipe` (principal et apprentis), livreur principal indépendant seulement. */
+  list: async (params?: {
+    startDate?: string;
+    endDate?: string;
+    livreurId?: UUID;
+    equipe?: boolean;
+  }): Promise<DepenseResponse[]> =>
     (await apiClient.get<DepenseResponse[]>('/depense', { params })).data,
   create: async (payload: CreerDepenseRequest): Promise<DepenseResponse> =>
     (await apiClient.post<DepenseResponse>('/depense', payload)).data,

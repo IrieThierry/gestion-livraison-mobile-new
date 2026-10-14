@@ -3,7 +3,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import type { LivreurResponse } from '../../types/api';
 import { etatsApi } from './api';
 import { etatsKeys } from './keys';
-import { cibleLecture, type ChoixLivreur, type UtilisateurEtats } from './acces';
+import { cibleLecture, idChoix, type ChoixLivreur, type UtilisateurEtats } from './acces';
 import { nomPersonne, type Periode } from './calculs/commun';
 import { calculerEtatVentes } from './calculs/ventes';
 import { calculerEtatEncaissements } from './calculs/encaissements';
@@ -248,12 +248,15 @@ export function useEtatFournisseurs(p: ParamsEtat): ResultatEtat {
   return combiner([qP, qC, qV], document, options);
 }
 
-/** Dépenses de l'utilisateur connecté (la route ne renvoie que les siennes). */
+/** Dépenses du livreur choisi : moi (sans filtre), l'équipe ou un apprenti (S5). */
 export function useEtatDepenses(p: ParamsEtat): ResultatEtat {
   const periode = p.periode;
+  const choix = p.choix;
+  const filtre =
+    choix.type === 'equipe' ? { equipe: true } : choix.type === 'apprenti' ? { livreurId: choix.id } : {};
   const q = useQuery({
-    queryKey: etatsKeys.depenses(p.user.id, periode),
-    queryFn: () => etatsApi.depenses(periode!),
+    queryKey: [...etatsKeys.depenses(p.user.id, periode), idChoix(choix)],
+    queryFn: () => etatsApi.depenses(periode!, filtre),
     enabled: !!periode,
   });
   const document = useMemo(

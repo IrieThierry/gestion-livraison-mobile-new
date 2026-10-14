@@ -27,6 +27,7 @@ import {
 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { Avatar } from '../../../components/shared/Avatar';
+import { InterrupteurBiometrie } from '../../../components/profil/InterrupteurBiometrie';
 import { useAuthStore } from '../../../stores/authStore';
 import { useThemeStore, type Theme } from '../../../stores/themeStore';
 import { naviguer } from '../../../lib/navigation-app';
@@ -149,6 +150,8 @@ export default function Profil() {
               </View>
               <ChevronRight color="#94a3b8" size={18} />
             </Pressable>
+            {/* S4 : déverrouillage biométrique (appareil compatible seulement). */}
+            {user.username ? <InterrupteurBiometrie username={user.username} /> : null}
             {!responsable ? (
             <Pressable
               onPress={() => naviguer('/(livreur)/profil/prix')}
