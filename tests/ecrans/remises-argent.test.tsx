@@ -322,12 +322,20 @@ describe('Clôture : texte d’aide du montant remis', () => {
 
 describe('Navigation des remises', () => {
   it('ROUTES : écrans et parents', () => {
-    expect(ROUTES['profil/remises/index']).toEqual({ type: 'liste', parent: '/profil' });
+    expect(ROUTES['profil/remises/index']).toEqual({
+      type: 'liste',
+      parent: '/profil',
+      origines: { notifications: '/previsions/echues' },
+    });
     expect(ROUTES['profil/remises/nouvelle']).toEqual({ type: 'formulaire', parent: '/profil/remises' });
     expect(ROUTES['profil/remises-apprentis']).toEqual({
       type: 'liste',
       parent: '/profil',
-      origines: { apprenti: '/profil/apprentis/[apprentiId]', 'notifications-responsable': '/notifications' },
+      origines: {
+        apprenti: '/profil/apprentis/[apprentiId]',
+        notifications: '/previsions/echues',
+        'notifications-responsable': '/notifications',
+      },
     });
     expect(PILES_IMBRIQUEES.has('profil/remises')).toBe(true);
   });

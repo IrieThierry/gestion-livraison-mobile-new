@@ -22,6 +22,10 @@ import { useRemisesAConfirmer } from '../../features/remises-argent/hooks';
 import { nbRemisesAConfirmer } from '../../features/remises-argent/regles';
 import { useTransfertsADecider } from '../../features/transferts/hooks';
 import { nbTransfertsADecider } from '../../features/transferts/regles';
+import { useDemandesModif } from '../../features/demandes-modif/hooks';
+import { estADecider } from '../../features/demandes-modif/regles';
+import { useNombreNonLues, useRelireAuFocus } from '../../features/notifications/hooks';
+import { badgeNonLues, libelleCloche } from '../../features/notifications/regles';
 import { useAuthStore } from '../../stores/authStore';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Avatar } from '../../components/shared/Avatar';
@@ -65,6 +69,12 @@ function Tournee() {
   const qRemises = useRemisesAConfirmer();
   // Transferts à recevoir : en attente, dont le livreur connecté est le décideur (principal comme apprenti).
   const qTransferts = useTransfertsADecider();
+  // N7 : demandes de modification de versement à décider (principal hors organisation).
+  const avecDemandesModif = !!user && !user.parentId && !organisation;
+  const qDemandes = useDemandesModif(avecDemandesModif);
+  // N8 : non lues du fil de notifications (badge), relues toutes les 30 s et au retour sur l'Accueil.
+  const qNonLues = useNombreNonLues(!!user);
+  useRelireAuFocus(() => qNonLues.refetch());
   // Mouvements de stock du jour (local) du livreur connecté — l'apprenti voit
   // les siens : quantités vendues (livraisons) et réceptionnées du jour.
   const jour = jourLocal();
@@ -110,18 +120,25 @@ function Tournee() {
 
   if (!user) return null;
 
-  // Clochette = commandes à réceptionner + prévisions échues de l'utilisateur courant
-  // + (principal) remises déclarées par ses apprentis, à confirmer + transferts à recevoir.
+  // Cloche (N8) : badge rouge = notifications non lues. Les actions « À traiter »
+  // (commandes à réceptionner + prévisions échues de l'utilisateur courant
+  // + (principal) remises déclarées par ses apprentis, à confirmer + transferts à recevoir
+  // + (principal hors organisation) demandes de modification de versement à décider)
+  // restent signalées : pastille orange sans chiffre quand rien n'est non lu.
   const nbRemises = user.parentId ? 0 : nbRemisesAConfirmer(qRemises.data);
   const nbTransferts = nbTransfertsADecider(qTransferts.data, user.id);
   const nbCommandes = organisation ? 0 : qARecep.data?.length ?? 0;
-  const notifCount = nbCommandes + qEchues.echues.length + nbRemises + nbTransferts;
+  const nbDemandes = avecDemandesModif ? (qDemandes.data ?? []).filter(estADecider).length : 0;
+  const aTraiter = nbCommandes + qEchues.echues.length + nbRemises + nbTransferts + nbDemandes;
+  const nonLues = qNonLues.data ?? 0;
 
   const onRefresh = () => {
     if (!organisation) qARecep.refetch();
     qEchues.refetch();
     if (!user.parentId) qRemises.refetch();
     qTransferts.refetch();
+    if (avecDemandesModif) qDemandes.refetch();
+    qNonLues.refetch();
     qLiv.refetch();
     qEnc.refetch();
     qEncours.refetch();
@@ -158,19 +175,22 @@ function Tournee() {
               hitSlop={6}
               onPress={() => ouvrir('/(livreur)/previsions/echues')}
               accessibilityRole="button"
-              accessibilityLabel={`Notifications : ${notifCount}`}
+              accessibilityLabel={libelleCloche(nonLues, aTraiter)}
               className="w-10 h-10 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 items-center justify-center active:opacity-70"
             >
               <Bell color="#475569" size={18} />
-              {notifCount > 0 ? (
+              {nonLues > 0 ? (
                 <View
                   className="absolute -top-1 -right-1 h-4 px-1 rounded-full bg-red-500 items-center justify-center"
                   style={{ minWidth: 16 }}
                 >
-                  <Text className="text-white text-[9px] font-bold">
-                    {notifCount > 99 ? '99+' : notifCount}
-                  </Text>
+                  <Text className="text-white text-[9px] font-bold">{badgeNonLues(nonLues)}</Text>
                 </View>
+              ) : aTraiter > 0 ? (
+                <View
+                  testID="cloche-a-traiter"
+                  className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-amber-500 border border-white dark:border-slate-900"
+                />
               ) : null}
             </Pressable>
             <Pressable

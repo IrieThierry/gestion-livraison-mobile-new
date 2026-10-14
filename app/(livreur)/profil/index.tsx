@@ -23,13 +23,16 @@ import {
   FileStack,
   ArrowLeftRight,
   Monitor,
+  FilePen,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { Avatar } from '../../../components/shared/Avatar';
 import { useAuthStore } from '../../../stores/authStore';
 import { useThemeStore, type Theme } from '../../../stores/themeStore';
 import { naviguer } from '../../../lib/navigation-app';
+import { DEPUIS_MOI } from '../../../lib/navigation';
 import { estCommercial, estMembreOrganisation, estResponsable, vocabulaire } from '../../../features/organisation/regles';
+import { PRIX_FIXES_PAR_PRINCIPAL } from '../../../features/prix/plancher';
 
 const THEMES: Array<{
   key: Theme;
@@ -158,7 +161,9 @@ export default function Profil() {
                     Mes prix de vente
                   </Text>
                   <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Barème par défaut appliqué à toutes tes livraisons
+                    {user.parentId && !membre
+                      ? PRIX_FIXES_PAR_PRINCIPAL
+                      : 'Barème par défaut appliqué à toutes tes livraisons'}
                   </Text>
                 </View>
               </View>
@@ -311,6 +316,26 @@ export default function Profil() {
               </View>
               <ChevronRight color="#94a3b8" size={18} />
             </Pressable>
+            {/* N7 : demandes de modification de versement (livreur principal indépendant). */}
+            {!user.parentId && !membre ? (
+              <Pressable
+                onPress={() => naviguer('/(livreur)/cash/versements/demandes', { depuis: DEPUIS_MOI })}
+                className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
+              >
+                <View className="flex-row items-center gap-3">
+                  <FilePen color="#b45309" size={20} />
+                  <View>
+                    <Text className="font-extrabold text-slate-900 dark:text-white">
+                      Demandes de modification
+                    </Text>
+                    <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Versements : approuver, rejeter, demander
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight color="#94a3b8" size={18} />
+              </Pressable>
+            ) : null}
             <Pressable
               onPress={() => naviguer('/(livreur)/cash/depenses')}
               className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"

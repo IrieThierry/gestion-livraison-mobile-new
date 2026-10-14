@@ -44,6 +44,15 @@ const RESPONSABLE = {
   organisationRole: 'RESPONSABLE',
 };
 let mockUser: Record<string, unknown> = RESPONSABLE;
+// N8 : fil de notifications vide (testé dans fil-notifications.test.tsx).
+jest.mock('../../features/notifications/hooks', () => ({
+  useFilNotifications: () => ({ data: { pages: [[]] }, isLoading: false, isError: false, refetch: jest.fn(), fetchNextPage: jest.fn() }),
+  useNombreNonLues: () => ({ data: 0, refetch: jest.fn() }),
+  useMarquerLue: () => ({ mutate: jest.fn() }),
+  useToutMarquerLu: () => ({ mutate: jest.fn(), isPending: false }),
+  useRelireAuFocus: jest.fn(),
+}));
+jest.mock('../../features/demandes-modif/hooks', () => ({ useDemandesModif: jest.fn(() => ({ data: undefined, refetch: jest.fn() })) }));
 jest.mock('../../stores/authStore', () => ({
   useAuthStore: (sel: (s: unknown) => unknown) => sel({ user: mockUser, logout: jest.fn() }),
 }));

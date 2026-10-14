@@ -34,6 +34,18 @@ jest.mock('../../lib/dialog', () => ({
   dialog: { confirm: jest.fn(), info: jest.fn(), success: jest.fn(), error: jest.fn(), warning: jest.fn() },
 }));
 let mockUser: Record<string, unknown> = { id: 'L1', prenom: 'Ali', nom: 'K', parentId: null };
+// N8 : fil de notifications vide (testé dans fil-notifications.test.tsx).
+jest.mock('../../features/notifications/hooks', () => ({
+  useFilNotifications: () => ({ data: { pages: [[]] }, isLoading: false, isError: false, refetch: jest.fn(), fetchNextPage: jest.fn() }),
+  useNombreNonLues: () => ({ data: 0, refetch: jest.fn() }),
+  useMarquerLue: () => ({ mutate: jest.fn() }),
+  useToutMarquerLu: () => ({ mutate: jest.fn(), isPending: false }),
+  useRelireAuFocus: jest.fn(),
+}));
+let mockDemandesModif: unknown = [];
+jest.mock('../../features/demandes-modif/hooks', () => ({
+  useDemandesModif: () => ({ data: mockDemandesModif, isLoading: false, isError: mockDemandesModif === undefined, refetch: jest.fn() }),
+}));
 jest.mock('../../stores/authStore', () => ({
   useAuthStore: (sel: (s: unknown) => unknown) => sel({ user: mockUser }),
 }));
@@ -140,6 +152,7 @@ afterEach(() => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockUser = { id: 'L1', prenom: 'Ali', nom: 'K', parentId: null };
+  mockDemandesModif = [];
   mockOnline = true;
   mockParams = {};
   mockRemises = [];
@@ -160,6 +173,31 @@ describe('Notifications (cloche)', () => {
     expect(ouvrir).toHaveBeenCalledWith('/(livreur)/cash/commandes/a-receptionner', { depuis: 'notifications' });
     expect(screen.getByText('Awa T')).toBeTruthy();
     expect(screen.getByText('Pain')).toBeTruthy();
+  });
+
+  it('À traiter : demandes de modification de versement à décider (principal), ouvre la liste avec retour ici', () => {
+    mockDemandesModif = [
+      { statut: 'PENDING', demandeurType: 'FOURNISSEUR' },
+      { statut: 'PENDING', demandeurType: 'FOURNISSEUR' },
+      { statut: 'PENDING', demandeurType: 'LIVREUR' },
+    ];
+    render(<Notifications />);
+    expect(screen.getByText('À traiter')).toBeTruthy();
+    fireEvent.press(screen.getByText('2 demandes de modification à décider'));
+    expect(ouvrir).toHaveBeenCalledWith('/(livreur)/cash/versements/demandes', { depuis: 'notifications' });
+    mockDemandesModif = [];
+  });
+
+  it('À traiter : demandes de modification indisponibles (erreur), et absentes pour un apprenti', () => {
+    mockDemandesModif = undefined;
+    const { unmount } = render(<Notifications />);
+    expect(screen.getByText('Demandes de modification indisponibles')).toBeTruthy();
+    unmount();
+    mockDemandesModif = [];
+    mockUser = { ...mockUser, parentId: 'P' };
+    render(<Notifications />);
+    expect(screen.queryByText(/demande.* de modification/)).toBeNull();
+    mockUser = { ...mockUser, parentId: null };
   });
 
   it('Supprimer demande une confirmation explicite avant toute suppression', () => {

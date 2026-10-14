@@ -1,7 +1,9 @@
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { CalendarClock, ChevronRight, Clock, Package, Trash2, WifiOff } from 'lucide-react-native';
-import { PageHeader } from '../../../components/shared/PageHeader';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { CalendarClock, ChevronRight, Clock, FilePen, Package, Trash2, WifiOff } from 'lucide-react-native';
 import { EmptyState } from '../../../components/shared/EmptyState';
+import { EcranNotifications } from '../../../components/notifications/EcranNotifications';
+import { useDemandesModif } from '../../../features/demandes-modif/hooks';
+import { estADecider } from '../../../features/demandes-modif/regles';
 import { ChiffresPrevision, PastilleStatut } from '../../../components/previsions/LignePrevision';
 import { useCommandesAReceptionner } from '../../../features/commandes/hooks';
 import { estMembreOrganisation } from '../../../features/organisation/regles';
@@ -33,7 +35,10 @@ import { ouvrir } from '../../../lib/navigation-app';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 
 /**
- * Cloche de l'Accueil : « Commandes à réceptionner » (ouvre la liste) et
+ * Cloche de l'Accueil : écran Notifications (N8, `EcranNotifications`) —
+ * section « À traiter » ci-dessous, puis le fil de notifications.
+ *
+ * À traiter : « Commandes à réceptionner » (ouvre la liste) et
  * « Prévisions échues » du livreur connecté (jamais celles des apprentis).
  * Pour chaque échue, ou pour toutes : Supprimer (confirmation), Reporter
  * (aujourd'hui ou demain, pour la quantité restante) ou Plus tard (rien ne
@@ -57,6 +62,9 @@ export default function Notifications() {
   const decision = useDecisionRemise();
   const transfertsQ = useTransfertsADecider();
   const decisionTransfert = useDecisionTransfert(user?.id);
+  // N7 : demandes de modification de versement (livreur principal hors organisation).
+  const avecDemandesModif = !!user && !user.parentId && !organisation;
+  const demandesQ = useDemandesModif(avecDemandesModif);
   const isOnline = useNetworkStore((s) => s.isOnline);
   const enCours = supprimer.isPending || reporter.isPending || plusTard.isPending;
   // Hors ligne : Supprimer / Reporter / Tout traiter désactivés (Plus tard reste local).
@@ -69,6 +77,7 @@ export default function Notifications() {
   const remises = (remisesQ.data ?? []).filter(peutDecider);
   const transferts = (transfertsQ.data ?? []).filter((t) => peutDeciderTransfert(t, user.id));
   const echues = echuesQ.echues;
+  const nbDemandes = (demandesQ.data ?? []).filter(estADecider).length;
 
   const libelleGroupe = (g: GroupePrevision) =>
     `${nomClient(g.client)} — ${g.produit.designation} (prévu ${g.prevu}, livré ${g.livre}, ${jourCourt(g.jour)})`;
@@ -129,24 +138,22 @@ export default function Notifications() {
     });
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <PageHeader title="Notifications" subtitle="À traiter" />
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 32 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={false}
-            onRefresh={() => {
-              if (!organisation) qARecep.refetch();
-              echuesQ.refetch();
-              if (estPrincipal) remisesQ.refetch();
-              transfertsQ.refetch();
-            }}
-            tintColor="#10b981"
-          />
-        }
-      >
-        <View className="px-4 pt-3 gap-3">
+    <EcranNotifications
+      onRafraichir={() => {
+        if (!organisation) qARecep.refetch();
+        echuesQ.refetch();
+        if (estPrincipal) remisesQ.refetch();
+        if (avecDemandesModif) demandesQ.refetch();
+        transfertsQ.refetch();
+      }}
+      pied={
+        <>
+          {decision.dialogue}
+          {decisionTransfert.dialogue}
+        </>
+      }
+      aTraiter={
+        <>
           {!organisation ? (
           <>
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
@@ -210,6 +217,29 @@ export default function Notifications() {
                   <RemiseArgentCarte key={r.id} remise={r} avecApprenti actions={decision.actions(r)} />
                 ))
               )}
+            </>
+          ) : null}
+
+          {avecDemandesModif ? (
+            <>
+              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-3">
+                Demandes de modification de versement
+              </Text>
+              <Pressable
+                onPress={() => ouvrir('/(livreur)/cash/versements/demandes', { depuis: DEPUIS_NOTIFICATIONS })}
+                accessibilityRole="button"
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 flex-row items-center gap-3 active:opacity-70"
+              >
+                <FilePen color="#7c3aed" size={20} />
+                <Text className="flex-1 font-bold text-slate-900 dark:text-white">
+                  {demandesQ.isError
+                    ? 'Demandes de modification indisponibles'
+                    : nbDemandes === 0
+                    ? 'Aucune demande de modification à décider'
+                    : `${nbDemandes} demande${nbDemandes > 1 ? 's' : ''} de modification à décider`}
+                </Text>
+                <ChevronRight color="#94a3b8" size={18} />
+              </Pressable>
             </>
           ) : null}
 
@@ -290,11 +320,9 @@ export default function Notifications() {
               </View>
             ))
           )}
-        </View>
-      </ScrollView>
-      {decision.dialogue}
-      {decisionTransfert.dialogue}
-    </View>
+        </>
+      }
+    />
   );
 }
 

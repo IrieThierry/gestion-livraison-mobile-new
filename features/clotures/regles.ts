@@ -125,3 +125,38 @@ export function messageClotureEnregistree(c: ClotureJournaliereResponse): string
     libelleEcart(num(c.ecartEspeces)),
   ].join('\n');
 }
+
+// ─── Livreur clôturé (N6) ─────────────────────────────────────────────────
+
+export interface OptionLivreurCloture {
+  id: UUID;
+  label: string;
+}
+
+/**
+ * Livreurs que l'utilisateur peut clôturer : « Moi » puis ses apprentis
+ * actifs (livreur principal seulement, triés par nom). L'apprenti ne clôture
+ * que pour lui : une seule option.
+ */
+export function optionsLivreurCloture(
+  user: { id: UUID; parentId?: UUID | null } | null | undefined,
+  apprentis: ReadonlyArray<{ id: UUID; nom: string; prenom: string; actif?: boolean }> | undefined,
+): OptionLivreurCloture[] {
+  if (!user) return [];
+  const moi = { id: user.id, label: 'Moi' };
+  if (user.parentId) return [moi];
+  const actifs = (apprentis ?? [])
+    .filter((a) => a.actif !== false)
+    .map((a) => ({ id: a.id, label: `${a.prenom} ${a.nom}`.trim() }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+  return [moi, ...actifs];
+}
+
+/** Livreur retenu : le choix s'il fait partie des options, sinon l'utilisateur lui-même. */
+export function livreurClotureRetenu(
+  options: OptionLivreurCloture[],
+  choisi: string | null | undefined,
+  userId: UUID,
+): UUID {
+  return choisi && options.some((o) => o.id === choisi) ? choisi : userId;
+}

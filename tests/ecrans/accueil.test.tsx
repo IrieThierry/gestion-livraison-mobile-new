@@ -60,6 +60,16 @@ jest.mock('../../features/previsions/hooks', () => ({
   usePrevisionsEchues: () => ({ echues: mockEchues, isLoading: false, isError: false, refetch: jest.fn() }),
 }));
 
+let mockNonLues = 0;
+jest.mock('../../features/notifications/hooks', () => ({
+  useNombreNonLues: () => ({ data: mockNonLues, isLoading: false, isError: false, refetch: jest.fn() }),
+  useRelireAuFocus: jest.fn(),
+}));
+let mockDemandes: unknown[] = [];
+jest.mock('../../features/demandes-modif/hooks', () => ({
+  useDemandesModif: (enabled: boolean) => ({ data: enabled ? mockDemandes : undefined, isLoading: false, isError: false, refetch: jest.fn() }),
+}));
+
 let mockAbonnement: unknown = { statut: 'ESSAI', formule: 'LIVREUR', herite: false };
 jest.mock('../../features/abonnement/hooks', () => ({
   useMonAbonnement: () => ({ data: mockAbonnement, isLoading: false, isError: false, refetch: jest.fn() }),
@@ -92,30 +102,61 @@ beforeEach(() => {
   mockAbonnement = { statut: 'ESSAI', formule: 'LIVREUR', herite: false };
   mockRemises = [];
   mockTransferts = [];
+  mockNonLues = 0;
+  mockDemandes = [];
 });
 
 describe('Accueil : cloche', () => {
-  it('compte commandes à réceptionner + prévisions échues et ouvre la feuille Notifications', () => {
+  it('badge = notifications non lues ; la cloche ouvre l’écran Notifications', () => {
+    mockNonLues = 4;
     mockNbCommandes = 2;
     mockEchues = [{ cle: 'a' }, { cle: 'b' }, { cle: 'c' }];
     render(<Tournee />);
-    expect(screen.getByText('5')).toBeTruthy();
-    fireEvent.press(screen.getByLabelText('Notifications : 5'));
+    expect(screen.getByText('4')).toBeTruthy();
+    expect(screen.queryByTestId('cloche-a-traiter')).toBeNull();
+    fireEvent.press(screen.getByLabelText('Notifications : 4 non lues, 5 à traiter'));
     expect(ouvrir).toHaveBeenCalledWith('/(livreur)/previsions/echues');
+  });
+
+  it('plus de 99 non lues : « 99+ »', () => {
+    mockNonLues = 150;
+    render(<Tournee />);
+    expect(screen.getByText('99+')).toBeTruthy();
+  });
+
+  it('rien de non lu mais des actions à traiter : pastille sans chiffre', () => {
+    mockNbCommandes = 2;
+    mockEchues = [{ cle: 'a' }, { cle: 'b' }, { cle: 'c' }];
+    render(<Tournee />);
+    expect(screen.getByTestId('cloche-a-traiter')).toBeTruthy();
+    expect(screen.queryByText('5')).toBeNull();
+    expect(screen.getByLabelText('Notifications : 0 non lue, 5 à traiter')).toBeTruthy();
   });
 
   it('principal : + remises déclarées à confirmer', () => {
     mockNbCommandes = 1;
     mockRemises = [{ statut: 'DECLAREE' }, { statut: 'DECLAREE' }];
     render(<Tournee />);
-    expect(screen.getByLabelText('Notifications : 3')).toBeTruthy();
+    expect(screen.getByLabelText('Notifications : 0 non lue, 3 à traiter')).toBeTruthy();
   });
 
-  it('apprenti : les remises ne comptent pas', () => {
+  it('principal : + demandes de modification de versement à décider (pas les siennes)', () => {
+    mockDemandes = [
+      { statut: 'PENDING', demandeurType: 'FOURNISSEUR' },
+      { statut: 'PENDING', demandeurType: 'LIVREUR' },
+      { statut: 'APPROVED', demandeurType: 'FOURNISSEUR' },
+    ];
+    render(<Tournee />);
+    expect(screen.getByLabelText('Notifications : 0 non lue, 1 à traiter')).toBeTruthy();
+  });
+
+  it('apprenti : les remises et les demandes de modification ne comptent pas', () => {
     mockUser = { ...mockUser, parentId: 'p' };
     mockRemises = [{ statut: 'DECLAREE' }];
+    mockDemandes = [{ statut: 'PENDING', demandeurType: 'FOURNISSEUR' }];
+    mockNonLues = 1;
     render(<Tournee />);
-    expect(screen.getByLabelText('Notifications : 0')).toBeTruthy();
+    expect(screen.getByLabelText('Notifications : 1 non lue')).toBeTruthy();
   });
 
   it('+ transferts à recevoir (dont je suis le décideur), principal comme apprenti', () => {
@@ -125,19 +166,20 @@ describe('Accueil : cloche', () => {
       { statut: 'EN_ATTENTE', decideurId: 'autre' },
     ];
     render(<Tournee />);
-    expect(screen.getByLabelText('Notifications : 2')).toBeTruthy();
+    expect(screen.getByLabelText('Notifications : 0 non lue, 2 à traiter')).toBeTruthy();
   });
 
   it('apprenti : transferts à recevoir comptés', () => {
     mockUser = { ...mockUser, parentId: 'p' };
     mockTransferts = [{ statut: 'EN_ATTENTE', decideurId: mockUser.id }];
     render(<Tournee />);
-    expect(screen.getByLabelText('Notifications : 1')).toBeTruthy();
+    expect(screen.getByLabelText('Notifications : 0 non lue, 1 à traiter')).toBeTruthy();
   });
 
-  it('sans rien à traiter : pas de badge', () => {
+  it('sans rien à traiter ni non lu : ni badge ni pastille', () => {
     render(<Tournee />);
-    expect(screen.getByLabelText('Notifications : 0')).toBeTruthy();
+    expect(screen.getByLabelText('Notifications : 0 non lue')).toBeTruthy();
+    expect(screen.queryByTestId('cloche-a-traiter')).toBeNull();
   });
 });
 
@@ -190,7 +232,7 @@ describe('Accueil : chiffres cliquables de la carte verte', () => {
     mockNbCommandes = 2;
     mouvements.mockReturnValue(lecture([]));
     render(<Tournee />);
-    expect(screen.getByLabelText('Notifications : 0')).toBeTruthy();
+    expect(screen.getByLabelText('Notifications : 0 non lue')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Réceptionnés : 0'));
     expect(ouvrir).toHaveBeenLastCalledWith('/(livreur)/stock/transferts');
   });
@@ -240,6 +282,6 @@ describe('Accueil : bandeau abonnement expiré', () => {
     mockUser = { ...mockUser, statut: 'EN_ATTENTE_VALIDATION' };
     render(<Tournee />);
     expect(screen.queryByText('Compte en attente de validation')).toBeNull();
-    expect(screen.getByLabelText('Notifications : 0')).toBeTruthy();
+    expect(screen.getByLabelText('Notifications : 0 non lue')).toBeTruthy();
   });
 });

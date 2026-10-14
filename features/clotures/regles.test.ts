@@ -3,6 +3,8 @@ import {
   ecartCaisse,
   estEquilibre,
   libelleEcart,
+  livreurClotureRetenu,
+  optionsLivreurCloture,
   messageClotureEnregistree,
   parseMontantRemis,
   sensEcart,
@@ -136,5 +138,34 @@ describe('messageClotureEnregistree', () => {
         'Manque en caisse : 99,5 FCFA',
       ].join('\n'),
     );
+  });
+});
+
+describe('N6 : livreur clôturé', () => {
+  const apprentis = [
+    { id: 'a2', prenom: 'Zoé', nom: 'KONÉ', actif: true },
+    { id: 'a1', prenom: 'Ali', nom: 'BAMBA' },
+    { id: 'a3', prenom: 'Issa', nom: 'DIALLO', actif: false },
+  ];
+
+  it('principal : « Moi » puis ses apprentis actifs, triés', () => {
+    expect(optionsLivreurCloture({ id: 'p1', parentId: null }, apprentis)).toEqual([
+      { id: 'p1', label: 'Moi' },
+      { id: 'a1', label: 'Ali BAMBA' },
+      { id: 'a2', label: 'Zoé KONÉ' },
+    ]);
+  });
+
+  it('apprenti : lui seul ; sans utilisateur : rien', () => {
+    expect(optionsLivreurCloture({ id: 'a1', parentId: 'p1' }, apprentis)).toEqual([{ id: 'a1', label: 'Moi' }]);
+    expect(optionsLivreurCloture(null, apprentis)).toEqual([]);
+    expect(optionsLivreurCloture({ id: 'p1' }, undefined)).toEqual([{ id: 'p1', label: 'Moi' }]);
+  });
+
+  it('livreur retenu : le choix permis, sinon soi', () => {
+    const options = optionsLivreurCloture({ id: 'p1', parentId: null }, apprentis);
+    expect(livreurClotureRetenu(options, 'a2', 'p1')).toBe('a2');
+    expect(livreurClotureRetenu(options, 'a3', 'p1')).toBe('p1');
+    expect(livreurClotureRetenu(options, null, 'p1')).toBe('p1');
   });
 });

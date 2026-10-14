@@ -9,6 +9,7 @@ import {
   CommandeStatusBadge,
   ReglementBadge,
 } from '../../../../components/livreur/CommandeStatusBadge';
+import { MontantCommande } from '../../../../components/livreur/MontantCommande';
 import { ApprentiAffecteField } from '../../../../components/livreur/ApprentiAffecteField';
 import { CARTE, SaisieQuantites, type Saisie } from '../../../../components/livreur/SaisieReception';
 import {
@@ -217,14 +218,7 @@ export default function CommandeDetail() {
             ))}
           </View>
 
-          {commande.montantLivre != null ? (
-            <View className="flex-row justify-between mt-3 px-1">
-              <Text className="text-slate-700 dark:text-slate-300 font-bold">Total reçu</Text>
-              <Text className="font-extrabold text-emerald-600 dark:text-emerald-400 text-base">
-                {formatFCFA(commande.montantLivre)} FCFA
-              </Text>
-            </View>
-          ) : null}
+          <MontantCommande commande={commande} variante="detail" />
 
           {commande.remiseLivreurLivree != null ? (
             <View className="flex-row justify-between mt-1 px-1">

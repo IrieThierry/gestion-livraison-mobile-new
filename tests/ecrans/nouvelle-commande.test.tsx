@@ -135,3 +135,29 @@ describe('Nouvelle commande : deux « Commander » sans démontage', () => {
     expect(useCommandePrefillStore.getState().source).toBeNull();
   });
 });
+
+describe('Nouvelle commande : total estimé (N2a)', () => {
+  it('somme quantités × prix affiché, mise à jour à chaque saisie', () => {
+    (useCatalogueFournisseur as jest.Mock).mockReturnValue({
+      data: [
+        ligne('p1', 'Biscuit', null),
+        { ...ligne('p2', 'Lait', null), prixDeVente: 300, prixParticulier: true },
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    render(<NouvelleCommande />);
+    fireEvent.press(screen.getByText('choisir-fournisseur'));
+    const total = () => screen.getByTestId('total-estime').props.children.join('');
+    expect(screen.getByText('Total estimé')).toBeTruthy();
+    expect(total()).toBe('0 F');
+    fireEvent.changeText(screen.getByLabelText('Quantité de Biscuit'), '3');
+    expect(total()).toMatch(/^1\s500 F$/);
+    fireEvent.changeText(screen.getByLabelText('Quantité de Lait'), '2');
+    expect(total()).toMatch(/^2\s100 F$/);
+    // Saisie invalide : ignorée dans le total.
+    fireEvent.changeText(screen.getByLabelText('Quantité de Lait'), 'x');
+    expect(total()).toMatch(/^1\s500 F$/);
+  });
+});

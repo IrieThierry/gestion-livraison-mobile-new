@@ -209,3 +209,35 @@ export function dateReceptionParam(
   if (!choisie || choisie === inchangee) return undefined;
   return `${choisie}T00:00:00`;
 }
+
+// ─── Montants (N2) ────────────────────────────────────────────────────────
+
+/**
+ * Total estimé à la saisie : Σ quantité × prix unitaire affiché (`prixDeVente`
+ * = prix particulier s'il existe, sinon prix fournisseur). Les saisies vides ou
+ * invalides comptent pour 0.
+ */
+export function totalEstime(
+  lignes: Pick<ProduitFournisseurResponse, 'prixDeVente' | 'produit'>[],
+  quantites: Quantites,
+): number {
+  return lignes.reduce((s, l) => {
+    const n = parseEntier(quantites[l.produit.id]);
+    if (n === null || Number.isNaN(n) || n < 1) return s;
+    return s + n * (Number(l.prixDeVente) || 0);
+  }, 0);
+}
+
+/**
+ * Montant à afficher sur une commande : « Montant estimé » tant que
+ * `montantLivre` est nul ou à 0, puis « Montant livré ». `montant` est nul
+ * si le back n'a pu estimer aucune ligne.
+ */
+export function montantCommande(
+  c: Pick<CommandeResponse, 'montantLivre' | 'montantEstime'>,
+): { libelle: 'Montant estimé' | 'Montant livré'; montant: number | null } {
+  if (c.montantLivre != null && c.montantLivre !== 0) {
+    return { libelle: 'Montant livré', montant: c.montantLivre };
+  }
+  return { libelle: 'Montant estimé', montant: c.montantEstime ?? null };
+}

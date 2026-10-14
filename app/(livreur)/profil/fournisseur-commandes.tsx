@@ -6,6 +6,7 @@ import {
   CommandeStatusBadge,
   ReglementBadge,
 } from '../../../components/livreur/CommandeStatusBadge';
+import { MontantCommande } from '../../../components/livreur/MontantCommande';
 import { BoutonReceptions } from '../../../components/livreur/BoutonReceptions';
 import { useCommandesFournisseur } from '../../../features/commandes/hooks';
 import { useAuthStore } from '../../../stores/authStore';
@@ -86,11 +87,7 @@ export default function FournisseurCommandes() {
               <Text className="text-[10px] text-slate-500 dark:text-slate-400">
                 {formatDateShort(c.date)}
               </Text>
-              {c.montantLivre != null ? (
-                <Text className="font-extrabold text-emerald-600 dark:text-emerald-400 text-[12px]">
-                  {formatFCFA(c.montantLivre)} F
-                </Text>
-              ) : null}
+              <MontantCommande commande={c} />
             </View>
             {c.remiseLivreurLivree != null && c.remiseLivreurLivree > 0 ? (
               <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
