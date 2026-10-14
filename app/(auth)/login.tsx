@@ -16,7 +16,11 @@ import { authApi } from '../../features/auth/api';
 import { loginSchema } from '../../features/auth/schemas';
 import { useAuthStore } from '../../stores/authStore';
 import { Biometric } from '../../lib/biometric';
-import { enregistrerChoixBiometrie, migrerAncienChoixBiometrie } from '../../lib/biometrie-choix';
+import {
+  enregistrerChoixBiometrie,
+  lireChoixBiometrie,
+  oublierAncienChoixBiometrie,
+} from '../../lib/biometrie-choix';
 import { dialog } from '../../lib/dialog';
 import * as Network from 'expo-network';
 import { messageErreurConnexion } from '../../features/auth/erreurConnexion';
@@ -54,7 +58,9 @@ export default function Login() {
       try {
         const identifiant = user.username || input.username;
         if (identifiant && (await Biometric.isAvailable())) {
-          const choix = await migrerAncienChoixBiometrie(identifiant);
+          // Ancienne clé sans propriétaire connu : supprimée, jamais attribuée à ce compte.
+          await oublierAncienChoixBiometrie().catch(() => undefined);
+          const choix = await lireChoixBiometrie(identifiant);
           if (choix === null) {
             const label = await Biometric.getTypeLabel();
             await new Promise<void>((resolve) => {

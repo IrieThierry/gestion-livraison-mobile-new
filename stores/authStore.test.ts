@@ -60,6 +60,15 @@ describe('authStore.hydrate : déverrouillage biométrique selon le choix du com
     expect(useAuthStore.getState().user).toEqual(user)
   })
 
+  it('choix illisible (erreur du stockage) : pas de session sans vérification', async () => {
+    ;(migrerAncienChoixBiometrie as jest.Mock).mockRejectedValue(new Error('keystore'))
+    await useAuthStore.getState().hydrate()
+    expect(useAuthStore.getState().user).toBeNull()
+    expect(useAuthStore.getState().isHydrated).toBe(true)
+    // Jetons gardés : seule une reconnexion restaure la session.
+    expect(SecureStorage.clearAuth).not.toHaveBeenCalled()
+  })
+
   it.each([['refusee'], [null]])('choix %s : pas de biométrie, session restaurée', async (choix) => {
     ;(migrerAncienChoixBiometrie as jest.Mock).mockResolvedValue(choix)
     await useAuthStore.getState().hydrate()

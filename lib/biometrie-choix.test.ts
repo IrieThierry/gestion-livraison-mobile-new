@@ -5,13 +5,14 @@ import {
   enregistrerChoixBiometrie,
   lireChoixBiometrie,
   migrerAncienChoixBiometrie,
+  oublierAncienChoixBiometrie,
 } from './biometrie-choix';
 
 // expo-secure-store : magasin en mémoire (jest.setup.js).
 
-beforeEach(async () => {
-  for (const k of ['access_token', 'refresh_token', 'biometric_enabled', cleChoixBiometrie('awa'), cleChoixBiometrie('ali')])
-    await SecureStore.deleteItemAsync(k);
+beforeEach(() => {
+  // Magasin en mémoire partagé : vidé entre les tests.
+  (SecureStore as unknown as { __vider: () => void }).__vider();
 });
 
 describe('S4 : choix de la biométrie par identifiant', () => {
@@ -53,5 +54,22 @@ describe('S4 : choix de la biométrie par identifiant', () => {
     expect(await migrerAncienChoixBiometrie('awa')).toBe('refusee');
     expect(await SecureStorage.get('biometric_enabled')).toBeNull();
     expect(await migrerAncienChoixBiometrie('ali')).toBeNull();
+  });
+
+  it('ancienne clé restante à la connexion d’un autre compte : supprimée, attribuée à personne', async () => {
+    await SecureStorage.set('biometric_enabled', '1');
+    await oublierAncienChoixBiometrie();
+    expect(await SecureStorage.get('biometric_enabled')).toBeNull();
+    expect(await lireChoixBiometrie('ali')).toBeNull();
+    expect(await lireChoixBiometrie('awa')).toBeNull();
+    // Sans ancienne clé : rien ne change.
+    await enregistrerChoixBiometrie('ali', 'active');
+    await oublierAncienChoixBiometrie();
+    expect(await lireChoixBiometrie('ali')).toBe('active');
+  });
+
+  it('magasin vidé entre les tests : aucun choix hérité', async () => {
+    expect(await lireChoixBiometrie('awa')).toBeNull();
+    expect(await lireChoixBiometrie('ali')).toBeNull();
   });
 });

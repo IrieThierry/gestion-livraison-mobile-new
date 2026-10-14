@@ -21,7 +21,9 @@ let mockUser: Record<string, unknown> = { id: 'liv-1', prenom: 'Awa', nom: 'Kone
 jest.mock('../../stores/authStore', () => ({
   useAuthStore: (sel: (s: unknown) => unknown) => sel({ user: mockUser, logout: jest.fn() }),
 }));
-jest.mock('../../lib/biometric', () => ({ Biometric: { isAvailable: jest.fn(async () => false) } }));
+jest.mock('../../lib/biometric', () => ({
+  Biometric: { isAvailable: jest.fn(async () => false), authenticate: jest.fn(async () => false) },
+}));
 jest.mock('../../lib/biometrie-choix', () => ({
   lireChoixBiometrie: jest.fn(async () => null),
   enregistrerChoixBiometrie: jest.fn(async () => undefined),
@@ -112,9 +114,37 @@ describe('Profil : déverrouillage biométrique (S4)', () => {
     expect(screen.queryByText(LIBELLE)).toBeNull();
   });
 
-  it('appareil compatible : l’interrupteur reflète le choix du compte et l’enregistre', async () => {
+  it('activer : biométrie refusée ou annulée → rien enregistré, interrupteur désactivé', async () => {
     (Biometric.isAvailable as jest.Mock).mockResolvedValueOnce(true);
     (lireChoixBiometrie as jest.Mock).mockResolvedValueOnce('refusee');
+    (Biometric.authenticate as jest.Mock).mockResolvedValueOnce(false);
+    render(<Profil />);
+    expect(await screen.findByText(LIBELLE)).toBeTruthy();
+    await act(async () => {
+      fireEvent(screen.getByLabelText(LIBELLE), 'valueChange', true);
+    });
+    expect(Biometric.authenticate).toHaveBeenCalled();
+    expect(enregistrerChoixBiometrie).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(LIBELLE).props.value).toBe(false);
+  });
+
+  it('activer : erreur du capteur → rien enregistré', async () => {
+    (Biometric.isAvailable as jest.Mock).mockResolvedValueOnce(true);
+    (lireChoixBiometrie as jest.Mock).mockResolvedValueOnce(null);
+    (Biometric.authenticate as jest.Mock).mockRejectedValueOnce(new Error('capteur'));
+    render(<Profil />);
+    expect(await screen.findByText(LIBELLE)).toBeTruthy();
+    await act(async () => {
+      fireEvent(screen.getByLabelText(LIBELLE), 'valueChange', true);
+    });
+    expect(enregistrerChoixBiometrie).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(LIBELLE).props.value).toBe(false);
+  });
+
+  it('appareil compatible : biométrie réussie → « active » ; désactiver → « refusee » sans authentification', async () => {
+    (Biometric.isAvailable as jest.Mock).mockResolvedValueOnce(true);
+    (lireChoixBiometrie as jest.Mock).mockResolvedValueOnce('refusee');
+    (Biometric.authenticate as jest.Mock).mockResolvedValueOnce(true);
     render(<Profil />);
     expect(await screen.findByText(LIBELLE)).toBeTruthy();
     expect(lireChoixBiometrie).toHaveBeenCalledWith('awa');
@@ -123,11 +153,13 @@ describe('Profil : déverrouillage biométrique (S4)', () => {
     await act(async () => {
       fireEvent(interrupteur, 'valueChange', true);
     });
+    expect(Biometric.authenticate).toHaveBeenCalledTimes(1);
     expect(enregistrerChoixBiometrie).toHaveBeenLastCalledWith('awa', 'active');
     await waitFor(() => expect(screen.getByLabelText(LIBELLE).props.value).toBe(true));
     await act(async () => {
       fireEvent(screen.getByLabelText(LIBELLE), 'valueChange', false);
     });
     expect(enregistrerChoixBiometrie).toHaveBeenLastCalledWith('awa', 'refusee');
+    expect(Biometric.authenticate).toHaveBeenCalledTimes(1);
   });
 });

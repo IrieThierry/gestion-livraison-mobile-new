@@ -59,7 +59,10 @@ export const useAuthStore = create<AuthState>()((set) => ({
     try {
       choix = user?.username ? await migrerAncienChoixBiometrie(user.username) : null;
     } catch {
-      choix = null;
+      // Choix illisible : on ne restaure pas la session sans vérification
+      // (fail-closed). Jetons gardés : connexion normale à l'écran de login.
+      set({ user: null, isHydrated: true });
+      return;
     }
     if (choix === 'active' && (await Biometric.isAvailable())) {
       const ok = await Biometric.authenticate('Déverrouille Gestion Livraison');

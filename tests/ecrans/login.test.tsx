@@ -6,7 +6,7 @@ import Login from '../../app/(auth)/login';
 import { authApi } from '../../features/auth/api';
 import { useDialogStore } from '../../stores/dialogStore';
 import { Biometric } from '../../lib/biometric';
-import { enregistrerChoixBiometrie, migrerAncienChoixBiometrie } from '../../lib/biometrie-choix';
+import { enregistrerChoixBiometrie, lireChoixBiometrie, oublierAncienChoixBiometrie } from '../../lib/biometrie-choix';
 
 jest.mock('expo-router', () => ({ router: { replace: jest.fn(), push: jest.fn() } }));
 jest.mock('expo-network', () => ({ getNetworkStateAsync: jest.fn() }));
@@ -18,7 +18,8 @@ jest.mock('../../lib/biometric', () => ({
   Biometric: { isAvailable: jest.fn(async () => false), getTypeLabel: jest.fn(async () => 'Face ID') },
 }));
 jest.mock('../../lib/biometrie-choix', () => ({
-  migrerAncienChoixBiometrie: jest.fn(async () => null),
+  lireChoixBiometrie: jest.fn(async () => null),
+  oublierAncienChoixBiometrie: jest.fn(async () => undefined),
   enregistrerChoixBiometrie: jest.fn(async () => undefined),
 }));
 jest.mock('../../lib/secure-storage', () => ({ SecureStorage: { get: jest.fn(), set: jest.fn() } }));
@@ -127,7 +128,7 @@ describe('Connexion : identifiant sans espaces (S2)', () => {
 });
 
 describe('Connexion : question de la biométrie (S4)', () => {
-  const choix = migrerAncienChoixBiometrie as jest.Mock;
+  const choix = lireChoixBiometrie as jest.Mock;
   const enregistrer = enregistrerChoixBiometrie as jest.Mock;
   beforeEach(() => {
     (Biometric.isAvailable as jest.Mock).mockResolvedValue(true);
@@ -142,6 +143,8 @@ describe('Connexion : question de la biométrie (S4)', () => {
     connecter();
     await waitFor(() => expect(useDialogStore.getState().title).toBe('Activer Face ID ?'));
     expect(choix).toHaveBeenCalledWith('awa');
+    // Ancienne clé éventuelle : supprimée, jamais attribuée au compte qui se connecte.
+    expect(oublierAncienChoixBiometrie).toHaveBeenCalled();
     expect(router.replace).not.toHaveBeenCalled();
     await action('Plus tard').onPress!();
     expect(enregistrer).toHaveBeenCalledWith('awa', 'refusee');

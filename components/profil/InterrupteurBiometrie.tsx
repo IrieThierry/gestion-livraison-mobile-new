@@ -14,8 +14,10 @@ export const LIBELLE_INTERRUPTEUR_BIOMETRIE = 'Déverrouiller avec Face ID / emp
 /**
  * S4 : Moi → Profil, interrupteur du déverrouillage biométrique pour le
  * compte connecté. Affiché seulement si l'appareil est compatible (capteur
- * présent et biométrie enregistrée). Activé = `active`, désactivé = `refusee`
- * (la question de la connexion ne revient pas).
+ * présent et biométrie enregistrée). Activer demande d'abord la biométrie
+ * (échec ou annulation : rien n'est enregistré) puis enregistre `active` ;
+ * désactiver enregistre `refusee` sans authentification (la question de la
+ * connexion ne revient pas).
  */
 export function InterrupteurBiometrie({ username }: { username: string }) {
   const [compatible, setCompatible] = useState(false);
@@ -45,6 +47,17 @@ export function InterrupteurBiometrie({ username }: { username: string }) {
   const onChange = async (active: boolean) => {
     const nouveau: ChoixBiometrie = active ? 'active' : 'refusee';
     const avant = choix;
+    if (active) {
+      // Activer exige une authentification biométrique réussie : sinon rien
+      // n'est enregistré et l'interrupteur reste désactivé.
+      let ok = false;
+      try {
+        ok = await Biometric.authenticate('Confirme pour activer le déverrouillage');
+      } catch {
+        ok = false;
+      }
+      if (!ok) return;
+    }
     setChoix(nouveau);
     try {
       await enregistrerChoixBiometrie(username, nouveau);

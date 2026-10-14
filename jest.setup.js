@@ -21,5 +21,7 @@ jest.mock('expo-secure-store', () => {
     deleteItemAsync: jest.fn(async (k) => {
       magasin.delete(k);
     }),
+    /** Vide le magasin (à appeler dans un beforeEach des tests qui l'utilisent). */
+    __vider: () => magasin.clear(),
   };
 });

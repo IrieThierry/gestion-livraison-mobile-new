@@ -1,4 +1,5 @@
-import type { LivreurResponse, UUID } from '../../types/api';
+import type { LivreurResponse, RoleOrganisation, UUID } from '../../types/api';
+import { estMembreOrganisation } from '../organisation/regles';
 import { nomPersonne } from './calculs/commun';
 
 export type FamilleEtat = 'ventes' | 'encaissements' | 'stock' | 'fournisseurs' | 'depenses';
@@ -51,6 +52,8 @@ export interface UtilisateurEtats {
   nom?: string | null;
   prenom?: string | null;
   parentId?: UUID | null;
+  organisationId?: UUID | null;
+  organisationRole?: RoleOrganisation | null;
 }
 
 /** Livreur principal = sans parent (même règle que le menu Profil). */
@@ -99,11 +102,16 @@ export function familleSurSoiSeulement(famille: FamilleEtat): boolean {
   return famille === 'fournisseurs';
 }
 
-/** Le filtre livreur n'a de sens que pour un principal, hors familles sur soi seulement. */
+/**
+ * Le filtre livreur n'a de sens que pour un principal, hors familles sur soi
+ * seulement. Dépenses (S5) : livreur principal indépendant seulement, jamais
+ * un membre d'organisation (le back refuse `equipe` / `livreurId`).
+ */
 export function afficheFiltreLivreur(
   user: UtilisateurEtats | null | undefined,
   famille: FamilleEtat,
 ): boolean {
+  if (famille === 'depenses' && estMembreOrganisation(user)) return false;
   return estPrincipal(user) && !familleSurSoiSeulement(famille);
 }
 
@@ -133,7 +141,7 @@ export function choixAutorise(
   apprentiIds: readonly UUID[],
   famille: FamilleEtat,
 ): ChoixLivreur {
-  if (!estPrincipal(user) || familleSurSoiSeulement(famille)) return CHOIX_MOI;
+  if (!afficheFiltreLivreur(user, famille)) return CHOIX_MOI;
   if (choix.type === 'apprenti' && !apprentiIds.includes(choix.id)) return CHOIX_MOI;
   return choix;
 }

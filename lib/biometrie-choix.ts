@@ -36,9 +36,10 @@ export async function enregistrerChoixBiometrie(username: string, choix: ChoixBi
 
 /**
  * Migration de l'ancienne clé `biometric_enabled = '1'` : elle n'existe que
- * si la session précédente n'a pas été déconnectée, donc pour le compte de
- * cette session. Elle devient `active` pour cet identifiant (sauf choix déjà
- * enregistré), puis est supprimée. Rend le choix à jour.
+ * si la session précédente n'a pas été déconnectée. Appelée seulement au
+ * démarrage (hydrate), avec l'utilisateur de la session stockée, qui en est
+ * donc le propriétaire. Elle devient `active` pour cet identifiant (sauf
+ * choix déjà enregistré), puis est supprimée. Rend le choix à jour.
  */
 export async function migrerAncienChoixBiometrie(username: string): Promise<ChoixBiometrie | null> {
   const actuel = await lireChoixBiometrie(username);
@@ -50,4 +51,15 @@ export async function migrerAncienChoixBiometrie(username: string): Promise<Choi
     return 'active';
   }
   return actuel;
+}
+
+/**
+ * À la connexion, une ancienne clé encore présente n'a pas de propriétaire
+ * connu (session sans utilisateur stocké) : elle n'est attribuée à personne,
+ * seulement supprimée. La question sera posée normalement.
+ */
+export async function oublierAncienChoixBiometrie(): Promise<void> {
+  if ((await SecureStorage.get(ANCIENNE_CLE_BIOMETRIE)) != null) {
+    await SecureStorage.remove(ANCIENNE_CLE_BIOMETRIE);
+  }
 }
