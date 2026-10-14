@@ -1,6 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { naviguer } from '../../lib/navigation-app';
 import Profil from '../../app/(livreur)/profil/index';
+import { Biometric } from '../../lib/biometric';
+import { enregistrerChoixBiometrie, lireChoixBiometrie } from '../../lib/biometrie-choix';
 
 jest.mock('expo-router', () => ({
   usePathname: () => '/profil',
@@ -18,6 +20,11 @@ jest.mock('../../lib/navigation-app', () => ({
 let mockUser: Record<string, unknown> = { id: 'liv-1', prenom: 'Awa', nom: 'Kone', username: 'awa', parentId: null };
 jest.mock('../../stores/authStore', () => ({
   useAuthStore: (sel: (s: unknown) => unknown) => sel({ user: mockUser, logout: jest.fn() }),
+}));
+jest.mock('../../lib/biometric', () => ({ Biometric: { isAvailable: jest.fn(async () => false) } }));
+jest.mock('../../lib/biometrie-choix', () => ({
+  lireChoixBiometrie: jest.fn(async () => null),
+  enregistrerChoixBiometrie: jest.fn(async () => undefined),
 }));
 jest.mock('../../stores/themeStore', () => ({
   useThemeStore: (sel: (s: unknown) => unknown) => sel({ theme: 'system', setTheme: jest.fn() }),
@@ -93,5 +100,34 @@ describe('Onglet Moi : organisation B2B', () => {
     expect(screen.getByText('Mes fournisseurs')).toBeTruthy();
     expect(screen.getByText('Mes apprentis')).toBeTruthy();
     expect(screen.queryByText('Mes factures')).toBeNull();
+  });
+});
+
+describe('Profil : déverrouillage biométrique (S4)', () => {
+  const LIBELLE = 'Déverrouiller avec Face ID / empreinte';
+
+  it('appareil non compatible : pas d’interrupteur', async () => {
+    render(<Profil />);
+    await act(async () => {});
+    expect(screen.queryByText(LIBELLE)).toBeNull();
+  });
+
+  it('appareil compatible : l’interrupteur reflète le choix du compte et l’enregistre', async () => {
+    (Biometric.isAvailable as jest.Mock).mockResolvedValueOnce(true);
+    (lireChoixBiometrie as jest.Mock).mockResolvedValueOnce('refusee');
+    render(<Profil />);
+    expect(await screen.findByText(LIBELLE)).toBeTruthy();
+    expect(lireChoixBiometrie).toHaveBeenCalledWith('awa');
+    const interrupteur = screen.getByLabelText(LIBELLE);
+    expect(interrupteur.props.value).toBe(false);
+    await act(async () => {
+      fireEvent(interrupteur, 'valueChange', true);
+    });
+    expect(enregistrerChoixBiometrie).toHaveBeenLastCalledWith('awa', 'active');
+    await waitFor(() => expect(screen.getByLabelText(LIBELLE).props.value).toBe(true));
+    await act(async () => {
+      fireEvent(screen.getByLabelText(LIBELLE), 'valueChange', false);
+    });
+    expect(enregistrerChoixBiometrie).toHaveBeenLastCalledWith('awa', 'refusee');
   });
 });

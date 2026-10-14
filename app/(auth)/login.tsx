@@ -16,7 +16,7 @@ import { authApi } from '../../features/auth/api';
 import { loginSchema } from '../../features/auth/schemas';
 import { useAuthStore } from '../../stores/authStore';
 import { Biometric } from '../../lib/biometric';
-import { SecureStorage } from '../../lib/secure-storage';
+import { enregistrerChoixBiometrie, migrerAncienChoixBiometrie } from '../../lib/biometrie-choix';
 import { dialog } from '../../lib/dialog';
 import * as Network from 'expo-network';
 import { messageErreurConnexion } from '../../features/auth/erreurConnexion';
@@ -43,17 +43,19 @@ export default function Login() {
 
   const mutation = useMutation({
     mutationFn: authApi.login,
-    onSuccess: async (data) => {
+    onSuccess: async (data, input) => {
       const { token, refreshToken, ...user } = data;
       await setSession(token, refreshToken, user);
 
-      // Offer to enable biometric for next launches. We await the Alert
-      // promise so the user finishes choosing before we navigate away.
-      // Any failure here must NOT block the login — biometric is optional.
+      // S4 : la question n'est posée qu'une fois par compte et par téléphone,
+      // si l'appareil est compatible. Le choix (« active » / « refusee ») est
+      // gardé par identifiant, même après la déconnexion. On attend la
+      // réponse avant de naviguer. Aucun échec ne bloque la connexion.
       try {
-        if (await Biometric.isAvailable()) {
-          const already = await SecureStorage.get('biometric_enabled');
-          if (already !== '1') {
+        const identifiant = user.username || input.username;
+        if (identifiant && (await Biometric.isAvailable())) {
+          const choix = await migrerAncienChoixBiometrie(identifiant);
+          if (choix === null) {
             const label = await Biometric.getTypeLabel();
             await new Promise<void>((resolve) => {
               dialog.confirm({
@@ -61,9 +63,12 @@ export default function Login() {
                 message: `La prochaine fois, ouvre l'app avec ${label} au lieu du mot de passe.`,
                 cancelLabel: 'Plus tard',
                 confirmLabel: 'Activer',
-                onCancel: () => resolve(),
+                onCancel: async () => {
+                  await enregistrerChoixBiometrie(identifiant, 'refusee').catch(() => undefined);
+                  resolve();
+                },
                 onConfirm: async () => {
-                  await SecureStorage.set('biometric_enabled', '1');
+                  await enregistrerChoixBiometrie(identifiant, 'active').catch(() => undefined);
                   resolve();
                 },
               });

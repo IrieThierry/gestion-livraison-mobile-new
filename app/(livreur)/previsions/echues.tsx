@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { CalendarClock, ChevronRight, Clock, FilePen, Package, Trash2, WifiOff } from 'lucide-react-native';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { EcranNotifications } from '../../../components/notifications/EcranNotifications';
@@ -46,6 +46,8 @@ import { extractApiErrorMessage } from '../../../lib/api-error';
  * Principal : « Remises à confirmer » de ses apprentis (Confirmer, Contester).
  * Tous : « Transferts à recevoir » (Accepter, Refuser) et lien vers la liste
  * des transferts (retour à Notifications).
+ * S1 : une rubrique vide est masquée (une rubrique en erreur reste visible) ;
+ * sans aucune rubrique, le titre « À traiter » disparaît aussi.
  */
 export default function Notifications() {
   const user = useAuthStore((s) => s.user);
@@ -78,6 +80,23 @@ export default function Notifications() {
   const transferts = (transfertsQ.data ?? []).filter((t) => peutDeciderTransfert(t, user.id));
   const echues = echuesQ.echues;
   const nbDemandes = (demandesQ.data ?? []).filter(estADecider).length;
+
+  // S1 : une rubrique ne s'affiche que si elle a au moins un élément, ou si
+  // sa lecture a échoué (l'erreur reste visible). Pendant le chargement elle
+  // reste masquée : l'écran montre un seul indicateur, pas de bloc vide.
+  const voirCommandes = !organisation && (qARecep.isError || (!qARecep.isLoading && nbCommandes > 0));
+  const voirTransferts = transfertsQ.isError || (!transfertsQ.isLoading && transferts.length > 0);
+  const voirRemises = estPrincipal && (remisesQ.isError || (!remisesQ.isLoading && remises.length > 0));
+  const voirDemandes = avecDemandesModif && (demandesQ.isError || (!demandesQ.isLoading && nbDemandes > 0));
+  const voirEchues =
+    echuesQ.isError || (!echuesQ.isLoading && (echues.length > 0 || !!echuesQ.partiel));
+  const aTraiterVisible = voirCommandes || voirTransferts || voirRemises || voirDemandes || voirEchues;
+  const aTraiterEnChargement =
+    (!organisation && qARecep.isLoading) ||
+    transfertsQ.isLoading ||
+    (estPrincipal && remisesQ.isLoading) ||
+    (avecDemandesModif && demandesQ.isLoading) ||
+    echuesQ.isLoading;
 
   const libelleGroupe = (g: GroupePrevision) =>
     `${nomClient(g.client)} — ${g.produit.designation} (prévu ${g.prevu}, livré ${g.livre}, ${jourCourt(g.jour)})`;
@@ -152,10 +171,12 @@ export default function Notifications() {
           {decisionTransfert.dialogue}
         </>
       }
+      aTraiterVisible={aTraiterVisible}
+      aTraiterEnChargement={aTraiterEnChargement}
       aTraiter={
         <>
-          {!organisation ? (
-          <>
+          {voirCommandes ? (
+          <View className="gap-3">
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
             Commandes à réceptionner
           </Text>
@@ -168,16 +189,16 @@ export default function Notifications() {
             <Text className="flex-1 font-bold text-slate-900 dark:text-white">
               {qARecep.isError
                 ? 'Commandes à réceptionner indisponibles'
-                : nbCommandes === 0
-                ? 'Aucune commande à réceptionner'
                 : `${nbCommandes} commande${nbCommandes > 1 ? 's' : ''} à réceptionner`}
             </Text>
             <ChevronRight color="#94a3b8" size={18} />
           </Pressable>
-          </>
+          </View>
           ) : null}
 
-          <View className={`flex-row items-center ${organisation ? '' : 'mt-3'}`}>
+          {voirTransferts ? (
+          <View className="gap-3">
+          <View className="flex-row items-center">
             <Text className="flex-1 text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
               Transferts à recevoir
             </Text>
@@ -189,40 +210,34 @@ export default function Notifications() {
               <Text className="text-[12px] font-bold text-emerald-700 dark:text-emerald-400">Voir tous les transferts</Text>
             </Pressable>
           </View>
-          {transfertsQ.isLoading ? (
-            <ActivityIndicator color="#10b981" />
-          ) : transfertsQ.isError ? (
+          {transfertsQ.isError ? (
             <EmptyState title="Transferts à recevoir indisponibles" message="Les transferts n’ont pas pu être lus." />
-          ) : transferts.length === 0 ? (
-            <EmptyState title="Aucun transfert à recevoir" />
           ) : (
             transferts.map((t) => (
               <TransfertCarte key={t.id} transfert={t} actions={decisionTransfert.actions(t)} />
             ))
           )}
+          </View>
+          ) : null}
 
-          {estPrincipal ? (
-            <>
-              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-3">
+          {voirRemises ? (
+            <View className="gap-3">
+              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
                 Remises à confirmer
               </Text>
-              {remisesQ.isLoading ? (
-                <ActivityIndicator color="#10b981" />
-              ) : remisesQ.isError ? (
+              {remisesQ.isError ? (
                 <EmptyState title="Remises à confirmer indisponibles" message="Les remises n’ont pas pu être lues." />
-              ) : remises.length === 0 ? (
-                <EmptyState title="Aucune remise à confirmer" />
               ) : (
                 remises.map((r) => (
                   <RemiseArgentCarte key={r.id} remise={r} avecApprenti actions={decision.actions(r)} />
                 ))
               )}
-            </>
+            </View>
           ) : null}
 
-          {avecDemandesModif ? (
-            <>
-              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-3">
+          {voirDemandes ? (
+            <View className="gap-3">
+              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
                 Demandes de modification de versement
               </Text>
               <Pressable
@@ -234,16 +249,16 @@ export default function Notifications() {
                 <Text className="flex-1 font-bold text-slate-900 dark:text-white">
                   {demandesQ.isError
                     ? 'Demandes de modification indisponibles'
-                    : nbDemandes === 0
-                    ? 'Aucune demande de modification à décider'
                     : `${nbDemandes} demande${nbDemandes > 1 ? 's' : ''} de modification à décider`}
                 </Text>
                 <ChevronRight color="#94a3b8" size={18} />
               </Pressable>
-            </>
+            </View>
           ) : null}
 
-          <View className="flex-row items-center mt-3">
+          {voirEchues ? (
+          <View className="gap-3">
+          <View className="flex-row items-center">
             <Text className="flex-1 text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
               Prévisions échues
             </Text>
@@ -271,12 +286,8 @@ export default function Notifications() {
               Certains jours n’ont pas pu être lus : la liste peut être incomplète.
             </Text>
           ) : null}
-          {echuesQ.isLoading ? (
-            <ActivityIndicator color="#10b981" />
-          ) : echuesQ.isError ? (
+          {echuesQ.isError ? (
             <EmptyState title="Chargement impossible" message="Les prévisions échues n’ont pas pu être lues." />
-          ) : echues.length === 0 ? (
-            <EmptyState title="Aucune prévision échue" />
           ) : (
             echues.map((g) => (
               <View
@@ -320,6 +331,8 @@ export default function Notifications() {
               </View>
             ))
           )}
+          </View>
+          ) : null}
         </>
       }
     />

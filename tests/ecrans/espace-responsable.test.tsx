@@ -313,10 +313,23 @@ describe('Notifications du responsable', () => {
     expect(screen.getByText('Contester')).toBeTruthy();
   });
 
-  it('listes vides et liens vers les listes complètes (retour aux Notifications)', () => {
+  it('S1 : listes vides et fil vide → ni rubrique ni « À traiter », un seul « Aucune notification »', () => {
     render(<NotificationsResponsable />);
-    expect(screen.getByText('Aucun déchargement à accepter')).toBeTruthy();
-    expect(screen.getByText('Aucune remise à confirmer')).toBeTruthy();
+    expect(screen.queryByText('Déchargements à accepter')).toBeNull();
+    expect(screen.queryByText('Remises à confirmer')).toBeNull();
+    expect(screen.queryByText('Aucun déchargement à accepter')).toBeNull();
+    expect(screen.queryByText('Aucune remise à confirmer')).toBeNull();
+    expect(screen.queryByText('À traiter')).toBeNull();
+    expect(screen.queryByText('Fil d’activité')).toBeNull();
+    expect(screen.getAllByText('Aucune notification')).toHaveLength(1);
+  });
+
+  it('liens vers les listes complètes (retour aux Notifications)', () => {
+    mockTransferts = [dechargement()];
+    mockRemises = [remise];
+    render(<NotificationsResponsable />);
+    expect(screen.getByText('À traiter')).toBeTruthy();
+    expect(screen.queryByText('Aucune notification')).toBeNull();
     fireEvent.press(screen.getByText('Voir tous les transferts'));
     expect(ouvrir).toHaveBeenLastCalledWith('/(livreur)/stock/transferts', { depuis: 'notifications-responsable' });
     fireEvent.press(screen.getByText('Voir toutes les remises'));

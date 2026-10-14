@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 // Aligné sur le portail web : le back attend username/password.
 export const loginSchema = z.object({
-  username: z.string().min(1, "Nom d'utilisateur requis"),
+  // S2 : espaces de début et de fin retirés de l'identifiant (jamais du mot de passe).
+  username: z.string().trim().min(1, "Nom d'utilisateur requis"),
   password: z.string().min(1, 'Mot de passe requis'),
 });
 

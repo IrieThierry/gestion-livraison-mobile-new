@@ -5,6 +5,8 @@ import { router } from 'expo-router';
 import Login from '../../app/(auth)/login';
 import { authApi } from '../../features/auth/api';
 import { useDialogStore } from '../../stores/dialogStore';
+import { Biometric } from '../../lib/biometric';
+import { enregistrerChoixBiometrie, migrerAncienChoixBiometrie } from '../../lib/biometrie-choix';
 
 jest.mock('expo-router', () => ({ router: { replace: jest.fn(), push: jest.fn() } }));
 jest.mock('expo-network', () => ({ getNetworkStateAsync: jest.fn() }));
@@ -12,21 +14,27 @@ jest.mock('../../features/auth/api', () => ({ authApi: { login: jest.fn() } }));
 jest.mock('../../stores/authStore', () => ({
   useAuthStore: (sel: (s: unknown) => unknown) => sel({ setSession: jest.fn() }),
 }));
-jest.mock('../../lib/biometric', () => ({ Biometric: { isAvailable: jest.fn(async () => false) } }));
+jest.mock('../../lib/biometric', () => ({
+  Biometric: { isAvailable: jest.fn(async () => false), getTypeLabel: jest.fn(async () => 'Face ID') },
+}));
+jest.mock('../../lib/biometrie-choix', () => ({
+  migrerAncienChoixBiometrie: jest.fn(async () => null),
+  enregistrerChoixBiometrie: jest.fn(async () => undefined),
+}));
 jest.mock('../../lib/secure-storage', () => ({ SecureStorage: { get: jest.fn(), set: jest.fn() } }));
 
 const login = authApi.login as jest.Mock;
 const etatReseau = Network.getNetworkStateAsync as jest.Mock;
 
-function connecter() {
+function connecter(identifiant = 'awa', motDePasse = 'secret123') {
   const qc = new QueryClient({ defaultOptions: { mutations: { retry: false, gcTime: Infinity }, queries: { gcTime: Infinity } } });
   render(
     <QueryClientProvider client={qc}>
       <Login />
     </QueryClientProvider>,
   );
-  fireEvent.changeText(screen.getByPlaceholderText('ton.identifiant'), 'awa');
-  fireEvent.changeText(screen.getByPlaceholderText('••••••••'), 'secret123');
+  fireEvent.changeText(screen.getByPlaceholderText('ton.identifiant'), identifiant);
+  fireEvent.changeText(screen.getByPlaceholderText('••••••••'), motDePasse);
   fireEvent.press(screen.getByText('Se connecter'));
 }
 
@@ -88,5 +96,80 @@ describe('Connexion : écran d’arrivée selon le profil', () => {
     login.mockResolvedValue(reponse(profile));
     connecter();
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith(cible));
+  });
+});
+
+const reponseLivreur = {
+  token: 't',
+  refreshToken: 'r',
+  id: 'u-1',
+  nom: 'Kone',
+  prenom: 'Awa',
+  username: 'awa',
+  email: '',
+  contact: '0712345678',
+  profile: 'LIVREUR',
+};
+
+describe('Connexion : identifiant sans espaces (S2)', () => {
+  it('retire les espaces de l’identifiant, jamais du mot de passe', async () => {
+    login.mockResolvedValue(reponseLivreur);
+    connecter('  awa  ', ' secret123 ');
+    await waitFor(() => expect(login).toHaveBeenCalled());
+    expect(login.mock.calls[0][0]).toEqual({ username: 'awa', password: ' secret123 ' });
+  });
+
+  it('identifiant fait seulement d’espaces : refusé avant l’envoi', () => {
+    connecter('   ', 'secret123');
+    expect(login).not.toHaveBeenCalled();
+    expect(useDialogStore.getState().message).toBe("Nom d'utilisateur requis");
+  });
+});
+
+describe('Connexion : question de la biométrie (S4)', () => {
+  const choix = migrerAncienChoixBiometrie as jest.Mock;
+  const enregistrer = enregistrerChoixBiometrie as jest.Mock;
+  beforeEach(() => {
+    (Biometric.isAvailable as jest.Mock).mockResolvedValue(true);
+    login.mockResolvedValue(reponseLivreur);
+  });
+  afterEach(() => (Biometric.isAvailable as jest.Mock).mockResolvedValue(false));
+
+  const action = (label: string) => useDialogStore.getState().actions!.find((a) => a.label === label)!;
+
+  it('première connexion, appareil compatible : « Plus tard » enregistre « refusee »', async () => {
+    choix.mockResolvedValue(null);
+    connecter();
+    await waitFor(() => expect(useDialogStore.getState().title).toBe('Activer Face ID ?'));
+    expect(choix).toHaveBeenCalledWith('awa');
+    expect(router.replace).not.toHaveBeenCalled();
+    await action('Plus tard').onPress!();
+    expect(enregistrer).toHaveBeenCalledWith('awa', 'refusee');
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/(livreur)'));
+  });
+
+  it('« Activer » enregistre « active »', async () => {
+    choix.mockResolvedValue(null);
+    connecter();
+    await waitFor(() => expect(useDialogStore.getState().title).toBe('Activer Face ID ?'));
+    await action('Activer').onPress!();
+    expect(enregistrer).toHaveBeenCalledWith('awa', 'active');
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/(livreur)'));
+  });
+
+  it.each([['refusee'], ['active']])('choix déjà fait (%s) : la question ne revient pas', async (c) => {
+    choix.mockResolvedValue(c);
+    connecter();
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/(livreur)'));
+    expect(useDialogStore.getState().open).toBe(false);
+    expect(enregistrer).not.toHaveBeenCalled();
+  });
+
+  it('appareil non compatible : aucune question', async () => {
+    (Biometric.isAvailable as jest.Mock).mockResolvedValue(false);
+    connecter();
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/(livreur)'));
+    expect(choix).not.toHaveBeenCalled();
+    expect(useDialogStore.getState().open).toBe(false);
   });
 });

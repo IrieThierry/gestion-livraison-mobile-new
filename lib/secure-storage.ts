@@ -10,11 +10,11 @@ export const SecureStorage = {
   async remove(key: string): Promise<void> {
     await SecureStore.deleteItemAsync(key);
   },
+  /** Efface les jetons. Le choix de la biométrie (par identifiant) est gardé (S4). */
   async clearAuth(): Promise<void> {
     await Promise.all([
       SecureStore.deleteItemAsync('access_token'),
       SecureStore.deleteItemAsync('refresh_token'),
-      SecureStore.deleteItemAsync('biometric_enabled'),
     ]);
   },
 };

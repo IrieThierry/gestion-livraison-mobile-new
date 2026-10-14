@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { EcranNotifications } from '../../components/notifications/EcranNotifications';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { RemiseArgentCarte, useDecisionRemise } from '../../components/livreur/RemiseArgentCarte';
@@ -30,6 +30,9 @@ export default function NotificationsResponsable() {
 
   const transferts = (transfertsQ.data ?? []).filter((t) => peutDeciderTransfert(t, user.id));
   const remises = (remisesQ.data ?? []).filter(peutDecider);
+  // S1 : rubrique masquée si vide ou en cours de lecture ; visible si erreur.
+  const voirTransferts = transfertsQ.isError || (!transfertsQ.isLoading && transferts.length > 0);
+  const voirRemises = remisesQ.isError || (!remisesQ.isLoading && remises.length > 0);
 
   return (
     <EcranNotifications
@@ -44,43 +47,43 @@ export default function NotificationsResponsable() {
           {decisionRemise.dialogue}
         </>
       }
+      aTraiterVisible={voirTransferts || voirRemises}
+      aTraiterEnChargement={transfertsQ.isLoading || remisesQ.isLoading}
       aTraiter={
         <>
-          <EnTete
-            titre="Déchargements à accepter"
-            lien="Voir tous les transferts"
-            onLien={() => ouvrir('/(livreur)/stock/transferts', { depuis: DEPUIS_NOTIFICATIONS_RESPONSABLE })}
-          />
-          {transfertsQ.isLoading ? (
-            <ActivityIndicator color="#10b981" />
-          ) : transfertsQ.isError ? (
-            <EmptyState title="Déchargements indisponibles" message="Les transferts n’ont pas pu être lus." />
-          ) : transferts.length === 0 ? (
-            <EmptyState title="Aucun déchargement à accepter" />
-          ) : (
-            transferts.map((t) => <TransfertCarte key={t.id} transfert={t} actions={decisionTransfert.actions(t)} />)
-          )}
+          {voirTransferts ? (
+            <View className="gap-3">
+              <EnTete
+                titre="Déchargements à accepter"
+                lien="Voir tous les transferts"
+                onLien={() => ouvrir('/(livreur)/stock/transferts', { depuis: DEPUIS_NOTIFICATIONS_RESPONSABLE })}
+              />
+              {transfertsQ.isError ? (
+                <EmptyState title="Déchargements indisponibles" message="Les transferts n’ont pas pu être lus." />
+              ) : (
+                transferts.map((t) => <TransfertCarte key={t.id} transfert={t} actions={decisionTransfert.actions(t)} />)
+              )}
+            </View>
+          ) : null}
 
-          <View className="mt-3">
-            <EnTete
-              titre="Remises à confirmer"
-              lien="Voir toutes les remises"
-              onLien={() =>
-                ouvrir('/(livreur)/profil/remises-apprentis', { depuis: DEPUIS_NOTIFICATIONS_RESPONSABLE })
-              }
-            />
-          </View>
-          {remisesQ.isLoading ? (
-            <ActivityIndicator color="#10b981" />
-          ) : remisesQ.isError ? (
-            <EmptyState title="Remises à confirmer indisponibles" message="Les remises n’ont pas pu être lues." />
-          ) : remises.length === 0 ? (
-            <EmptyState title="Aucune remise à confirmer" />
-          ) : (
-            remises.map((r) => (
-              <RemiseArgentCarte key={r.id} remise={r} avecApprenti actions={decisionRemise.actions(r)} />
-            ))
-          )}
+          {voirRemises ? (
+            <View className="gap-3">
+              <EnTete
+                titre="Remises à confirmer"
+                lien="Voir toutes les remises"
+                onLien={() =>
+                  ouvrir('/(livreur)/profil/remises-apprentis', { depuis: DEPUIS_NOTIFICATIONS_RESPONSABLE })
+                }
+              />
+              {remisesQ.isError ? (
+                <EmptyState title="Remises à confirmer indisponibles" message="Les remises n’ont pas pu être lues." />
+              ) : (
+                remises.map((r) => (
+                  <RemiseArgentCarte key={r.id} remise={r} avecApprenti actions={decisionRemise.actions(r)} />
+                ))
+              )}
+            </View>
+          ) : null}
         </>
       }
     />
