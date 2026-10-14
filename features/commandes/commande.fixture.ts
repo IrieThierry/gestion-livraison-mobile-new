@@ -32,6 +32,7 @@ export function commandeFixture(overrides: Partial<CommandeResponse> = {}): Comm
     motifRefus: null,
     dateLivraison: null,
     montantLivre: null,
+    montantEstime: 2500,
     remiseLivreurLivree: null,
     versementId: null,
     apprentiAffecte: null,

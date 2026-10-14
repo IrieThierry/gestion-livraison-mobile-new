@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { View, Text, FlatList, Pressable, RefreshControl } from 'react-native';
 import { Plus, CheckCircle2, AlertTriangle } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { useCloturesByLivreur } from '../../../features/clotures/hooks';
-import { sensEcart } from '../../../features/clotures/regles';
+import { useOptionsLivreurCloture } from '../../../features/clotures/options';
+import { livreurClotureRetenu, sensEcart } from '../../../features/clotures/regles';
+import { ChoixLivreurCloture } from '../../../components/livreur/ChoixLivreurCloture';
 import { num } from '../../../features/encaissements/regles';
 import { useAuthStore } from '../../../stores/authStore';
 import { formatMontant, formatDateShort } from '../../../lib/format';
@@ -16,7 +19,10 @@ import { naviguer } from '../../../lib/navigation-app';
  */
 export default function CloturesList() {
   const user = useAuthStore((s) => s.user);
-  const livreurId = user?.id ?? '';
+  // N6 : le livreur principal filtre ses clôtures ou celles d'un apprenti actif.
+  const options = useOptionsLivreurCloture();
+  const [choisi, setChoisi] = useState<string | null>(null);
+  const livreurId = user ? livreurClotureRetenu(options, choisi, user.id) : '';
   const q = useCloturesByLivreur(livreurId);
 
   if (!user) return null;
@@ -28,7 +34,12 @@ export default function CloturesList() {
         subtitle={`${q.data?.length ?? 0} clôture${(q.data?.length ?? 0) > 1 ? 's' : ''}`}
         right={
           <Pressable
-            onPress={() => naviguer('/(livreur)/clotures/nouvelle')}
+            onPress={() =>
+              naviguer(
+                '/(livreur)/clotures/nouvelle',
+                user && livreurId !== user.id ? { livreurId } : undefined,
+              )
+            }
             className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <Plus color="#fff" size={14} />
@@ -36,6 +47,12 @@ export default function CloturesList() {
           </Pressable>
         }
       />
+
+      {options.length > 1 ? (
+        <View className="px-4 pt-2">
+          <ChoixLivreurCloture options={options} value={livreurId} onChange={setChoisi} />
+        </View>
+      ) : null}
 
       <FlatList
         data={[...(q.data ?? [])].sort(

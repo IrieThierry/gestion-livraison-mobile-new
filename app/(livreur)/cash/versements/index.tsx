@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { View, Text, FlatList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
-import { Plus, Wallet } from 'lucide-react-native';
+import { ChevronRight, FilePen, Plus, Wallet } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import { SearchInput } from '../../../../components/shared/SearchInput';
@@ -66,6 +66,17 @@ export default function MesVersements() {
       />
 
       <View className="px-4 pb-2">
+        <Pressable
+          onPress={() => naviguer('/(livreur)/cash/versements/demandes')}
+          accessibilityRole="button"
+          className="flex-row items-center justify-between bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2.5 mb-2 active:opacity-70"
+        >
+          <View className="flex-row items-center gap-2">
+            <FilePen color="#b45309" size={16} />
+            <Text className="font-bold text-slate-900 dark:text-white text-[13px]">Demandes de modification</Text>
+          </View>
+          <ChevronRight color="#94a3b8" size={16} />
+        </Pressable>
         <SearchInput
           value={recherche}
           onChangeText={setRecherche}
@@ -116,7 +127,8 @@ export default function MesVersements() {
           )
         }
         renderItem={({ item }) => (
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 mb-2 flex-row items-center gap-3">
+          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 mb-2">
+          <View className="flex-row items-center gap-3">
             <View className="w-10 h-10 rounded-full items-center justify-center bg-amber-100 dark:bg-amber-500/15">
               <Wallet color="#b45309" size={16} />
             </View>
@@ -135,6 +147,15 @@ export default function MesVersements() {
               </Text>
               <Text className="text-[10px] text-slate-400 dark:text-slate-500">FCFA</Text>
             </View>
+          </View>
+          <Pressable
+            onPress={() => naviguer('/(livreur)/cash/versements/modifier', { versementId: item.id })}
+            accessibilityRole="button"
+            accessibilityLabel={`Demander une modification du versement ${item.fournisseur?.libelle ?? ''}`.trim()}
+            className="self-start mt-2 active:opacity-60"
+          >
+            <Text className="text-[12px] font-bold text-amber-700 dark:text-amber-400">Demander une modification</Text>
+          </Pressable>
           </View>
         )}
       />

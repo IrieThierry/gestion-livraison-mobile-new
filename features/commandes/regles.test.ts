@@ -1,4 +1,6 @@
 import {
+  montantCommande,
+  totalEstime,
   construireCommande,
   construireModificationReception,
   construireReception,
@@ -291,5 +293,38 @@ describe('dateReceptionParam', () => {
     expect(dateReceptionParam(null, '2026-10-08')).toBeUndefined();
     expect(dateReceptionParam('2026-10-08', '2026-10-08')).toBeUndefined();
     expect(dateReceptionParam('2026-10-06', '2026-10-08')).toBe('2026-10-06T00:00:00');
+  });
+});
+
+describe('N2 : montants de commande', () => {
+  const pf = (id: string, prixDeVente: number) =>
+    ({ prixDeVente, produit: { id, code: id, designation: id } }) as never;
+
+  it('totalEstime : Σ quantité × prix affiché ; vides et invalides ignorés', () => {
+    const lignes = [pf('a', 500), pf('b', 250)];
+    expect(totalEstime(lignes, {})).toBe(0);
+    expect(totalEstime(lignes, { a: '2', b: '4' })).toBe(2000);
+    expect(totalEstime(lignes, { a: '2', b: '' })).toBe(1000);
+    expect(totalEstime(lignes, { a: '1.5', b: '-1', c: '9' })).toBe(0);
+  });
+
+  it('montantCommande : « Montant estimé » tant que montantLivre est nul ou à 0, puis « Montant livré »', () => {
+    expect(montantCommande({ montantLivre: null, montantEstime: 4000 })).toEqual({
+      libelle: 'Montant estimé',
+      montant: 4000,
+    });
+    expect(montantCommande({ montantLivre: 0, montantEstime: 4000 })).toEqual({
+      libelle: 'Montant estimé',
+      montant: 4000,
+    });
+    expect(montantCommande({ montantLivre: 3500, montantEstime: 4000 })).toEqual({
+      libelle: 'Montant livré',
+      montant: 3500,
+    });
+    expect(montantCommande({ montantLivre: null, montantEstime: null })).toEqual({
+      libelle: 'Montant estimé',
+      montant: null,
+    });
+    expect(montantCommande({ montantLivre: null })).toEqual({ libelle: 'Montant estimé', montant: null });
   });
 });

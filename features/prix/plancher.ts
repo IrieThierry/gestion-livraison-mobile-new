@@ -81,3 +81,6 @@ export function erreurPlancherLignes(
   }
   return null;
 }
+
+/** N5 : mention affichée à l'apprenti, qui lit en lecture seule les prix de son principal. */
+export const PRIX_FIXES_PAR_PRINCIPAL = 'Prix fixés par ton livreur principal';

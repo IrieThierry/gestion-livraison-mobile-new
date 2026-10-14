@@ -1,6 +1,7 @@
 import { View, Text, FlatList, Pressable, RefreshControl } from 'react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
+import { MontantCommande } from '../../../../components/livreur/MontantCommande';
 import { CommandeStatusBadge } from '../../../../components/livreur/CommandeStatusBadge';
 import { BoutonReceptions } from '../../../../components/livreur/BoutonReceptions';
 import { useCommandesAReceptionner } from '../../../../features/commandes/hooks';
@@ -83,6 +84,9 @@ export default function CommandesAReceptionner() {
                 <Text className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
                   {restant} restant{restant > 1 ? 's' : ''} à recevoir
                 </Text>
+              </View>
+              <View className="mt-0.5">
+                <MontantCommande commande={c} />
               </View>
               <BoutonReceptions commandeId={c.id} nombre={c.receptions.length} depuis={DEPUIS_A_RECEPTIONNER} />
             </Pressable>

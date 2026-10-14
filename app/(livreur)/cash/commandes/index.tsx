@@ -9,6 +9,7 @@ import {
   CommandeStatusBadge,
   ReglementBadge,
 } from '../../../../components/livreur/CommandeStatusBadge';
+import { MontantCommande } from '../../../../components/livreur/MontantCommande';
 import { BoutonReceptions } from '../../../../components/livreur/BoutonReceptions';
 import { useMesCommandes } from '../../../../features/commandes/hooks';
 import {
@@ -17,7 +18,7 @@ import {
 } from '../../../../features/commandes/regles';
 import { useAuthStore } from '../../../../stores/authStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
-import { formatDateShort, formatFCFA } from '../../../../lib/format';
+import { formatDateShort } from '../../../../lib/format';
 import { naviguer } from '../../../../lib/navigation-app';
 
 export default function CommandesList() {
@@ -164,11 +165,7 @@ export default function CommandesList() {
               <Text className="text-[10px] text-slate-500 dark:text-slate-400">
                 {formatDateShort(c.date)}
               </Text>
-              {c.montantLivre != null ? (
-                <Text className="font-extrabold text-emerald-600 dark:text-emerald-400 text-[12px]">
-                  {formatFCFA(c.montantLivre)} F
-                </Text>
-              ) : null}
+              <MontantCommande commande={c} />
             </View>
             <BoutonReceptions commandeId={c.id} nombre={c.receptions.length} />
           </Pressable>

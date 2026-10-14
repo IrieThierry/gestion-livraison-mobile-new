@@ -31,6 +31,7 @@ import { ProduitVignette } from '../../../components/shared/ProduitVignette';
 import { useAuthStore } from '../../../stores/authStore';
 import { estCommercial } from '../../../features/organisation/regles';
 import { useGrillePrix } from '../../../features/organisation/hooks';
+import { PRIX_FIXES_PAR_PRINCIPAL } from '../../../features/prix/plancher';
 
 /**
  * « Mes prix de vente » — barème par défaut du livreur.
@@ -52,7 +53,10 @@ export default function MesPrixPage() {
   // O6 : le commercial d'organisation consulte la grille fixée par son responsable (lecture seule),
   // lue sur `GET /organisation/me/grille-prix` (catalogue de l'organisation et prix du responsable).
   const user = useAuthStore((s) => s.user);
-  const lectureSeule = estCommercial(user);
+  const parGrille = estCommercial(user);
+  // N5 : l'apprenti lit les prix de son principal (`GET /prix-livreur/me`), sans les modifier.
+  const parPrincipal = !parGrille && !!user?.parentId;
+  const lectureSeule = parGrille || parPrincipal;
   // P2 / P5 : livreur indépendant seulement (rien pour une organisation).
   const avecAchat = avecPrixAchat(user);
   const qAchat = useMesPrixAchat(avecAchat);
@@ -60,8 +64,8 @@ export default function MesPrixPage() {
   const verrou = useRef(creerVerrou()).current;
   const qGrille = useGrillePrix();
   // Commercial : ni le référentiel ni ses prix personnels ne sont lus (la grille suffit).
-  const qProduits = useProduits(!lectureSeule);
-  const qPrix = useMesPrix(!lectureSeule);
+  const qProduits = useProduits(!parGrille);
+  const qPrix = useMesPrix(!parGrille);
   const upsertMut = useUpsertPrixLivreur();
   const deleteMut = useSupprimerPrixLivreur();
 
@@ -70,17 +74,17 @@ export default function MesPrixPage() {
 
   const prixMap = useMemo(() => {
     const m = new Map<string, number>();
-    if (lectureSeule) {
+    if (parGrille) {
       for (const l of qGrille.data ?? []) if (l.prix != null) m.set(l.produit.id, Number(l.prix));
     } else {
       for (const p of qPrix.data ?? []) m.set(p.produit.id, p.prix);
     }
     return m;
-  }, [lectureSeule, qGrille.data, qPrix.data]);
+  }, [parGrille, qGrille.data, qPrix.data]);
 
   const tousProduits = useMemo<ProduitResponse[]>(
     () =>
-      lectureSeule
+      parGrille
         ? (qGrille.data ?? []).map((l) => ({
             id: l.produit.id,
             code: l.produit.code ?? '',
@@ -88,7 +92,7 @@ export default function MesPrixPage() {
             photoUrl: l.produit.photoUrl,
           }))
         : qProduits.data ?? [],
-    [lectureSeule, qGrille.data, qProduits.data],
+    [parGrille, qGrille.data, qProduits.data],
   );
 
   const produitsAffiches = useMemo(
@@ -96,7 +100,7 @@ export default function MesPrixPage() {
     [tousProduits, recherche],
   );
 
-  if (lectureSeule ? qGrille.isLoading : qProduits.isLoading || qPrix.isLoading) {
+  if (parGrille ? qGrille.isLoading : qProduits.isLoading || qPrix.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
         <ActivityIndicator color="#10b981" />
@@ -105,7 +109,7 @@ export default function MesPrixPage() {
   }
 
   const produits = tousProduits;
-  const grilleIndisponible = lectureSeule && qGrille.isError;
+  const grilleIndisponible = parGrille && qGrille.isError;
 
   const onSave = (produit: ProduitResponse) => {
     const raw = draftPrix[produit.id] ?? '';
@@ -150,16 +154,22 @@ export default function MesPrixPage() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
         title="Mes prix de vente"
-        subtitle={lectureSeule ? 'Prix fixés par ton responsable' : 'Barème par défaut'}
+        subtitle={
+          parGrille
+            ? 'Prix fixés par ton responsable'
+            : parPrincipal
+              ? PRIX_FIXES_PAR_PRINCIPAL
+              : 'Barème par défaut'
+        }
       />
 
       {/* FormScreen : le clavier numérique ne recouvre pas les prix du bas. */}
       <FormScreen
         refreshControl={
           <RefreshControl
-            refreshing={lectureSeule ? qGrille.isFetching && !qGrille.isLoading : qPrix.isFetching && !qPrix.isLoading}
+            refreshing={parGrille ? qGrille.isFetching && !qGrille.isLoading : qPrix.isFetching && !qPrix.isLoading}
             onRefresh={() => {
-              if (lectureSeule) {
+              if (parGrille) {
                 qGrille.refetch();
                 return;
               }
@@ -176,9 +186,11 @@ export default function MesPrixPage() {
           <View className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-md p-3 flex-row items-start gap-2 mb-3">
             <Tag color="#059669" size={14} />
             <Text className="flex-1 text-[12px] text-emerald-700 dark:text-emerald-400">
-              {lectureSeule
+              {parGrille
                 ? 'Prix fixés par ton responsable. Ils s’appliquent à tes ventes et ne se modifient pas ici.'
-                : "Ces prix s'appliquent à toutes tes livraisons. Tu peux les modifier à tout moment — ils sont aussi visibles sur le portail web. Pour un prix spécifique à un client, va sur sa fiche client."}
+                : parPrincipal
+                  ? `${PRIX_FIXES_PAR_PRINCIPAL}. Ils s’appliquent à tes ventes et ne se modifient pas ici.`
+                  : "Ces prix s'appliquent à toutes tes livraisons. Tu peux les modifier à tout moment — ils sont aussi visibles sur le portail web. Pour un prix spécifique à un client, va sur sa fiche client."}
             </Text>
           </View>
 
@@ -209,7 +221,7 @@ export default function MesPrixPage() {
             <EmptyState
               title="Aucun produit"
               message={
-                lectureSeule
+                parGrille
                   ? 'Ton responsable n’a pas encore de produit dans son catalogue.'
                   : "Demande à l'admin de créer des produits dans le référentiel."
               }

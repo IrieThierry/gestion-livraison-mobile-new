@@ -12,12 +12,16 @@ import { PageHeader } from '../../../components/shared/PageHeader';
 import { FormScreen } from '../../../components/shared/FormScreen';
 import { DatePickerField } from '../../../components/shared/DatePickerField';
 import { useEnregistrerCloture } from '../../../features/clotures/hooks';
+import { useOptionsLivreurCloture } from '../../../features/clotures/options';
+import { ChoixLivreurCloture } from '../../../components/livreur/ChoixLivreurCloture';
+import { useLocalSearchParams } from 'expo-router';
 import {
   construireCloture,
   ecartCaisse,
   libelleEcart,
   messageClotureEnregistree,
   parseMontantRemis,
+  livreurClotureRetenu,
   sensEcart,
   totauxEstimesDuJour,
 } from '../../../features/clotures/regles';
@@ -41,7 +45,12 @@ import { useRetourListe } from '../../../lib/useRetourListe';
 export default function NouvelleCloture() {
   const user = useAuthStore((s) => s.user);
   const isOnline = useNetworkStore((s) => s.isOnline);
-  const livreurId = user?.id ?? '';
+  // N6 : le livreur principal clôture pour lui ou pour un apprenti actif.
+  const params = useLocalSearchParams<{ livreurId?: string }>();
+  const options = useOptionsLivreurCloture();
+  const [choisi, setChoisi] = useState<string | null>(params.livreurId ?? null);
+  const livreurId = user ? livreurClotureRetenu(options, choisi, user.id) : '';
+  const pourApprenti = !!user && livreurId !== user.id;
   const today = jourLocal(new Date());
 
   const [dateCloture, setDateCloture] = useState<string | null>(today);
@@ -71,7 +80,7 @@ export default function NouvelleCloture() {
       return;
     }
     const req = construireCloture({
-      livreurId: user.id,
+      livreurId,
       dateCloture,
       montantRemis,
       commentaire,
@@ -105,6 +114,8 @@ export default function NouvelleCloture() {
 
       <FormScreen>
         <View className="px-4 pt-3 gap-3">
+          <ChoixLivreurCloture options={options} value={livreurId} onChange={setChoisi} />
+
           {/* Date */}
           <DatePickerField
             label="Date de clôture *"
@@ -164,6 +175,10 @@ export default function NouvelleCloture() {
             {user?.parentId ? (
               <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
                 Une remise sera déclarée à ton livreur principal.
+              </Text>
+            ) : pourApprenti ? (
+              <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                La remise de l’apprenti sera enregistrée comme déjà confirmée.
               </Text>
             ) : null}
             {montantRemis.trim() !== '' && !remis.ok ? (

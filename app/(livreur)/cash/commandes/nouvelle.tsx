@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -22,8 +22,10 @@ import {
   construireCommande,
   lignesCommandables,
   remisePartenaire,
+  totalEstime,
   type Quantites,
 } from '../../../../features/commandes/regles';
+import { creerVerrou, lancerUneFois } from '../../../../features/commandes/verrou';
 import { useAuthStore } from '../../../../stores/authStore';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
@@ -60,6 +62,7 @@ export default function NouvelleCommande() {
   const [apprentiId, setApprentiId] = useState<string | null>(null);
   const catalogue = useCatalogueFournisseur(fournisseurId ?? undefined);
   const m = useCreerCommande();
+  const verrou = useRef(creerVerrou()).current;
   const retourListe = useRetourListe('/(livreur)/cash/commandes');
   const lignes = useMemo(() => lignesCommandables(catalogue.data ?? []), [catalogue.data]);
   const prerempli = useMemo(
@@ -123,7 +126,8 @@ export default function NouvelleCommande() {
       return;
     }
     const payload = apprentiId ? { ...resultat.valeur, apprentiId } : resultat.valeur;
-    m.mutate(payload, {
+    lancerUneFois(verrou, (fin) => m.mutate(payload, {
+      onSettled: fin,
       onSuccess: () => {
         setFournisseurId(null);
         setQuantites({});
@@ -136,7 +140,7 @@ export default function NouvelleCommande() {
       },
       onError: (err: unknown) =>
         dialog.error('Erreur', extractApiErrorMessage(err, "Échec de l'envoi de la commande")),
-    });
+    }));
   };
 
   return (
@@ -244,6 +248,15 @@ export default function NouvelleCommande() {
                       />
                     </View>
                   ))}
+                  <View className="flex-row justify-between items-center mt-2 px-1">
+                    <Text className="text-slate-700 dark:text-slate-300 font-bold">Total estimé</Text>
+                    <Text
+                      testID="total-estime"
+                      className="font-extrabold text-emerald-600 dark:text-emerald-400 text-base"
+                    >
+                      {formatFCFA(totalEstime(lignes, quantites))} F
+                    </Text>
+                  </View>
                 </View>
               )}
               {prefill && prerempli ? (

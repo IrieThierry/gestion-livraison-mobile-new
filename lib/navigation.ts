@@ -180,7 +180,8 @@ export interface RouteApp {
  *  - `notifications` : ouvert depuis l'écran Notifications (cloche de l'Accueil) ;
  *  - `apprenti` : ouvert depuis la fiche apprenti (paramètre `apprentiId`) ;
  *  - `notifications-responsable` : ouvert depuis les Notifications du responsable ;
- *  - `clients` : ouvert depuis la liste « Mes clients ».
+ *  - `clients` : ouvert depuis la liste « Mes clients » ;
+ *  - `moi` : ouvert depuis l'onglet Moi.
  */
 export type Origine =
   | 'client'
@@ -190,7 +191,8 @@ export type Origine =
   | 'notifications'
   | 'apprenti'
   | 'notifications-responsable'
-  | 'clients';
+  | 'clients'
+  | 'moi';
 export const DEPUIS_CLIENT = 'client' as const;
 export const DEPUIS_ENCOURS = 'encours' as const;
 export const DEPUIS_A_RECEPTIONNER = 'a-receptionner' as const;
@@ -199,6 +201,7 @@ export const DEPUIS_NOTIFICATIONS = 'notifications' as const;
 export const DEPUIS_APPRENTI = 'apprenti' as const;
 export const DEPUIS_NOTIFICATIONS_RESPONSABLE = 'notifications-responsable' as const;
 export const DEPUIS_CLIENTS = 'clients' as const;
+export const DEPUIS_MOI = 'moi' as const;
 /** Notifications du responsable (onglet de son espace). */
 const NOTIFICATIONS_RESPONSABLE = '/notifications';
 const A_RECEPTIONNER = '/cash/commandes/a-receptionner';
@@ -245,6 +248,9 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   'cash/retour-client': { type: 'formulaire', parent: '/cash/retours', origines: { client: FICHE_CLIENT } },
   'cash/versements/index': { type: 'liste', parent: ACCUEIL },
   'cash/versement': { type: 'formulaire', parent: '/cash/versements' },
+  // N7 : demandes de modification de versement, ouvertes depuis « Mes versements » ou Moi.
+  'cash/versements/demandes': { type: 'liste', parent: '/cash/versements', origines: { moi: '/profil' } },
+  'cash/versements/modifier': { type: 'formulaire', parent: '/cash/versements' },
   'cash/commandes/index': { type: 'liste', parent: ACCUEIL },
   // Ouverte depuis Notifications (cloche) : retour à Notifications.
   'cash/commandes/a-receptionner': { type: 'liste', parent: ACCUEIL, origines: { notifications: '/previsions/echues' } },

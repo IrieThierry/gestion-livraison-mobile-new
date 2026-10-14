@@ -348,12 +348,25 @@ describe('Mes prix de vente (O6)', () => {
     expect(screen.queryByText('Aucun produit')).toBeNull();
   });
 
-  it('apprenti hors organisation : saisie inchangée', () => {
+  it('principal hors organisation : saisie inchangée', () => {
     grille();
-    mockUser = { id: 'a1', prenom: 'Awa', nom: 'K', parentId: 'l1' };
+    mockUser = { id: 'l1', prenom: 'Ali', nom: 'K', parentId: null };
     render(<MesPrixPage />);
     expect(screen.getAllByText('Enregistrer')).toHaveLength(2);
     expect(screen.getByText('Modifier le prix')).toBeTruthy();
     expect(screen.queryByText(/Prix fixés par ton responsable/)).toBeNull();
+  });
+
+  it('N5 : apprenti hors organisation : prix du principal en lecture seule', () => {
+    grille();
+    mockUser = { id: 'a1', prenom: 'Awa', nom: 'K', parentId: 'l1' };
+    render(<MesPrixPage />);
+    expect(screen.getAllByText(/Prix fixés par ton livreur principal/).length).toBeGreaterThan(0);
+    expect(screen.getByText('500 FCFA')).toBeTruthy();
+    expect(screen.queryByText('Enregistrer')).toBeNull();
+    expect(screen.queryByText('Modifier le prix')).toBeNull();
+    expect(screen.queryByText(/Prix fixés par ton responsable/)).toBeNull();
+    // Pas de champ modifiable : le produit sans prix affiche « Aucun prix fixé ».
+    expect(screen.getByText('Aucun prix fixé')).toBeTruthy();
   });
 });
