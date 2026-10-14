@@ -78,8 +78,9 @@ describe('accès aux états', () => {
   it('filtre livreur : principal hors fournisseurs seulement', () => {
     expect(afficheFiltreLivreur(principal, 'ventes')).toBe(true);
     expect(afficheFiltreLivreur(principal, 'fournisseurs')).toBe(false);
-    // Dépenses : la route ne renvoie que celles de l'appelant.
-    expect(afficheFiltreLivreur(principal, 'depenses')).toBe(false);
+    // S5 : l'état Dépenses accepte Moi / Équipe / apprenti.
+    expect(afficheFiltreLivreur(principal, 'depenses')).toBe(true);
+    expect(afficheFiltreLivreur(apprenti, 'depenses')).toBe(false);
     expect(afficheFiltreLivreur(apprenti, 'ventes')).toBe(false);
   });
 
@@ -99,7 +100,9 @@ describe('accès aux états', () => {
       id: 'a1',
     });
     expect(choixAutorise(principal, { type: 'equipe' }, ids, 'fournisseurs')).toEqual({ type: 'moi' });
-    expect(choixAutorise(principal, { type: 'apprenti', id: 'a1' }, ids, 'depenses')).toEqual({ type: 'moi' });
+    expect(choixAutorise(principal, { type: 'apprenti', id: 'a1' }, ids, 'depenses')).toEqual({ type: 'apprenti', id: 'a1' });
+    expect(choixAutorise(principal, { type: 'equipe' }, ids, 'depenses')).toEqual({ type: 'equipe' });
+    expect(choixAutorise(apprenti, { type: 'equipe' }, [], 'depenses')).toEqual({ type: 'moi' });
   });
 
   it('cible des lectures et libellé de l’en-tête', () => {

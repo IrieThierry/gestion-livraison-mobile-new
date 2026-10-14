@@ -721,6 +721,10 @@ export interface DepenseResponse {
   montant: number
   dateDepense: string  // YYYY-MM-DD
   commentaire: string | null
+  /** Auteur (null pour une dépense globale de l'admin). */
+  proprietaireUtilisateurId?: UUID | null
+  /** S5 : auteur avec son nom affiché (nom null si le compte a été supprimé). */
+  proprietaire?: { id: UUID; nom: string | null } | null
 }
 
 export interface CreerDepenseRequest {

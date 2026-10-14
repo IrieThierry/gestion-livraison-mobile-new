@@ -91,12 +91,12 @@ export function choixDepuisId(id: string | null | undefined): ChoixLivreur {
 }
 
 /**
- * Familles sur le seul livreur connecté : fournisseurs (principal), et
- * dépenses — `GET /depense` ne renvoie que les dépenses de l'appelant (hors
- * administrateur) : ni apprenti ni équipe possibles.
+ * Familles sur le seul livreur connecté : fournisseurs (principal). Les
+ * dépenses acceptent Moi / Équipe / apprenti (S5 : `GET /depense` avec
+ * `livreurId` ou `equipe`).
  */
 export function familleSurSoiSeulement(famille: FamilleEtat): boolean {
-  return famille === 'fournisseurs' || famille === 'depenses';
+  return famille === 'fournisseurs';
 }
 
 /** Le filtre livreur n'a de sens que pour un principal, hors familles sur soi seulement. */
@@ -124,8 +124,8 @@ export function optionsLivreur(
 
 /**
  * Choix réellement appliqué : un apprenti ne voit que ses propres données ;
- * un principal ne peut viser qu'un de SES apprentis ; les familles
- * fournisseurs et dépenses portent toujours sur le livreur connecté.
+ * un principal ne peut viser qu'un de SES apprentis ; la famille
+ * fournisseurs porte toujours sur le livreur connecté.
  */
 export function choixAutorise(
   user: UtilisateurEtats | null | undefined,

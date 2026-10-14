@@ -58,4 +58,15 @@ describe('etatsApi', () => {
     await etatsApi.depenses(P);
     expect(get).toHaveBeenCalledWith('/depense', { params: { startDate: '2026-10-01', endDate: '2026-10-31' } });
   });
+
+  it('dépenses (S5) : équipe → equipe=true, apprenti → livreurId', async () => {
+    await etatsApi.depenses(P, { equipe: true });
+    expect(get).toHaveBeenLastCalledWith('/depense', {
+      params: { startDate: '2026-10-01', endDate: '2026-10-31', equipe: 'true' },
+    });
+    await etatsApi.depenses(P, { livreurId: 'a1' });
+    expect(get).toHaveBeenLastCalledWith('/depense', {
+      params: { startDate: '2026-10-01', endDate: '2026-10-31', livreurId: 'a1' },
+    });
+  });
 });

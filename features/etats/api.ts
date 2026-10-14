@@ -66,9 +66,14 @@ export const etatsApi = {
     get(`/versement/livreur/${livreurId}`, { debut: p.debut, fin: p.fin }),
 
   /**
-   * Dépenses de la période (jours inclus). Le back ne renvoie que celles de
-   * l'utilisateur connecté (toutes pour un administrateur).
+   * Dépenses de la période (jours inclus). Sans filtre : celles de
+   * l'utilisateur connecté. S5 : `equipe` (principal et apprentis) ou
+   * `livreurId` (un apprenti), livreur principal indépendant seulement.
    */
-  depenses: (p: Periode): Promise<DepenseResponse[]> =>
-    get('/depense', { startDate: p.debut, endDate: p.fin }),
+  depenses: (p: Periode, filtre: { livreurId?: UUID; equipe?: boolean } = {}): Promise<DepenseResponse[]> =>
+    get('/depense', {
+      startDate: p.debut,
+      endDate: p.fin,
+      ...(filtre.equipe ? { equipe: 'true' } : filtre.livreurId ? { livreurId: filtre.livreurId } : {}),
+    }),
 };
