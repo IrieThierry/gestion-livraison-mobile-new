@@ -25,6 +25,8 @@ export interface LigneDepense {
   libelleCategorie: string;
   libelle: string;
   montant: number;
+  /** Auteur de la dépense (vue équipe) ; vide si inconnu. */
+  livreur: string;
 }
 
 export interface LigneCategorie {
@@ -62,6 +64,7 @@ export function calculerEtatDepenses(
       libelleCategorie: libelleCategorieDepense(d.categorie),
       libelle: d.libelle ?? '',
       montant: arrondi(num(d.montant)),
+      livreur: d.proprietaire?.nom ?? '',
     }));
 
   const parCat = new Map<string, LigneCategorie>();

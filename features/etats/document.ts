@@ -396,14 +396,28 @@ export function documentDepenses(etat: EtatDepenses, e: EnteteEtat): DocumentEta
     sections: [
       {
         titre: 'Dépenses de la période',
-        colonnes: [
-          { libelle: 'Date' },
-          { libelle: 'Catégorie' },
-          { libelle: 'Libellé' },
-          { libelle: 'Montant', droite: true },
-        ],
-        lignes: etat.depenses.map((d) => [formatJour(d.date), d.libelleCategorie, d.libelle, m(d.montant)]),
-        totaux: ['Total', `${q(t.nb)} dépense${t.nb > 1 ? 's' : ''}`, '', m(t.montant)],
+        colonnes: avecLivreur(
+          e.equipe,
+          [
+            { libelle: 'Date' },
+            { libelle: 'Catégorie' },
+            { libelle: 'Libellé' },
+            { libelle: 'Montant', droite: true },
+          ],
+          { libelle: 'Livreur' },
+        ),
+        lignes: etat.depenses.map((d) =>
+          avecLivreur(
+            e.equipe,
+            [formatJour(d.date), d.libelleCategorie, d.libelle, m(d.montant)],
+            d.livreur,
+          ),
+        ),
+        totaux: avecLivreur(
+          e.equipe,
+          ['Total', `${q(t.nb)} dépense${t.nb > 1 ? 's' : ''}`, '', m(t.montant)],
+          '',
+        ),
         vide: 'Aucune dépense sur la période.',
       },
       {
