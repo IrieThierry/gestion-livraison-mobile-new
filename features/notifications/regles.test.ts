@@ -33,8 +33,10 @@ describe('heureRelative', () => {
     ['2026-10-14T11:55:00', 'il y a 5 min'],
     ['2026-10-14T11:00:30', 'il y a 59 min'],
     ['2026-10-14T10:00:00', 'il y a 2 h'],
-    ['2026-10-13T13:00:00', 'il y a 23 h'],
+    ['2026-10-13T13:00:00', 'hier'],
     ['2026-10-13T08:00:00', 'hier'],
+    ['2026-10-13T08:00:00', 'hier'],
+    ['2026-10-13T23:00:00', 'hier'],
     ['2026-10-12T23:00:00', '12/10/2026'],
     ['2025-01-05T08:00:00', '05/01/2025'],
   ])('%s → %s', (creeLe, attendu) => {
@@ -115,6 +117,21 @@ describe('segmentsTexte', () => {
 
   it('caractères spéciaux du nom échappés', () => {
     expect(segmentsTexte('A. (B) a annulé.', ['A. (B)'])[0]).toEqual({ texte: 'A. (B)', gras: true });
+  });
+});
+
+describe('heureRelative : passage de minuit', () => {
+  it('23:00 vu à 01:00 : « hier » (cohérent avec le groupe « Plus tôt »)', () => {
+    expect(heureRelative('2026-10-13T23:00:00', new Date(2026, 9, 14, 1, 0, 0))).toBe('hier');
+    expect(heureRelative('2026-10-14T00:10:00', new Date(2026, 9, 14, 1, 0, 0))).toBe('il y a 50 min');
+  });
+});
+
+describe('apparenceNotification : annulations et retraits', () => {
+  it('annulé : gris ; clients retirés : ambre', () => {
+    expect(apparenceNotification(notif({ type: 'TRANSFERT_ANNULE' }))).toMatchObject({ ton: 'neutre', couleur: '#64748b' });
+    expect(apparenceNotification(notif({ type: 'COMMANDE_ANNULEE' })).couleur).toBe('#64748b');
+    expect(apparenceNotification(notif({ type: 'CLIENTS_RETIRES' })).couleur).toBe('#d97706');
   });
 });
 

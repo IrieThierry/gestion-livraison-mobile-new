@@ -123,6 +123,16 @@ export default function DemandesModification() {
           />
         }
       >
+        {!q.isError && qVersements.isError ? (
+          <View className="mt-3 mb-1 p-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/40">
+            <Text className="text-[12px] text-amber-800 dark:text-amber-300">
+              Les versements n’ont pas pu être chargés : les valeurs « avant » ne sont pas affichées.
+            </Text>
+            <Pressable onPress={() => qVersements.refetch()} accessibilityRole="button" className="mt-1 active:opacity-70">
+              <Text className="text-[12px] font-bold text-amber-900 dark:text-amber-200">Réessayer</Text>
+            </Pressable>
+          </View>
+        ) : null}
         {q.isLoading ? (
           <View className="py-6 items-center">
             <ActivityIndicator color="#10b981" />

@@ -252,6 +252,27 @@ describe('Écran Notifications : fil façon Facebook', () => {
     expect(screen.getByText('Section à traiter')).toBeTruthy();
   });
 
+  it('le spinner du tirer-pour-rafraîchir ne suit pas la relecture de fond', async () => {
+    const { UNSAFE_getByType } = rendre();
+    await screen.findByTestId('notification-n1');
+    const { RefreshControl, FlatList } = jest.requireActual('react-native');
+    const qc = clients[clients.length - 1];
+    expect(UNSAFE_getByType(RefreshControl).props.refreshing).toBe(false);
+    // Relecture de fond (intervalle de 30 s) : pas de spinner.
+    let fin: () => void = () => {};
+    get.mockImplementationOnce(() => new Promise((r) => { fin = () => r({ data: [] }); }));
+    act(() => {
+      void qc.refetchQueries({ queryKey: ['notifications', 'fil'] });
+    });
+    expect(UNSAFE_getByType(RefreshControl).props.refreshing).toBe(false);
+    await act(async () => fin());
+    // Geste de l'utilisateur : spinner jusqu'à la fin de la lecture.
+    await act(async () => {
+      UNSAFE_getByType(FlatList).props.refreshControl.props.onRefresh();
+    });
+    await waitFor(() => expect(UNSAFE_getByType(RefreshControl).props.refreshing).toBe(false));
+  });
+
   it('retour sur l’écran : fil, compteur et « À traiter » relus', async () => {
     rendre();
     await screen.findByTestId('notification-n1');

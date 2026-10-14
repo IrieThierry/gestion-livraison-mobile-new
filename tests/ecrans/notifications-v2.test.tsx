@@ -200,6 +200,14 @@ describe('N7 : demandes de modification de versement', () => {
     expect(mockRejeter).toHaveBeenCalledWith({ id: 'd1', motif: 'Montant juste' }, expect.anything());
   });
 
+  it('échec de la lecture des versements : avertissement distinct, demandes toujours affichées', () => {
+    (demandesHooks.useDemandesModif as jest.Mock).mockReturnValue(lecture([demande('d1')]));
+    (useVersementsLivreur as jest.Mock).mockReturnValue(lecture(undefined, { isError: true }));
+    render(<DemandesModification />);
+    expect(screen.getByText(/Les versements n’ont pas pu être chargés/)).toBeTruthy();
+    expect(screen.getByText('Approuver')).toBeTruthy();
+  });
+
   it('demande du livreur : en attente du fournisseur, sans boutons ; historique', () => {
     (demandesHooks.useDemandesModif as jest.Mock).mockReturnValue(
       lecture([

@@ -1,4 +1,4 @@
-import { useMemo, useRef, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import {
   ArrowLeftRight,
@@ -74,12 +74,19 @@ export function EcranNotifications({
   const toutLu = useToutMarquerLu();
   const verrou = useRef(creerVerrou()).current;
 
+  // Le spinner ne suit que le geste de l'utilisateur, pas la relecture de fond (30 s).
+  const [actualisation, setActualisation] = useState(false);
   const relire = () => {
-    fil.refetch();
-    compte.refetch();
+    const lectures = [fil.refetch(), compte.refetch()];
     onRafraichir();
+    return lectures;
   };
   useRelireAuFocus(relire);
+
+  const tirerPourActualiser = () => {
+    setActualisation(true);
+    Promise.allSettled(relire()).then(() => setActualisation(false));
+  };
 
   const elements = useMemo(() => aplatirPages(fil.data?.pages), [fil.data]);
   const maintenant = new Date();
@@ -180,7 +187,7 @@ export function EcranNotifications({
           if (fil.hasNextPage && !fil.isFetchingNextPage && !fil.isFetchNextPageError) fil.fetchNextPage();
         }}
         refreshControl={
-          <RefreshControl refreshing={fil.isRefetching && !fil.isFetchingNextPage} onRefresh={relire} tintColor="#10b981" />
+          <RefreshControl refreshing={actualisation} onRefresh={tirerPourActualiser} tintColor="#10b981" />
         }
         renderItem={({ item }) =>
           'groupe' in item ? (
@@ -218,7 +225,7 @@ export function ElementNotification({
   onPress: (n: NotificationResponse) => void;
 }) {
   const { domaine, couleur } = apparenceNotification(n);
-  const Icone = ICONES[domaine];
+  const Icone = n.type === 'COMMANDE_LIVREE' ? Truck : ICONES[domaine];
   const heure = heureRelative(n.creeLe, maintenant);
   return (
     <Pressable

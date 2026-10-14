@@ -41,9 +41,9 @@ export function heureRelative(creeLe: string, maintenant: Date = new Date()): st
   const minutes = Math.floor((maintenant.getTime() - d.getTime()) / 60_000);
   if (minutes < 1) return 'à l’instant';
   if (minutes < 60) return `il y a ${minutes} min`;
-  if (minutes < 24 * 60) return `il y a ${Math.floor(minutes / 60)} h`;
   const hier = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate() - 1);
   if (memeJour(d, hier)) return 'hier';
+  if (minutes < 24 * 60) return `il y a ${Math.floor(minutes / 60)} h`;
   return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()}`;
 }
 
@@ -178,7 +178,10 @@ const COULEUR_POSITIF = '#059669';
 const COULEUR_NEGATIF = '#dc2626';
 
 const POSITIFS = /_(ACCEPTE|ACCEPTEE|CONFIRMEE|APPROUVEE|LIVREE|RECEPTIONNEE|SERVIE)$/;
-const NEGATIFS = /_(REFUSE|REFUSEE|CONTESTEE|REJETEE|ANNULE|ANNULEE|RETIRES)$/;
+const NEGATIFS = /_(REFUSE|REFUSEE|CONTESTEE|REJETEE)$/;
+const ANNULES = /_(ANNULE|ANNULEE)$/;
+const COULEUR_ANNULE = '#64748b';
+const COULEUR_RETIRES = '#d97706';
 
 export interface Apparence {
   domaine: DomaineNotification;
@@ -193,7 +196,16 @@ export function apparenceNotification(n: Pick<NotificationResponse, 'type' | 'ci
     DOMAINE_PAR_PREFIXE.find(([p]) => n.type.startsWith(p))?.[1] ??
     'autre';
   const ton: TonNotification = POSITIFS.test(n.type) ? 'positif' : NEGATIFS.test(n.type) ? 'negatif' : 'neutre';
-  const couleur = ton === 'positif' ? COULEUR_POSITIF : ton === 'negatif' ? COULEUR_NEGATIF : COULEUR_DOMAINE[domaine];
+  const couleur =
+    ton === 'positif'
+      ? COULEUR_POSITIF
+      : ton === 'negatif'
+        ? COULEUR_NEGATIF
+        : ANNULES.test(n.type)
+          ? COULEUR_ANNULE
+          : n.type === 'CLIENTS_RETIRES'
+            ? COULEUR_RETIRES
+            : COULEUR_DOMAINE[domaine];
   return { domaine, ton, couleur };
 }
 

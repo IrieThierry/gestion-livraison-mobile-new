@@ -55,7 +55,12 @@ export function useMarquerLue() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: UUID) => notificationsApi.marquerLue(id),
-    onMutate: (id: UUID) => {
+    onMutate: async (id: UUID) => {
+      // Une relecture en vol (30 s) écraserait l'état optimiste.
+      await Promise.all([
+        qc.cancelQueries({ queryKey: notificationKeys.fil() }),
+        qc.cancelQueries({ queryKey: notificationKeys.compte() }),
+      ]);
       const fil = qc.getQueryData<Fil>(notificationKeys.fil());
       const etaitNonLue = fil?.pages.some((p) => p.some((n) => n.id === id && !n.lue)) ?? false;
       qc.setQueryData<Fil>(notificationKeys.fil(), (f) => marquerEnCache(f, id));
@@ -73,6 +78,12 @@ export function useToutMarquerLu() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => notificationsApi.toutMarquerLu(),
+    onMutate: async () => {
+      await Promise.all([
+        qc.cancelQueries({ queryKey: notificationKeys.fil() }),
+        qc.cancelQueries({ queryKey: notificationKeys.compte() }),
+      ]);
+    },
     onSuccess: (nonLues: number) => {
       qc.setQueryData<Fil>(notificationKeys.fil(), (f) => marquerEnCache(f));
       qc.setQueryData<number>(notificationKeys.compte(), nonLues);
