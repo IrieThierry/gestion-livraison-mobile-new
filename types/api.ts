@@ -61,6 +61,37 @@ export interface AuthResponse {
   organisationId?: UUID | null
   /** RESPONSABLE (racine de l'organisation), COMMERCIAL (son apprenti), null hors organisation. */
   organisationRole?: RoleOrganisation | null
+  /**
+   * M1 : mot de passe provisoire (donné par le responsable du compte après
+   * « Mot de passe oublié »). Vrai : l'écran « Choisis ton nouveau mot de
+   * passe » s'ouvre et bloque l'app jusqu'au changement.
+   */
+  motDePasseProvisoire?: boolean
+}
+
+/** M1 : demande « Mot de passe oublié » en attente, vue par son destinataire. */
+export interface DemandeReinitialisationResponse {
+  id: UUID
+  /** Compte qui demande un nouveau mot de passe. */
+  compteId: UUID
+  username?: string
+  nom?: string
+  prenom?: string
+  contact?: string
+  profile?: string
+  /** APPRENTI, COMMERCIAL, LIVREUR_PRINCIPAL, RESPONSABLE, FOURNISSEUR ou ADMIN (figé à la demande). */
+  role?: string | null
+  /** Fiche du compte FOURNISSEUR (réinitialisation admin), sinon null. */
+  fournisseurId?: UUID | null
+  statut?: 'EN_ATTENTE' | 'TRAITEE' | 'ANNULEE'
+  /** `yyyy-MM-dd'T'HH:mm:ss`. */
+  creeLe?: string
+}
+
+/** Réponse de `POST /livreur/{id}/reset-password`. */
+export interface ResetMotDePasseResponse {
+  tempPassword: string
+  message?: string
 }
 
 export type RoleOrganisation = 'RESPONSABLE' | 'COMMERCIAL'

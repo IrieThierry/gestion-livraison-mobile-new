@@ -1,6 +1,7 @@
 import { apiClient } from '../../lib/api-client';
 import type {
   CreerApprentiRequest,
+  ResetMotDePasseResponse,
   LivreurResponse,
   UUID,
 } from '../../types/api';
@@ -40,5 +41,15 @@ export const apprentisApi = {
    */
   toggleActif: async (id: UUID, actif: boolean): Promise<void> => {
     await apiClient.put(`/livreur/${id}/actif`, { actif });
+  },
+
+  /**
+   * Réinitialise le mot de passe d'un apprenti (route existante) : le back
+   * génère un mot de passe provisoire, à communiquer à l'apprenti, et traite
+   * sa demande « Mot de passe oublié » en attente (M1).
+   */
+  resetPassword: async (id: UUID): Promise<ResetMotDePasseResponse> => {
+    const { data } = await apiClient.post<ResetMotDePasseResponse>(`/livreur/${id}/reset-password`);
+    return data;
   },
 };

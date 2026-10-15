@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as Network from 'expo-network';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import Login from '../../app/(auth)/login';
 import { authApi } from '../../features/auth/api';
@@ -280,5 +281,77 @@ describe('Connexion : accessibilité', () => {
       }),
     );
     expect(screen.getByLabelText('Connexion en cours')).toBeTruthy();
+  });
+});
+
+describe('Connexion : « Se souvenir de moi » et « Mot de passe oublié » (M1, M2)', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    mockAuthState.deverrouillageBiometriquePossible.mockResolvedValue(false);
+  });
+
+  async function afficher() {
+    const qc = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <Login />
+      </QueryClientProvider>,
+    );
+    await act(async () => {});
+  }
+
+  it('case cochée par défaut : session gardée et identifiant mémorisé', async () => {
+    login.mockResolvedValue(reponseLivreur);
+    await connecter();
+    expect(screen.getByRole('checkbox', { name: 'Se souvenir de moi' }).props.accessibilityState).toEqual({ checked: true });
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/(livreur)'));
+    expect(mockAuthState.setSession).toHaveBeenCalledWith('t', 'r', expect.objectContaining({ username: 'awa' }), true);
+    expect(await AsyncStorage.getItem('identifiant_memorise')).toBe('awa');
+    await laisserFinir();
+  });
+
+  it('case décochée : jetons en mémoire seulement, identifiant oublié, pas de question biométrie', async () => {
+    (Biometric.isAvailable as jest.Mock).mockResolvedValue(true);
+    await AsyncStorage.setItem('identifiant_memorise', 'ancien');
+    login.mockResolvedValue(reponseLivreur);
+    await afficher();
+    fireEvent.press(screen.getByRole('checkbox', { name: 'Se souvenir de moi' }));
+    fireEvent.changeText(screen.getByPlaceholderText('ton.identifiant'), 'awa');
+    fireEvent.changeText(screen.getByPlaceholderText('••••••••'), 'secret123');
+    fireEvent.press(screen.getByText('Se connecter'));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/(livreur)'));
+    expect(mockAuthState.setSession).toHaveBeenCalledWith('t', 'r', expect.anything(), false);
+    expect(await AsyncStorage.getItem('identifiant_memorise')).toBeNull();
+    expect(lireChoixBiometrie).not.toHaveBeenCalled();
+    (Biometric.isAvailable as jest.Mock).mockResolvedValue(false);
+    await laisserFinir();
+  });
+
+  it('identifiant mémorisé prérempli', async () => {
+    await AsyncStorage.setItem('identifiant_memorise', 'awa');
+    await afficher();
+    await waitFor(() => expect(screen.getByPlaceholderText('ton.identifiant').props.value).toBe('awa'));
+  });
+
+  it('case décochée : bouton biométrique masqué', async () => {
+    mockAuthState.deverrouillageBiometriquePossible.mockResolvedValue(true);
+    await afficher();
+    expect(await screen.findByText('Empreinte ou Face ID')).toBeTruthy();
+    fireEvent.press(screen.getByRole('checkbox', { name: 'Se souvenir de moi' }));
+    expect(screen.queryByText('Empreinte ou Face ID')).toBeNull();
+    mockAuthState.deverrouillageBiometriquePossible.mockResolvedValue(false);
+  });
+
+  it('lien « Mot de passe oublié ? » vers l’écran de demande', async () => {
+    await afficher();
+    fireEvent.press(screen.getByText('Mot de passe oublié ?'));
+    expect(router.push).toHaveBeenCalledWith('/(auth)/mot-de-passe-oublie');
+  });
+
+  it('mot de passe provisoire : ouvre « Choisis ton nouveau mot de passe »', async () => {
+    login.mockResolvedValue({ ...reponseLivreur, motDePasseProvisoire: true });
+    await connecter();
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/mot-de-passe-provisoire'));
+    await laisserFinir();
   });
 });

@@ -3,6 +3,8 @@ import * as path from 'path';
 import {
   ACCUEIL,
   ACCUEIL_LIVREUR,
+  ecranApresConnexion,
+  MOT_DE_PASSE_PROVISOIRE,
   accueilDuProfil,
   estProfilPortailWeb,
   PORTAIL_WEB,
@@ -530,5 +532,42 @@ describe('Transferts du responsable ouverts depuis Moi (ou par un lien)', () => 
   it('ouverte depuis les Notifications du responsable : retour aux Notifications', () => {
     const cible = { ...trouverRoute('/stock/transferts')!, params: { depuis: DEPUIS_NOTIFICATIONS_RESPONSABLE } };
     expect(parentDe(cible, RESP)).toBe('/notifications');
+  });
+});
+
+describe('Mot de passe provisoire (M1)', () => {
+  const provisoire = { profile: 'LIVREUR', motDePasseProvisoire: true };
+
+  it('après la connexion : écran de changement si provisoire, sinon accueil du profil', () => {
+    expect(ecranApresConnexion(provisoire)).toBe(MOT_DE_PASSE_PROVISOIRE);
+    expect(ecranApresConnexion({ profile: 'LIVREUR' })).toBe(ACCUEIL_LIVREUR);
+    expect(ecranApresConnexion({ profile: 'ADMIN', motDePasseProvisoire: false })).toBe('/portail-web');
+  });
+
+  it('tant qu’il est provisoire, aucune autre page', () => {
+    for (const seg of ['(livreur)', '(auth)', 'portail-web', undefined]) {
+      expect(redirectionRacine(provisoire, seg)).toBe(MOT_DE_PASSE_PROVISOIRE);
+    }
+    expect(redirectionRacine(provisoire, 'mot-de-passe-provisoire')).toBeNull();
+  });
+
+  it('changé : l’écran de changement renvoie à l’accueil ; non connecté : connexion', () => {
+    expect(redirectionRacine({ profile: 'LIVREUR' }, 'mot-de-passe-provisoire')).toBe(ACCUEIL_LIVREUR);
+    expect(redirectionRacine(null, 'mot-de-passe-provisoire')).toBe('/(auth)/login');
+  });
+
+  it('l’écran existe et est déclaré dans la pile racine', () => {
+    const racine = path.join(__dirname, '..', 'app');
+    expect(fs.existsSync(path.join(racine, 'mot-de-passe-provisoire.tsx'))).toBe(true);
+    expect(fs.existsSync(path.join(racine, '(auth)', 'mot-de-passe-oublie.tsx'))).toBe(true);
+    const layout = fs.readFileSync(path.join(racine, '_layout.tsx'), 'utf8');
+    expect(layout).toMatch(/<Stack\.Screen name="mot-de-passe-provisoire"/);
+  });
+
+  it('Mes apprentis ouverte depuis les Notifications y revient', () => {
+    expect(ROUTES['profil/apprentis/index'].origines).toMatchObject({
+      notifications: '/previsions/echues',
+      'notifications-responsable': '/notifications',
+    });
   });
 });

@@ -136,6 +136,7 @@ export type DomaineNotification =
   | 'clients'
   | 'cloture'
   | 'relation'
+  | 'compte'
   | 'autre';
 
 export type TonNotification = 'positif' | 'negatif' | 'neutre';
@@ -160,6 +161,7 @@ const DOMAINE_PAR_PREFIXE: [string, DomaineNotification][] = [
   ['CLIENTS_', 'clients'],
   ['CLOTURE_', 'cloture'],
   ['INVITATION_', 'relation'],
+  ['MOT_DE_PASSE_', 'compte'],
 ];
 
 /** Couleur de l'icône ronde : vert si accepté/confirmé, rouge si refusé/annulé, sinon celle du domaine. */
@@ -172,6 +174,7 @@ const COULEUR_DOMAINE: Record<DomaineNotification, string> = {
   clients: '#4f46e5',
   cloture: '#475569',
   relation: '#db2777',
+  compte: '#047857',
   autre: '#64748b',
 };
 const COULEUR_POSITIF = '#065f46';
@@ -208,6 +211,9 @@ export function apparenceNotification(n: Pick<NotificationResponse, 'type' | 'ci
             : COULEUR_DOMAINE[domaine];
   return { domaine, ton, couleur };
 }
+
+/** M1 : notification « <Nom> demande un nouveau mot de passe ». */
+export const TYPE_MOT_DE_PASSE_DEMANDE = 'MOT_DE_PASSE_DEMANDE';
 
 export interface ContexteCible {
   /** Apprenti : ses commandes sont celles à réceptionner. */
@@ -248,6 +254,13 @@ function hrefDeRoute(route: string, id: string | null, ctx: ContexteCible): stri
       return '/(livreur)/clotures';
     case 'fournisseurs':
       return '/(livreur)/profil/fournisseurs';
+    // M1 « Mot de passe demandé » : liste des apprentis (ou des commerciaux).
+    case 'equipe':
+    case 'apprentis':
+    case 'commerciaux':
+    case 'organisation.commerciaux':
+    case 'demandes-reinitialisation':
+      return '/(livreur)/profil/apprentis';
     // Espace fournisseur et responsable : portail web.
     case 'fournisseur.commandes':
     case 'fournisseur.invitations':
@@ -262,8 +275,17 @@ function hrefDeRoute(route: string, id: string | null, ctx: ContexteCible): stri
  * retour ramène aux Notifications), ou null si aucun écran mobile ne lui
  * correspond (la notification est seulement marquée lue).
  */
-export function cibleMobile(n: Pick<NotificationResponse, 'cible'>, ctx: ContexteCible): CibleMobile | null {
-  const href = n.cible ? hrefDeRoute(n.cible.route, n.cible.id, ctx) : null;
+export function cibleMobile(
+  n: Pick<NotificationResponse, 'cible'> & Partial<Pick<NotificationResponse, 'type'>>,
+  ctx: ContexteCible,
+): CibleMobile | null {
+  // M1 : « Mot de passe demandé » ouvre toujours la liste des apprentis ou commerciaux.
+  const href =
+    n.type === TYPE_MOT_DE_PASSE_DEMANDE
+      ? '/(livreur)/profil/apprentis'
+      : n.cible
+        ? hrefDeRoute(n.cible.route, n.cible.id, ctx)
+        : null;
   if (!href) return null;
   if (ctx.responsable) {
     const route = trouverRoute(href.replace('/(livreur)', ''));

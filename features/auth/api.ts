@@ -1,6 +1,6 @@
 import { apiClient } from '../../lib/api-client';
-import type { AuthResponse, LoginRequest } from '../../types/api';
-import type { LoginInput, SignupInput } from './schemas';
+import type { AuthResponse, DemandeReinitialisationResponse, LoginRequest } from '../../types/api';
+import type { LoginInput, MotDePasseOublieInput, SignupInput } from './schemas';
 
 // Le back renvoie une réponse plate (pas d'objet user imbriqué) — on extrait
 // la portion "user" depuis AuthResponse pour le store. Les tokens (`token`
@@ -66,5 +66,30 @@ export const authApi = {
   changePassword: async (payload: ChangePasswordRequest): Promise<{ message: string }> => {
     const { data } = await apiClient.put<{ message: string }>('/auth/me/password', payload);
     return data;
+  },
+
+  /**
+   * M1 « Mot de passe oublié » (route publique) : la demande part au
+   * responsable du compte. Le back répond toujours 200 avec le même message,
+   * que le compte existe ou non.
+   */
+  motDePasseOublie: async (input: MotDePasseOublieInput): Promise<{ message: string }> => {
+    const { data } = await apiClient.post<{ message: string }>('/auth/mot-de-passe-oublie', {
+      username: input.username,
+      contact: input.contact,
+    });
+    return data;
+  },
+
+  /** M1 : demandes « Mot de passe oublié » en attente visibles par l'appelant (parent, responsable). */
+  /** M1 : ignore une demande en attente (elle passe à ANNULEE, le badge disparaît). */
+  ignorerDemandeReinitialisation: async (id: string): Promise<{ message: string }> => {
+    const { data } = await apiClient.put<{ message: string }>(`/auth/demandes-reinitialisation/${id}/ignorer`);
+    return data;
+  },
+
+  demandesReinitialisation: async (): Promise<DemandeReinitialisationResponse[]> => {
+    const { data } = await apiClient.get<DemandeReinitialisationResponse[]>('/auth/demandes-reinitialisation');
+    return Array.isArray(data) ? data : [];
   },
 };

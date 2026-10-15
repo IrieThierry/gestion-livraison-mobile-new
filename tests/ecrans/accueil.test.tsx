@@ -66,6 +66,10 @@ jest.mock('../../features/notifications/hooks', () => ({
   useRelireAuFocus: jest.fn(),
 }));
 let mockDemandes: unknown[] = [];
+// M1 : demandes « Mot de passe oublié » (aucune par défaut).
+jest.mock('../../features/apprentis/hooks', () => ({
+  useDemandesReinitialisation: jest.fn(() => ({ data: [], isLoading: false, isError: false, refetch: jest.fn() })),
+}));
 jest.mock('../../features/demandes-modif/hooks', () => ({
   useDemandesModif: (enabled: boolean) => ({ data: enabled ? mockDemandes : undefined, isLoading: false, isError: false, refetch: jest.fn() }),
 }));

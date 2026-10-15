@@ -1,40 +1,60 @@
-import { useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  ActivityIndicator,
-} from 'react-native';
-import { FormScreen } from '../../components/shared/FormScreen';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text, TextInput, Pressable, ActivityIndicator, BackHandler } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
-import {
-  ArrowLeft,
-  Eye,
-  EyeOff,
-  UserPlus,
-  User,
-  IdCard,
-  Phone,
-  Mail,
-  AtSign,
-  Lock,
-} from 'lucide-react-native';
+import { ChevronLeft, Eye, EyeOff } from 'lucide-react-native';
+import { FormScreen } from '../../components/shared/FormScreen';
 import { authApi } from '../../features/auth/api';
-import { MESSAGES_COMPTE, signupSchema } from '../../features/auth/schemas';
+import { inscriptionInformationsSchema, MESSAGES_COMPTE, signupSchema } from '../../features/auth/schemas';
 import { extractApiErrorMessage } from '../../lib/api-error';
 import { dialog } from '../../lib/dialog';
 import { creerVerrou, lancerUneFois } from '../../features/commandes/verrou';
 
+const VERT = '#047857';
+const CHAMP =
+  'h-[50px] px-3.5 rounded-[14px] border border-[#d5dcd7] dark:border-slate-700 bg-[#fbfcfb] dark:bg-slate-800 text-base font-medium text-slate-900 dark:text-white';
+const OMBRE_CARTE = {
+  shadowColor: '#17201b',
+  shadowOpacity: 0.08,
+  shadowRadius: 15,
+  shadowOffset: { width: 0, height: 12 },
+  elevation: 6,
+};
+
+type Etape = 1 | 2 | 3;
+
+/** Profils proposés sur le mobile : livreur seulement (le fournisseur s'inscrit sur le portail web). */
+const PROFILS = [
+  {
+    id: 'LIVREUR' as const,
+    court: 'LIV',
+    titre: 'Livreur',
+    texte: 'Je livre mes clients avec mon camion, seul ou avec des apprentis.',
+  },
+];
+
+const TITRES: Record<Etape, string> = {
+  1: 'Créer ton compte',
+  2: 'Tes informations',
+  3: 'Tes accès',
+};
+
 /**
- * Inscription libre d'un livreur : le compte est utilisable tout de suite
- * (abonnement en essai). Le profil Fournisseur n'est pas proposé sur mobile :
- * le fournisseur s'inscrit sur le portail web. Règles et messages A7 :
- * `signupSchema`.
+ * Inscription libre d'un livreur en trois étapes, assortie à la connexion
+ * (bandeau vert) : 1. profil, 2. informations (prénom, nom, téléphone,
+ * email facultatif), 3. accès (nom d'utilisateur, mot de passe,
+ * confirmation) puis « Créer mon compte ». Chaque étape est vérifiée avant
+ * « Continuer » ; le retour (flèche ou bouton Android) ramène à l'étape
+ * précédente sans perdre la saisie, et à la connexion depuis l'étape 1.
+ * Le compte est utilisable tout de suite (abonnement en essai). Règles et
+ * messages A7 : `signupSchema`.
  */
 export default function Signup() {
+  const insets = useSafeAreaInsets();
+  const [etape, setEtape] = useState<Etape>(1);
+  const [profil, setProfil] = useState<'LIVREUR'>('LIVREUR');
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
   const [contact, setContact] = useState('');
@@ -46,28 +66,55 @@ export default function Signup() {
   // Double appui avant que isPending ne s'affiche : un seul envoi.
   const verrou = useRef(creerVerrou()).current;
 
+  const precedent = () => {
+    if (etape === 1) router.back();
+    else setEtape((e) => (e - 1) as Etape);
+  };
+
+  // Retour Android : étape précédente (à l'étape 1, comportement normal : connexion).
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (etape === 1) return false;
+      setEtape((e) => (e - 1) as Etape);
+      return true;
+    });
+    return () => sub.remove();
+  }, [etape]);
+
   const m = useMutation({
     mutationFn: authApi.register,
     onSuccess: () => {
-      dialog.success(
-        'Compte créé',
-        MESSAGES_COMPTE.inscriptionReussie,
-        {
-          autoDismissMs: 0,
-          actions: [
-            {
-              label: 'Se connecter',
-              style: 'primary',
-              onPress: () => router.replace('/(auth)/login'),
-            },
-          ],
-        },
-      );
+      dialog.success('Compte créé', MESSAGES_COMPTE.inscriptionReussie, {
+        autoDismissMs: 0,
+        actions: [
+          {
+            label: 'Se connecter',
+            style: 'primary',
+            onPress: () => router.replace('/(auth)/login'),
+          },
+        ],
+      });
     },
     onError: (err: unknown) => {
       dialog.error('Erreur', extractApiErrorMessage(err, 'Création impossible'));
     },
   });
+
+  const avertir = (message?: string) =>
+    dialog.warning('Champs invalides', message ?? 'Vérifie les informations saisies.');
+
+  const continuer = () => {
+    if (etape === 1) {
+      setEtape(2);
+      return;
+    }
+    const infos = inscriptionInformationsSchema.safeParse({ prenom, nom, contact, email });
+    if (!infos.success) {
+      avertir(infos.error.issues[0]?.message);
+      return;
+    }
+    setEtape(3);
+  };
 
   const onSubmit = () => {
     const parsed = signupSchema.safeParse({
@@ -78,192 +125,216 @@ export default function Signup() {
       username,
       password,
       confirmPassword,
+      profile: profil,
     });
     if (!parsed.success) {
-      dialog.warning('Champs invalides', parsed.error.issues[0]?.message);
+      avertir(parsed.error.issues[0]?.message);
       return;
     }
     lancerUneFois(verrou, (fin) => m.mutate(parsed.data, { onSettled: fin }));
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['top', 'bottom']}>
-      <FormScreen contentContainerStyle={{ flexGrow: 1 }} className="flex-1">
-          <View className="px-6 pt-4 pb-8">
-            {/* Back button */}
+    <View className="flex-1 bg-[#f6f7f5] dark:bg-slate-950">
+      <StatusBar style="light" />
+      <FormScreen
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 24 }}
+        className="flex-1"
+      >
+        {/* Bandeau vert */}
+        <View
+          testID="bandeau-inscription"
+          className="bg-emerald-700 px-6 pb-16 gap-4"
+          style={{ paddingTop: insets.top + 24, borderBottomLeftRadius: 36, borderBottomRightRadius: 36 }}
+        >
+          <View className="flex-row items-center justify-between">
             <Pressable
-              onPress={() => router.back()}
-              hitSlop={10}
-              className="flex-row items-center gap-1 active:opacity-70 mb-4"
+              onPress={precedent}
+              accessibilityRole="button"
+              accessibilityLabel={etape === 1 ? 'Retour à la connexion' : 'Étape précédente'}
+              hitSlop={6}
+              className="w-11 h-11 rounded-[14px] bg-white/15 items-center justify-center active:opacity-70"
             >
-              <ArrowLeft color="#64748b" size={18} />
-              <Text className="text-slate-600 dark:text-slate-400 font-bold">
-                Connexion
-              </Text>
+              <ChevronLeft color="#fff" size={22} />
             </Pressable>
-
-            <Text className="text-3xl font-extrabold text-slate-900 dark:text-white">
-              Créer un compte
+            <Text className="text-[13px] font-bold text-emerald-100">
+              {`Étape ${etape} sur 3${etape > 1 ? ' · Livreur' : ''}`}
             </Text>
-            <Text className="text-slate-500 dark:text-slate-400 mt-2">
-              Compte livreur, utilisable dès l'inscription.
+          </View>
+          <View className="gap-1.5">
+            <Text accessibilityRole="header" className="text-white text-[28px] font-extrabold tracking-tight">
+              {TITRES[etape]}
             </Text>
-            <Text className="text-[12px] text-slate-400 dark:text-slate-500 mt-1">
-              Fournisseur ? Inscrivez-vous sur le portail web.
-            </Text>
-
-            {/* Identité */}
-            <View className="flex-row gap-3 mt-6">
-              <View className="flex-1">
-                <Field
-                  label="Prénom *"
-                  value={prenom}
-                  onChange={setPrenom}
-                  placeholder="Marc"
-                  icon={User}
-                />
-              </View>
-              <View className="flex-1">
-                <Field
-                  label="Nom *"
-                  value={nom}
-                  onChange={setNom}
-                  placeholder="Konan"
-                  icon={IdCard}
-                />
-              </View>
-            </View>
-
-            <View className="mt-3">
-              <Field
-                label="Téléphone *"
-                value={contact}
-                onChange={setContact}
-                placeholder="0712345678"
-                keyboardType="phone-pad"
-                hint="10 chiffres, commence par 01, 05 ou 07"
-                icon={Phone}
+            {etape === 1 ? (
+              <Text className="text-emerald-100 text-[15px]">Commence par choisir ton profil.</Text>
+            ) : null}
+          </View>
+          <View className="flex-row gap-1.5" accessibilityLabel={`Étape ${etape} sur 3`}>
+            {[1, 2, 3].map((i) => (
+              <View
+                key={i}
+                testID={`progression-${i}`}
+                className={`flex-1 h-[5px] rounded-full ${i <= etape ? 'bg-white' : 'bg-white/30'}`}
               />
-            </View>
+            ))}
+          </View>
+        </View>
 
-            <View className="mt-3">
-              <Field
-                label="Email (optionnel)"
-                value={email}
-                onChange={setEmail}
-                placeholder="marc@…"
-                keyboardType="email-address"
-                icon={Mail}
-              />
-            </View>
-
-            <View className="mt-3">
-              <Field
-                label="Nom d'utilisateur *"
-                value={username}
-                onChange={setUsername}
-                placeholder="marc"
-                autoCapitalize="none"
-                hint="Min 3 caractères, sans espaces"
-                icon={AtSign}
-              />
-            </View>
-
-            {/* Passwords */}
-            <View className="mt-3">
-              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-                Mot de passe *
-              </Text>
-              <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">
-                <View className="pl-3.5">
-                  <Lock color="#64748b" size={16} />
-                </View>
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPwd}
-                  placeholder="Min 6 caractères"
-                  placeholderTextColor="#94a3b8"
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  className="flex-1 px-3 py-3.5 text-slate-900 dark:text-white text-base"
-                />
+        {etape === 1 ? (
+          <View accessibilityRole="radiogroup" accessibilityLabel="Profil" className="-mt-9 mx-4 gap-3">
+            {PROFILS.map((p) => {
+              const choisi = p.id === profil;
+              return (
                 <Pressable
-                  onPress={() => setShowPwd((v) => !v)}
-                  hitSlop={10}
-                  className="px-3 py-3.5 active:opacity-60"
+                  key={p.id}
+                  onPress={() => setProfil(p.id)}
+                  accessibilityRole="radio"
+                  accessibilityLabel={p.titre}
+                  accessibilityState={{ checked: choisi }}
+                  className="bg-white dark:bg-slate-900 rounded-[20px] p-4 flex-row items-center gap-3.5"
+                  style={{
+                    borderWidth: 2,
+                    borderColor: choisi ? VERT : '#e3e8e5',
+                    shadowColor: '#17201b',
+                    shadowOpacity: 0.06,
+                    shadowRadius: 11,
+                    shadowOffset: { width: 0, height: 8 },
+                    elevation: 3,
+                  }}
                 >
-                  {showPwd ? (
-                    <EyeOff color="#64748b" size={18} />
-                  ) : (
-                    <Eye color="#64748b" size={18} />
-                  )}
+                  <View
+                    className={`w-12 h-12 rounded-[14px] items-center justify-center ${
+                      choisi ? 'bg-emerald-700' : 'bg-[#eef2ef]'
+                    }`}
+                  >
+                    <Text className={`font-extrabold text-[13px] ${choisi ? 'text-white' : 'text-[#3d4741]'}`}>
+                      {p.court}
+                    </Text>
+                  </View>
+                  <View className="flex-1 gap-0.5">
+                    <Text className="font-extrabold text-base text-[#17201b] dark:text-white">{p.titre}</Text>
+                    <Text className="text-[13px] leading-[18px] text-[#5b665f] dark:text-slate-400">{p.texte}</Text>
+                  </View>
+                  <View
+                    className="w-[22px] h-[22px] rounded-full items-center justify-center"
+                    style={{ borderWidth: 2, borderColor: choisi ? VERT : '#e3e8e5' }}
+                  >
+                    {choisi ? <View className="w-3 h-3 rounded-full bg-emerald-700" /> : null}
+                  </View>
                 </Pressable>
-              </View>
-            </View>
-            <View className="mt-3">
-              <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-                Confirmer le mot de passe *
-              </Text>
-              <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">
-                <View className="pl-3.5">
-                  <Lock color="#64748b" size={16} />
-                </View>
-                <TextInput
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showPwd}
-                  placeholder="Re-tape le mot de passe"
-                  placeholderTextColor="#94a3b8"
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  className="flex-1 px-3 py-3.5 text-slate-900 dark:text-white text-base"
+              );
+            })}
+            <Text className="text-[13px] text-[#5b665f] dark:text-slate-400 text-center mt-1">
+              Fournisseur ? Inscris-toi sur le portail web.
+            </Text>
+          </View>
+        ) : (
+          <View
+            className="-mt-9 mx-4 bg-white dark:bg-slate-900 rounded-3xl px-[18px] py-[22px] gap-3.5"
+            style={OMBRE_CARTE}
+          >
+            {etape === 2 ? (
+              <>
+                <Champ label="Prénom" value={prenom} onChange={setPrenom} placeholder="Marc" />
+                <Champ label="Nom" value={nom} onChange={setNom} placeholder="Konan" />
+                <Champ
+                  label="Téléphone"
+                  value={contact}
+                  onChange={setContact}
+                  placeholder="0712345678"
+                  keyboardType="phone-pad"
+                  aide="10 chiffres, commence par 01, 05 ou 07"
                 />
-              </View>
-            </View>
+                <Champ
+                  label="Email (facultatif)"
+                  value={email}
+                  onChange={setEmail}
+                  placeholder="marc@…"
+                  keyboardType="email-address"
+                />
+              </>
+            ) : (
+              <>
+                <Champ
+                  label="Nom d'utilisateur"
+                  value={username}
+                  onChange={setUsername}
+                  placeholder="marc"
+                  autoCapitalize="none"
+                  aide="3 caractères au moins, sans espaces"
+                />
+                <ChampMotDePasse
+                  label="Mot de passe"
+                  value={password}
+                  onChange={setPassword}
+                  placeholder="Min 6 caractères"
+                  voir={showPwd}
+                  onBasculer={() => setShowPwd((v) => !v)}
+                />
+                <ChampMotDePasse
+                  label="Confirmer le mot de passe"
+                  value={confirmPassword}
+                  onChange={setConfirmPassword}
+                  placeholder="Re-tape le mot de passe"
+                  voir={showPwd}
+                />
+              </>
+            )}
+          </View>
+        )}
 
-            {/* Submit */}
+        {/* Pied : action de l'étape */}
+        <View className="flex-1 justify-end gap-3.5 px-4 pt-5">
+          {etape < 3 ? (
+            <Pressable
+              onPress={continuer}
+              accessibilityRole="button"
+              className="h-[54px] rounded-2xl bg-emerald-700 items-center justify-center active:opacity-80"
+            >
+              <Text className="text-white font-extrabold text-base">Continuer</Text>
+            </Pressable>
+          ) : (
             <Pressable
               onPress={onSubmit}
               disabled={m.isPending}
-              className="mt-6 bg-emerald-700 py-4 rounded-lg items-center flex-row justify-center gap-2 active:opacity-80"
+              accessibilityRole="button"
+              accessibilityLabel="Créer mon compte"
+              accessibilityState={{ disabled: m.isPending, busy: m.isPending }}
+              className="h-[54px] rounded-2xl bg-emerald-700 items-center justify-center active:opacity-80"
             >
               {m.isPending ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color="#fff" accessibilityLabel="Création en cours" />
               ) : (
-                <>
-                  <UserPlus color="#fff" size={18} />
-                  <Text className="text-white font-bold text-lg">Créer mon compte</Text>
-                </>
+                <Text className="text-white font-extrabold text-base">Créer mon compte</Text>
               )}
             </Pressable>
-
-            <Pressable
-              onPress={() => router.replace('/(auth)/login' as never)}
-              className="mt-5 items-center"
-            >
-              <Text className="text-base text-slate-500 dark:text-slate-400">
-                Déjà inscrit ?{' '}
-                <Text className="font-bold text-emerald-800 dark:text-emerald-400">
-                  Se connecter
-                </Text>
+          )}
+          {etape === 1 ? (
+            <Pressable onPress={() => router.replace('/(auth)/login' as never)} accessibilityRole="link">
+              <Text className="text-center text-sm text-[#5b665f] dark:text-slate-400">
+                Déjà un compte ?{' '}
+                <Text className="font-extrabold text-emerald-700 dark:text-emerald-400">Se connecter</Text>
               </Text>
             </Pressable>
-          </View>
+          ) : etape === 2 ? (
+            <Text className="text-center text-[13px] text-[#5b665f] dark:text-slate-400">
+              Étape suivante : ton nom d'utilisateur et ton mot de passe.
+            </Text>
+          ) : null}
+        </View>
       </FormScreen>
-    </SafeAreaView>
+    </View>
   );
 }
 
-function Field({
+function Champ({
   label,
   value,
   onChange,
   placeholder,
   keyboardType,
   autoCapitalize,
-  hint,
-  icon: Icon,
+  aide,
 }: {
   label: string;
   value: string;
@@ -271,47 +342,11 @@ function Field({
   placeholder?: string;
   keyboardType?: 'phone-pad' | 'email-address' | 'default';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-  hint?: string;
-  icon?: React.ComponentType<{ color: string; size: number }>;
+  aide?: string;
 }) {
-  if (Icon) {
-    return (
-      <View>
-        <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-          {label}
-        </Text>
-        <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">
-          <View className="pl-3.5">
-            <Icon color="#64748b" size={16} />
-          </View>
-          <TextInput
-            value={value}
-            onChangeText={onChange}
-            placeholder={placeholder}
-            placeholderTextColor="#94a3b8"
-            keyboardType={keyboardType ?? 'default'}
-            maxLength={keyboardType === 'phone-pad' ? 10 : undefined}
-            autoCapitalize={
-              autoCapitalize ??
-              (keyboardType === 'email-address' ? 'none' : 'sentences')
-            }
-            autoCorrect={false}
-            className="flex-1 px-3 py-3.5 text-slate-900 dark:text-white text-base"
-          />
-        </View>
-        {hint ? (
-          <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
-            {hint}
-          </Text>
-        ) : null}
-      </View>
-    );
-  }
   return (
-    <View>
-      <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2">
-        {label}
-      </Text>
+    <View className="gap-[7px]">
+      <Text className="text-sm font-bold text-[#17201b] dark:text-white">{label}</Text>
       <TextInput
         value={value}
         onChangeText={onChange}
@@ -319,17 +354,59 @@ function Field({
         placeholderTextColor="#94a3b8"
         keyboardType={keyboardType ?? 'default'}
         maxLength={keyboardType === 'phone-pad' ? 10 : undefined}
-        autoCapitalize={
-          autoCapitalize ?? (keyboardType === 'email-address' ? 'none' : 'sentences')
-        }
+        autoCapitalize={autoCapitalize ?? (keyboardType === 'email-address' ? 'none' : 'sentences')}
         autoCorrect={false}
-        className="px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-base"
+        accessibilityLabel={label}
+        className={CHAMP}
       />
-      {hint ? (
-        <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
-          {hint}
-        </Text>
-      ) : null}
+      {aide ? <Text className="text-xs font-medium text-[#5b665f] dark:text-slate-400">{aide}</Text> : null}
+    </View>
+  );
+}
+
+function ChampMotDePasse({
+  label,
+  value,
+  onChange,
+  placeholder,
+  voir,
+  onBasculer,
+}: {
+  label: string;
+  value: string;
+  onChange: (s: string) => void;
+  placeholder: string;
+  voir: boolean;
+  /** Absent : pas de bouton afficher / masquer (il agit sur les deux champs). */
+  onBasculer?: () => void;
+}) {
+  return (
+    <View className="gap-[7px]">
+      <Text className="text-sm font-bold text-[#17201b] dark:text-white">{label}</Text>
+      <View className="h-[50px] flex-row items-center pl-3.5 pr-1.5 rounded-[14px] border border-[#d5dcd7] dark:border-slate-700 bg-[#fbfcfb] dark:bg-slate-800">
+        <TextInput
+          value={value}
+          onChangeText={onChange}
+          secureTextEntry={!voir}
+          placeholder={placeholder}
+          placeholderTextColor="#94a3b8"
+          autoCorrect={false}
+          autoCapitalize="none"
+          accessibilityLabel={label}
+          className="flex-1 h-full text-base font-medium text-slate-900 dark:text-white"
+        />
+        {onBasculer ? (
+          <Pressable
+            onPress={onBasculer}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={voir ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+            className="w-11 h-11 items-center justify-center active:opacity-60"
+          >
+            {voir ? <EyeOff color="#5b665f" size={20} /> : <Eye color="#5b665f" size={20} />}
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }

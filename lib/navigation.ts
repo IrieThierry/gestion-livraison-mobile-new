@@ -58,11 +58,28 @@ export function accueilDuProfil(profile: string | null | undefined): string {
   return estProfilPortailWeb(profile) ? PORTAIL_WEB : ACCUEIL_LIVREUR;
 }
 
+/**
+ * M1 : écran « Choisis ton nouveau mot de passe » (`app/mot-de-passe-provisoire.tsx`,
+ * pile racine). Ouvert après la connexion avec un mot de passe provisoire ;
+ * aucune autre page n'est accessible tant qu'il n'est pas changé.
+ */
+export const MOT_DE_PASSE_PROVISOIRE = '/mot-de-passe-provisoire';
+
+/** Premier segment de route de l'écran du mot de passe provisoire. */
+const SEGMENT_MOT_DE_PASSE_PROVISOIRE = 'mot-de-passe-provisoire';
+
 /** Utilisateur vu par la redirection racine (champs de session). */
 export interface UtilisateurRedirection {
   profile?: string | null;
   organisationId?: string | null;
   organisationRole?: string | null;
+  /** M1 : mot de passe provisoire à changer avant tout accès. */
+  motDePasseProvisoire?: boolean | null;
+}
+
+/** Écran après la connexion : changement forcé si le mot de passe est provisoire (M1), sinon l'accueil du profil. */
+export function ecranApresConnexion(user: UtilisateurRedirection): string {
+  return user.motDePasseProvisoire ? MOT_DE_PASSE_PROVISOIRE : accueilDuProfil(user.profile);
 }
 
 /** Responsable d'une organisation (même règle que `estResponsable` de features/organisation). */
@@ -85,6 +102,10 @@ export function redirectionRacine(
 ): string | null {
   const dansAuth = premierSegment === '(auth)';
   if (!user) return dansAuth ? null : '/(auth)/login';
+  // M1 : mot de passe provisoire → seul l'écran de changement est accessible.
+  const surProvisoire = premierSegment === SEGMENT_MOT_DE_PASSE_PROVISOIRE;
+  if (user.motDePasseProvisoire) return surProvisoire ? null : MOT_DE_PASSE_PROVISOIRE;
+  if (surProvisoire) return accueilDuProfil(user.profile);
   if (dansAuth) return accueilDuProfil(user.profile);
   const portail = estProfilPortailWeb(user.profile);
   if (portail && premierSegment !== SEGMENT_PORTAIL_WEB) return PORTAIL_WEB;
@@ -311,7 +332,12 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
   'profil/prix': { type: 'formulaire', parent: '/profil' },
   'profil/fournisseurs': { type: 'liste', parent: '/profil', origines: { notifications: NOTIFICATIONS_LIVREUR } },
   'profil/fournisseur-commandes': { type: 'liste', parent: '/profil/fournisseurs' },
-  'profil/apprentis/index': { type: 'liste', parent: '/profil' },
+  // M1 : ouverte par la notification « Mot de passe demandé » ou la ligne « À traiter ».
+  'profil/apprentis/index': {
+    type: 'liste',
+    parent: '/profil',
+    origines: { notifications: NOTIFICATIONS_LIVREUR, 'notifications-responsable': NOTIFICATIONS_RESPONSABLE },
+  },
   'profil/apprentis/[id]': { type: 'fiche', parent: '/profil/apprentis' },
   'profil/apprentis/nouveau': { type: 'formulaire', parent: '/profil/apprentis' },
   // P8 : réaffectation des clients par le livreur principal indépendant, ouverte depuis

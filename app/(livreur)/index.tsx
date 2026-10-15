@@ -23,6 +23,8 @@ import { nbRemisesAConfirmer } from '../../features/remises-argent/regles';
 import { useTransfertsADecider } from '../../features/transferts/hooks';
 import { nbTransfertsADecider } from '../../features/transferts/regles';
 import { useDemandesModif } from '../../features/demandes-modif/hooks';
+import { useDemandesReinitialisation } from '../../features/apprentis/hooks';
+import { nbDemandesMotDePasse } from '../../features/apprentis/regles';
 import { estADecider } from '../../features/demandes-modif/regles';
 import { useNombreNonLues, useRelireAuFocus } from '../../features/notifications/hooks';
 import { badgeNonLues, libelleCloche } from '../../features/notifications/regles';
@@ -72,6 +74,8 @@ function Tournee() {
   // N7 : demandes de modification de versement à décider (principal hors organisation).
   const avecDemandesModif = !!user && !user.parentId && !organisation;
   const qDemandes = useDemandesModif(avecDemandesModif);
+  // M1 : demandes « Mot de passe oublié » de ses apprentis (livreur principal).
+  const qDemandesMdp = useDemandesReinitialisation(!!user && !user.parentId);
   // N8 : non lues du fil de notifications (badge), relues toutes les 30 s et au retour sur l'Accueil.
   const qNonLues = useNombreNonLues(!!user);
   useRelireAuFocus(() => qNonLues.refetch());
@@ -129,7 +133,8 @@ function Tournee() {
   const nbTransferts = nbTransfertsADecider(qTransferts.data, user.id);
   const nbCommandes = organisation ? 0 : qARecep.data?.length ?? 0;
   const nbDemandes = avecDemandesModif ? (qDemandes.data ?? []).filter(estADecider).length : 0;
-  const aTraiter = nbCommandes + qEchues.echues.length + nbRemises + nbTransferts + nbDemandes;
+  const nbDemandesMdp = user.parentId ? 0 : nbDemandesMotDePasse(qDemandesMdp.data);
+  const aTraiter = nbCommandes + qEchues.echues.length + nbRemises + nbTransferts + nbDemandes + nbDemandesMdp;
   const nonLues = qNonLues.data ?? 0;
 
   const onRefresh = () => {
@@ -138,6 +143,7 @@ function Tournee() {
     if (!user.parentId) qRemises.refetch();
     qTransferts.refetch();
     if (avecDemandesModif) qDemandes.refetch();
+    if (!user.parentId) qDemandesMdp.refetch();
     qNonLues.refetch();
     qLiv.refetch();
     qEnc.refetch();

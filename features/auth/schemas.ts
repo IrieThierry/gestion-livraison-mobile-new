@@ -72,6 +72,19 @@ export const signupSchema = z
 export type SignupInput = z.infer<typeof signupSchema>;
 
 /**
+ * Inscription en trois étapes (profil, informations, accès) : chaque étape
+ * est vérifiée avant « Continuer », avec les mêmes règles et messages que
+ * `signupSchema` (vérifié en entier à l'envoi).
+ */
+export const inscriptionInformationsSchema = z.object({
+  prenom: nomPersonne(MESSAGES_COMPTE.prenomLongueur, MESSAGES_COMPTE.prenomFormat),
+  nom: nomPersonne(MESSAGES_COMPTE.nomLongueur, MESSAGES_COMPTE.nomFormat),
+  contact,
+  email,
+});
+
+
+/**
  * Création d'un apprenti (Profil → Apprentis → Nouveau) : mêmes règles et
  * messages A7 que l'inscription (prénom, nom, contact, email, username, mot de passe).
  */
@@ -93,6 +106,20 @@ export const updateProfileSchema = z.object({
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
+/**
+ * M1 « Mot de passe oublié » : identifiant et numéro du compte (règle R2).
+ * L'identifiant est envoyé sans espaces de début et de fin.
+ */
+export const motDePasseOublieSchema = z.object({
+  username: z.string().trim().min(1, "Nom d'utilisateur requis"),
+  contact,
+});
+export type MotDePasseOublieInput = z.infer<typeof motDePasseOublieSchema>;
+
+/** Message du back (toujours le même, que le compte existe ou non). */
+export const MESSAGE_DEMANDE_MOT_DE_PASSE =
+  'Si ces informations correspondent à un compte, ta demande a été transmise. Tu recevras un mot de passe provisoire de ton responsable.';
+
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Mot de passe actuel requis'),
@@ -104,3 +131,16 @@ export const changePasswordSchema = z
     message: 'Les mots de passe ne correspondent pas',
   });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+/** M1 : message du refus d'un nouveau mot de passe identique au provisoire (même texte que le back). */
+export const MESSAGE_MOT_DE_PASSE_IDENTIQUE =
+  'Le nouveau mot de passe doit être différent du mot de passe provisoire.';
+
+/**
+ * M1 « Choisis ton nouveau mot de passe » : règles existantes, et le
+ * nouveau mot de passe doit être différent du provisoire.
+ */
+export const changementMotDePasseProvisoireSchema = changePasswordSchema.refine(
+  (d) => d.newPassword !== d.currentPassword,
+  { path: ['newPassword'], message: MESSAGE_MOT_DE_PASSE_IDENTIQUE },
+);

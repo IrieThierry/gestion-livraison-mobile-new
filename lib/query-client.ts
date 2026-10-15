@@ -1,6 +1,8 @@
 import { QueryClient } from '@tanstack/react-query';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { Persister } from '@tanstack/react-query-persist-client';
+import { JetonsSession } from './jetons-session';
 
 /**
  * Configuration des requêtes par défaut.
@@ -55,8 +57,51 @@ export const queryClient = new QueryClient({
 /** Clé AsyncStorage du cache persisté. */
 export const QUERY_CACHE_KEY = 'GL_QUERY_CACHE';
 
-export const queryPersister = createAsyncStoragePersister({
+/** Clé AsyncStorage de l'utilisateur gardé (la session restaurable au démarrage). */
+const CLE_UTILISATEUR = 'user';
+
+const persisterAsyncStorage = createAsyncStoragePersister({
   storage: AsyncStorage,
   key: QUERY_CACHE_KEY,
   throttleTime: 1000,
 });
+
+/**
+ * Cache persisté, seulement pour une session gardée (M2) :
+ *  - « Se souvenir de moi » décoché : rien n'est écrit sur le téléphone ;
+ *  - au démarrage sans session restaurable (pas d'utilisateur gardé) : le
+ *    cache d'une session précédente est effacé, jamais restauré.
+ */
+export const queryPersister: Persister = {
+  persistClient: async (client) => {
+    if (!JetonsSession.estPersistant()) return;
+    await persisterAsyncStorage.persistClient(client);
+  },
+  restoreClient: async () => {
+    let user: string | null = null;
+    try {
+      user = await AsyncStorage.getItem(CLE_UTILISATEUR);
+    } catch {
+      // Illisible : pas de restauration.
+    }
+    if (!user) {
+      try {
+        await AsyncStorage.removeItem(QUERY_CACHE_KEY);
+      } catch {
+        // Rien à effacer.
+      }
+      return undefined;
+    }
+    return persisterAsyncStorage.restoreClient();
+  },
+  removeClient: () => persisterAsyncStorage.removeClient(),
+};
+
+/** Clé AsyncStorage de l'id du compte à qui appartient le cache. */
+export const CLE_PROPRIETAIRE_CACHE = 'GL_QUERY_CACHE_PROPRIETAIRE';
+
+/** Vide le cache des requêtes, en mémoire et sur le téléphone. */
+export async function viderCacheRequetes(): Promise<void> {
+  queryClient.clear();
+  await AsyncStorage.removeItem(QUERY_CACHE_KEY);
+}

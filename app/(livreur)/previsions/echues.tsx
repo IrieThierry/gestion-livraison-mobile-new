@@ -28,6 +28,9 @@ import {
   type GroupePrevision,
 } from '../../../features/previsions/regles';
 import { useAuthStore } from '../../../stores/authStore';
+import { useDemandesReinitialisation } from '../../../features/apprentis/hooks';
+import { nbDemandesMotDePasse } from '../../../features/apprentis/regles';
+import { LigneDemandesMotDePasse } from '../../../components/livreur/LigneDemandesMotDePasse';
 import { useNetworkStore } from '../../../stores/networkStore';
 import { DEPUIS_NOTIFICATIONS } from '../../../lib/navigation';
 import { dialog } from '../../../lib/dialog';
@@ -43,7 +46,8 @@ import { extractApiErrorMessage } from '../../../lib/api-error';
  * Pour chaque échue, ou pour toutes : Supprimer (confirmation), Reporter
  * (aujourd'hui ou demain, pour la quantité restante) ou Plus tard (rien ne
  * change, plus compté jusqu'au lendemain). Jamais de suppression automatique.
- * Principal : « Remises à confirmer » de ses apprentis (Confirmer, Contester).
+ * Principal : « Remises à confirmer » de ses apprentis (Confirmer, Contester),
+ * et « Demandes de mot de passe » de ses apprentis (M1, ouvre Mes apprentis).
  * Tous : « Transferts à recevoir » (Accepter, Refuser) et lien vers la liste
  * des transferts (retour à Notifications).
  * S1 : une rubrique vide est masquée (une rubrique en erreur reste visible) ;
@@ -67,6 +71,9 @@ export default function Notifications() {
   // N7 : demandes de modification de versement (livreur principal hors organisation).
   const avecDemandesModif = !!user && !user.parentId && !organisation;
   const demandesQ = useDemandesModif(avecDemandesModif);
+  // M1 : demandes « Mot de passe oublié » de ses apprentis (livreur principal).
+  const avecDemandesMdp = !!user && !user.parentId;
+  const demandesMdpQ = useDemandesReinitialisation(avecDemandesMdp);
   const isOnline = useNetworkStore((s) => s.isOnline);
   const enCours = supprimer.isPending || reporter.isPending || plusTard.isPending;
   // Hors ligne : Supprimer / Reporter / Tout traiter désactivés (Plus tard reste local).
@@ -80,6 +87,7 @@ export default function Notifications() {
   const transferts = (transfertsQ.data ?? []).filter((t) => peutDeciderTransfert(t, user.id));
   const echues = echuesQ.echues;
   const nbDemandes = (demandesQ.data ?? []).filter(estADecider).length;
+  const nbDemandesMdp = nbDemandesMotDePasse(demandesMdpQ.data);
 
   // S1 : une rubrique ne s'affiche que si elle a au moins un élément, ou si
   // sa lecture a échoué (l'erreur reste visible). Pendant le chargement elle
@@ -90,9 +98,13 @@ export default function Notifications() {
   const voirDemandes = avecDemandesModif && (demandesQ.isError || (!demandesQ.isLoading && nbDemandes > 0));
   const voirEchues =
     echuesQ.isError || (!echuesQ.isLoading && (echues.length > 0 || !!echuesQ.partiel));
-  const aTraiterVisible = voirCommandes || voirTransferts || voirRemises || voirDemandes || voirEchues;
+  const voirDemandesMdp =
+    avecDemandesMdp && (demandesMdpQ.isError || (!demandesMdpQ.isLoading && nbDemandesMdp > 0));
+  const aTraiterVisible =
+    voirCommandes || voirTransferts || voirRemises || voirDemandes || voirDemandesMdp || voirEchues;
   const aTraiterEnChargement =
     (!organisation && qARecep.isLoading) ||
+    (avecDemandesMdp && demandesMdpQ.isLoading) ||
     transfertsQ.isLoading ||
     (estPrincipal && remisesQ.isLoading) ||
     (avecDemandesModif && demandesQ.isLoading) ||
@@ -163,6 +175,7 @@ export default function Notifications() {
         echuesQ.refetch();
         if (estPrincipal) remisesQ.refetch();
         if (avecDemandesModif) demandesQ.refetch();
+        if (avecDemandesMdp) demandesMdpQ.refetch();
         transfertsQ.refetch();
       }}
       pied={
@@ -254,6 +267,14 @@ export default function Notifications() {
                 <ChevronRight color="#94a3b8" size={18} />
               </Pressable>
             </View>
+          ) : null}
+
+          {voirDemandesMdp ? (
+            <LigneDemandesMotDePasse
+              nombre={nbDemandesMdp}
+              erreur={demandesMdpQ.isError}
+              onPress={() => ouvrir('/(livreur)/profil/apprentis', { depuis: DEPUIS_NOTIFICATIONS })}
+            />
           ) : null}
 
           {voirEchues ? (

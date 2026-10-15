@@ -16,6 +16,7 @@ jest.mock('../lib/biometrie-choix', () => ({
 import { useAuthStore } from './authStore'
 import { queryClient } from '../lib/query-client'
 import { SecureStorage } from '../lib/secure-storage'
+import { JetonsSession } from '../lib/jetons-session'
 import { useCommandePrefillStore } from './commandePrefillStore'
 import { Biometric } from '../lib/biometric'
 import { lireChoixBiometrie, migrerAncienChoixBiometrie } from '../lib/biometrie-choix'
@@ -125,5 +126,82 @@ describe('authStore : bouton biométrique de l’écran de connexion', () => {
     ;(lireChoixBiometrie as jest.Mock).mockResolvedValue('refusee')
     expect(await useAuthStore.getState().deverrouillerParBiometrie()).toBeNull()
     expect(Biometric.authenticate).not.toHaveBeenCalled()
+  })
+})
+
+describe('authStore : « Se souvenir de moi » (M2)', () => {
+  const user = { id: 'u', username: 'awa' } as never
+  beforeEach(() => jest.clearAllMocks())
+  afterEach(() => JetonsSession.definirPersistance(true))
+
+  it('cochée : jetons en SecureStorage et utilisateur gardé', async () => {
+    await useAuthStore.getState().setSession('t', 'r', user, true)
+    expect(SecureStorage.set).toHaveBeenCalledWith('access_token', 't')
+    expect(SecureStorage.set).toHaveBeenCalledWith('refresh_token', 'r')
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith('user', JSON.stringify(user))
+  })
+
+  it('décochée : jetons en mémoire seulement, session gardée d’avant effacée', async () => {
+    await useAuthStore.getState().setSession('t', 'r', user, false)
+    expect(SecureStorage.set).not.toHaveBeenCalled()
+    expect(SecureStorage.clearAuth).toHaveBeenCalled()
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('user')
+    expect(AsyncStorage.setItem).not.toHaveBeenCalledWith('user', expect.anything())
+    expect(await JetonsSession.get('access_token')).toBe('t')
+    expect(await JetonsSession.get('refresh_token')).toBe('r')
+    expect(useAuthStore.getState().user).toBe(user)
+    // Déconnexion : jetons en mémoire effacés, retour au mode gardé par défaut.
+    await useAuthStore.getState().logout()
+    expect(JetonsSession.estPersistant()).toBe(true)
+  })
+
+  it('majUtilisateur : provisoire levé, gardé seulement si la session est gardée', async () => {
+    const maj = { id: 'u', username: 'awa', motDePasseProvisoire: false } as never
+    await useAuthStore.getState().majUtilisateur(maj)
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith('user', JSON.stringify(maj))
+    JetonsSession.definirPersistance(false)
+    ;(AsyncStorage.setItem as jest.Mock).mockClear()
+    await useAuthStore.getState().majUtilisateur(maj)
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().user).toBe(maj)
+  })
+})
+
+describe('authStore : cache des requêtes jamais d’un autre compte (revue I1)', () => {
+  const user = { id: 'u', username: 'awa' } as never
+  beforeEach(() => {
+    jest.clearAllMocks()
+    queryClient.setQueryData(['clients'], [{ id: 'c' }])
+  })
+  afterEach(() => JetonsSession.definirPersistance(true))
+
+  it('autre compte que le propriétaire du cache : cache vidé, propriétaire noté', async () => {
+    ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('autre')
+    await useAuthStore.getState().setSession('t', 'r', user, true)
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('GL_QUERY_CACHE')
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith('GL_QUERY_CACHE_PROPRIETAIRE', 'u')
+  })
+
+  it('même compte, session gardée : cache conservé', async () => {
+    ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('u')
+    await useAuthStore.getState().setSession('t', 'r', user, true)
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
+    expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith('GL_QUERY_CACHE')
+  })
+
+  it('même compte, « Se souvenir de moi » décoché : cache persisté effacé', async () => {
+    ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('u')
+    await useAuthStore.getState().setSession('t', 'r', user, false)
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('GL_QUERY_CACHE')
+  })
+
+  it('démarrage sans session restaurable : cache vidé', async () => {
+    ;(SecureStorage.get as jest.Mock).mockResolvedValue(null)
+    ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
+    await useAuthStore.getState().hydrate()
+    expect(useAuthStore.getState().user).toBeNull()
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('GL_QUERY_CACHE')
   })
 })

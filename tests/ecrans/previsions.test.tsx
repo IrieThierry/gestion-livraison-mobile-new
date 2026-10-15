@@ -43,6 +43,10 @@ jest.mock('../../features/notifications/hooks', () => ({
   useRelireAuFocus: jest.fn(),
 }));
 let mockDemandesModif: unknown = [];
+// M1 : demandes « Mot de passe oublié » (aucune par défaut).
+jest.mock('../../features/apprentis/hooks', () => ({
+  useDemandesReinitialisation: jest.fn(() => ({ data: [], isLoading: false, isError: false, refetch: jest.fn() })),
+}));
 jest.mock('../../features/demandes-modif/hooks', () => ({
   useDemandesModif: () => ({ data: mockDemandesModif, isLoading: false, isError: mockDemandesModif === undefined, refetch: jest.fn() }),
 }));
@@ -188,6 +192,21 @@ describe('Notifications (cloche)', () => {
     fireEvent.press(screen.getByText('2 demandes de modification à décider'));
     expect(ouvrir).toHaveBeenCalledWith('/(livreur)/cash/versements/demandes', { depuis: 'notifications' });
     mockDemandesModif = [];
+  });
+
+  it('À traiter : demandes de mot de passe des apprentis (M1), ouvre Mes apprentis avec retour ici', () => {
+    const { useDemandesReinitialisation } = jest.requireMock('../../features/apprentis/hooks');
+    useDemandesReinitialisation.mockReturnValue({
+      data: [{ id: 'd1', compteId: 'a1' }, { id: 'd2', compteId: 'a2' }],
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
+    render(<Notifications />);
+    expect(screen.getByText('Demandes de mot de passe')).toBeTruthy();
+    fireEvent.press(screen.getByText('2 demandes de mot de passe'));
+    expect(ouvrir).toHaveBeenCalledWith('/(livreur)/profil/apprentis', { depuis: 'notifications' });
+    useDemandesReinitialisation.mockReturnValue({ data: [], isLoading: false, isError: false, refetch: jest.fn() });
   });
 
   it('À traiter : demandes de modification indisponibles (erreur), et absentes pour un apprenti', () => {
