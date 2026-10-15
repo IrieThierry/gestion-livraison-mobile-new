@@ -9,6 +9,7 @@ import {
   CheckCheck,
   FilePen,
   Handshake,
+  KeyRound,
   Package,
   Truck,
   Users,
@@ -223,6 +224,7 @@ const ICONES: Record<DomaineNotification, typeof Bell> = {
   clients: Users,
   cloture: CalendarCheck,
   relation: Handshake,
+  compte: KeyRound,
   autre: Bell,
 };
 

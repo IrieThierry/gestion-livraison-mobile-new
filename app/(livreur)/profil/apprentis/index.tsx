@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,19 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { Plus, UsersRound, Power, ChevronRight, ArrowRightLeft } from 'lucide-react-native';
+import { Plus, Power, ChevronRight, ArrowRightLeft, KeyRound } from 'lucide-react-native';
 import { dialog } from '../../../../lib/dialog';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import {
   useApprentis,
+  useDemandesReinitialisation,
+  useResetMotDePasse,
   useToggleApprentiActif,
 } from '../../../../features/apprentis/hooks';
+import { BADGE_MOT_DE_PASSE_DEMANDE, comptesAvecDemande } from '../../../../features/apprentis/regles';
+import { creerVerrou, lancerUneFois } from '../../../../features/commandes/verrou';
+import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { useAuthStore } from '../../../../stores/authStore';
 import type { LivreurResponse } from '../../../../types/api';
 import { naviguer } from '../../../../lib/navigation-app';
@@ -29,11 +34,20 @@ import { peutReaffecter } from '../../../../features/equipe/regles';
  *
  * Tap sur une ligne → fiche apprenti avec drill-in vers ses livraisons
  * et clients.
+ *
+ * M1 : badge « Mot de passe demandé » sur la ligne d'un apprenti (ou d'un
+ * commercial) qui a une demande « Mot de passe oublié » en attente, et
+ * bouton clé pour réinitialiser son mot de passe (route existante) : le
+ * mot de passe provisoire est affiché, à lui communiquer.
  */
 export default function ApprentisList() {
   const user = useAuthStore((s) => s.user);
   const q = useApprentis();
   const toggleMut = useToggleApprentiActif();
+  const resetMut = useResetMotDePasse();
+  const verrouReset = useRef(creerVerrou()).current;
+  const demandesQ = useDemandesReinitialisation(!!user && !user.parentId);
+  const avecDemande = useMemo(() => comptesAvecDemande(demandesQ.data), [demandesQ.data]);
   const [search, setSearch] = useState('');
   // Responsable (O15) : « Mes commerciaux » en lecture sur le mobile (ni création, ni activation).
   const lectureSeule = estResponsable(user);
@@ -86,6 +100,33 @@ export default function ApprentisList() {
       confirmLabel: next ? 'Activer' : 'Désactiver',
       destructive: !next,
       onConfirm: () => toggleMut.mutate({ id: a.id, actif: next }),
+    });
+  };
+
+  const onReset = (a: LivreurResponse) => {
+    const nom = `${a.prenom} ${a.nom}`;
+    dialog.confirm({
+      title: 'Réinitialiser le mot de passe ?',
+      message: `Un mot de passe provisoire sera créé pour ${nom}. Il devra le changer à sa prochaine connexion.`,
+      confirmLabel: 'Réinitialiser',
+      onConfirm: () =>
+        lancerUneFois(verrouReset, (fin) =>
+          resetMut.mutate(a.id, {
+            onSettled: fin,
+            onSuccess: (r) =>
+              dialog.info(
+                'Mot de passe provisoire',
+                `Communique ce mot de passe à ${nom} :
+
+${r.tempPassword}
+
+Il devra le changer à sa prochaine connexion.`,
+                { autoDismissMs: 0, actions: [{ label: 'OK', style: 'primary' }] },
+              ),
+            onError: (e) =>
+              dialog.error('Réinitialisation impossible', extractApiErrorMessage(e, 'Le mot de passe n’a pas pu être réinitialisé.')),
+          }),
+        ),
     });
   };
 
@@ -143,7 +184,10 @@ export default function ApprentisList() {
         refreshControl={
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
-            onRefresh={() => q.refetch()}
+            onRefresh={() => {
+              q.refetch();
+              demandesQ.refetch();
+            }}
             tintColor="#047857"
           />
         }
@@ -172,6 +216,8 @@ export default function ApprentisList() {
               naviguer('/(livreur)/profil/apprentis/[id]', { id: item.id })
             }
             onToggle={lectureSeule ? undefined : () => onToggle(item)}
+            motDePasseDemande={avecDemande.has(item.id)}
+            onReset={lectureSeule ? undefined : () => onReset(item)}
           />
         )}
       />
@@ -183,11 +229,17 @@ function ApprentiRow({
   apprenti,
   onPress,
   onToggle,
+  motDePasseDemande = false,
+  onReset,
 }: {
   apprenti: LivreurResponse;
   onPress: () => void;
   /** Absent : pas de bouton d'activation (lecture seule). */
   onToggle?: () => void;
+  /** M1 : demande « Mot de passe oublié » en attente. */
+  motDePasseDemande?: boolean;
+  /** Absent : pas de bouton de réinitialisation (lecture seule). */
+  onReset?: () => void;
 }) {
   const initials = `${apprenti.prenom[0] ?? ''}${apprenti.nom[0] ?? ''}`.toUpperCase();
   const actif = apprenti.actif !== false;
@@ -230,11 +282,34 @@ function ApprentiRow({
             </View>
           ) : null}
         </View>
+        {motDePasseDemande ? (
+          <View className="self-start flex-row items-center gap-1 bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 rounded mt-1">
+            <KeyRound color="#b45309" size={10} />
+            <Text className="text-[10px] font-bold text-amber-700 dark:text-amber-300">
+              {BADGE_MOT_DE_PASSE_DEMANDE}
+            </Text>
+          </View>
+        ) : null}
         <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
           {apprenti.username}
           {apprenti.contact ? ` · ${apprenti.contact}` : ''}
         </Text>
       </View>
+
+      {/* M1 : réinitialisation du mot de passe */}
+      {onReset ? (
+        <Pressable
+          onPress={onReset}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={`Réinitialiser le mot de passe de ${apprenti.prenom} ${apprenti.nom}`}
+          className={`p-2 rounded-md active:opacity-60 ${
+            motDePasseDemande ? 'bg-amber-100 dark:bg-amber-500/15' : 'bg-slate-100 dark:bg-slate-800'
+          }`}
+        >
+          <KeyRound color={motDePasseDemande ? '#b45309' : '#64748b'} size={14} />
+        </Pressable>
+      ) : null}
 
       {/* Toggle */}
       {onToggle ? (

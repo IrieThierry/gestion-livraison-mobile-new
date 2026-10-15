@@ -107,6 +107,8 @@ jest.mock('../../features/apprentis/hooks', () => ({
     refetch: jest.fn(),
   }),
   useToggleApprentiActif: () => ({ mutate: jest.fn(), isPending: false }),
+  useResetMotDePasse: () => ({ mutate: jest.fn(), isPending: false }),
+  useDemandesReinitialisation: () => ({ data: [], isLoading: false, isError: false, refetch: jest.fn() }),
 }));
 jest.mock('../../features/lookups/hooks', () => ({
   useZones: () => ({ data: [{ id: 'z2', libelle: 'Nord' }, { id: 'z1', libelle: 'Abidjan Sud' }], isLoading: false }),

@@ -203,3 +203,25 @@ describe('cloche', () => {
     expect(libelleCloche(3, 2)).toBe('Notifications : 3 non lues, 2 à traiter');
   });
 });
+
+describe('« Mot de passe demandé » (M1)', () => {
+  const n = notif({ type: 'MOT_DE_PASSE_DEMANDE', cible: { type: 'COMPTE', id: 'a1', route: 'inconnue' } });
+
+  it('ouvre la liste des apprentis (livreur) ou des commerciaux (responsable), retour aux Notifications', () => {
+    expect(cibleMobile(n, { apprenti: false, responsable: false })).toEqual({
+      href: '/(livreur)/profil/apprentis',
+      params: { depuis: 'notifications' },
+    });
+    expect(cibleMobile(n, { apprenti: false, responsable: true })).toEqual({
+      href: '/(livreur)/profil/apprentis',
+      params: { depuis: 'notifications-responsable' },
+    });
+    expect(cibleMobile(notif({ cible: { type: 'X', id: null, route: 'equipe' } }), { apprenti: false, responsable: false })?.href).toBe(
+      '/(livreur)/profil/apprentis',
+    );
+  });
+
+  it('apparence : domaine « compte »', () => {
+    expect(apparenceNotification(n)).toMatchObject({ domaine: 'compte', ton: 'neutre', couleur: '#047857' });
+  });
+});

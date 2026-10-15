@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { accueilDuProfil } from '../../lib/navigation';
+import { ecranApresConnexion } from '../../lib/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { Eye, EyeOff, Fingerprint, Truck } from 'lucide-react-native';
+import { Check, Eye, EyeOff, Fingerprint, Truck } from 'lucide-react-native';
 import { authApi } from '../../features/auth/api';
 import { loginSchema } from '../../features/auth/schemas';
 import { useAuthStore } from '../../stores/authStore';
@@ -25,7 +25,9 @@ import {
 } from '../../lib/biometrie-choix';
 import { dialog } from '../../lib/dialog';
 import * as Network from 'expo-network';
+import { creerVerrou, lancerUneFois } from '../../features/commandes/verrou';
 import { messageErreurConnexion } from '../../features/auth/erreurConnexion';
+import { lireIdentifiantMemorise, memoriserIdentifiant } from '../../features/auth/souvenir';
 
 /**
  * Téléphone sans aucune connexion ? Seul `isConnected === false` compte : l'API
@@ -45,6 +47,9 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  // M2 « Se souvenir de moi », cochée par défaut : session gardée et
+  // identifiant prérempli. Décochée : jetons en mémoire seulement.
+  const [seSouvenir, setSeSouvenir] = useState(true);
   const setSession = useAuthStore((s) => s.setSession);
   const deverrouillageBiometriquePossible = useAuthStore((s) => s.deverrouillageBiometriquePossible);
   const deverrouillerParBiometrie = useAuthStore((s) => s.deverrouillerParBiometrie);
@@ -54,9 +59,15 @@ export default function Login() {
   // « active » pour ce compte et appareil compatible (comme au démarrage).
   const [biometriePossible, setBiometriePossible] = useState(false);
   const [deverrouillage, setDeverrouillage] = useState(false);
+  const verrou = useRef(creerVerrou()).current;
 
   useEffect(() => {
     let actif = true;
+    lireIdentifiantMemorise()
+      .then((id) => {
+        if (actif && id) setUsername((actuel) => actuel || id);
+      })
+      .catch(() => undefined);
     deverrouillageBiometriquePossible()
       .then((ok) => {
         if (actif) setBiometriePossible(ok);
@@ -72,7 +83,7 @@ export default function Login() {
     setDeverrouillage(true);
     try {
       const user = await deverrouillerParBiometrie();
-      if (user) router.replace(accueilDuProfil(user.profile) as never);
+      if (user) router.replace(ecranApresConnexion(user) as never);
     } finally {
       setDeverrouillage(false);
     }
@@ -82,7 +93,8 @@ export default function Login() {
     mutationFn: authApi.login,
     onSuccess: async (data, input) => {
       const { token, refreshToken, ...user } = data;
-      await setSession(token, refreshToken, user);
+      await setSession(token, refreshToken, user, seSouvenir);
+      await memoriserIdentifiant(seSouvenir, user.username || input.username);
 
       // S4 : la question n'est posée qu'une fois par compte et par téléphone,
       // si l'appareil est compatible. Le choix (« active » / « refusee ») est
@@ -90,7 +102,8 @@ export default function Login() {
       // réponse avant de naviguer. Aucun échec ne bloque la connexion.
       try {
         const identifiant = user.username || input.username;
-        if (identifiant && (await Biometric.isAvailable())) {
+        // Session non gardée (M2) : pas de biométrie, la question n'est pas posée.
+        if (seSouvenir && identifiant && (await Biometric.isAvailable())) {
           // Ancienne clé sans propriétaire connu : supprimée, jamais attribuée à ce compte.
           await oublierAncienChoixBiometrie().catch(() => undefined);
           const choix = await lireChoixBiometrie(identifiant);
@@ -118,7 +131,8 @@ export default function Login() {
         // Biometric setup is optional — never block login
       }
 
-      router.replace(accueilDuProfil(user.profile) as never);
+      // M1 : mot de passe provisoire → « Choisis ton nouveau mot de passe ».
+      router.replace(ecranApresConnexion(user) as never);
     },
     onError: async (e: unknown) => {
       const sansReponse = !(e as { response?: unknown } | null)?.response;
@@ -133,7 +147,7 @@ export default function Login() {
       dialog.warning('Champs invalides', parsed.error.issues[0]?.message ?? 'Vérifie les informations saisies.');
       return;
     }
-    mutation.mutate(parsed.data);
+    lancerUneFois(verrou, (fin) => mutation.mutate(parsed.data, { onSettled: fin }));
   };
 
   return (
@@ -220,6 +234,38 @@ export default function Login() {
             </View>
           </View>
 
+          <View className="flex-row items-center justify-between">
+            <Pressable
+              onPress={() => setSeSouvenir((v) => !v)}
+              accessibilityRole="checkbox"
+              accessibilityLabel="Se souvenir de moi"
+              accessibilityState={{ checked: seSouvenir }}
+              hitSlop={6}
+              className="flex-row items-center gap-2 active:opacity-70"
+            >
+              <View
+                testID="case-se-souvenir"
+                className={`w-5 h-5 rounded-md items-center justify-center border ${
+                  seSouvenir
+                    ? 'bg-emerald-700 border-emerald-700'
+                    : 'bg-white dark:bg-slate-800 border-[#d5dcd7] dark:border-slate-600'
+                }`}
+              >
+                {seSouvenir ? <Check color="#fff" size={14} strokeWidth={3} /> : null}
+              </View>
+              <Text className="text-sm text-[#17201b] dark:text-white">Se souvenir de moi</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/(auth)/mot-de-passe-oublie' as never)}
+              accessibilityRole="link"
+              hitSlop={6}
+            >
+              <Text className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
+                Mot de passe oublié ?
+              </Text>
+            </Pressable>
+          </View>
+
           <Pressable
             onPress={onSubmit}
             disabled={mutation.isPending}
@@ -235,7 +281,7 @@ export default function Login() {
             )}
           </Pressable>
 
-          {biometriePossible ? (
+          {biometriePossible && seSouvenir ? (
             <Pressable
               onPress={onBiometrie}
               disabled={deverrouillage || mutation.isPending}

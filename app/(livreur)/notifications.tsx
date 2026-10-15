@@ -8,6 +8,9 @@ import { peutDecider } from '../../features/remises-argent/regles';
 import { useTransfertsADecider } from '../../features/transferts/hooks';
 import { peutDeciderTransfert } from '../../features/transferts/regles';
 import { useAuthStore } from '../../stores/authStore';
+import { useDemandesReinitialisation } from '../../features/apprentis/hooks';
+import { nbDemandesMotDePasse } from '../../features/apprentis/regles';
+import { LigneDemandesMotDePasse } from '../../components/livreur/LigneDemandesMotDePasse';
 import { DEPUIS_NOTIFICATIONS_RESPONSABLE } from '../../lib/navigation';
 import { ouvrir } from '../../lib/navigation-app';
 
@@ -17,7 +20,8 @@ import { ouvrir } from '../../lib/navigation-app';
  * actions sur le mobile. « Déchargements à accepter » : stock rendu au dépôt
  * par ses commerciaux (Accepter, Refuser avec motif). « Remises à
  * confirmer » : argent déclaré par ses commerciaux (Confirmer, Contester avec
- * motif). Les listes complètes s'ouvrent avec retour ici.
+ * motif). Les listes complètes s'ouvrent avec retour ici. « Demandes de mot
+ * de passe » (M1) : ouvre « Mes commerciaux », où la demande est signalée.
  */
 export default function NotificationsResponsable() {
   const user = useAuthStore((s) => s.user);
@@ -25,6 +29,7 @@ export default function NotificationsResponsable() {
   const remisesQ = useRemisesAConfirmer();
   const decisionTransfert = useDecisionTransfert(user?.id, { annulation: false });
   const decisionRemise = useDecisionRemise();
+  const demandesMdpQ = useDemandesReinitialisation(!!user);
 
   if (!user) return null;
 
@@ -33,6 +38,8 @@ export default function NotificationsResponsable() {
   // S1 : rubrique masquée si vide ou en cours de lecture ; visible si erreur.
   const voirTransferts = transfertsQ.isError || (!transfertsQ.isLoading && transferts.length > 0);
   const voirRemises = remisesQ.isError || (!remisesQ.isLoading && remises.length > 0);
+  const nbDemandesMdp = nbDemandesMotDePasse(demandesMdpQ.data);
+  const voirDemandesMdp = demandesMdpQ.isError || (!demandesMdpQ.isLoading && nbDemandesMdp > 0);
 
   return (
     <EcranNotifications
@@ -40,6 +47,7 @@ export default function NotificationsResponsable() {
       onRafraichir={() => {
         transfertsQ.refetch();
         remisesQ.refetch();
+        demandesMdpQ.refetch();
       }}
       pied={
         <>
@@ -47,8 +55,8 @@ export default function NotificationsResponsable() {
           {decisionRemise.dialogue}
         </>
       }
-      aTraiterVisible={voirTransferts || voirRemises}
-      aTraiterEnChargement={transfertsQ.isLoading || remisesQ.isLoading}
+      aTraiterVisible={voirTransferts || voirRemises || voirDemandesMdp}
+      aTraiterEnChargement={transfertsQ.isLoading || remisesQ.isLoading || demandesMdpQ.isLoading}
       aTraiter={
         <>
           {voirTransferts ? (
@@ -83,6 +91,14 @@ export default function NotificationsResponsable() {
                 ))
               )}
             </View>
+          ) : null}
+
+          {voirDemandesMdp ? (
+            <LigneDemandesMotDePasse
+              nombre={nbDemandesMdp}
+              erreur={demandesMdpQ.isError}
+              onPress={() => ouvrir('/(livreur)/profil/apprentis', { depuis: DEPUIS_NOTIFICATIONS_RESPONSABLE })}
+            />
           ) : null}
         </>
       }

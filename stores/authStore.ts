@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SecureStorage } from '../lib/secure-storage';
+import { JetonsSession } from '../lib/jetons-session';
 import { Biometric } from '../lib/biometric';
 import {
   lireChoixBiometrie,
@@ -19,7 +20,12 @@ interface AuthState {
    * en SecureStorage, plus l'utilisateur (sans tokens) en AsyncStorage.
    * Appelé par les écrans login + signup.
    */
-  setSession: (token: string, refreshToken: string, user: AuthUser) => Promise<void>;
+  setSession: (token: string, refreshToken: string, user: AuthUser, seSouvenir?: boolean) => Promise<void>;
+  /**
+   * Remplace l'utilisateur de la session (ex. mot de passe provisoire changé)
+   * sans toucher aux jetons. Gardé en AsyncStorage si la session est gardée.
+   */
+  majUtilisateur: (user: AuthUser) => Promise<void>;
   hydrate: () => Promise<void>;
   logout: () => Promise<void>;
   /**
@@ -68,10 +74,24 @@ export const useAuthStore = create<AuthState>()((set) => ({
   // l'intercepteur axios à chaque requête, le refresh est utilisé quand
   // l'access répond 401 pour obtenir un nouveau couple.
   // Le user (sans tokens) est en AsyncStorage pour rendu rapide au démarrage.
-  setSession: async (token, refreshToken, user) => {
-    await SecureStorage.set('access_token', token);
-    await SecureStorage.set('refresh_token', refreshToken);
-    await AsyncStorage.setItem('user', JSON.stringify(user));
+  //
+  // M2 « Se souvenir de moi » décoché (`seSouvenir === false`) : jetons en
+  // mémoire seulement, rien n'est gardé sur le téléphone (une session gardée
+  // d'avant est effacée). Fermer l'app ramène à la connexion.
+  setSession: async (token, refreshToken, user, seSouvenir = true) => {
+    if (!seSouvenir) {
+      await JetonsSession.effacer();
+      await AsyncStorage.removeItem('user');
+    }
+    JetonsSession.definirPersistance(seSouvenir);
+    await JetonsSession.set('access_token', token);
+    await JetonsSession.set('refresh_token', refreshToken);
+    if (seSouvenir) await AsyncStorage.setItem('user', JSON.stringify(user));
+    set({ user });
+  },
+
+  majUtilisateur: async (user) => {
+    if (JetonsSession.estPersistant()) await AsyncStorage.setItem('user', JSON.stringify(user));
     set({ user });
   },
 
@@ -117,7 +137,8 @@ export const useAuthStore = create<AuthState>()((set) => ({
   },
 
   logout: async () => {
-    await SecureStorage.clearAuth();
+    await JetonsSession.effacer();
+    JetonsSession.definirPersistance(true);
     await AsyncStorage.removeItem('user');
     // Cache d'un autre utilisateur : vidé en mémoire ET dans le stockage persisté.
     queryClient.clear();

@@ -11,7 +11,9 @@ jest.mock('./secure-storage', () => ({
 }));
 jest.mock('../stores/authStore', () => {
   const logout = jest.fn(async () => undefined);
-  return { useAuthStore: { getState: () => ({ logout }) } };
+  const majUtilisateur = jest.fn(async () => undefined);
+  const etat: { logout: typeof logout; majUtilisateur: typeof majUtilisateur; user: unknown } = { logout, majUtilisateur, user: null };
+  return { useAuthStore: { getState: () => etat } };
 });
 
 const logout = useAuthStore.getState().logout as jest.Mock;
@@ -70,10 +72,10 @@ describe('intercepteur 401', () => {
 });
 
 describe('intercepteur 403 abonnement expiré', () => {
-  function adaptateur403(message: string) {
+  function adaptateur403(message: string, code?: string) {
     return (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
       const response = {
-        data: { success: false, message },
+        data: { success: false, message, code },
         status: 403,
         statusText: 'Forbidden',
         headers: {},
@@ -99,5 +101,26 @@ describe('intercepteur 403 abonnement expiré', () => {
     await apiClient.post('/livraison', {}).catch(() => undefined);
     expect(invalider).not.toHaveBeenCalled();
     invalider.mockRestore();
+  });
+});
+
+describe('intercepteur 403 mot de passe provisoire (M1)', () => {
+  it('marque la session : la redirection racine ouvre le changement forcé', async () => {
+    const etat = useAuthStore.getState() as unknown as { user: unknown; majUtilisateur: jest.Mock };
+    etat.user = { id: 'u', profile: 'LIVREUR' };
+    apiClient.defaults.adapter = (config: InternalAxiosRequestConfig): Promise<AxiosResponse> =>
+      Promise.reject(
+        new AxiosError('403', 'ERR_BAD_REQUEST', config, {}, {
+          data: { success: false, message: 'Mot de passe provisoire', code: 'MOT_DE_PASSE_PROVISOIRE' },
+          status: 403,
+          statusText: 'Forbidden',
+          headers: {},
+          config,
+        } as AxiosResponse),
+      );
+    const err = await apiClient.get('/livraison').catch((e) => e);
+    expect(err.response.status).toBe(403);
+    expect(etat.majUtilisateur).toHaveBeenCalledWith({ id: 'u', profile: 'LIVREUR', motDePasseProvisoire: true });
+    etat.user = null;
   });
 });

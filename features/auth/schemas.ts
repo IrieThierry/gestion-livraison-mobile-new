@@ -93,6 +93,20 @@ export const updateProfileSchema = z.object({
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
+/**
+ * M1 « Mot de passe oublié » : identifiant et numéro du compte (règle R2).
+ * L'identifiant est envoyé sans espaces de début et de fin.
+ */
+export const motDePasseOublieSchema = z.object({
+  username: z.string().trim().min(1, "Nom d'utilisateur requis"),
+  contact,
+});
+export type MotDePasseOublieInput = z.infer<typeof motDePasseOublieSchema>;
+
+/** Message du back (toujours le même, que le compte existe ou non). */
+export const MESSAGE_DEMANDE_MOT_DE_PASSE =
+  'Si ces informations correspondent à un compte, ta demande a été transmise. Tu recevras un mot de passe provisoire de ton responsable.';
+
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Mot de passe actuel requis'),

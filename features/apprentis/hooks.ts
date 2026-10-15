@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apprentisApi } from './api';
-import { apprentiKeys } from './keys';
+import { apprentiKeys, demandesReinitialisationKeys } from './keys';
+import { authApi } from '../auth/api';
 import { useAuthStore } from '../../stores/authStore';
 import type { CreerApprentiRequest, UUID } from '../../types/api';
 
@@ -41,6 +42,35 @@ export function useCreerApprenti() {
       });
     },
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: apprentiKeys.all });
+    },
+  });
+}
+
+/**
+ * M1 : demandes « Mot de passe oublié » en attente adressées au livreur
+ * connecté (livreur principal ou responsable). Relue toutes les 30 s, comme
+ * le fil de notifications.
+ */
+export function useDemandesReinitialisation(actif: boolean) {
+  return useQuery({
+    queryKey: demandesReinitialisationKeys.all,
+    queryFn: authApi.demandesReinitialisation,
+    enabled: actif,
+    refetchInterval: actif ? 30_000 : false,
+  });
+}
+
+/**
+ * Réinitialisation du mot de passe d'un apprenti (route existante). La
+ * demande en attente est traitée par le back : la liste est relue.
+ */
+export function useResetMotDePasse() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: UUID) => apprentisApi.resetPassword(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: demandesReinitialisationKeys.all });
       qc.invalidateQueries({ queryKey: apprentiKeys.all });
     },
   });

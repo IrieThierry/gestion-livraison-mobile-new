@@ -152,6 +152,7 @@ export default function RootLayout() {
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(livreur)" />
             <Stack.Screen name="portail-web" />
+            <Stack.Screen name="mot-de-passe-provisoire" options={{ gestureEnabled: false }} />
           </Stack>
         </AuthGate>
         {/*
