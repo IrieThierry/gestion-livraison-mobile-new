@@ -72,6 +72,19 @@ export const signupSchema = z
 export type SignupInput = z.infer<typeof signupSchema>;
 
 /**
+ * Inscription en trois étapes (profil, informations, accès) : chaque étape
+ * est vérifiée avant « Continuer », avec les mêmes règles et messages que
+ * `signupSchema` (vérifié en entier à l'envoi).
+ */
+export const inscriptionInformationsSchema = z.object({
+  prenom: nomPersonne(MESSAGES_COMPTE.prenomLongueur, MESSAGES_COMPTE.prenomFormat),
+  nom: nomPersonne(MESSAGES_COMPTE.nomLongueur, MESSAGES_COMPTE.nomFormat),
+  contact,
+  email,
+});
+
+
+/**
  * Création d'un apprenti (Profil → Apprentis → Nouveau) : mêmes règles et
  * messages A7 que l'inscription (prénom, nom, contact, email, username, mot de passe).
  */
