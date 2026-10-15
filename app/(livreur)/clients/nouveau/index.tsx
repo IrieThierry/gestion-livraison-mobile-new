@@ -15,6 +15,7 @@ import { useClientDraftStore } from '../../../../stores/clientDraftStore';
 import { useAuthStore } from '../../../../stores/authStore';
 import { peutFixerConditions } from '../../../../features/remise/regles';
 import { validerRemiseClient } from '../../../../features/clients/regles';
+import { contactValide, MESSAGES_COMPTE } from '../../../../features/auth/schemas';
 import { naviguer } from '../../../../lib/navigation-app';
 
 export default function NouveauClientStep1() {
@@ -115,6 +116,7 @@ export default function NouveauClientStep1() {
     // de la jointure quartier.zone.
     if (!prenom.trim()) return dialog.warning('Champ requis', 'Prénom requis');
     if (!contact.trim()) return dialog.warning('Champ requis', 'Téléphone requis');
+    if (!contactValide(contact)) return dialog.warning('Téléphone invalide', MESSAGES_COMPTE.contact);
     if (!zoneId) return dialog.warning('Champ requis', 'Zone requise');
     if (!quartierId) return dialog.warning('Champ requis', 'Quartier requis');
     if (!categorieId) return dialog.warning('Champ requis', 'Catégorie requise');
@@ -148,7 +150,7 @@ export default function NouveauClientStep1() {
 
       {/* Step indicator */}
       <View className="px-4 pb-2 flex-row items-center gap-2">
-        <View className="flex-1 h-1.5 rounded-full bg-emerald-500" />
+        <View className="flex-1 h-1.5 rounded-full bg-emerald-700" />
         <View className="flex-1 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800" />
       </View>
 
@@ -157,7 +159,7 @@ export default function NouveauClientStep1() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -184,8 +186,9 @@ export default function NouveauClientStep1() {
                 label="Téléphone *"
                 value={contact}
                 onChange={setContact}
-                placeholder="07 12 34 56 78"
+                placeholder="0712345678"
                 keyboardType="phone-pad"
+                hint="10 chiffres, commence par 01, 05 ou 07"
               />
             </View>
             <View className="flex-1">
@@ -264,7 +267,7 @@ export default function NouveauClientStep1() {
             </View>
             <View
               className={`w-12 h-7 rounded-full justify-center px-0.5 ${
-                avecRemise ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                avecRemise ? 'bg-emerald-700' : 'bg-slate-300 dark:bg-slate-700'
               }`}
             >
               <View
@@ -292,7 +295,7 @@ export default function NouveauClientStep1() {
           {/* Next */}
           <Pressable
             onPress={onNext}
-            className="bg-emerald-500 rounded-md py-3.5 mt-3 flex-row items-center justify-center gap-2 active:opacity-80"
+            className="bg-emerald-700 rounded-md py-3.5 mt-3 flex-row items-center justify-center gap-2 active:opacity-80"
           >
             <Text className="text-white font-bold text-base">Suivant</Text>
             <ArrowRight color="#fff" size={18} />
@@ -313,12 +316,14 @@ function Field({
   onChange,
   placeholder,
   keyboardType,
+  hint,
 }: {
   label: string;
   value: string;
   onChange: (s: string) => void;
   placeholder?: string;
   keyboardType?: 'phone-pad' | 'email-address' | 'number-pad' | 'decimal-pad' | 'default';
+  hint?: string;
 }) {
   return (
     <View>
@@ -331,10 +336,14 @@ function Field({
         placeholder={placeholder}
         placeholderTextColor="#94a3b8"
         keyboardType={keyboardType ?? 'default'}
+        maxLength={keyboardType === 'phone-pad' ? 10 : undefined}
         autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
         autoCorrect={false}
         className="px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-base"
       />
+      {hint ? (
+        <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{hint}</Text>
+      ) : null}
     </View>
   );
 }

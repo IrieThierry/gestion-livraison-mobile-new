@@ -97,7 +97,7 @@ export default function DemanderModificationVersement() {
       <FormScreen>
         {q.isLoading || !versement ? (
           <View className="py-6 items-center">
-            <ActivityIndicator color="#10b981" />
+            <ActivityIndicator color="#047857" />
           </View>
         ) : (
           <View className="px-4 pt-3 gap-3">
@@ -162,7 +162,7 @@ export default function DemanderModificationVersement() {
               onPress={onSubmit}
               disabled={desactive}
               className={`rounded-md py-3.5 mt-3 items-center ${
-                desactive && !m.isPending ? 'bg-slate-200 dark:bg-slate-800' : 'bg-emerald-500 active:opacity-80'
+                desactive && !m.isPending ? 'bg-slate-200 dark:bg-slate-800' : 'bg-emerald-700 active:opacity-80'
               }`}
             >
               {m.isPending ? (

@@ -49,7 +49,7 @@ export default function Encours() {
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
             onRefresh={() => q.refetch()}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -62,7 +62,7 @@ export default function Encours() {
               </Text>
               <Text className="text-[10px] text-white/85 mt-1">FCFA · soldes dus</Text>
             </View>
-            <View className="flex-1 bg-emerald-500 rounded-lg p-4 shadow-md">
+            <View className="flex-1 bg-emerald-700 rounded-lg p-4 shadow-md">
               <Text className="text-[10px] font-semibold uppercase text-white/90">Avances</Text>
               <Text className="text-2xl font-extrabold text-white mt-1">
                 {formatMontant(avances)}

@@ -15,7 +15,7 @@ export function PreparationRecuBanner() {
     <View
       accessibilityRole="progressbar"
       accessibilityLabel={LIBELLE_PREPARATION_RECU}
-      className="bg-emerald-600 px-4 py-2 flex-row items-center justify-center gap-2"
+      className="bg-emerald-800 px-4 py-2 flex-row items-center justify-center gap-2"
     >
       <ActivityIndicator color="#fff" size="small" />
       <Text className="text-white text-xs font-bold">{LIBELLE_PREPARATION_RECU}</Text>

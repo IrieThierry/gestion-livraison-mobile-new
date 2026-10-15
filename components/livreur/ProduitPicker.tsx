@@ -170,7 +170,7 @@ export function ProduitPicker({
             >
               <ProduitVignette designation={item.designation} photoUrl={item.photoUrl} size={22} />
               <Plus
-                color={already ? '#94a3b8' : noStock ? '#ef4444' : '#10b981'}
+                color={already ? '#94a3b8' : noStock ? '#ef4444' : '#047857'}
                 size={14}
               />
               <Text
@@ -384,7 +384,7 @@ function LigneRow({
       {/* Source du prix résolu */}
       {resolved?.source ? (
         <View className="flex-row items-center gap-1 mb-2">
-          <Tag color="#059669" size={11} />
+          <Tag color="#065f46" size={11} />
           <Text className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">
             {prixImpose
               ? 'Prix fixé par ton responsable'
@@ -481,11 +481,11 @@ function LigneRow({
           onPress={() => onUpdate({ memoriserPrix: !line.memoriserPrix })}
           className={`flex-row items-center gap-1.5 mt-2 self-start px-2.5 py-1.5 rounded-md active:opacity-70 ${
             line.memoriserPrix
-              ? 'bg-emerald-500'
+              ? 'bg-emerald-700'
               : 'bg-emerald-100 dark:bg-emerald-500/15'
           }`}
         >
-          <Save color={line.memoriserPrix ? '#fff' : '#059669'} size={12} />
+          <Save color={line.memoriserPrix ? '#fff' : '#065f46'} size={12} />
           <Text
             className={`text-[11px] font-bold ${
               line.memoriserPrix ? 'text-white' : 'text-emerald-700 dark:text-emerald-400'
@@ -584,7 +584,7 @@ function LigneRow({
             ? `(${formatFCFA(line.prix)} + ${formatFCFA(remiseLigne)}) × ${line.qte} · estimation`
             : `${formatFCFA(line.prix)} × ${line.qte}${clientId ? ' · estimation' : ''}`}
         </Text>
-        <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
+        <Text className="font-extrabold text-emerald-800 dark:text-emerald-400">
           {formatFCFA(sousTotal)} FCFA
         </Text>
       </View>

@@ -174,7 +174,7 @@ const COULEUR_DOMAINE: Record<DomaineNotification, string> = {
   relation: '#db2777',
   autre: '#64748b',
 };
-const COULEUR_POSITIF = '#059669';
+const COULEUR_POSITIF = '#065f46';
 const COULEUR_NEGATIF = '#dc2626';
 
 const POSITIFS = /_(ACCEPTE|ACCEPTEE|CONFIRMEE|APPROUVEE|LIVREE|RECEPTIONNEE|SERVIE)$/;

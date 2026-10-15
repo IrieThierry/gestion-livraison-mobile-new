@@ -54,7 +54,7 @@ const STYLE = `
   @page { size: A4; margin: 14mm 12mm; }
   * { box-sizing: border-box; }
   body { font-family: -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; color: #0f172a; font-size: 11.5px; margin: 0; }
-  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 2px solid #10b981; padding-bottom: 10px; margin-bottom: 14px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 2px solid #047857; padding-bottom: 10px; margin-bottom: 14px; }
   .emetteur { display: flex; gap: 10px; align-items: flex-start; }
   .logo { max-width: 90px; max-height: 70px; object-fit: contain; }
   .raison { font-size: 15px; font-weight: 800; }
@@ -71,9 +71,9 @@ const STYLE = `
   th { background: #f1f5f9; color: #334155; font-weight: 700; text-align: left; padding: 6px; border-bottom: 1px solid #cbd5e1; }
   td { padding: 5px 6px; border-bottom: 1px solid #e2e8f0; }
   .d { text-align: right; white-space: nowrap; }
-  tr.total td { font-weight: 800; border-top: 2px solid #10b981; border-bottom: none; }
+  tr.total td { font-weight: 800; border-top: 2px solid #047857; border-bottom: none; }
   .mention { color: #475569; margin-top: 6px; }
-  .situation { margin-top: 18px; border: 2px solid #10b981; border-radius: 6px; padding: 10px 12px; page-break-inside: avoid; break-inside: avoid; }
+  .situation { margin-top: 18px; border: 2px solid #047857; border-radius: 6px; padding: 10px 12px; page-break-inside: avoid; break-inside: avoid; }
   .situation h2 { font-size: 13px; margin: 0 0 6px; }
   .situation .l { display: flex; justify-content: space-between; padding: 2px 0; }
   .situation .v { font-weight: 800; }

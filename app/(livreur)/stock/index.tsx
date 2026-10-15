@@ -88,13 +88,13 @@ function StockCourant() {
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
             onRefresh={() => q.refetch()}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
         <View className="px-4">
           {/* Carte hero — total vendable */}
-          <View className="bg-emerald-500 rounded-lg p-4 shadow-md">
+          <View className="bg-emerald-700 rounded-lg p-4 shadow-md">
             <Text className="text-[10px] font-semibold uppercase text-white/90">
               Vendable maintenant
             </Text>
@@ -113,7 +113,7 @@ function StockCourant() {
             className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg flex-row items-center justify-between px-4 py-3 active:opacity-70"
           >
             <View className="flex-row items-center gap-3 flex-1">
-              <History color="#10b981" size={20} />
+              <History color="#047857" size={20} />
               <View className="flex-1">
                 <Text className="font-extrabold text-slate-900 dark:text-white">
                   Mouvements
@@ -185,7 +185,7 @@ function StockCourant() {
                 className="flex-row items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 active:opacity-70"
               >
                 <View className="flex-row items-center gap-3 flex-1">
-                  <Undo2 color="#10b981" size={20} />
+                  <Undo2 color="#047857" size={20} />
                   <View className="flex-1">
                     <Text className="font-extrabold text-slate-900 dark:text-white">{v.rendreStock}</Text>
                     <Text className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -276,7 +276,7 @@ function StockCourant() {
                   ? 'border-l-red-500'
                   : lowStock
                   ? 'border-l-amber-500'
-                  : 'border-l-emerald-500';
+                  : 'border-l-emerald-700';
                 return (
                   <View
                     key={it.produit?.id ?? code}

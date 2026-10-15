@@ -72,7 +72,7 @@ export default function RemisesApprentis() {
         keyExtractor={(r) => r.id}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8, gap: 8 }}
         refreshControl={
-          <RefreshControl refreshing={q.isFetching && !q.isLoading} onRefresh={() => q.refetch()} tintColor="#10b981" />
+          <RefreshControl refreshing={q.isFetching && !q.isLoading} onRefresh={() => q.refetch()} tintColor="#047857" />
         }
         ListHeaderComponent={
           <View className="gap-3 mb-1">
@@ -110,7 +110,7 @@ export default function RemisesApprentis() {
         }
         ListEmptyComponent={
           q.isLoading ? (
-            <ActivityIndicator color="#10b981" style={{ marginTop: 32 }} />
+            <ActivityIndicator color="#047857" style={{ marginTop: 32 }} />
           ) : q.isError ? (
             <EmptyState title="Chargement impossible" message="Les remises n’ont pas pu être lues. Tire pour réessayer." />
           ) : (
@@ -145,7 +145,7 @@ function Puce({ label, aria, active, onPress }: { label: string; aria: string; a
       accessibilityLabel={aria}
       accessibilityState={{ selected: active }}
       className={`px-3 py-1.5 rounded-md border ${
-        active ? 'bg-emerald-500 border-emerald-500' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+        active ? 'bg-emerald-700 border-emerald-700' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
       }`}
     >
       <Text className={`text-[12px] font-bold ${active ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}>

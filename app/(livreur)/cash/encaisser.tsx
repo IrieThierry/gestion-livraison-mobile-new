@@ -153,7 +153,7 @@ export default function EncaisserPage() {
   if (qLiv.isLoading || qCli.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <ActivityIndicator color="#10b981" />
+        <ActivityIndicator color="#047857" />
       </View>
     );
   }
@@ -263,7 +263,7 @@ export default function EncaisserPage() {
           {/* Solde et avance (serveur) */}
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-4">
             {qAEnc.isLoading ? (
-              <ActivityIndicator color="#10b981" />
+              <ActivityIndicator color="#047857" />
             ) : qAEnc.isError ? (
               <Text className="text-[12px] text-red-600 dark:text-red-400">
                 {extractApiErrorMessage(qAEnc.error, 'Livraisons à encaisser indisponibles')}
@@ -302,7 +302,7 @@ export default function EncaisserPage() {
                     <View
                       className={`w-5 h-5 rounded border items-center justify-center ${
                         cochee
-                          ? 'bg-emerald-500 border-emerald-500'
+                          ? 'bg-emerald-700 border-emerald-700'
                           : 'border-slate-300 dark:border-slate-600'
                       }`}
                     >
@@ -372,13 +372,13 @@ export default function EncaisserPage() {
                 Aperçu
               </Text>
               {!apercuAJour ? (
-                <ActivityIndicator color="#10b981" />
+                <ActivityIndicator color="#047857" />
               ) : qApercu.isError ? (
                 <Text className="text-[12px] text-red-600 dark:text-red-400">
                   {extractApiErrorMessage(qApercu.error, 'Aperçu indisponible')}
                 </Text>
               ) : !apercu ? (
-                <ActivityIndicator color="#10b981" />
+                <ActivityIndicator color="#047857" />
               ) : (
                 <>
                   {apercu.repartition.map((r) => (
@@ -437,7 +437,7 @@ export default function EncaisserPage() {
             className={`rounded-md py-3.5 mt-6 items-center ${
               desactive
                 ? 'bg-slate-200 dark:bg-slate-800'
-                : 'bg-emerald-500 active:opacity-80'
+                : 'bg-emerald-700 active:opacity-80'
             }`}
           >
             {m.isPending ? (

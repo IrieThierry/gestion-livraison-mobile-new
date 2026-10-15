@@ -73,7 +73,7 @@ describe('Inscription (livreur seulement)', () => {
     afficher();
     remplir({ contact: '071234' });
     fireEvent.press(screen.getByText('Créer mon compte'));
-    expect(useDialogStore.getState().message).toBe('Le numéro doit contenir 10 chiffres.');
+    expect(useDialogStore.getState().message).toBe('Le numéro doit contenir 10 chiffres et commencer par 01, 05 ou 07.');
     remplir({ password: '123', confirm: '123' });
     fireEvent.press(screen.getByText('Créer mon compte'));
     expect(useDialogStore.getState().message).toBe('Le mot de passe doit contenir au moins 6 caractères.');

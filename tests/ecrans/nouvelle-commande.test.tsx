@@ -152,6 +152,8 @@ describe('Nouvelle commande : total estimé (N2a)', () => {
     const total = () => screen.getByTestId('total-estime').props.children.join('');
     expect(screen.getByText('Total estimé')).toBeTruthy();
     expect(total()).toBe('0 F');
+    // Remise nulle : pas de « + remise » (M1).
+    expect(screen.getByTestId('detail-total-estime').props.children).toBe('Prix 0 F');
     fireEvent.changeText(screen.getByLabelText('Quantité de Biscuit'), '3');
     expect(total()).toMatch(/^1\s500 F$/);
     fireEvent.changeText(screen.getByLabelText('Quantité de Lait'), '2');
@@ -159,5 +161,32 @@ describe('Nouvelle commande : total estimé (N2a)', () => {
     // Saisie invalide : ignorée dans le total.
     fireEvent.changeText(screen.getByLabelText('Quantité de Lait'), 'x');
     expect(total()).toMatch(/^1\s500 F$/);
+  });
+});
+
+describe('Nouvelle commande : remise dans le total (R1)', () => {
+  it('ligne = qte × (prix + remise) ; pied « Prix X + remise Y » puis « Total estimé Z »', () => {
+    (useCatalogueFournisseur as jest.Mock).mockReturnValue({
+      data: [
+        { ...ligne('p1', 'Biscuit', null), remiseLivreur: 25 },
+        { ...ligne('p2', 'Lait', null), prixDeVente: 300, remiseLivreur: 25 },
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    render(<NouvelleCommande />);
+    fireEvent.press(screen.getByText('choisir-fournisseur'));
+    const texte = (id: string) => {
+      const c = screen.getByTestId(id).props.children;
+      return (Array.isArray(c) ? c.join('') : String(c)).replace(/\s/g, ' ');
+    };
+    expect(screen.getAllByText(/remise 25 F\/u/).length).toBe(2);
+    fireEvent.changeText(screen.getByLabelText('Quantité de Biscuit'), '2');
+    fireEvent.changeText(screen.getByLabelText('Quantité de Lait'), '4');
+    expect(texte('montant-ligne-p1')).toBe('1 050 F');
+    expect(texte('montant-ligne-p2')).toBe('1 300 F');
+    expect(texte('detail-total-estime')).toBe('Prix 2 200 F + remise 150 F');
+    expect(texte('total-estime')).toBe('2 350 F');
   });
 });

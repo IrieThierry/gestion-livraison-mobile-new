@@ -24,13 +24,13 @@ const STYLE = `
     @bottom-right { content: "Page " counter(page) " / " counter(pages); font-size: 9px; color: #64748b; } }
   * { box-sizing: border-box; }
   body { font-family: -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; color: #0f172a; font-size: 11px; margin: 0; }
-  header { border-bottom: 2px solid #10b981; padding-bottom: 8px; margin-bottom: 12px; }
-  .app { color: #059669; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+  header { border-bottom: 2px solid #047857; padding-bottom: 8px; margin-bottom: 12px; }
+  .app { color: #065f46; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
   h1 { font-size: 18px; margin: 2px 0 6px; }
   .meta { color: #334155; line-height: 1.5; }
   .meta b { color: #0f172a; }
   .syntheses { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
-  .synthese { border: 1px solid #e2e8f0; border-left: 3px solid #10b981; border-radius: 4px; padding: 5px 8px; min-width: 110px; }
+  .synthese { border: 1px solid #e2e8f0; border-left: 3px solid #047857; border-radius: 4px; padding: 5px 8px; min-width: 110px; }
   .synthese .l { color: #64748b; font-size: 9px; text-transform: uppercase; }
   .synthese .v { font-weight: 800; font-size: 13px; }
   h2 { font-size: 13px; margin: 16px 0 4px; }
@@ -42,7 +42,7 @@ const STYLE = `
   th { background: #f1f5f9; text-align: left; font-size: 9.5px; text-transform: uppercase; color: #475569; padding: 5px 6px; border-bottom: 1px solid #cbd5e1; }
   td { padding: 4px 6px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
   .d { text-align: right; white-space: nowrap; }
-  tfoot td { font-weight: 800; background: #ecfdf5; border-top: 2px solid #10b981; }
+  tfoot td { font-weight: 800; background: #ecfdf5; border-top: 2px solid #047857; }
   .vide { color: #64748b; font-style: italic; padding: 6px 0; }
   footer { margin-top: 18px; border-top: 1px solid #e2e8f0; padding-top: 6px; color: #64748b; font-size: 9px; }
 `;

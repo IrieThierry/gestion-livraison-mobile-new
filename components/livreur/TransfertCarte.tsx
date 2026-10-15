@@ -51,7 +51,7 @@ export function TransfertCarte({ transfert: t, actions }: { transfert: Transfert
           <Text className="font-extrabold text-slate-900 dark:text-white">{t.reference || 'Transfert'}</Text>
           <View className="flex-row items-center gap-1 mt-1 flex-wrap">
             <Text className="text-[12px] text-slate-700 dark:text-slate-300">{nomLivreurTransfert(t.source)}</Text>
-            <ArrowRight color="#10b981" size={12} />
+            <ArrowRight color="#047857" size={12} />
             <Text className="text-[12px] text-slate-700 dark:text-slate-300">
               {nomLivreurTransfert(t.destinataire)}
             </Text>
@@ -196,7 +196,7 @@ export function useDecisionTransfert(moiId: UUID | undefined, { annulation = tru
         <>
           <ActionTransfert
             libelle="Accepter"
-            icone={<Check color="#059669" size={14} />}
+            icone={<Check color="#065f46" size={14} />}
             couleur="text-emerald-700 dark:text-emerald-400"
             disabled={enCours}
             onPress={() => accepter(t)}

@@ -249,7 +249,7 @@ export default function NouvelleLivraison() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -298,7 +298,7 @@ export default function NouvelleLivraison() {
               <Text className="font-bold text-slate-700 dark:text-slate-300">
                 Total livraison (estimation)
               </Text>
-              <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
+              <Text className="font-extrabold text-emerald-800 dark:text-emerald-400">
                 {formatFCFA(total)} FCFA
               </Text>
             </View>
@@ -319,7 +319,7 @@ export default function NouvelleLivraison() {
             className={`rounded-md py-3.5 mt-5 items-center ${
               blockSubmit
                 ? 'bg-slate-300 dark:bg-slate-700'
-                : 'bg-emerald-500 active:opacity-80'
+                : 'bg-emerald-700 active:opacity-80'
             }`}
           >
             {isPending ? (

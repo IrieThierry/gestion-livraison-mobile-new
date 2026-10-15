@@ -136,7 +136,7 @@ export default function PrevisionsList() {
         right={
           <Pressable
             onPress={() => naviguer('/(livreur)/previsions/nouvelle', { date: jour < aujourdhui ? demain : jour })}
-            className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
+            className="bg-emerald-700 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <Plus color="#fff" size={14} />
             <Text className="text-white text-xs font-bold">Nouvelle</Text>
@@ -155,7 +155,7 @@ export default function PrevisionsList() {
               livraisonsQ.refetch();
               if (principal) equipeQ.refetch();
             }}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -217,7 +217,7 @@ export default function PrevisionsList() {
 
           {/* Mes prévisions, par client */}
           <View className="flex-row items-center gap-2 mt-2">
-            <Calendar color="#10b981" size={14} />
+            <Calendar color="#047857" size={14} />
             <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
               {principal ? 'Mes prévisions par client' : 'Détail par client'}
             </Text>
@@ -228,7 +228,7 @@ export default function PrevisionsList() {
             </Text>
           ) : null}
           {previsionsQ.isLoading ? (
-            <ActivityIndicator color="#10b981" />
+            <ActivityIndicator color="#047857" />
           ) : previsionsQ.isError ? (
             <EmptyState
               title="Chargement impossible"

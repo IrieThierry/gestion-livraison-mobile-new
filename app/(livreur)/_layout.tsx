@@ -81,7 +81,7 @@ export default function LivreurLayout() {
         backBehavior="firstRoute"
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: '#10b981',
+          tabBarActiveTintColor: '#047857',
           // Slate-400 light / Slate-500 dark (légèrement plus contrasté sur fond sombre)
           tabBarInactiveTintColor: isDark ? '#64748b' : '#94a3b8',
           tabBarStyle: {
@@ -129,9 +129,9 @@ export default function LivreurLayout() {
             ...masque('fab'),
             tabBarIcon: () => (
               <View
-                className="bg-emerald-500 -mt-6 w-14 h-14 rounded-full items-center justify-center"
+                className="bg-emerald-700 -mt-6 w-14 h-14 rounded-full items-center justify-center"
                 style={{
-                  shadowColor: '#10b981',
+                  shadowColor: '#047857',
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.4,
                   shadowRadius: 8,

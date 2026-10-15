@@ -111,7 +111,7 @@ export default function NouveauApprenti() {
               onChange={setContact}
               placeholder="0712345678"
               keyboardType="phone-pad"
-              hint="10 chiffres, sans espaces"
+              hint="10 chiffres, commence par 01, 05 ou 07"
               icon={Phone}
             />
 
@@ -183,7 +183,7 @@ export default function NouveauApprenti() {
             <Pressable
               onPress={onSubmit}
               disabled={m.isPending}
-              className="bg-emerald-500 rounded-md py-3.5 mt-4 flex-row items-center justify-center gap-2 active:opacity-80"
+              className="bg-emerald-700 rounded-md py-3.5 mt-4 flex-row items-center justify-center gap-2 active:opacity-80"
             >
               {m.isPending ? (
                 <ActivityIndicator color="#fff" />
@@ -244,6 +244,7 @@ function FieldWithIcon({
           placeholder={placeholder}
           placeholderTextColor="#94a3b8"
           keyboardType={keyboardType ?? 'default'}
+          maxLength={keyboardType === 'phone-pad' ? 10 : undefined}
           autoCapitalize={
             autoCapitalize ??
             (keyboardType === 'email-address' ? 'none' : 'sentences')

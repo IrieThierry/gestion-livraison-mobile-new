@@ -147,7 +147,7 @@ export function SelectField({
                       </Text>
                     ) : null}
                   </View>
-                  {active ? <Check color="#10b981" size={18} /> : null}
+                  {active ? <Check color="#047857" size={18} /> : null}
                 </Pressable>
               );
             }}

@@ -57,7 +57,7 @@ export default function MesVersements() {
             onPress={() => naviguer('/(livreur)/cash/versement')}
             accessibilityRole="button"
             accessibilityLabel="Nouveau versement"
-            className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
+            className="bg-emerald-700 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <Plus color="#fff" size={14} />
             <Text className="text-white text-xs font-bold">Nouveau</Text>
@@ -92,7 +92,7 @@ export default function MesVersements() {
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
             onRefresh={() => q.refetch()}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
         ListHeaderComponent={
@@ -110,7 +110,7 @@ export default function MesVersements() {
         ListEmptyComponent={
           q.isLoading ? (
             <View className="py-6 items-center">
-              <ActivityIndicator color="#10b981" />
+              <ActivityIndicator color="#047857" />
             </View>
           ) : q.isError ? (
             <EmptyState

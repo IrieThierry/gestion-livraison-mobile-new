@@ -89,7 +89,7 @@ export function DatePickerField({
                 <Text className="font-extrabold text-slate-900 dark:text-white">{label}</Text>
                 <Pressable
                   onPress={() => setShowIos(false)}
-                  className="bg-emerald-500 px-4 py-1.5 rounded-md active:opacity-80"
+                  className="bg-emerald-700 px-4 py-1.5 rounded-md active:opacity-80"
                 >
                   <Text className="text-white font-bold">OK</Text>
                 </Pressable>

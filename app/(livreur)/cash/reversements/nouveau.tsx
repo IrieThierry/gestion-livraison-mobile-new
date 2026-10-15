@@ -225,7 +225,7 @@ export default function NouveauReversement() {
             className={`rounded-md py-3.5 mt-3 items-center ${
               !isOnline || !saisie.ok
                 ? 'bg-slate-200 dark:bg-slate-800'
-                : 'bg-emerald-500 active:opacity-80'
+                : 'bg-emerald-700 active:opacity-80'
             }`}
           >
             {m.isPending ? (

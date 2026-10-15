@@ -90,7 +90,7 @@ export default function MesFournisseurs() {
   if (q.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <ActivityIndicator color="#10b981" />
+        <ActivityIndicator color="#047857" />
       </View>
     );
   }
@@ -192,7 +192,7 @@ export default function MesFournisseurs() {
                           ? 'bg-slate-200 dark:bg-slate-800'
                           : action === 'annuler'
                             ? 'bg-red-500 active:opacity-80'
-                            : 'bg-emerald-500 active:opacity-80'
+                            : 'bg-emerald-700 active:opacity-80'
                       }`}
                     >
                       <Text

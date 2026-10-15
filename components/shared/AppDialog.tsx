@@ -31,7 +31,7 @@ const VARIANTS: Record<
 > = {
   success: {
     Icon: CheckCircle2,
-    color: '#10b981',
+    color: '#047857',
     iconBg: '#d1fae5',
     iconBgDark: 'rgba(16, 185, 129, 0.15)',
   },

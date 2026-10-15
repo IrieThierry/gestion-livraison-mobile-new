@@ -97,7 +97,7 @@ export default function ChangerMotDePasse() {
           <Pressable
             onPress={onSubmit}
             disabled={m.isPending}
-            className="bg-emerald-500 rounded-md py-3.5 mt-3 flex-row items-center justify-center gap-2 active:opacity-80"
+            className="bg-emerald-700 rounded-md py-3.5 mt-3 flex-row items-center justify-center gap-2 active:opacity-80"
           >
             {m.isPending ? (
               <ActivityIndicator color="#fff" />

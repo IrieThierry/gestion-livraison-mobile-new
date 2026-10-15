@@ -62,7 +62,7 @@ export default function ReversementsSynthese() {
         right={
           <Pressable
             onPress={() => naviguer('/(livreur)/cash/reversements/historique')}
-            className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
+            className="bg-emerald-700 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <History color="#fff" size={14} />
             <Text className="text-white text-xs font-bold">Historique</Text>
@@ -76,7 +76,7 @@ export default function ReversementsSynthese() {
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
             onRefresh={() => q.refetch()}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -109,7 +109,7 @@ export default function ReversementsSynthese() {
             className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 mt-2 mb-3 flex-row items-center gap-3 active:opacity-70"
           >
             <View className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
-              <History color="#059669" size={18} />
+              <History color="#065f46" size={18} />
             </View>
             <View className="flex-1">
               <Text className="font-extrabold text-slate-900 dark:text-white">
@@ -124,7 +124,7 @@ export default function ReversementsSynthese() {
 
           {q.isLoading ? (
             <View className="items-center py-12">
-              <ActivityIndicator color="#10b981" />
+              <ActivityIndicator color="#047857" />
             </View>
           ) : q.isError ? (
             <View className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-md p-4 mt-3">
@@ -180,7 +180,7 @@ export default function ReversementsSynthese() {
                         <Text
                           className={`font-extrabold ${
                             f.montantNetDu > 0
-                              ? 'text-emerald-600 dark:text-emerald-400'
+                              ? 'text-emerald-800 dark:text-emerald-400'
                               : 'text-slate-400'
                           }`}
                         >

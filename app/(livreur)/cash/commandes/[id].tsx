@@ -247,7 +247,7 @@ export default function CommandeDetail() {
               {peutReceptionner(commande) ? (
                 <BoutonAction
                   label="Réceptionner"
-                  couleur="bg-emerald-500"
+                  couleur="bg-emerald-700"
                   onPress={ouvrirReception}
                   actif={actif && saisie === null}
                   isOnline={isOnline}
@@ -309,7 +309,7 @@ function ApprentiBloc({
           Apprenti affecté : <Text className="font-bold">{a ? a.nom : 'Aucun'}</Text>
         </Text>
       )}
-      {pending ? <ActivityIndicator color="#10b981" style={{ marginTop: 8 }} /> : null}
+      {pending ? <ActivityIndicator color="#047857" style={{ marginTop: 8 }} /> : null}
       {commande.affectePar && commande.dateAffectation ? (
         <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
           {a ? `${a.nom} — affecté` : 'Affectation retirée'} par {commande.affectePar.nom} le{' '}

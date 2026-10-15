@@ -48,7 +48,7 @@ export default function HistoriqueReaffectations() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={
-          <RefreshControl refreshing={q.isFetching && !q.isLoading} onRefresh={() => q.refetch()} tintColor="#10b981" />
+          <RefreshControl refreshing={q.isFetching && !q.isLoading} onRefresh={() => q.refetch()} tintColor="#047857" />
         }
       >
         <View className="px-4 pt-3">
@@ -57,7 +57,7 @@ export default function HistoriqueReaffectations() {
           </View>
 
           {q.isLoading ? (
-            <ActivityIndicator color="#10b981" />
+            <ActivityIndicator color="#047857" />
           ) : q.isError ? (
             <EmptyState
               title="Chargement impossible"

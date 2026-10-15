@@ -101,7 +101,7 @@ export default function PrixClientPage() {
   if (qC.isLoading || qProduits.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <ActivityIndicator color="#10b981" />
+        <ActivityIndicator color="#047857" />
       </View>
     );
   }
@@ -189,14 +189,14 @@ export default function PrixClientPage() {
               qProduits.refetch();
               if (avecAchat) qAchat.refetch();
             }}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
         <View className="px-4 pt-3">
           {/* Banner info */}
           <View className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-md p-3 flex-row items-start gap-2 mb-3">
-            <Tag color="#059669" size={14} />
+            <Tag color="#065f46" size={14} />
             <Text className="flex-1 text-[12px] text-emerald-700 dark:text-emerald-400">
               {conditionsFixables
                 ? 'Les prix mémorisés ici remplacent ton barème par défaut pour ce client uniquement. Ils sont visibles aussi sur le portail web.'
@@ -242,7 +242,7 @@ export default function PrixClientPage() {
                 let badgeBg = 'bg-slate-100 dark:bg-slate-800';
                 let badgeLabel = 'Aucun prix';
                 if (prixCustom !== undefined) {
-                  badgeColor = '#059669';
+                  badgeColor = '#065f46';
                   badgeBg = 'bg-emerald-100 dark:bg-emerald-500/15';
                   badgeLabel = 'Prix custom';
                 } else if (prixDefaut !== undefined) {
@@ -381,7 +381,7 @@ export default function PrixClientPage() {
                         className={`flex-row items-center gap-1.5 px-3 py-2.5 rounded-md ${
                           !draft.trim()
                             ? 'bg-slate-200 dark:bg-slate-800'
-                            : 'bg-emerald-500 active:opacity-80'
+                            : 'bg-emerald-700 active:opacity-80'
                         }`}
                       >
                         <Save

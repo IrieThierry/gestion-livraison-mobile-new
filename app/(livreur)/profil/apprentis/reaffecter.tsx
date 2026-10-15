@@ -148,7 +148,7 @@ export default function ReaffecterClients() {
               qClients.refetch();
               qApprentis.refetch();
             }}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -196,7 +196,7 @@ export default function ReaffecterClients() {
               emptyMessage="Aucune zone"
             />
           ) : qClients.isLoading ? (
-            <ActivityIndicator color="#10b981" />
+            <ActivityIndicator color="#047857" />
           ) : qClients.isError ? (
             <EmptyState
               title="Chargement impossible"
@@ -233,7 +233,7 @@ export default function ReaffecterClients() {
                       >
                         <View
                           className={`w-5 h-5 rounded border items-center justify-center ${
-                            coche ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 dark:border-slate-600'
+                            coche ? 'bg-emerald-700 border-emerald-700' : 'border-slate-300 dark:border-slate-600'
                           }`}
                         >
                           {coche ? <Check color="#fff" size={13} /> : null}
@@ -280,7 +280,7 @@ export default function ReaffecterClients() {
             accessibilityRole="button"
             accessibilityLabel="Réaffecter"
             className={`rounded-md py-3.5 mt-5 flex-row items-center justify-center gap-2 ${
-              m.isPending || !isOnline ? 'bg-slate-300 dark:bg-slate-700' : 'bg-emerald-500 active:opacity-80'
+              m.isPending || !isOnline ? 'bg-slate-300 dark:bg-slate-700' : 'bg-emerald-700 active:opacity-80'
             }`}
           >
             {m.isPending ? (
@@ -322,7 +322,7 @@ function ChoixMode({
       accessibilityLabel={label}
       accessibilityState={{ selected: actif }}
       className={`flex-1 flex-row items-center justify-center gap-1.5 py-2.5 rounded-md border ${
-        actif ? 'bg-emerald-500 border-emerald-500' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+        actif ? 'bg-emerald-700 border-emerald-700' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
       }`}
     >
       <Icon color={actif ? '#fff' : '#64748b'} size={14} />

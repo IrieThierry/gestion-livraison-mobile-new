@@ -29,6 +29,7 @@ import { dialog } from '../../../../lib/dialog';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { peutFixerConditions } from '../../../../features/remise/regles';
 import { validerRemiseClient } from '../../../../features/clients/regles';
+import { contactValide, MESSAGES_COMPTE } from '../../../../features/auth/schemas';
 import { buildModifierClientPayload } from '../../../../features/clients/regles';
 import type { ClientResponse } from '../../../../types/api';
 import { useRetourListe } from '../../../../lib/useRetourListe';
@@ -166,6 +167,7 @@ export default function ModifierClient() {
     }
     if (!prenom.trim()) return dialog.warning('Champ requis', 'Prénom requis');
     if (!contact.trim()) return dialog.warning('Champ requis', 'Téléphone requis');
+    if (!contactValide(contact)) return dialog.warning('Téléphone invalide', MESSAGES_COMPTE.contact);
     if (!zoneId) return dialog.warning('Champ requis', 'Zone requise');
     if (!quartierId) return dialog.warning('Champ requis', 'Quartier requis');
     if (!categorieId) return dialog.warning('Champ requis', 'Catégorie requise');
@@ -209,7 +211,7 @@ export default function ModifierClient() {
   if (qC.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <ActivityIndicator color="#10b981" />
+        <ActivityIndicator color="#047857" />
       </View>
     );
   }
@@ -256,6 +258,7 @@ export default function ModifierClient() {
                   value={contact}
                   onChange={setContact}
                   keyboardType="phone-pad"
+                  hint="10 chiffres, commence par 01, 05 ou 07"
                   icon={Phone}
                 />
               </View>
@@ -341,7 +344,7 @@ export default function ModifierClient() {
               </View>
               <View
                 className={`w-12 h-7 rounded-full justify-center px-0.5 ${
-                  avecRemise ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                  avecRemise ? 'bg-emerald-700' : 'bg-slate-300 dark:bg-slate-700'
                 }`}
               >
                 <View
@@ -415,7 +418,7 @@ export default function ModifierClient() {
             <Pressable
               onPress={onSubmit}
               disabled={m.isPending || !isOnline}
-              className="bg-emerald-500 rounded-md py-3.5 mt-3 flex-row items-center justify-center gap-2 active:opacity-80"
+              className="bg-emerald-700 rounded-md py-3.5 mt-3 flex-row items-center justify-center gap-2 active:opacity-80"
             >
               {m.isPending ? (
                 <ActivityIndicator color="#fff" />
@@ -440,6 +443,7 @@ function FieldWithIcon({
   onChange,
   placeholder,
   keyboardType,
+  hint,
   icon: Icon,
 }: {
   label: string;
@@ -447,6 +451,7 @@ function FieldWithIcon({
   onChange: (s: string) => void;
   placeholder?: string;
   keyboardType?: 'phone-pad' | 'email-address' | 'default';
+  hint?: string;
   icon: React.ComponentType<{ color: string; size: number }>;
 }) {
   return (
@@ -464,11 +469,15 @@ function FieldWithIcon({
           placeholder={placeholder}
           placeholderTextColor="#94a3b8"
           keyboardType={keyboardType ?? 'default'}
+          maxLength={keyboardType === 'phone-pad' ? 10 : undefined}
           autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
           autoCorrect={false}
           className="flex-1 px-3 py-3.5 text-slate-900 dark:text-white text-base"
         />
       </View>
+      {hint ? (
+        <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{hint}</Text>
+      ) : null}
     </View>
   );
 }

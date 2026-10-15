@@ -1,6 +1,9 @@
 import {
   montantCommande,
   totalEstime,
+  totauxEstimes,
+  montantLigneCommande,
+  quantiteSaisie,
   construireCommande,
   construireModificationReception,
   construireReception,
@@ -306,6 +309,19 @@ describe('N2 : montants de commande', () => {
     expect(totalEstime(lignes, { a: '2', b: '4' })).toBe(2000);
     expect(totalEstime(lignes, { a: '2', b: '' })).toBe(1000);
     expect(totalEstime(lignes, { a: '1.5', b: '-1', c: '9' })).toBe(0);
+  });
+
+  it('R1 : la remise livreur s\'ajoute au montant de chaque ligne et au total', () => {
+    const avecRemise = (id: string, prixDeVente: number, remiseLivreur: number) =>
+      ({ prixDeVente, remiseLivreur, produit: { id, code: id, designation: id } }) as never;
+    const lignes = [avecRemise('a', 500, 25), avecRemise('b', 250, 25)];
+    expect(totauxEstimes(lignes, { a: '2', b: '4' })).toEqual({ prix: 2000, remise: 150, total: 2150 });
+    expect(totalEstime(lignes, { a: '2', b: '4' })).toBe(2150);
+    expect(totauxEstimes(lignes, {})).toEqual({ prix: 0, remise: 0, total: 0 });
+    expect(montantLigneCommande(500, 25, 2)).toBe(1050);
+    expect(montantLigneCommande(500, undefined, 2)).toBe(1000);
+    expect(quantiteSaisie({ a: '3', b: 'x' }, 'a')).toBe(3);
+    expect(quantiteSaisie({ a: '3', b: 'x' }, 'b')).toBe(0);
   });
 
   it('montantCommande : « Montant estimé » tant que montantLivre est nul ou à 0, puis « Montant livré »', () => {

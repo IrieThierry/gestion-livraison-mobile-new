@@ -91,7 +91,7 @@ export default function ReversementsHistorique() {
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
             onRefresh={() => q.refetch()}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -119,7 +119,7 @@ export default function ReversementsHistorique() {
 
         <View className="px-4">
           {/* KPIs du mois */}
-          <View className="bg-emerald-500 rounded-lg p-4 shadow-md">
+          <View className="bg-emerald-700 rounded-lg p-4 shadow-md">
             <Text className="text-[10px] font-semibold uppercase text-white/90">
               Total reversé ce mois
             </Text>
@@ -166,7 +166,7 @@ export default function ReversementsHistorique() {
 
           {q.isLoading ? (
             <View className="items-center py-12">
-              <ActivityIndicator color="#10b981" />
+              <ActivityIndicator color="#047857" />
             </View>
           ) : q.isError ? (
             <View className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-md p-4">

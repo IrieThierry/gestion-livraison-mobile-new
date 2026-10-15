@@ -141,7 +141,7 @@ export default function NouvelleCloture() {
               <Text className="text-[12px] font-bold text-slate-700 dark:text-slate-300">
                 Total encaissé
               </Text>
-              <Text className="font-extrabold text-emerald-600 dark:text-emerald-400 text-base">
+              <Text className="font-extrabold text-emerald-800 dark:text-emerald-400 text-base">
                 {formatMontant(estimation.totalEncaisse)} FCFA
               </Text>
             </View>
@@ -196,7 +196,7 @@ export default function NouvelleCloture() {
               }`}
             >
               {sens === 'equilibre' ? (
-                <CheckCircle2 color="#059669" size={18} />
+                <CheckCircle2 color="#065f46" size={18} />
               ) : (
                 <AlertTriangle color="#d97706" size={18} />
               )}
@@ -236,7 +236,7 @@ export default function NouvelleCloture() {
             className={`rounded-md py-3.5 mt-3 items-center ${
               !isOnline || !remis.ok
                 ? 'bg-slate-200 dark:bg-slate-800'
-                : 'bg-emerald-500 active:opacity-80'
+                : 'bg-emerald-700 active:opacity-80'
             }`}
           >
             {m.isPending ? (
