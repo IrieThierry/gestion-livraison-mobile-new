@@ -7,7 +7,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Eye, EyeOff, KeyRound } from 'lucide-react-native';
 import { FormScreen } from '../components/shared/FormScreen';
 import { authApi } from '../features/auth/api';
-import { changePasswordSchema, MESSAGES_COMPTE } from '../features/auth/schemas';
+import { changementMotDePasseProvisoireSchema, MESSAGES_COMPTE } from '../features/auth/schemas';
 import { creerVerrou, lancerUneFois } from '../features/commandes/verrou';
 import { useAuthStore } from '../stores/authStore';
 import { accueilDuProfil } from '../lib/navigation';
@@ -20,7 +20,8 @@ const CHAMP =
 /**
  * M1 « Choisis ton nouveau mot de passe » : ouvert après la connexion avec
  * un mot de passe provisoire (`motDePasseProvisoire`). Ancien mot de passe
- * (le provisoire), nouveau et confirmation, avec les règles existantes.
+ * (le provisoire), nouveau et confirmation, avec les règles existantes ;
+ * le nouveau doit être différent du provisoire. Erreurs du back affichées telles quelles.
  * Tant que le mot de passe n'est pas changé, aucune autre page n'est
  * accessible (`redirectionRacine`), le retour Android est bloqué ; seule la
  * déconnexion permet de sortir.
@@ -58,7 +59,7 @@ export default function MotDePasseProvisoire() {
   });
 
   const onSubmit = () => {
-    const parsed = changePasswordSchema.safeParse({ currentPassword, newPassword, confirmPassword });
+    const parsed = changementMotDePasseProvisoireSchema.safeParse({ currentPassword, newPassword, confirmPassword });
     if (!parsed.success) {
       dialog.warning('Champs invalides', parsed.error.issues[0]?.message ?? 'Vérifie les informations saisies.');
       return;

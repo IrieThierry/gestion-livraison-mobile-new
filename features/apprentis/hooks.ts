@@ -76,6 +76,17 @@ export function useResetMotDePasse() {
   });
 }
 
+/** M1 : ignorer une demande « Mot de passe oublié » (fausse demande) : la liste est relue. */
+export function useIgnorerDemandeReinitialisation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => authApi.ignorerDemandeReinitialisation(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: demandesReinitialisationKeys.all });
+    },
+  });
+}
+
 export function useToggleApprentiActif() {
   const qc = useQueryClient();
   return useMutation({

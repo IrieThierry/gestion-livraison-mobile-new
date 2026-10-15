@@ -8,7 +8,7 @@ import {
   migrerAncienChoixBiometrie,
   type ChoixBiometrie,
 } from '../lib/biometrie-choix';
-import { queryClient, QUERY_CACHE_KEY } from '../lib/query-client';
+import { CLE_PROPRIETAIRE_CACHE, QUERY_CACHE_KEY, viderCacheRequetes } from '../lib/query-client';
 import type { AuthUser } from '../features/auth/api';
 import { useCommandePrefillStore } from './commandePrefillStore';
 
@@ -78,7 +78,20 @@ export const useAuthStore = create<AuthState>()((set) => ({
   // M2 « Se souvenir de moi » décoché (`seSouvenir === false`) : jetons en
   // mémoire seulement, rien n'est gardé sur le téléphone (une session gardée
   // d'avant est effacée). Fermer l'app ramène à la connexion.
+  //
+  // Cache des requêtes : jamais celui d'un autre compte (vidé si le compte
+  // change) ; session non gardée : le cache persisté est effacé et plus
+  // rien n'est écrit (`queryPersister`).
   setSession: async (token, refreshToken, user, seSouvenir = true) => {
+    let proprietaire: string | null = null;
+    try {
+      proprietaire = await AsyncStorage.getItem(CLE_PROPRIETAIRE_CACHE);
+    } catch {
+      // Illisible : le cache est vidé (cas le plus sûr).
+    }
+    if (proprietaire !== user.id) await viderCacheRequetes();
+    else if (!seSouvenir) await AsyncStorage.removeItem(QUERY_CACHE_KEY);
+    await AsyncStorage.setItem(CLE_PROPRIETAIRE_CACHE, user.id);
     if (!seSouvenir) {
       await JetonsSession.effacer();
       await AsyncStorage.removeItem('user');
@@ -99,6 +112,9 @@ export const useAuthStore = create<AuthState>()((set) => ({
     const token = await SecureStorage.get('access_token');
     const userRaw = await AsyncStorage.getItem('user');
     if (!token || !userRaw) {
+      // Pas de session restaurable : aucune donnée d'une session précédente
+      // (par exemple « Se souvenir de moi » décoché) ne reste sur le téléphone.
+      await viderCacheRequetes().catch(() => undefined);
       set({ user: null, isHydrated: true });
       return;
     }
@@ -141,8 +157,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
     JetonsSession.definirPersistance(true);
     await AsyncStorage.removeItem('user');
     // Cache d'un autre utilisateur : vidé en mémoire ET dans le stockage persisté.
-    queryClient.clear();
-    await AsyncStorage.removeItem(QUERY_CACHE_KEY);
+    await viderCacheRequetes();
     // Préremplissage « Commander » non consommé : jamais repris par un autre compte.
     useCommandePrefillStore.getState().vider();
     set({ user: null });

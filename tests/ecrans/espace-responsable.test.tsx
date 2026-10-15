@@ -111,6 +111,7 @@ jest.mock('../../features/apprentis/hooks', () => ({
     lecture([{ id: 'k1', prenom: 'Ali', nom: 'Kone', username: 'ali', contact: null, email: null, actif: true }]),
   useToggleApprentiActif: () => mockToggle,
   useResetMotDePasse: () => ({ mutate: jest.fn(), isPending: false }),
+  useIgnorerDemandeReinitialisation: () => ({ mutate: jest.fn(), isPending: false }),
   useDemandesReinitialisation: () => ({ data: [], isLoading: false, isError: false, refetch: jest.fn() }),
 }));
 

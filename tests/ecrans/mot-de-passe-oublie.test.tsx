@@ -89,6 +89,21 @@ describe('Choisis ton nouveau mot de passe (M1)', () => {
     expect(useDialogStore.getState().message).toBe('Les mots de passe ne correspondent pas');
   });
 
+  it('nouveau identique au provisoire : refusé avec le message du back', () => {
+    afficher(<MotDePasseProvisoire />);
+    saisir('Prov123', 'Prov123', 'Prov123');
+    expect(changer).not.toHaveBeenCalled();
+    expect(useDialogStore.getState().message).toBe('Le nouveau mot de passe doit être différent du mot de passe provisoire.');
+  });
+
+  it('erreur du back affichée telle quelle', async () => {
+    changer.mockRejectedValue({ response: { status: 400, data: { message: 'Mot de passe actuel incorrect' } } });
+    afficher(<MotDePasseProvisoire />);
+    saisir('Prov123', 'nouveau1', 'nouveau1');
+    await waitFor(() => expect(useDialogStore.getState().message).toBe('Mot de passe actuel incorrect'));
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
   it('changement : provisoire levé puis accueil', async () => {
     changer.mockResolvedValue({ message: 'ok' });
     afficher(<MotDePasseProvisoire />);

@@ -24,6 +24,7 @@ jest.mock('../../stores/authStore', () => ({
   useAuthStore: (sel: (s: unknown) => unknown) => sel({ user: mockUser }),
 }));
 const mockReset = jest.fn();
+const mockIgnorer = jest.fn();
 jest.mock('../../features/apprentis/hooks', () => ({
   useApprentis: () => ({
     data: [
@@ -36,6 +37,7 @@ jest.mock('../../features/apprentis/hooks', () => ({
   }),
   useToggleApprentiActif: () => ({ mutate: jest.fn(), isPending: false }),
   useResetMotDePasse: () => ({ mutate: mockReset, isPending: false }),
+  useIgnorerDemandeReinitialisation: () => ({ mutate: mockIgnorer, isPending: false }),
   useDemandesReinitialisation: () => ({
     data: [{ id: 'd1', compteId: 'a2', statut: 'EN_ATTENTE' }],
     isLoading: false,
@@ -57,6 +59,7 @@ describe('Mes apprentis : demandes « Mot de passe oublié » (M1)', () => {
     fireEvent.press(screen.getByLabelText('Réinitialiser le mot de passe de Ibrahim Sow'));
     const confirmation = (dialog.confirm as jest.Mock).mock.calls[0][0];
     expect(confirmation.title).toBe('Réinitialiser le mot de passe ?');
+    expect(confirmation.message).toContain('appelle-le au numéro de son compte');
     act(() => {
       confirmation.onConfirm();
       confirmation.onConfirm();
@@ -75,11 +78,26 @@ describe('Mes apprentis : demandes « Mot de passe oublié » (M1)', () => {
     );
   });
 
+  it('ignorer une fausse demande : confirmation, envoi unique de l’id de la demande', () => {
+    render(<ApprentisList />);
+    expect(screen.getAllByText('Ignorer')).toHaveLength(1);
+    fireEvent.press(screen.getByLabelText('Ignorer la demande de Ibrahim Sow'));
+    const confirmation = (dialog.confirm as jest.Mock).mock.calls[0][0];
+    expect(confirmation.title).toBe('Ignorer la demande ?');
+    act(() => {
+      confirmation.onConfirm();
+      confirmation.onConfirm();
+    });
+    expect(mockIgnorer).toHaveBeenCalledTimes(1);
+    expect(mockIgnorer.mock.calls[0][0]).toBe('d1');
+  });
+
   it('responsable (lecture seule) : badge visible, pas de bouton de réinitialisation', () => {
     mockUser = { id: 'r1', prenom: 'Jean', nom: 'Racine', parentId: null, organisationId: 'o1', organisationRole: 'RESPONSABLE' };
     render(<ApprentisList />);
     expect(screen.getAllByText('Mot de passe demandé')).toHaveLength(1);
     expect(screen.queryByLabelText(/Réinitialiser le mot de passe/)).toBeNull();
+    expect(screen.queryByText('Ignorer')).toBeNull();
     mockUser = { id: 'r1', prenom: 'Jean', nom: 'Racine', parentId: null };
   });
 });

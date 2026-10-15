@@ -166,3 +166,42 @@ describe('authStore : « Se souvenir de moi » (M2)', () => {
     expect(useAuthStore.getState().user).toBe(maj)
   })
 })
+
+describe('authStore : cache des requêtes jamais d’un autre compte (revue I1)', () => {
+  const user = { id: 'u', username: 'awa' } as never
+  beforeEach(() => {
+    jest.clearAllMocks()
+    queryClient.setQueryData(['clients'], [{ id: 'c' }])
+  })
+  afterEach(() => JetonsSession.definirPersistance(true))
+
+  it('autre compte que le propriétaire du cache : cache vidé, propriétaire noté', async () => {
+    ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('autre')
+    await useAuthStore.getState().setSession('t', 'r', user, true)
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('GL_QUERY_CACHE')
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith('GL_QUERY_CACHE_PROPRIETAIRE', 'u')
+  })
+
+  it('même compte, session gardée : cache conservé', async () => {
+    ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('u')
+    await useAuthStore.getState().setSession('t', 'r', user, true)
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
+    expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith('GL_QUERY_CACHE')
+  })
+
+  it('même compte, « Se souvenir de moi » décoché : cache persisté effacé', async () => {
+    ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('u')
+    await useAuthStore.getState().setSession('t', 'r', user, false)
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('GL_QUERY_CACHE')
+  })
+
+  it('démarrage sans session restaurable : cache vidé', async () => {
+    ;(SecureStorage.get as jest.Mock).mockResolvedValue(null)
+    ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
+    await useAuthStore.getState().hydrate()
+    expect(useAuthStore.getState().user).toBeNull()
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('GL_QUERY_CACHE')
+  })
+})

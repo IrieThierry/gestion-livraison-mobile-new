@@ -18,6 +18,14 @@ export function comptesAvecDemande(demandes: readonly DemandeReinitialisationRes
   return new Set((demandes ?? []).filter(estEnAttente).map((d) => d.compteId));
 }
 
+/** Demande en attente d'un compte (pour « Ignorer »), ou undefined. */
+export function demandeEnAttenteDe(
+  demandes: readonly DemandeReinitialisationResponse[] | undefined,
+  compteId: UUID,
+): DemandeReinitialisationResponse | undefined {
+  return (demandes ?? []).find((d) => estEnAttente(d) && d.compteId === compteId);
+}
+
 /** Nombre de demandes en attente (ligne « À traiter », pastille de la cloche). */
 export function nbDemandesMotDePasse(demandes: readonly DemandeReinitialisationResponse[] | undefined): number {
   return (demandes ?? []).filter(estEnAttente).length;

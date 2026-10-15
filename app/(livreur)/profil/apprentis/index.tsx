@@ -15,10 +15,15 @@ import { EmptyState } from '../../../../components/shared/EmptyState';
 import {
   useApprentis,
   useDemandesReinitialisation,
+  useIgnorerDemandeReinitialisation,
   useResetMotDePasse,
   useToggleApprentiActif,
 } from '../../../../features/apprentis/hooks';
-import { BADGE_MOT_DE_PASSE_DEMANDE, comptesAvecDemande } from '../../../../features/apprentis/regles';
+import {
+  BADGE_MOT_DE_PASSE_DEMANDE,
+  comptesAvecDemande,
+  demandeEnAttenteDe,
+} from '../../../../features/apprentis/regles';
 import { creerVerrou, lancerUneFois } from '../../../../features/commandes/verrou';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { useAuthStore } from '../../../../stores/authStore';
@@ -46,6 +51,8 @@ export default function ApprentisList() {
   const toggleMut = useToggleApprentiActif();
   const resetMut = useResetMotDePasse();
   const verrouReset = useRef(creerVerrou()).current;
+  const ignorerMut = useIgnorerDemandeReinitialisation();
+  const verrouIgnorer = useRef(creerVerrou()).current;
   const demandesQ = useDemandesReinitialisation(!!user && !user.parentId);
   const avecDemande = useMemo(() => comptesAvecDemande(demandesQ.data), [demandesQ.data]);
   const [search, setSearch] = useState('');
@@ -107,7 +114,9 @@ export default function ApprentisList() {
     const nom = `${a.prenom} ${a.nom}`;
     dialog.confirm({
       title: 'Réinitialiser le mot de passe ?',
-      message: `Un mot de passe provisoire sera créé pour ${nom}. Il devra le changer à sa prochaine connexion.`,
+      message: `Un mot de passe provisoire sera créé pour ${nom}. Il devra le changer à sa prochaine connexion.
+
+Pour éviter une fausse demande, appelle-le au numéro de son compte${a.contact ? ` (${a.contact})` : ''} avant de lui donner le mot de passe.`,
       confirmLabel: 'Réinitialiser',
       onConfirm: () =>
         lancerUneFois(verrouReset, (fin) =>
@@ -125,6 +134,24 @@ Il devra le changer à sa prochaine connexion.`,
               ),
             onError: (e) =>
               dialog.error('Réinitialisation impossible', extractApiErrorMessage(e, 'Le mot de passe n’a pas pu être réinitialisé.')),
+          }),
+        ),
+    });
+  };
+
+  const onIgnorer = (a: LivreurResponse) => {
+    const demande = demandeEnAttenteDe(demandesQ.data, a.id);
+    if (!demande) return;
+    dialog.confirm({
+      title: 'Ignorer la demande ?',
+      message: `La demande de mot de passe de ${a.prenom} ${a.nom} sera ignorée. Son mot de passe ne change pas.`,
+      confirmLabel: 'Ignorer',
+      onConfirm: () =>
+        lancerUneFois(verrouIgnorer, (fin) =>
+          ignorerMut.mutate(demande.id, {
+            onSettled: fin,
+            onError: (e) =>
+              dialog.error('Action impossible', extractApiErrorMessage(e, 'La demande n’a pas pu être ignorée.')),
           }),
         ),
     });
@@ -218,6 +245,7 @@ Il devra le changer à sa prochaine connexion.`,
             onToggle={lectureSeule ? undefined : () => onToggle(item)}
             motDePasseDemande={avecDemande.has(item.id)}
             onReset={lectureSeule ? undefined : () => onReset(item)}
+            onIgnorer={lectureSeule ? undefined : () => onIgnorer(item)}
           />
         )}
       />
@@ -231,6 +259,7 @@ function ApprentiRow({
   onToggle,
   motDePasseDemande = false,
   onReset,
+  onIgnorer,
 }: {
   apprenti: LivreurResponse;
   onPress: () => void;
@@ -240,6 +269,8 @@ function ApprentiRow({
   motDePasseDemande?: boolean;
   /** Absent : pas de bouton de réinitialisation (lecture seule). */
   onReset?: () => void;
+  /** Absent : pas de bouton « Ignorer » la demande (lecture seule). */
+  onIgnorer?: () => void;
 }) {
   const initials = `${apprenti.prenom[0] ?? ''}${apprenti.nom[0] ?? ''}`.toUpperCase();
   const actif = apprenti.actif !== false;
@@ -283,11 +314,24 @@ function ApprentiRow({
           ) : null}
         </View>
         {motDePasseDemande ? (
-          <View className="self-start flex-row items-center gap-1 bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 rounded mt-1">
-            <KeyRound color="#b45309" size={10} />
-            <Text className="text-[10px] font-bold text-amber-700 dark:text-amber-300">
-              {BADGE_MOT_DE_PASSE_DEMANDE}
-            </Text>
+          <View className="flex-row items-center gap-2 mt-1">
+            <View className="flex-row items-center gap-1 bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 rounded">
+              <KeyRound color="#b45309" size={10} />
+              <Text className="text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                {BADGE_MOT_DE_PASSE_DEMANDE}
+              </Text>
+            </View>
+            {onIgnorer ? (
+              <Pressable
+                onPress={onIgnorer}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel={`Ignorer la demande de ${apprenti.prenom} ${apprenti.nom}`}
+                className="active:opacity-60"
+              >
+                <Text className="text-[11px] font-bold text-slate-500 dark:text-slate-400 underline">Ignorer</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
         <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">

@@ -82,6 +82,12 @@ export const authApi = {
   },
 
   /** M1 : demandes « Mot de passe oublié » en attente visibles par l'appelant (parent, responsable). */
+  /** M1 : ignore une demande en attente (elle passe à ANNULEE, le badge disparaît). */
+  ignorerDemandeReinitialisation: async (id: string): Promise<{ message: string }> => {
+    const { data } = await apiClient.put<{ message: string }>(`/auth/demandes-reinitialisation/${id}/ignorer`);
+    return data;
+  },
+
   demandesReinitialisation: async (): Promise<DemandeReinitialisationResponse[]> => {
     const { data } = await apiClient.get<DemandeReinitialisationResponse[]>('/auth/demandes-reinitialisation');
     return Array.isArray(data) ? data : [];

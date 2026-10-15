@@ -131,3 +131,16 @@ export const changePasswordSchema = z
     message: 'Les mots de passe ne correspondent pas',
   });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+/** M1 : message du refus d'un nouveau mot de passe identique au provisoire (même texte que le back). */
+export const MESSAGE_MOT_DE_PASSE_IDENTIQUE =
+  'Le nouveau mot de passe doit être différent du mot de passe provisoire.';
+
+/**
+ * M1 « Choisis ton nouveau mot de passe » : règles existantes, et le
+ * nouveau mot de passe doit être différent du provisoire.
+ */
+export const changementMotDePasseProvisoireSchema = changePasswordSchema.refine(
+  (d) => d.newPassword !== d.currentPassword,
+  { path: ['newPassword'], message: MESSAGE_MOT_DE_PASSE_IDENTIQUE },
+);

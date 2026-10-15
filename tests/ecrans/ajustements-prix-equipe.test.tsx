@@ -108,6 +108,7 @@ jest.mock('../../features/apprentis/hooks', () => ({
   }),
   useToggleApprentiActif: () => ({ mutate: jest.fn(), isPending: false }),
   useResetMotDePasse: () => ({ mutate: jest.fn(), isPending: false }),
+  useIgnorerDemandeReinitialisation: () => ({ mutate: jest.fn(), isPending: false }),
   useDemandesReinitialisation: () => ({ data: [], isLoading: false, isError: false, refetch: jest.fn() }),
 }));
 jest.mock('../../features/lookups/hooks', () => ({
