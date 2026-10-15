@@ -111,7 +111,7 @@ export default function ApprentisList() {
             ) : null}
             <Pressable
               onPress={() => naviguer('/(livreur)/profil/apprentis/nouveau')}
-              className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
+              className="bg-emerald-700 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
             >
               <Plus color="#fff" size={14} />
               <Text className="text-white text-xs font-bold">Nouveau</Text>
@@ -144,13 +144,13 @@ export default function ApprentisList() {
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
             onRefresh={() => q.refetch()}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
         ListEmptyComponent={
           q.isLoading ? (
             <View className="items-center py-12">
-              <ActivityIndicator color="#10b981" />
+              <ActivityIndicator color="#047857" />
             </View>
           ) : (
             <EmptyState
@@ -247,7 +247,7 @@ function ApprentiRow({
             : 'bg-emerald-50 dark:bg-emerald-500/10'
         }`}
       >
-        <Power color={actif ? '#dc2626' : '#059669'} size={14} />
+        <Power color={actif ? '#dc2626' : '#065f46'} size={14} />
       </Pressable>
       ) : null}
 

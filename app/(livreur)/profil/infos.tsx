@@ -149,7 +149,7 @@ export default function ModifierInfos() {
                   </View>
                 ) : null}
               </View>
-              <View className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-emerald-500 items-center justify-center border-2 border-white dark:border-slate-900">
+              <View className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-emerald-700 items-center justify-center border-2 border-white dark:border-slate-900">
                 <Camera color="#fff" size={14} />
               </View>
             </Pressable>
@@ -196,7 +196,7 @@ export default function ModifierInfos() {
             onChange={setContact}
             placeholder="0712345678"
             keyboardType="phone-pad"
-            hint="10 chiffres, sans espaces"
+            hint="10 chiffres, commence par 01, 05 ou 07"
           />
           <Field
             label="Email (optionnel)"
@@ -248,7 +248,7 @@ export default function ModifierInfos() {
             className={`rounded-md py-3.5 mt-3 flex-row items-center justify-center gap-2 ${
               !dirty
                 ? 'bg-slate-200 dark:bg-slate-800'
-                : 'bg-emerald-500 active:opacity-80'
+                : 'bg-emerald-700 active:opacity-80'
             }`}
           >
             {m.isPending ? (
@@ -298,6 +298,7 @@ function Field({
         placeholder={placeholder}
         placeholderTextColor="#94a3b8"
         keyboardType={keyboardType ?? 'default'}
+        maxLength={keyboardType === 'phone-pad' ? 10 : undefined}
         autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
         autoCorrect={false}
         className="px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-base"

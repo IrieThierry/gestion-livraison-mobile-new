@@ -166,7 +166,7 @@ export function SaisieQuantites({
           onPress={onValider}
           disabled={!actif || lignes.length === 0}
           className={`flex-1 rounded-md py-3 items-center ${
-            actif && lignes.length > 0 ? 'bg-emerald-500 active:opacity-80' : 'bg-slate-200 dark:bg-slate-800'
+            actif && lignes.length > 0 ? 'bg-emerald-700 active:opacity-80' : 'bg-slate-200 dark:bg-slate-800'
           }`}
         >
           {pending ? (

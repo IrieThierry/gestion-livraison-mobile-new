@@ -141,7 +141,7 @@ export default function Signup() {
                 onChange={setContact}
                 placeholder="0712345678"
                 keyboardType="phone-pad"
-                hint="10 chiffres, sans espaces"
+                hint="10 chiffres, commence par 01, 05 ou 07"
                 icon={Phone}
               />
             </View>
@@ -226,7 +226,7 @@ export default function Signup() {
             <Pressable
               onPress={onSubmit}
               disabled={m.isPending}
-              className="mt-6 bg-emerald-500 py-4 rounded-lg items-center flex-row justify-center gap-2 active:opacity-80"
+              className="mt-6 bg-emerald-700 py-4 rounded-lg items-center flex-row justify-center gap-2 active:opacity-80"
             >
               {m.isPending ? (
                 <ActivityIndicator color="#fff" />
@@ -244,7 +244,7 @@ export default function Signup() {
             >
               <Text className="text-base text-slate-500 dark:text-slate-400">
                 Déjà inscrit ?{' '}
-                <Text className="font-bold text-emerald-600 dark:text-emerald-400">
+                <Text className="font-bold text-emerald-800 dark:text-emerald-400">
                   Se connecter
                 </Text>
               </Text>
@@ -290,6 +290,7 @@ function Field({
             placeholder={placeholder}
             placeholderTextColor="#94a3b8"
             keyboardType={keyboardType ?? 'default'}
+            maxLength={keyboardType === 'phone-pad' ? 10 : undefined}
             autoCapitalize={
               autoCapitalize ??
               (keyboardType === 'email-address' ? 'none' : 'sentences')
@@ -317,6 +318,7 @@ function Field({
         placeholder={placeholder}
         placeholderTextColor="#94a3b8"
         keyboardType={keyboardType ?? 'default'}
+        maxLength={keyboardType === 'phone-pad' ? 10 : undefined}
         autoCapitalize={
           autoCapitalize ?? (keyboardType === 'email-address' ? 'none' : 'sentences')
         }

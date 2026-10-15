@@ -42,13 +42,13 @@ export default function ProduitsVendusAujourdhui() {
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
             onRefresh={() => q.refetch()}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
         {q.isLoading ? (
           <View className="py-6 items-center">
-            <ActivityIndicator color="#10b981" />
+            <ActivityIndicator color="#047857" />
           </View>
         ) : q.isError ? (
           <EmptyState

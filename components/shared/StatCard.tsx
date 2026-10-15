@@ -3,7 +3,7 @@ import { View, Text } from 'react-native';
 type Accent = 'emerald' | 'amber' | 'red' | 'blue' | 'orange';
 
 const borderByAccent: Record<Accent, string> = {
-  emerald: 'border-l-emerald-500',
+  emerald: 'border-l-emerald-700',
   amber: 'border-l-amber-500',
   red: 'border-l-red-500',
   blue: 'border-l-blue-500',

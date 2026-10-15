@@ -31,7 +31,7 @@ export function ChoixLivreurCloture({
               accessibilityState={{ selected: actif }}
               className={`px-3 py-1.5 rounded-full border ${
                 actif
-                  ? 'bg-emerald-500 border-emerald-500'
+                  ? 'bg-emerald-700 border-emerald-700'
                   : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'
               }`}
             >

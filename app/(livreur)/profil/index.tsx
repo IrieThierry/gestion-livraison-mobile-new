@@ -93,7 +93,7 @@ export default function Profil() {
                 size={80}
                 textClassName="text-2xl"
               />
-              <View className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-emerald-500 items-center justify-center border-2 border-white dark:border-slate-900">
+              <View className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-emerald-700 items-center justify-center border-2 border-white dark:border-slate-900">
                 <Camera color="#fff" size={14} />
               </View>
             </Pressable>
@@ -121,7 +121,7 @@ export default function Profil() {
               className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
             >
               <View className="flex-row items-center gap-3">
-                <UserCog color="#10b981" size={20} />
+                <UserCog color="#047857" size={20} />
                 <View>
                   <Text className="font-extrabold text-slate-900 dark:text-white">
                     Modifier mes infos
@@ -158,7 +158,7 @@ export default function Profil() {
               className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
             >
               <View className="flex-row items-center gap-3">
-                <DollarSign color="#059669" size={20} />
+                <DollarSign color="#065f46" size={20} />
                 <View>
                   <Text className="font-extrabold text-slate-900 dark:text-white">
                     Mes prix de vente
@@ -254,7 +254,7 @@ export default function Profil() {
               className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
             >
               <View className="flex-row items-center gap-3">
-                <FileText color="#10b981" size={20} />
+                <FileText color="#047857" size={20} />
                 <View>
                   <Text className="font-extrabold text-slate-900 dark:text-white">
                     États
@@ -307,7 +307,7 @@ export default function Profil() {
               className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
             >
               <View className="flex-row items-center gap-3">
-                <History color="#059669" size={20} />
+                <History color="#065f46" size={20} />
                 <View>
                   <Text className="font-extrabold text-slate-900 dark:text-white">
                     Mes reversements
@@ -423,7 +423,7 @@ export default function Profil() {
                     />
                     <Text className="text-slate-900 dark:text-white">{label}</Text>
                   </View>
-                  {active ? <Check color="#10b981" size={18} /> : null}
+                  {active ? <Check color="#047857" size={18} /> : null}
                 </Pressable>
               );
             })}

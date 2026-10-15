@@ -18,7 +18,7 @@ export function MontantCommande({
   if (montant == null) return null;
   const livre = libelle === 'Montant livré';
   const couleur = livre
-    ? 'text-emerald-600 dark:text-emerald-400'
+    ? 'text-emerald-800 dark:text-emerald-400'
     : 'text-slate-700 dark:text-slate-300';
   if (variante === 'detail') {
     return (

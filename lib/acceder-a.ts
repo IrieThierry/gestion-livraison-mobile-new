@@ -43,7 +43,7 @@ export function entreesAccederA(
       chemin: '/(livreur)/livraisons',
       icon: Truck,
       iconBg: '#d1fae5',
-      iconColor: '#059669',
+      iconColor: '#065f46',
     },
     {
       cle: 'clients',
@@ -52,7 +52,7 @@ export function entreesAccederA(
       chemin: '/(livreur)/clients',
       icon: Users,
       iconBg: '#d1fae5',
-      iconColor: '#059669',
+      iconColor: '#065f46',
     },
     {
       cle: 'encaissements',
@@ -61,7 +61,7 @@ export function entreesAccederA(
       chemin: '/(livreur)/cash/encaissements',
       icon: Banknote,
       iconBg: '#d1fae5',
-      iconColor: '#059669',
+      iconColor: '#065f46',
     },
     apprenti || organisation
       ? null

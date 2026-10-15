@@ -69,7 +69,7 @@ export function ChiffresPrevision({
           ligne.ecart < 0
             ? 'text-red-600 dark:text-red-400'
             : ligne.ecart > 0
-              ? 'text-emerald-600 dark:text-emerald-400'
+              ? 'text-emerald-800 dark:text-emerald-400'
               : 'text-slate-800 dark:text-slate-200'
         }`}
       >
@@ -212,7 +212,7 @@ export function QuantiteModal({
                   onPress={() => valide && onValider(qte)}
                   disabled={!valide || enCours}
                   className={`flex-1 rounded-md py-3 items-center ${
-                    !valide || enCours ? 'bg-slate-300 dark:bg-slate-700' : 'bg-emerald-500 active:opacity-80'
+                    !valide || enCours ? 'bg-slate-300 dark:bg-slate-700' : 'bg-emerald-700 active:opacity-80'
                   }`}
                 >
                   <Text className="font-bold text-white">{enCours ? 'Enregistrement…' : 'Enregistrer'}</Text>

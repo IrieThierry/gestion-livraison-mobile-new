@@ -97,7 +97,7 @@ export default function ClientsList() {
             </Pressable>
             <Pressable
               onPress={() => naviguer('/(livreur)/clients/nouveau')}
-              className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
+              className="bg-emerald-700 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
             >
               <Plus color="#fff" size={14} />
               <Text className="text-white text-xs font-bold">Nouveau</Text>
@@ -134,7 +134,7 @@ export default function ClientsList() {
               q.refetch();
               qEncours.refetch();
             }}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
         ListEmptyComponent={
@@ -234,7 +234,7 @@ function ClientRow({
       <View className="flex-row gap-1.5 mt-3">
         <ActionChip
           icon={Phone}
-          color="#10b981"
+          color="#047857"
           label="Appeler"
           disabled={!client.contact}
           onPress={() => client.contact && callPhone(client.contact)}
@@ -250,7 +250,7 @@ function ClientRow({
         />
         <ActionChip
           icon={Truck}
-          color="#10b981"
+          color="#047857"
           label="Livrer"
           onPress={onLivrer}
         />

@@ -74,7 +74,7 @@ export default function MouvementsStock() {
           <RefreshControl
             refreshing={q.isRefetching}
             onRefresh={() => q.refetch()}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -108,7 +108,7 @@ export default function MouvementsStock() {
 
           {q.isLoading ? (
             <View className="mt-6">
-              <ActivityIndicator color="#10b981" />
+              <ActivityIndicator color="#047857" />
             </View>
           ) : q.isError ? (
             <View className="mt-3">
@@ -133,7 +133,7 @@ export default function MouvementsStock() {
                   <View
                     key={`${m.date}-${m.type}-${m.produit.id}-${i}`}
                     className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 ${
-                      entree ? 'border-l-emerald-500' : sortie ? 'border-l-red-500' : 'border-l-slate-300'
+                      entree ? 'border-l-emerald-700' : sortie ? 'border-l-red-500' : 'border-l-slate-300'
                     } rounded-lg p-3 flex-row items-start justify-between`}
                   >
                     <View className="mr-3">
@@ -168,7 +168,7 @@ export default function MouvementsStock() {
                     <Text
                       className={`text-xl font-extrabold ${
                         entree
-                          ? 'text-emerald-600 dark:text-emerald-400'
+                          ? 'text-emerald-800 dark:text-emerald-400'
                           : sortie
                           ? 'text-red-600 dark:text-red-400'
                           : 'text-slate-500 dark:text-slate-400'

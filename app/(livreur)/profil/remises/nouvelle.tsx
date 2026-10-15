@@ -114,7 +114,7 @@ export default function NouvelleRemise() {
             onPress={onSubmit}
             disabled={m.isPending}
             accessibilityRole="button"
-            className="bg-emerald-500 rounded-md py-3.5 mt-3 items-center active:opacity-80"
+            className="bg-emerald-700 rounded-md py-3.5 mt-3 items-center active:opacity-80"
           >
             {m.isPending ? (
               <ActivityIndicator color="#fff" />

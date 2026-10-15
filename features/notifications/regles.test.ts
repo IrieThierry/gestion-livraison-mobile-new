@@ -138,7 +138,7 @@ describe('apparenceNotification : annulations et retraits', () => {
 describe('apparenceNotification', () => {
   it('domaine par cible, ton par issue', () => {
     expect(apparenceNotification(notif())).toMatchObject({ domaine: 'transfert', ton: 'neutre' });
-    expect(apparenceNotification(notif({ type: 'TRANSFERT_ACCEPTE' }))).toMatchObject({ ton: 'positif', couleur: '#059669' });
+    expect(apparenceNotification(notif({ type: 'TRANSFERT_ACCEPTE' }))).toMatchObject({ ton: 'positif', couleur: '#065f46' });
     expect(apparenceNotification(notif({ type: 'REMISE_CONTESTEE', cible: { type: 'REMISE_ARGENT', id: 'r', route: 'remises.mes-remises' } }))).toMatchObject({
       domaine: 'remise',
       ton: 'negatif',

@@ -65,7 +65,7 @@ export default function MesRemises() {
           <Pressable
             onPress={() => naviguer('/(livreur)/profil/remises/nouvelle')}
             accessibilityRole="button"
-            className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
+            className="bg-emerald-700 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <Plus color="#fff" size={14} />
             <Text className="text-white text-xs font-bold">Nouvelle remise</Text>
@@ -78,11 +78,11 @@ export default function MesRemises() {
         keyExtractor={(r) => r.id}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8, gap: 8 }}
         refreshControl={
-          <RefreshControl refreshing={q.isFetching && !q.isLoading} onRefresh={() => q.refetch()} tintColor="#10b981" />
+          <RefreshControl refreshing={q.isFetching && !q.isLoading} onRefresh={() => q.refetch()} tintColor="#047857" />
         }
         ListEmptyComponent={
           q.isLoading ? (
-            <ActivityIndicator color="#10b981" style={{ marginTop: 32 }} />
+            <ActivityIndicator color="#047857" style={{ marginTop: 32 }} />
           ) : q.isError ? (
             <EmptyState title="Chargement impossible" message="Tes remises n’ont pas pu être lues. Tire pour réessayer." />
           ) : (

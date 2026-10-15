@@ -156,7 +156,7 @@ export function useDecisionRemise() {
       <>
         <ActionRemise
           libelle="Confirmer"
-          icone={<Check color="#059669" size={14} />}
+          icone={<Check color="#065f46" size={14} />}
           couleur="text-emerald-700 dark:text-emerald-400"
           disabled={enCours}
           onPress={() => confirmer(r)}

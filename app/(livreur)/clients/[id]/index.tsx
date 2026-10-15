@@ -154,7 +154,7 @@ export default function ClientDetail() {
   if (qC.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <ActivityIndicator color="#10b981" />
+        <ActivityIndicator color="#047857" />
       </View>
     );
   }
@@ -233,7 +233,7 @@ export default function ClientDetail() {
               qE.refetch();
               qEncours.refetch();
             }}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -281,7 +281,7 @@ export default function ClientDetail() {
             <ActionBtn
               label="Livraison"
               icon={Truck}
-              color="#10b981"
+              color="#047857"
               onPress={onLivrer}
             />
             <ActionBtn
@@ -301,7 +301,7 @@ export default function ClientDetail() {
             <ActionBtn
               label="Appeler"
               icon={Phone}
-              color="#10b981"
+              color="#047857"
               disabled={!client.contact}
               onPress={() => client.contact && callPhone(client.contact)}
             />
@@ -341,7 +341,7 @@ export default function ClientDetail() {
             className="mt-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex-row items-center gap-3 active:opacity-70"
           >
             <View className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
-              <DollarSign color="#059669" size={18} />
+              <DollarSign color="#065f46" size={18} />
             </View>
             <View className="flex-1">
               <Text className="font-extrabold text-slate-900 dark:text-white">
@@ -456,7 +456,7 @@ export default function ClientDetail() {
             subtitle={`${livraisonsClient.length} au total`}
             badgeValue={livraisonsClient.length}
             icon={Truck}
-            iconColor="#10b981"
+            iconColor="#047857"
             iconBg="bg-emerald-100 dark:bg-emerald-500/15"
             open={openLiv}
             onToggle={() => setOpenLiv((v) => !v)}
@@ -498,7 +498,7 @@ export default function ClientDetail() {
               <Text className="text-[12px] text-slate-500 dark:text-slate-400">
                 {livFiltrees.length} livraison{livFiltrees.length > 1 ? 's' : ''} filtrée{livFiltrees.length > 1 ? 's' : ''}
               </Text>
-              <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
+              <Text className="font-extrabold text-emerald-800 dark:text-emerald-400">
                 {formatMontant(totalLivFiltrees)} F
               </Text>
             </View>
@@ -535,7 +535,7 @@ export default function ClientDetail() {
               <Text className="text-[12px] text-slate-500 dark:text-slate-400">
                 {encFiltres.length} encaissement{encFiltres.length > 1 ? 's' : ''} filtré{encFiltres.length > 1 ? 's' : ''}
               </Text>
-              <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
+              <Text className="font-extrabold text-emerald-800 dark:text-emerald-400">
                 {formatMontant(totalEncFiltres)} F
               </Text>
             </View>
@@ -549,7 +549,7 @@ export default function ClientDetail() {
                 {encFiltres.map((e) => (
                   <View
                     key={e.reference}
-                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 rounded-md p-3 flex-row items-center justify-between"
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-700 rounded-md p-3 flex-row items-center justify-between"
                   >
                     <View className="flex-1 pr-2">
                       <Text className="text-[12px] text-slate-700 dark:text-slate-300 font-bold">
@@ -566,7 +566,7 @@ export default function ClientDetail() {
                         </Text>
                       ) : null}
                     </View>
-                    <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                    <Text className="font-extrabold text-emerald-800 dark:text-emerald-400">
                       +{formatMontant(e.montantEncaisse)} F
                     </Text>
                   </View>
@@ -667,7 +667,7 @@ function KpiCard({
       : tone === 'amber'
       ? 'text-amber-700 dark:text-amber-400'
       : tone === 'emerald'
-      ? 'text-emerald-600 dark:text-emerald-400'
+      ? 'text-emerald-800 dark:text-emerald-400'
       : highlight
       ? 'text-slate-900 dark:text-white'
       : 'text-slate-700 dark:text-slate-300';
@@ -732,7 +732,7 @@ function FilterChip({
       onPress={onPress}
       className={`px-3 py-1.5 rounded-md border ${
         active
-          ? 'bg-emerald-500 border-emerald-500'
+          ? 'bg-emerald-700 border-emerald-700'
           : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
       }`}
     >

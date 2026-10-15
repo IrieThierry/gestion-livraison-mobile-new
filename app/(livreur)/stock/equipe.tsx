@@ -148,7 +148,7 @@ export default function StockEquipe() {
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
             onRefresh={() => q.refetch()}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -171,7 +171,7 @@ export default function StockEquipe() {
           />
 
           {/* Carte hero — cumul filtré */}
-          <View className="bg-emerald-500 rounded-lg p-4 shadow-md mt-3">
+          <View className="bg-emerald-700 rounded-lg p-4 shadow-md mt-3">
             <Text className="text-[10px] font-semibold uppercase text-white/90">
               Stock courant — {livreurFilterLabel}
             </Text>
@@ -218,7 +218,7 @@ export default function StockEquipe() {
           ) : (
             <View className="mt-5 gap-2">
               <View className="flex-row items-center gap-1.5 mb-1">
-                <Package color="#10b981" size={14} />
+                <Package color="#047857" size={14} />
                 <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
                   Cumul par produit
                 </Text>

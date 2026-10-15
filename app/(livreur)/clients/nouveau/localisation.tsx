@@ -117,8 +117,8 @@ export default function NouveauClientStep2() {
 
       {/* Step indicator */}
       <View className="px-4 pb-2 flex-row items-center gap-2">
-        <View className="flex-1 h-1.5 rounded-full bg-emerald-500" />
-        <View className="flex-1 h-1.5 rounded-full bg-emerald-500" />
+        <View className="flex-1 h-1.5 rounded-full bg-emerald-700" />
+        <View className="flex-1 h-1.5 rounded-full bg-emerald-700" />
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
@@ -214,7 +214,7 @@ export default function NouveauClientStep2() {
 
               <RecapRow
                 icon={Phone}
-                color="#10b981"
+                color="#047857"
                 label="Téléphone"
                 value={draft.contact}
               />
@@ -250,8 +250,8 @@ export default function NouveauClientStep2() {
               className="mt-2 flex-row items-center gap-1 self-start active:opacity-70"
               hitSlop={6}
             >
-              <ChevronLeft color="#10b981" size={14} />
-              <Text className="text-[12px] font-bold text-emerald-600 dark:text-emerald-400">
+              <ChevronLeft color="#047857" size={14} />
+              <Text className="text-[12px] font-bold text-emerald-800 dark:text-emerald-400">
                 Modifier les informations
               </Text>
             </Pressable>
@@ -264,7 +264,7 @@ export default function NouveauClientStep2() {
             className={`rounded-md py-3.5 mt-2 items-center ${
               !isOnline || lat == null
                 ? 'bg-slate-200 dark:bg-slate-800'
-                : 'bg-emerald-500 active:opacity-80'
+                : 'bg-emerald-700 active:opacity-80'
             }`}
           >
             {m.isPending ? (

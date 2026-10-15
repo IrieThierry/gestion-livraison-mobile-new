@@ -212,20 +212,47 @@ export function dateReceptionParam(
 
 // ─── Montants (N2) ────────────────────────────────────────────────────────
 
+/** Quantité valide saisie pour une ligne (entier ≥ 1), sinon 0. */
+export function quantiteSaisie(quantites: Quantites, produitId: UUID): number {
+  const n = parseEntier(quantites[produitId]);
+  return n === null || Number.isNaN(n) || n < 1 ? 0 : n;
+}
+
 /**
- * Total estimé à la saisie : Σ quantité × prix unitaire affiché (`prixDeVente`
- * = prix particulier s'il existe, sinon prix fournisseur). Les saisies vides ou
- * invalides comptent pour 0.
+ * R1 : montant d'une ligne de commande, comme une ligne de livraison :
+ * quantité × (prix + remise livreur).
  */
-export function totalEstime(
-  lignes: Pick<ProduitFournisseurResponse, 'prixDeVente' | 'produit'>[],
+export function montantLigneCommande(prix: number, remise: number | undefined, qte: number): number {
+  return ((Number(prix) || 0) + (Number(remise) || 0)) * (Number(qte) || 0);
+}
+
+type LigneEstimable = Pick<ProduitFournisseurResponse, 'prixDeVente' | 'produit'> &
+  Partial<Pick<ProduitFournisseurResponse, 'remiseLivreur'>>;
+
+/**
+ * R1 : totaux estimés à la saisie. `prix` = Σ quantité × prix affiché
+ * (`prixDeVente` = prix particulier s'il existe, sinon prix fournisseur),
+ * `remise` = Σ quantité × remise livreur, `total` = prix + remise.
+ * Les saisies vides ou invalides comptent pour 0.
+ */
+export function totauxEstimes(
+  lignes: LigneEstimable[],
   quantites: Quantites,
-): number {
-  return lignes.reduce((s, l) => {
-    const n = parseEntier(quantites[l.produit.id]);
-    if (n === null || Number.isNaN(n) || n < 1) return s;
-    return s + n * (Number(l.prixDeVente) || 0);
-  }, 0);
+): { prix: number; remise: number; total: number } {
+  let prix = 0;
+  let remise = 0;
+  for (const l of lignes) {
+    const n = quantiteSaisie(quantites, l.produit.id);
+    if (n === 0) continue;
+    prix += n * (Number(l.prixDeVente) || 0);
+    remise += n * (Number(l.remiseLivreur) || 0);
+  }
+  return { prix, remise, total: prix + remise };
+}
+
+/** Total estimé à la saisie : Σ quantité × (prix affiché + remise livreur). */
+export function totalEstime(lignes: LigneEstimable[], quantites: Quantites): number {
+  return totauxEstimes(lignes, quantites).total;
 }
 
 /**

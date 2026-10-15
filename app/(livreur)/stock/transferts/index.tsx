@@ -50,7 +50,7 @@ export default function TransfertsList() {
           <Pressable
             onPress={() => naviguer('/(livreur)/stock/transferts/nouveau')}
             accessibilityRole="button"
-            className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
+            className="bg-emerald-700 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             {estApprenti ? <Undo2 color="#fff" size={14} /> : <Plus color="#fff" size={14} />}
             <Text className="text-white text-xs font-bold">{estApprenti ? v.rendreStock : 'Nouveau'}</Text>
@@ -70,7 +70,7 @@ export default function TransfertsList() {
               accessibilityState={{ selected: actif }}
               className={`px-3 py-1.5 rounded-full border ${
                 actif
-                  ? 'bg-emerald-500 border-emerald-500'
+                  ? 'bg-emerald-700 border-emerald-700'
                   : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'
               }`}
             >
@@ -90,7 +90,7 @@ export default function TransfertsList() {
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
             onRefresh={() => q.refetch()}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
         ListEmptyComponent={

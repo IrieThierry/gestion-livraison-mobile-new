@@ -33,7 +33,7 @@ export function DestinationRetourToggle({
             className={`px-2.5 py-1 rounded-md border ${
               actif
                 ? o.valeur
-                  ? 'bg-emerald-500 border-emerald-500'
+                  ? 'bg-emerald-700 border-emerald-700'
                   : 'bg-slate-600 border-slate-600'
                 : enStock === null
                 ? 'bg-white dark:bg-slate-900 border-amber-400'

@@ -62,7 +62,7 @@ export default function MesEncaissements() {
             onPress={() => ouvrir('/(livreur)/livraisons')}
             accessibilityRole="button"
             accessibilityLabel="Encaisser"
-            className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
+            className="bg-emerald-700 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <Banknote color="#fff" size={13} />
             <Text className="text-white text-xs font-bold">Encaisser</Text>
@@ -78,7 +78,7 @@ export default function MesEncaissements() {
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
             onRefresh={() => q.refetch()}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -95,7 +95,7 @@ export default function MesEncaissements() {
           <SearchInput value={recherche} onChangeText={setRecherche} placeholder="Client, référence…" />
 
           {!aucun ? (
-            <View className="bg-emerald-500 rounded-lg p-4 mt-3">
+            <View className="bg-emerald-700 rounded-lg p-4 mt-3">
               <Text className="text-[10px] font-semibold uppercase text-white/90">Total de la liste</Text>
               <Text accessibilityLabel={`Total : ${formatMontant(total)} FCFA`} className="text-2xl font-extrabold text-white mt-1">
                 {formatMontant(total)} <Text className="text-base">FCFA</Text>
@@ -133,7 +133,7 @@ export default function MesEncaissements() {
                 return (
                   <View
                     key={e.id ?? e.reference}
-                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 rounded-lg p-3 flex-row items-center justify-between"
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-700 rounded-lg p-3 flex-row items-center justify-between"
                   >
                     <View className="flex-1 pr-2">
                       <Text className="font-extrabold text-slate-900 dark:text-white text-[13px]">
@@ -145,7 +145,7 @@ export default function MesEncaissements() {
                         {e.commentaire ? ` · ${e.commentaire}` : ''}
                       </Text>
                     </View>
-                    <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                    <Text className="font-extrabold text-emerald-800 dark:text-emerald-400">
                       {formatMontant(e.montantEncaisse)} F
                     </Text>
                   </View>

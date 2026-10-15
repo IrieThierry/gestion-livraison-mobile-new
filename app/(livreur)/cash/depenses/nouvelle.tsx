@@ -110,7 +110,7 @@ export default function NouvelleDepense() {
                     onPress={() => setCategorie(c.key)}
                     className={`flex-row items-center gap-1.5 px-3 py-2 rounded-md border ${
                       active
-                        ? 'bg-emerald-500 border-emerald-500'
+                        ? 'bg-emerald-700 border-emerald-700'
                         : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
                     }`}
                   >
@@ -170,7 +170,7 @@ export default function NouvelleDepense() {
           <Pressable
             onPress={onSubmit}
             disabled={m.isPending}
-            className="bg-emerald-500 rounded-md py-3.5 mt-3 items-center active:opacity-80"
+            className="bg-emerald-700 rounded-md py-3.5 mt-3 items-center active:opacity-80"
           >
             {m.isPending ? (
               <ActivityIndicator color="#fff" />

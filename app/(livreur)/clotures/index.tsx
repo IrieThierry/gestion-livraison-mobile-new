@@ -40,7 +40,7 @@ export default function CloturesList() {
                 user && livreurId !== user.id ? { livreurId } : undefined,
               )
             }
-            className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
+            className="bg-emerald-700 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <Plus color="#fff" size={14} />
             <Text className="text-white text-xs font-bold">Nouvelle</Text>
@@ -66,7 +66,7 @@ export default function CloturesList() {
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
             onRefresh={() => q.refetch()}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
         ListEmptyComponent={
@@ -88,7 +88,7 @@ export default function CloturesList() {
                 </Text>
                 {balanced ? (
                   <View className="flex-row items-center gap-1 bg-emerald-100 dark:bg-emerald-500/15 px-2 py-0.5 rounded-full">
-                    <CheckCircle2 color="#059669" size={11} />
+                    <CheckCircle2 color="#065f46" size={11} />
                     <Text className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
                       Équilibrée
                     </Text>
@@ -114,7 +114,7 @@ export default function CloturesList() {
                 <Text className="text-[11px] text-slate-500 dark:text-slate-400">
                   Total encaissé
                 </Text>
-                <Text className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                <Text className="text-[11px] font-bold text-emerald-800 dark:text-emerald-400">
                   {formatMontant(item.totalEncaisse)} F
                 </Text>
               </View>

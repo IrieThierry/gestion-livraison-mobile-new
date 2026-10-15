@@ -228,7 +228,7 @@ function Corps({
           <RefreshControl
             refreshing={resultat.isRefetching}
             onRefresh={resultat.refetch}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -236,7 +236,7 @@ function Corps({
           {filtres(resultat.options)}
           {!periodeValide ? null : resultat.isLoading ? (
             <View className="mt-6">
-              <ActivityIndicator color="#10b981" />
+              <ActivityIndicator color="#047857" />
             </View>
           ) : resultat.isError ? (
             <View className="mt-3">
@@ -251,7 +251,7 @@ function Corps({
                 {doc.syntheses.map((s) => (
                   <View
                     key={s.libelle}
-                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 rounded-lg px-3 py-2"
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-700 rounded-lg px-3 py-2"
                     style={{ minWidth: '47%', flexGrow: 1 }}
                   >
                     <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
@@ -284,7 +284,7 @@ function Corps({
           onPress={onPartager}
           disabled={!doc || partageEnCours}
           className={`rounded-lg py-3.5 flex-row items-center justify-center gap-2 ${
-            !doc || partageEnCours ? 'bg-emerald-300 dark:bg-emerald-800' : 'bg-emerald-500 active:opacity-80'
+            !doc || partageEnCours ? 'bg-emerald-300 dark:bg-emerald-800' : 'bg-emerald-700 active:opacity-80'
           }`}
         >
           {partageEnCours ? <ActivityIndicator color="#fff" /> : <Share2 color="#fff" size={18} />}
@@ -349,7 +349,7 @@ function Filtres({
               onPress={() => onPeriode(p.debut, p.fin)}
               className={`px-3 py-1.5 rounded-md border ${
                 actif
-                  ? 'bg-emerald-500 border-emerald-500'
+                  ? 'bg-emerald-700 border-emerald-700'
                   : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
               }`}
             >

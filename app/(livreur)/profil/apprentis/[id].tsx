@@ -120,7 +120,7 @@ export default function ApprentiDetail() {
   if (apprentisQ.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <ActivityIndicator color="#10b981" />
+        <ActivityIndicator color="#047857" />
       </View>
     );
   }
@@ -174,7 +174,7 @@ export default function ApprentiDetail() {
               stockQ.refetch();
               remisesQ.refetch();
             }}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -242,7 +242,7 @@ export default function ApprentiDetail() {
                 onPress={() => callPhone(apprenti.contact)}
                 className="flex-1 flex-col items-center justify-center gap-1 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md active:opacity-70"
               >
-                <Phone color="#10b981" size={18} />
+                <Phone color="#047857" size={18} />
                 <Text className="text-[10px] font-bold text-slate-700 dark:text-slate-200">
                   Appeler
                 </Text>
@@ -258,7 +258,7 @@ export default function ApprentiDetail() {
                   : 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30'
               }`}
             >
-              <Power color={actif ? '#dc2626' : '#059669'} size={18} />
+              <Power color={actif ? '#dc2626' : '#065f46'} size={18} />
               <Text
                 className={`text-[10px] font-bold ${
                   actif
@@ -280,14 +280,14 @@ export default function ApprentiDetail() {
             <View className="flex-row gap-2">
               <KpiCard
                 icon={Truck}
-                color="#10b981"
+                color="#047857"
                 label="Livraisons"
                 value={`${stats.nbLivraisons}`}
                 hint={`${stats.nbLivJour} aujourd'hui`}
               />
               <KpiCard
                 icon={Banknote}
-                color="#059669"
+                color="#065f46"
                 label="Encaissé"
                 value={`${formatMontant(stats.totalEncaisseMois)}`}
                 hint="FCFA / 30j"
@@ -333,7 +333,7 @@ export default function ApprentiDetail() {
           </Text>
           <View className="gap-2">
             {remisesQ.isLoading ? (
-              <ActivityIndicator color="#10b981" />
+              <ActivityIndicator color="#047857" />
             ) : remisesQ.isError ? (
               <Text className="text-[12px] text-red-600 dark:text-red-400">Les remises n’ont pas pu être lues.</Text>
             ) : remises.length === 0 ? (

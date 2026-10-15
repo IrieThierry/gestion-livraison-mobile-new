@@ -100,7 +100,7 @@ export default function ClientsMap() {
   if (qC.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <ActivityIndicator color="#10b981" />
+        <ActivityIndicator color="#047857" />
       </View>
     );
   }
@@ -140,7 +140,7 @@ export default function ClientsMap() {
       ) : (
         <View className="px-4 pt-2 pb-3 flex-row gap-2">
           <Legend color="#dc2626" label={`${enDette} en dette`} />
-          <Legend color="#10b981" label={`${enCredit} en avance`} />
+          <Legend color="#047857" label={`${enCredit} en avance`} />
           <Legend color="#3b82f6" label={`${pins.length - enDette - enCredit} à jour`} />
         </View>
       )}
@@ -220,7 +220,7 @@ function ClientBottomSheet({
   onOpenDetail: () => void;
 }) {
   const dotColor =
-    pin.color === 'debt' ? '#dc2626' : pin.color === 'credit' ? '#10b981' : '#3b82f6';
+    pin.color === 'debt' ? '#dc2626' : pin.color === 'credit' ? '#047857' : '#3b82f6';
   return (
     <View className="absolute bottom-4 left-4 right-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-lg">
       <View className="flex-row items-start gap-2">
@@ -271,7 +271,7 @@ function ClientBottomSheet({
               : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-40'
           }`}
         >
-          <Phone color="#10b981" size={16} />
+          <Phone color="#047857" size={16} />
           <Text className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
             Appeler
           </Text>
@@ -287,7 +287,7 @@ function ClientBottomSheet({
         </Pressable>
         <Pressable
           onPress={onOpenDetail}
-          className="flex-1 flex-col items-center gap-1 py-2.5 rounded-md bg-emerald-500 active:opacity-80"
+          className="flex-1 flex-col items-center gap-1 py-2.5 rounded-md bg-emerald-700 active:opacity-80"
         >
           <AlertCircle color="#fff" size={16} />
           <Text className="text-[11px] font-bold text-white">Détail</Text>
@@ -305,7 +305,7 @@ function buildHtml(pins: ClientPin[]): string {
   // Couleurs des pins selon le solde — gradient + bordure blanche pour
   // un look moderne. Inline dans le JS du WebView.
   const COLOR_DEBT = '#ef4444'; // rouge — doit
-  const COLOR_CREDIT = '#10b981'; // vert — crédit
+  const COLOR_CREDIT = '#047857'; // vert — crédit
   const COLOR_OK = '#3b82f6'; // bleu — à jour
 
   // Centre par défaut si pas de pin (Plateau, Abidjan)

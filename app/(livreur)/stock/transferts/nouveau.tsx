@@ -251,7 +251,7 @@ export default function NouveauTransfert() {
               </Text>
               <Text className="font-extrabold text-slate-900 dark:text-white">{source}</Text>
             </View>
-            <ArrowRight color="#10b981" size={20} />
+            <ArrowRight color="#047857" size={20} />
             <View className="flex-1 items-end">
               <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
                 Destinataire
@@ -293,7 +293,7 @@ export default function NouveauTransfert() {
               />
             ) : null}
             {stockEnLecture ? (
-              <ActivityIndicator color="#10b981" />
+              <ActivityIndicator color="#047857" />
             ) : enStock.length === 0 ? (
               <Text className="text-[12px] text-slate-500 dark:text-slate-400">{messageSansProduit}</Text>
             ) : null}
@@ -320,7 +320,7 @@ export default function NouveauTransfert() {
                     }`}
                   >
                     <ProduitVignette designation={s.produit.designation} photoUrl={s.produit.photoUrl} size={22} />
-                    <Plus color={deja ? '#94a3b8' : '#10b981'} size={14} />
+                    <Plus color={deja ? '#94a3b8' : '#047857'} size={14} />
                     <Text className={`text-sm ${deja ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'}`}>
                       {s.produit.designation}
                     </Text>
@@ -415,7 +415,7 @@ export default function NouveauTransfert() {
             disabled={m.isPending || insuffisant}
             accessibilityRole="button"
             className={`rounded-md py-3.5 mt-3 items-center ${
-              insuffisant ? 'bg-slate-300 dark:bg-slate-700' : 'bg-emerald-500 active:opacity-80'
+              insuffisant ? 'bg-slate-300 dark:bg-slate-700' : 'bg-emerald-700 active:opacity-80'
             }`}
           >
             {m.isPending ? (

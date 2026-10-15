@@ -157,7 +157,7 @@ function Tournee() {
             (qLiv.isFetching && !qLiv.isLoading) || (qStock.isFetching && !qStock.isLoading)
           }
           onRefresh={onRefresh}
-          tintColor="#10b981"
+          tintColor="#047857"
         />
       }
     >
@@ -209,9 +209,9 @@ function Tournee() {
 
         {/* Hero card — solde du jour with sub-cards */}
         <View
-          className="bg-emerald-500 mt-4 rounded-2xl p-4"
+          className="bg-emerald-700 mt-4 rounded-2xl p-4"
           style={{
-            shadowColor: '#10b981',
+            shadowColor: '#047857',
             shadowOffset: { width: 0, height: 8 },
             shadowOpacity: 0.25,
             shadowRadius: 16,
@@ -270,7 +270,7 @@ function Tournee() {
         <View className="flex-row gap-2 mt-3">
           <Pressable
             onPress={() => ouvrir('/(livreur)/stock')}
-            className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 rounded-xl p-3 active:opacity-70"
+            className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-700 rounded-xl p-3 active:opacity-70"
           >
             <Text className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-semibold">
               Stock
@@ -344,7 +344,7 @@ function Tournee() {
             className="active:opacity-70"
             hitSlop={6}
           >
-            <Text className="text-[12px] font-bold text-emerald-600 dark:text-emerald-400">
+            <Text className="text-[12px] font-bold text-emerald-800 dark:text-emerald-400">
               Tout voir →
             </Text>
           </Pressable>
@@ -414,7 +414,7 @@ function ActionCard({
       className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl py-3 items-center gap-2 active:opacity-70"
     >
       <View className="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center">
-        <Icon color="#10b981" size={18} />
+        <Icon color="#047857" size={18} />
       </View>
       <Text className="text-[11px] font-extrabold text-slate-700 dark:text-slate-200">
         {label}

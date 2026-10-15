@@ -103,7 +103,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 function BrandedSplash() {
   return (
-    <View className="flex-1 bg-emerald-500 items-center justify-center px-8">
+    <View className="flex-1 bg-emerald-700 items-center justify-center px-8">
       {/* Logo badge — matches the splash-icon.png + login screen */}
       <View
         className="w-24 h-24 rounded-3xl bg-white items-center justify-center mb-6"
@@ -115,7 +115,7 @@ function BrandedSplash() {
           elevation: 8,
         }}
       >
-        <Text className="text-emerald-600 font-black text-3xl tracking-tight">
+        <Text className="text-emerald-800 font-black text-3xl tracking-tight">
           GL
         </Text>
       </View>

@@ -49,7 +49,7 @@ export default function LivraisonDetail() {
   if (q.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <ActivityIndicator color="#10b981" />
+        <ActivityIndicator color="#047857" />
       </View>
     );
   }
@@ -87,7 +87,7 @@ export default function LivraisonDetail() {
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
             onRefresh={() => q.refetch()}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -158,7 +158,7 @@ export default function LivraisonDetail() {
                 onPress={() => hasPhone && callPhone(c.contact)}
                 disabled={!hasPhone}
                 className={`flex-1 py-2.5 rounded-md flex-row items-center justify-center gap-2 ${
-                  hasPhone ? 'bg-emerald-500 active:opacity-80' : 'bg-slate-200 dark:bg-slate-800'
+                  hasPhone ? 'bg-emerald-700 active:opacity-80' : 'bg-slate-200 dark:bg-slate-800'
                 }`}
               >
                 <Phone color={hasPhone ? '#fff' : '#94a3b8'} size={16} />
@@ -226,7 +226,7 @@ export default function LivraisonDetail() {
                 naviguer('/(livreur)/cash/encaisser', { livraisonId: livraison.id })
               }
               className={`mt-5 rounded-md py-3 flex-row items-center justify-center gap-2 ${
-                isOnline ? 'bg-emerald-500 active:opacity-80' : 'bg-slate-200 dark:bg-slate-800'
+                isOnline ? 'bg-emerald-700 active:opacity-80' : 'bg-slate-200 dark:bg-slate-800'
               }`}
             >
               <Banknote color={isOnline ? '#fff' : '#94a3b8'} size={18} />
@@ -242,13 +242,13 @@ export default function LivraisonDetail() {
               onPress={() => partage.factureDeLivraison(livraison.id)}
               accessibilityRole="button"
               className={`mt-3 rounded-md py-3 flex-row items-center justify-center gap-2 border ${
-                isOnline ? 'border-emerald-500 active:opacity-70' : 'border-slate-200 dark:border-slate-800'
+                isOnline ? 'border-emerald-700 active:opacity-70' : 'border-slate-200 dark:border-slate-800'
               }`}
             >
               {partage.enCours === livraison.id ? (
-                <ActivityIndicator color="#10b981" />
+                <ActivityIndicator color="#047857" />
               ) : (
-                <FileText color={isOnline ? '#059669' : '#94a3b8'} size={18} />
+                <FileText color={isOnline ? '#065f46' : '#94a3b8'} size={18} />
               )}
               <Text className={`font-bold ${isOnline ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-400'}`}>
                 Partager la facture

@@ -67,7 +67,7 @@ export function FiltrePeriode<K extends string>({
           />
         ))}
         {perso ? (
-          <View className="flex-row items-center rounded-md border bg-emerald-500 border-emerald-500">
+          <View className="flex-row items-center rounded-md border bg-emerald-700 border-emerald-700">
             <Pressable
               onPress={ouvrir}
               accessibilityRole="button"
@@ -114,7 +114,7 @@ function Pastille({ active, label, onPress }: { active: boolean; label: string; 
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
       className={`px-3 py-1.5 rounded-md border ${
-        active ? 'bg-emerald-500 border-emerald-500' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+        active ? 'bg-emerald-700 border-emerald-700' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
       }`}
     >
       <Text className={`text-[12px] font-bold ${active ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}>
@@ -204,7 +204,7 @@ function ChoixDuAu({
             <Pressable
               onPress={() => onValider(corrigerIntervalle(du, au, new Date()))}
               accessibilityRole="button"
-              className="flex-1 py-3 rounded-md bg-emerald-500 items-center active:opacity-80"
+              className="flex-1 py-3 rounded-md bg-emerald-700 items-center active:opacity-80"
             >
               <Text className="font-bold text-white">Appliquer</Text>
             </Pressable>
@@ -232,7 +232,7 @@ function ChampJour({
       accessibilityRole="button"
       accessibilityLabel={`${label} ${jourLong(valeur)}`}
       className={`flex-1 px-3 py-2.5 rounded-md border active:opacity-70 ${
-        actif ? 'border-emerald-500' : 'border-slate-200 dark:border-slate-700'
+        actif ? 'border-emerald-700' : 'border-slate-200 dark:border-slate-700'
       } bg-white dark:bg-slate-900`}
     >
       <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">

@@ -17,7 +17,7 @@ export default function PortailWeb() {
       <View className="flex-1 items-center justify-center px-4">
         <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-6 py-10 items-center w-full max-w-md">
           <View className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-500/15 items-center justify-center mb-4">
-            <Monitor color="#059669" size={28} />
+            <Monitor color="#065f46" size={28} />
           </View>
           <Text className="text-xl font-extrabold text-slate-900 dark:text-white mb-3 text-center">
             Utilisez le portail web

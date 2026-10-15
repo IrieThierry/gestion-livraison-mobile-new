@@ -21,8 +21,10 @@ import {
 import {
   construireCommande,
   lignesCommandables,
+  montantLigneCommande,
+  quantiteSaisie,
   remisePartenaire,
-  totalEstime,
+  totauxEstimes,
   type Quantites,
 } from '../../../../features/commandes/regles';
 import { creerVerrou, lancerUneFois } from '../../../../features/commandes/verrou';
@@ -65,6 +67,7 @@ export default function NouvelleCommande() {
   const verrou = useRef(creerVerrou()).current;
   const retourListe = useRetourListe('/(livreur)/cash/commandes');
   const lignes = useMemo(() => lignesCommandables(catalogue.data ?? []), [catalogue.data]);
+  const totaux = totauxEstimes(lignes, quantites);
   const prerempli = useMemo(
     () => (prefill && fournisseurId && catalogue.data ? prefillCommande(prefill.cumul, lignes) : null),
     [prefill, fournisseurId, catalogue.data, lignes],
@@ -156,7 +159,7 @@ export default function NouvelleCommande() {
               </Text>
               <Pressable
                 onPress={() => qFournisseurs.refetch()}
-                className="bg-emerald-500 rounded-md px-5 py-3 mt-3 active:opacity-80"
+                className="bg-emerald-700 rounded-md px-5 py-3 mt-3 active:opacity-80"
               >
                 <Text className="text-white font-bold">Réessayer</Text>
               </Pressable>
@@ -166,7 +169,7 @@ export default function NouvelleCommande() {
               <EmptyState title={MESSAGE_AUCUN_PARTENAIRE} />
               <Pressable
                 onPress={() => naviguer('/(livreur)/profil/fournisseurs')}
-                className="bg-emerald-500 rounded-md px-5 py-3 active:opacity-80"
+                className="bg-emerald-700 rounded-md px-5 py-3 active:opacity-80"
               >
                 <Text className="text-white font-bold">Mes fournisseurs</Text>
               </Pressable>
@@ -209,7 +212,7 @@ export default function NouvelleCommande() {
               ) : (
                 <View className="gap-2">
                   {remisePartenaire(lignes) > 0 ? (
-                    <Text className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    <Text className="text-[12px] font-semibold text-emerald-800 dark:text-emerald-400">
                       Remise livreur : {formatFCFA(remisePartenaire(lignes))} F par unité
                       (accordée par le fournisseur)
                     </Text>
@@ -230,9 +233,27 @@ export default function NouvelleCommande() {
                         </Text>
                         <Text className="text-[11px] text-slate-500 dark:text-slate-400">
                           {formatFCFA(pf.prixDeVente)} F
+                          {(Number(pf.remiseLivreur) || 0) > 0
+                            ? ` · remise ${formatFCFA(pf.remiseLivreur)} F/u`
+                            : ''}
                         </Text>
+                        {quantiteSaisie(quantites, pf.produit.id) > 0 ? (
+                          <Text
+                            testID={`montant-ligne-${pf.produit.id}`}
+                            className="text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                          >
+                            {formatFCFA(
+                              montantLigneCommande(
+                                pf.prixDeVente,
+                                pf.remiseLivreur,
+                                quantiteSaisie(quantites, pf.produit.id),
+                              ),
+                            )}{' '}
+                            F
+                          </Text>
+                        ) : null}
                         {pf.prixParticulier ? (
-                          <Text className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                          <Text className="text-[11px] font-bold text-emerald-800 dark:text-emerald-400">
                             Prix particulier
                           </Text>
                         ) : null}
@@ -248,13 +269,19 @@ export default function NouvelleCommande() {
                       />
                     </View>
                   ))}
-                  <View className="flex-row justify-between items-center mt-2 px-1">
+                  <Text
+                    testID="detail-total-estime"
+                    className="text-[12px] text-slate-500 dark:text-slate-400 mt-2 px-1"
+                  >
+                    Prix {formatFCFA(totaux.prix)} F + remise {formatFCFA(totaux.remise)} F
+                  </Text>
+                  <View className="flex-row justify-between items-center px-1">
                     <Text className="text-slate-700 dark:text-slate-300 font-bold">Total estimé</Text>
                     <Text
                       testID="total-estime"
-                      className="font-extrabold text-emerald-600 dark:text-emerald-400 text-base"
+                      className="font-extrabold text-emerald-800 dark:text-emerald-400 text-base"
                     >
-                      {formatFCFA(totalEstime(lignes, quantites))} F
+                      {formatFCFA(totaux.total)} F
                     </Text>
                   </View>
                 </View>
@@ -288,7 +315,7 @@ export default function NouvelleCommande() {
             className={`rounded-md py-3.5 mt-6 items-center ${
               !isOnline || !fournisseurId
                 ? 'bg-slate-200 dark:bg-slate-800'
-                : 'bg-emerald-500 active:opacity-80'
+                : 'bg-emerald-700 active:opacity-80'
             }`}
           >
             {m.isPending ? (

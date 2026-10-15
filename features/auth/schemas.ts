@@ -15,7 +15,7 @@ export type LoginInput = z.infer<typeof loginSchema>;
  */
 export const MESSAGES_COMPTE = {
   motDePasse: 'Le mot de passe doit contenir au moins 6 caractères.',
-  contact: 'Le numéro doit contenir 10 chiffres.',
+  contact: 'Le numéro doit contenir 10 chiffres et commencer par 01, 05 ou 07.',
   nomLongueur: 'Le nom doit contenir entre 2 et 50 caractères.',
   prenomLongueur: 'Le prénom doit contenir entre 2 et 50 caractères.',
   nomFormat: 'Le nom ne doit contenir que des lettres, espaces, tirets, apostrophes ou points.',
@@ -35,7 +35,13 @@ const nomPersonne = (longueur: string, format: string) =>
     .max(50, longueur)
     .regex(FORMAT_NOM, format);
 
-const contact = z.string().trim().regex(/^[0-9]{10}$/, MESSAGES_COMPTE.contact);
+/** R2 : 10 chiffres, commence par 01, 05 ou 07 (même règle que le back). */
+export const FORMAT_CONTACT = /^0[157][0-9]{8}$/;
+
+/** R2 : le numéro (sans espaces de début et de fin) respecte la règle. */
+export const contactValide = (v: string): boolean => FORMAT_CONTACT.test(v.trim());
+
+const contact = z.string().trim().regex(FORMAT_CONTACT, MESSAGES_COMPTE.contact);
 const motDePasse = z.string().refine((v) => v.trim().length > 0 && v.length >= 6, MESSAGES_COMPTE.motDePasse);
 const email = z
   .union([z.string().trim().email('Email invalide'), z.literal('')])

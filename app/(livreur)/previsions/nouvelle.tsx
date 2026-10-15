@@ -252,7 +252,7 @@ export default function NouvellePrevision() {
             className={`rounded-md py-3.5 mt-3 flex-row items-center justify-center gap-2 ${
               inactif
                 ? 'bg-slate-300 dark:bg-slate-700'
-                : 'bg-emerald-500 active:opacity-80'
+                : 'bg-emerald-700 active:opacity-80'
             }`}
           >
             {m.isPending ? (

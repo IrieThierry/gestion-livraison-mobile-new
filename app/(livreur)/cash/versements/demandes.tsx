@@ -119,7 +119,7 @@ export default function DemandesModification() {
               q.refetch();
               qVersements.refetch();
             }}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -135,7 +135,7 @@ export default function DemandesModification() {
         ) : null}
         {q.isLoading ? (
           <View className="py-6 items-center">
-            <ActivityIndicator color="#10b981" />
+            <ActivityIndicator color="#047857" />
           </View>
         ) : q.isError ? (
           <EmptyState
@@ -196,7 +196,7 @@ export default function DemandesModification() {
                         <Pressable
                           onPress={() => onApprouver(d)}
                           disabled={occupe}
-                          className="flex-1 bg-emerald-500 rounded-md py-2 items-center active:opacity-80"
+                          className="flex-1 bg-emerald-700 rounded-md py-2 items-center active:opacity-80"
                         >
                           <Text className="font-bold text-white text-[13px]">Approuver</Text>
                         </Pressable>

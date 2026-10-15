@@ -172,7 +172,7 @@ export default function Versement() {
 
       <FormScreen
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10b981" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#047857" />
         }
       >
         <View className="px-4">
@@ -232,7 +232,7 @@ export default function Versement() {
                         <View
                           className={`w-5 h-5 rounded border items-center justify-center ${
                             cochee
-                              ? 'bg-emerald-500 border-emerald-500'
+                              ? 'bg-emerald-700 border-emerald-700'
                               : 'border-slate-300 dark:border-slate-600'
                           }`}
                         >
@@ -278,7 +278,7 @@ export default function Versement() {
                   </View>
                   <View className="border-t border-slate-100 dark:border-slate-800 mt-3 pt-3 flex-row justify-between">
                     <Text className="text-slate-700 dark:text-slate-300 font-bold">Total dû</Text>
-                    <Text className="font-extrabold text-emerald-600 dark:text-emerald-400 text-base">
+                    <Text className="font-extrabold text-emerald-800 dark:text-emerald-400 text-base">
                       {formatFCFA(sit.data.totalDu)} FCFA
                     </Text>
                   </View>
@@ -341,7 +341,7 @@ export default function Versement() {
             onPress={onSubmit}
             disabled={m.isPending || !isOnline}
             className={`rounded-md py-3.5 mt-6 items-center ${
-              !isOnline ? 'bg-slate-200 dark:bg-slate-800' : 'bg-emerald-500 active:opacity-80'
+              !isOnline ? 'bg-slate-200 dark:bg-slate-800' : 'bg-emerald-700 active:opacity-80'
             }`}
           >
             {m.isPending ? (

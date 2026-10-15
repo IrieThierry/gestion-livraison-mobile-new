@@ -63,7 +63,7 @@ export function TableauEtat({ section }: { section: SectionEtat }) {
               </View>
             ))}
             {section.totaux ? (
-              <View className="flex-row border-t-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10">
+              <View className="flex-row border-t-2 border-emerald-700 bg-emerald-50 dark:bg-emerald-500/10">
                 {section.totaux.map((v, i) => (
                   <Text
                     key={`t-${i}`}

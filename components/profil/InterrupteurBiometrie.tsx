@@ -77,7 +77,7 @@ export function InterrupteurBiometrie({ username }: { username: string }) {
         value={choix === 'active'}
         onValueChange={onChange}
         accessibilityLabel={LIBELLE_INTERRUPTEUR_BIOMETRIE}
-        trackColor={{ true: '#10b981', false: '#cbd5e1' }}
+        trackColor={{ true: '#047857', false: '#cbd5e1' }}
         thumbColor="#ffffff"
       />
     </View>

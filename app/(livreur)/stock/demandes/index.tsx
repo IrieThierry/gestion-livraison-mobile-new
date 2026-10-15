@@ -79,7 +79,7 @@ export default function DemandesChargement() {
             onPress={() => naviguer('/(livreur)/stock/demandes/nouvelle')}
             accessibilityRole="button"
             accessibilityLabel="Nouvelle demande"
-            className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
+            className="bg-emerald-700 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <Plus color="#fff" size={14} />
             <Text className="text-white text-xs font-bold">Nouvelle</Text>
@@ -91,7 +91,7 @@ export default function DemandesChargement() {
         keyExtractor={(d) => d.id}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8, gap: 8 }}
         refreshControl={
-          <RefreshControl refreshing={q.isFetching && !q.isLoading} onRefresh={() => q.refetch()} tintColor="#10b981" />
+          <RefreshControl refreshing={q.isFetching && !q.isLoading} onRefresh={() => q.refetch()} tintColor="#047857" />
         }
         ListEmptyComponent={
           q.isLoading ? (

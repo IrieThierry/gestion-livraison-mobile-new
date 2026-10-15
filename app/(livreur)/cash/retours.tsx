@@ -122,7 +122,7 @@ export default function RetoursList() {
         right={
           <Pressable
             onPress={() => naviguer('/(livreur)/cash/retour-client')}
-            className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
+            className="bg-emerald-700 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <RotateCcw color="#fff" size={13} />
             <Text className="text-white text-xs font-bold">Nouveau</Text>
@@ -138,7 +138,7 @@ export default function RetoursList() {
           <RefreshControl
             refreshing={q.isRefetching && !q.isFetchingNextPage}
             onRefresh={() => q.refetch()}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -182,7 +182,7 @@ export default function RetoursList() {
           {/* Liste */}
           {q.isLoading ? (
             <View className="mt-6">
-              <ActivityIndicator color="#10b981" />
+              <ActivityIndicator color="#047857" />
             </View>
           ) : q.isError ? (
             <View className="mt-3">
@@ -268,7 +268,7 @@ export default function RetoursList() {
                   className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md py-3 items-center active:opacity-70"
                 >
                   {q.isFetchingNextPage ? (
-                    <ActivityIndicator color="#10b981" />
+                    <ActivityIndicator color="#047857" />
                   ) : (
                     <Text className="text-[12px] font-bold text-slate-700 dark:text-slate-300">
                       Charger plus ({retours.length} / {total})

@@ -13,7 +13,7 @@ import { naviguer } from '../../lib/navigation-app';
 type DerivedStatus = 'SOLDEE' | 'LIVREE' | 'IMPAYEE';
 
 const BORDURES: Record<DerivedStatus, string> = {
-  SOLDEE: 'border-l-emerald-500',
+  SOLDEE: 'border-l-emerald-700',
   LIVREE: 'border-l-amber-500',
   IMPAYEE: 'border-l-red-500',
 };

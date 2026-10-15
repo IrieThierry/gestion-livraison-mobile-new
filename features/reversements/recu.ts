@@ -150,8 +150,8 @@ const STYLE = `
   @page { size: A4; margin: 16mm 14mm; }
   * { box-sizing: border-box; }
   body { font-family: -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; color: #0f172a; font-size: 12px; margin: 0; }
-  header { border-bottom: 2px solid #10b981; padding-bottom: 8px; margin-bottom: 16px; }
-  .app { color: #059669; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+  header { border-bottom: 2px solid #047857; padding-bottom: 8px; margin-bottom: 16px; }
+  .app { color: #065f46; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
   h1 { font-size: 20px; margin: 2px 0 0; }
   table { width: 100%; border-collapse: collapse; }
   table.champs th { text-align: left; width: 38%; color: #475569; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }
@@ -165,9 +165,9 @@ const STYLE = `
   table.detail td { padding: 4px 6px; border-bottom: 1px solid #e2e8f0; }
   table.detail .d { text-align: right; white-space: nowrap; }
   table.detail tr.sous-total td { font-weight: 700; background: #f8fafc; }
-  table.detail tr.total td { font-weight: 800; border-top: 2px solid #10b981; }
+  table.detail tr.total td { font-weight: 800; border-top: 2px solid #047857; }
   .vide { color: #64748b; font-style: italic; padding: 6px 0 10px; }
-  .montant { margin: 18px 0; border: 2px solid #10b981; border-radius: 6px; padding: 12px; display: flex; justify-content: space-between; align-items: center; }
+  .montant { margin: 18px 0; border: 2px solid #047857; border-radius: 6px; padding: 12px; display: flex; justify-content: space-between; align-items: center; }
   .montant .l { color: #475569; text-transform: uppercase; font-size: 11px; font-weight: 700; }
   .montant .v { font-size: 22px; font-weight: 800; }
   .mention { background: #f1f5f9; border-left: 3px solid #64748b; padding: 8px 10px; color: #334155; margin-bottom: 16px; }

@@ -215,7 +215,7 @@ export default function RetourClient() {
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
             onRefresh={onRefresh}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -267,7 +267,7 @@ export default function RetourClient() {
                         </Text>
                         {qty > 0 ? (
                           <>
-                            <Text className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                            <Text className="text-[11px] text-emerald-800 dark:text-emerald-400 mt-0.5">
                               {formatFCFA(valeurRetour(p, qty))} FCFA déduit (estimation)
                             </Text>
                             <DestinationRetourToggle
@@ -300,7 +300,7 @@ export default function RetourClient() {
                 <Text className="font-bold text-slate-700 dark:text-slate-300">
                   Total retour (estimation)
                 </Text>
-                <Text className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                <Text className="font-extrabold text-emerald-800 dark:text-emerald-400">
                   {formatFCFA(totalRetour)} FCFA
                 </Text>
               </View>
@@ -318,7 +318,7 @@ export default function RetourClient() {
                 className={`rounded-md py-3.5 mt-5 items-center ${
                   !isOnline || sansDestination
                     ? 'bg-slate-200 dark:bg-slate-800'
-                    : 'bg-emerald-500 active:opacity-80'
+                    : 'bg-emerald-700 active:opacity-80'
                 }`}
               >
                 {m.isPending ? (

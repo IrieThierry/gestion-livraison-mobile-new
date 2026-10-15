@@ -114,7 +114,7 @@ export default function Login() {
             <View className="items-center">
               <View className="bg-slate-900 dark:bg-emerald-500/15 dark:border dark:border-emerald-500/30 px-7 py-5 rounded-2xl shadow-md">
                 <Text className="text-white dark:text-emerald-400 font-extrabold text-3xl text-center">
-                  Gestion <Text className="text-emerald-500">Livraison</Text>
+                  Gestion <Text className="text-emerald-700">Livraison</Text>
                 </Text>
               </View>
             </View>
@@ -183,7 +183,7 @@ export default function Login() {
             <Pressable
               onPress={onSubmit}
               disabled={mutation.isPending}
-              className="mt-8 bg-emerald-500 py-4 rounded-lg items-center active:opacity-80"
+              className="mt-8 bg-emerald-700 py-4 rounded-lg items-center active:opacity-80"
             >
               {mutation.isPending ? (
                 <ActivityIndicator color="#fff" />
@@ -199,7 +199,7 @@ export default function Login() {
             >
               <Text className="text-base text-slate-500 dark:text-slate-400">
                 Pas encore de compte ?{' '}
-                <Text className="font-bold text-emerald-600 dark:text-emerald-400">
+                <Text className="font-bold text-emerald-800 dark:text-emerald-400">
                   S'inscrire
                 </Text>
               </Text>

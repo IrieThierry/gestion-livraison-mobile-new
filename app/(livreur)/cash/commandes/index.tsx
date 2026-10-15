@@ -60,7 +60,7 @@ export default function CommandesList() {
         right={
           <Pressable
             onPress={() => naviguer('/(livreur)/cash/commandes/nouvelle')}
-            className="bg-emerald-500 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
+            className="bg-emerald-700 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <Plus color="#fff" size={14} />
             <Text className="text-white text-xs font-bold">Nouvelle</Text>
@@ -80,7 +80,7 @@ export default function CommandesList() {
             onPress={() => setFiltre(f.valeur)}
             className={`px-3 py-1.5 rounded-full ${
               filtre === f.valeur
-                ? 'bg-emerald-500'
+                ? 'bg-emerald-700'
                 : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
             }`}
           >
@@ -113,7 +113,7 @@ export default function CommandesList() {
           <RefreshControl
             refreshing={q.isFetching && !q.isLoading}
             onRefresh={() => q.refetch()}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
         ListEmptyComponent={

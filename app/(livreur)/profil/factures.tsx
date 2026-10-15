@@ -74,13 +74,13 @@ export default function MesFactures() {
       accessibilityRole="button"
       accessibilityLabel={libelle}
       className={`flex-row items-center gap-1.5 px-3 py-1.5 rounded-md border ${
-        isOnline ? 'border-emerald-500 active:opacity-70' : 'border-slate-200 dark:border-slate-800'
+        isOnline ? 'border-emerald-700 active:opacity-70' : 'border-slate-200 dark:border-slate-800'
       }`}
     >
       {partage.enCours === id ? (
-        <ActivityIndicator color="#10b981" size="small" />
+        <ActivityIndicator color="#047857" size="small" />
       ) : (
-        <Share2 color={isOnline ? '#059669' : '#94a3b8'} size={14} />
+        <Share2 color={isOnline ? '#065f46' : '#94a3b8'} size={14} />
       )}
       <Text className={`text-[12px] font-bold ${isOnline ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-400'}`}>
         Partager
@@ -165,7 +165,7 @@ export default function MesFactures() {
                 accessibilityRole="button"
                 accessibilityState={{ selected: actif }}
                 className={`px-3 py-1.5 rounded-full border ${
-                  actif ? 'bg-emerald-500 border-emerald-500' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'
+                  actif ? 'bg-emerald-700 border-emerald-700' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'
                 }`}
               >
                 <Text className={`text-xs font-bold ${actif ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}>
@@ -183,7 +183,7 @@ export default function MesFactures() {
           keyExtractor={(f) => f.id}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 12, gap: 8 }}
           refreshControl={
-            <RefreshControl refreshing={q.isFetching && !q.isLoading} onRefresh={() => q.refetch()} tintColor="#10b981" />
+            <RefreshControl refreshing={q.isFetching && !q.isLoading} onRefresh={() => q.refetch()} tintColor="#047857" />
           }
           ListEmptyComponent={vide}
           renderItem={({ item }) => carteFacture(item)}
@@ -194,7 +194,7 @@ export default function MesFactures() {
           keyExtractor={(a) => a.id}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 12, gap: 8 }}
           refreshControl={
-            <RefreshControl refreshing={q.isFetching && !q.isLoading} onRefresh={() => q.refetch()} tintColor="#10b981" />
+            <RefreshControl refreshing={q.isFetching && !q.isLoading} onRefresh={() => q.refetch()} tintColor="#047857" />
           }
           ListEmptyComponent={vide}
           renderItem={({ item }) => carteAvoir(item)}

@@ -1,4 +1,10 @@
-import { changePasswordSchema, loginSchema, signupSchema } from './schemas';
+import {
+  changePasswordSchema,
+  contactValide,
+  FORMAT_CONTACT,
+  loginSchema,
+  signupSchema,
+} from './schemas';
 
 describe('loginSchema', () => {
   it('accepts a valid login payload', () => {
@@ -49,9 +55,22 @@ describe('signupSchema (règles A7, profil LIVREUR imposé)', () => {
     );
   });
 
-  it('téléphone sans 10 chiffres : message de la spec', () => {
-    expect(message({ contact: '071234567' })).toBe('Le numéro doit contenir 10 chiffres.');
-    expect(message({ contact: '07 12 34 56 78' })).toBe('Le numéro doit contenir 10 chiffres.');
+  it('R2 : téléphone de 10 chiffres commençant par 01, 05 ou 07, message de la spec', () => {
+    const msg = 'Le numéro doit contenir 10 chiffres et commencer par 01, 05 ou 07.';
+    for (const ok of ['0112345678', '0512345678', '0712345678', ' 0712345678 ']) {
+      expect(message({ contact: ok })).toBeNull();
+    }
+    for (const ko of ['0212345678', '071234567', '07123456789', '07 12 34 56 78', '07abcdefgh', '']) {
+      expect(message({ contact: ko })).toBe(msg);
+    }
+  });
+
+  it('R2 : contactValide et FORMAT_CONTACT', () => {
+    expect(FORMAT_CONTACT.source).toBe('^0[157][0-9]{8}$');
+    expect(contactValide('0512345678')).toBe(true);
+    expect(contactValide(' 0112345678 ')).toBe(true);
+    expect(contactValide('0912345678')).toBe(false);
+    expect(contactValide('')).toBe(false);
   });
 
   it('nom et prénom : 2 à 50 caractères, lettres seulement', () => {

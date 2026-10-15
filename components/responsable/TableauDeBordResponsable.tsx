@@ -75,7 +75,7 @@ export function TableauDeBordResponsable() {
           <RefreshControl
             refreshing={[q, transfertsQ, remisesQ].some((x) => x.isFetching && !x.isLoading)}
             onRefresh={rafraichir}
-            tintColor="#10b981"
+            tintColor="#047857"
           />
         }
       >
@@ -124,7 +124,7 @@ export function TableauDeBordResponsable() {
         </View>
 
         {q.isLoading ? (
-          <ActivityIndicator color="#10b981" style={{ marginTop: 24 }} />
+          <ActivityIndicator color="#047857" style={{ marginTop: 24 }} />
         ) : q.isError || !q.data ? (
           <EmptyState
             title="Tableau de bord indisponible"

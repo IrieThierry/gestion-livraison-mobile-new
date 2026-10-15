@@ -158,7 +158,7 @@ export function EcranNotifications({
   // vide qui clignote), l'erreur du fil si sa lecture a échoué, rien si
   // « À traiter » a des rubriques, sinon un seul message sobre.
   const vide = fil.isLoading || (aTraiterEnChargement && !aTraiterVisible) ? (
-    <ActivityIndicator color="#10b981" style={{ marginTop: 16 }} />
+    <ActivityIndicator color="#047857" style={{ marginTop: 16 }} />
   ) : fil.isError ? (
     <View className="px-4">
       <EmptyState title="Notifications indisponibles" message="Le fil n’a pas pu être lu. Tire pour réessayer." />
@@ -176,7 +176,7 @@ export function EcranNotifications({
   );
 
   const pieds = fil.isFetchingNextPage ? (
-    <ActivityIndicator color="#10b981" style={{ marginVertical: 16 }} />
+    <ActivityIndicator color="#047857" style={{ marginVertical: 16 }} />
   ) : fil.isFetchNextPageError ? (
     <Pressable onPress={() => fil.fetchNextPage()} accessibilityRole="button" className="items-center py-4 active:opacity-70">
       <Text className="text-[12px] text-red-600 dark:text-red-400">La suite n’a pas pu être chargée.</Text>
@@ -199,7 +199,7 @@ export function EcranNotifications({
           if (fil.hasNextPage && !fil.isFetchingNextPage && !fil.isFetchNextPageError) fil.fetchNextPage();
         }}
         refreshControl={
-          <RefreshControl refreshing={actualisation} onRefresh={tirerPourActualiser} tintColor="#10b981" />
+          <RefreshControl refreshing={actualisation} onRefresh={tirerPourActualiser} tintColor="#047857" />
         }
         renderItem={({ item }) =>
           'groupe' in item ? (
