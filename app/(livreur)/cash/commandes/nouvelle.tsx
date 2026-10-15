@@ -273,7 +273,9 @@ export default function NouvelleCommande() {
                     testID="detail-total-estime"
                     className="text-[12px] text-slate-500 dark:text-slate-400 mt-2 px-1"
                   >
-                    Prix {formatFCFA(totaux.prix)} F + remise {formatFCFA(totaux.remise)} F
+                    {totaux.remise > 0
+                      ? `Prix ${formatFCFA(totaux.prix)} F + remise ${formatFCFA(totaux.remise)} F`
+                      : `Prix ${formatFCFA(totaux.prix)} F`}
                   </Text>
                   <View className="flex-row justify-between items-center px-1">
                     <Text className="text-slate-700 dark:text-slate-300 font-bold">Total estimé</Text>

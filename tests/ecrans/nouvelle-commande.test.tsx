@@ -152,6 +152,8 @@ describe('Nouvelle commande : total estimé (N2a)', () => {
     const total = () => screen.getByTestId('total-estime').props.children.join('');
     expect(screen.getByText('Total estimé')).toBeTruthy();
     expect(total()).toBe('0 F');
+    // Remise nulle : pas de « + remise » (M1).
+    expect(screen.getByTestId('detail-total-estime').props.children).toBe('Prix 0 F');
     fireEvent.changeText(screen.getByLabelText('Quantité de Biscuit'), '3');
     expect(total()).toMatch(/^1\s500 F$/);
     fireEvent.changeText(screen.getByLabelText('Quantité de Lait'), '2');

@@ -258,6 +258,7 @@ export default function ModifierClient() {
                   value={contact}
                   onChange={setContact}
                   keyboardType="phone-pad"
+                  hint="10 chiffres, commence par 01, 05 ou 07"
                   icon={Phone}
                 />
               </View>
@@ -442,6 +443,7 @@ function FieldWithIcon({
   onChange,
   placeholder,
   keyboardType,
+  hint,
   icon: Icon,
 }: {
   label: string;
@@ -449,6 +451,7 @@ function FieldWithIcon({
   onChange: (s: string) => void;
   placeholder?: string;
   keyboardType?: 'phone-pad' | 'email-address' | 'default';
+  hint?: string;
   icon: React.ComponentType<{ color: string; size: number }>;
 }) {
   return (
@@ -472,6 +475,9 @@ function FieldWithIcon({
           className="flex-1 px-3 py-3.5 text-slate-900 dark:text-white text-base"
         />
       </View>
+      {hint ? (
+        <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{hint}</Text>
+      ) : null}
     </View>
   );
 }

@@ -153,7 +153,12 @@ export default function Login() {
             <Truck color="#047857" size={28} />
           </View>
           <View className="gap-1.5">
-            <Text className="text-white text-[30px] font-extrabold tracking-tight">Bon retour</Text>
+            <Text
+              accessibilityRole="header"
+              className="text-white text-[30px] font-extrabold tracking-tight"
+            >
+              Bon retour
+            </Text>
             <Text className="text-emerald-100 text-[15px]">
               Connecte-toi pour démarrer ta tournée.
             </Text>
@@ -219,10 +224,12 @@ export default function Login() {
             onPress={onSubmit}
             disabled={mutation.isPending}
             accessibilityRole="button"
+            accessibilityLabel="Se connecter"
+            accessibilityState={{ disabled: mutation.isPending, busy: mutation.isPending }}
             className="h-[54px] rounded-2xl bg-emerald-700 items-center justify-center active:opacity-80"
           >
             {mutation.isPending ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#fff" accessibilityLabel="Connexion en cours" />
             ) : (
               <Text className="text-white font-extrabold text-base">Se connecter</Text>
             )}
@@ -233,10 +240,15 @@ export default function Login() {
               onPress={onBiometrie}
               disabled={deverrouillage || mutation.isPending}
               accessibilityRole="button"
+              accessibilityLabel="Empreinte ou Face ID"
+              accessibilityState={{
+                disabled: deverrouillage || mutation.isPending,
+                busy: deverrouillage,
+              }}
               className="h-[54px] rounded-2xl border border-[#d5dcd7] dark:border-slate-700 bg-white dark:bg-slate-900 flex-row items-center justify-center gap-2.5 active:opacity-80"
             >
               {deverrouillage ? (
-                <ActivityIndicator color="#047857" />
+                <ActivityIndicator color="#047857" accessibilityLabel="Déverrouillage en cours" />
               ) : (
                 <>
                   <Fingerprint color="#047857" size={20} />

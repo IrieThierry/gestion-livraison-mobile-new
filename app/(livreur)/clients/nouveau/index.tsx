@@ -188,6 +188,7 @@ export default function NouveauClientStep1() {
                 onChange={setContact}
                 placeholder="0712345678"
                 keyboardType="phone-pad"
+                hint="10 chiffres, commence par 01, 05 ou 07"
               />
             </View>
             <View className="flex-1">
@@ -315,12 +316,14 @@ function Field({
   onChange,
   placeholder,
   keyboardType,
+  hint,
 }: {
   label: string;
   value: string;
   onChange: (s: string) => void;
   placeholder?: string;
   keyboardType?: 'phone-pad' | 'email-address' | 'number-pad' | 'decimal-pad' | 'default';
+  hint?: string;
 }) {
   return (
     <View>
@@ -338,6 +341,9 @@ function Field({
         autoCorrect={false}
         className="px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-white text-base"
       />
+      {hint ? (
+        <Text className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{hint}</Text>
+      ) : null}
     </View>
   );
 }
