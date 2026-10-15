@@ -23,7 +23,7 @@ const OMBRE_CARTE = {
   elevation: 6,
 };
 
-type Etape = 1 | 2 | 3;
+type Etape = 1 | 2;
 
 /** Profils proposés sur le mobile : livreur seulement (le fournisseur s'inscrit sur le portail web). */
 const PROFILS = [
@@ -36,16 +36,15 @@ const PROFILS = [
 ];
 
 const TITRES: Record<Etape, string> = {
-  1: 'Créer ton compte',
-  2: 'Tes informations',
-  3: 'Tes accès',
+  1: 'Profil et informations',
+  2: 'Accès',
 };
 
 /**
- * Inscription libre d'un livreur en trois étapes, assortie à la connexion
- * (bandeau vert) : 1. profil, 2. informations (prénom, nom, téléphone,
- * email facultatif), 3. accès (nom d'utilisateur, mot de passe,
- * confirmation) puis « Créer mon compte ». Chaque étape est vérifiée avant
+ * Inscription libre d'un livreur en deux étapes, assortie à la connexion
+ * (bandeau vert) : 1. profil et informations (prénom, nom, téléphone,
+ * email facultatif), 2. accès (nom d'utilisateur, mot de passe,
+ * confirmation) puis « Créer mon compte ». L'étape 1 est vérifiée avant
  * « Continuer » ; le retour (flèche ou bouton Android) ramène à l'étape
  * précédente sans perdre la saisie, et à la connexion depuis l'étape 1.
  * Le compte est utilisable tout de suite (abonnement en essai). Règles et
@@ -104,16 +103,12 @@ export default function Signup() {
     dialog.warning('Champs invalides', message ?? 'Vérifie les informations saisies.');
 
   const continuer = () => {
-    if (etape === 1) {
-      setEtape(2);
-      return;
-    }
     const infos = inscriptionInformationsSchema.safeParse({ prenom, nom, contact, email });
     if (!infos.success) {
       avertir(infos.error.issues[0]?.message);
       return;
     }
-    setEtape(3);
+    setEtape(2);
   };
 
   const onSubmit = () => {
@@ -158,7 +153,7 @@ export default function Signup() {
               <ChevronLeft color="#fff" size={22} />
             </Pressable>
             <Text className="text-[13px] font-bold text-emerald-100">
-              {`Étape ${etape} sur 3${etape > 1 ? ' · Livreur' : ''}`}
+              {`Étape ${etape} sur 2`}
             </Text>
           </View>
           <View className="gap-1.5">
@@ -166,11 +161,11 @@ export default function Signup() {
               {TITRES[etape]}
             </Text>
             {etape === 1 ? (
-              <Text className="text-emerald-100 text-[15px]">Commence par choisir ton profil.</Text>
+              <Text className="text-emerald-100 text-[15px]">Choisis ton profil et dis-nous qui tu es.</Text>
             ) : null}
           </View>
-          <View className="flex-row gap-1.5" accessibilityLabel={`Étape ${etape} sur 3`}>
-            {[1, 2, 3].map((i) => (
+          <View className="flex-row gap-1.5" accessibilityLabel={`Étape ${etape} sur 2`}>
+            {[1, 2].map((i) => (
               <View
                 key={i}
                 testID={`progression-${i}`}
@@ -181,6 +176,7 @@ export default function Signup() {
         </View>
 
         {etape === 1 ? (
+          <>
           <View accessibilityRole="radiogroup" accessibilityLabel="Profil" className="-mt-9 mx-4 gap-3">
             {PROFILS.map((p) => {
               const choisi = p.id === profil;
@@ -228,13 +224,10 @@ export default function Signup() {
               Fournisseur ? Inscris-toi sur le portail web.
             </Text>
           </View>
-        ) : (
           <View
-            className="-mt-9 mx-4 bg-white dark:bg-slate-900 rounded-3xl px-[18px] py-[22px] gap-3.5"
+            className="mt-4 mx-4 bg-white dark:bg-slate-900 rounded-3xl px-[18px] py-[22px] gap-3.5"
             style={OMBRE_CARTE}
           >
-            {etape === 2 ? (
-              <>
                 <Champ label="Prénom" value={prenom} onChange={setPrenom} placeholder="Marc" />
                 <Champ label="Nom" value={nom} onChange={setNom} placeholder="Konan" />
                 <Champ
@@ -252,9 +245,13 @@ export default function Signup() {
                   placeholder="marc@…"
                   keyboardType="email-address"
                 />
-              </>
-            ) : (
-              <>
+          </View>
+          </>
+        ) : (
+          <View
+            className="-mt-9 mx-4 bg-white dark:bg-slate-900 rounded-3xl px-[18px] py-[22px] gap-3.5"
+            style={OMBRE_CARTE}
+          >
                 <Champ
                   label="Nom d'utilisateur"
                   value={username}
@@ -278,14 +275,12 @@ export default function Signup() {
                   placeholder="Re-tape le mot de passe"
                   voir={showPwd}
                 />
-              </>
-            )}
           </View>
         )}
 
         {/* Pied : action de l'étape */}
         <View className="flex-1 justify-end gap-3.5 px-4 pt-5">
-          {etape < 3 ? (
+          {etape === 1 ? (
             <Pressable
               onPress={continuer}
               accessibilityRole="button"
@@ -316,10 +311,6 @@ export default function Signup() {
                 <Text className="font-extrabold text-emerald-700 dark:text-emerald-400">Se connecter</Text>
               </Text>
             </Pressable>
-          ) : etape === 2 ? (
-            <Text className="text-center text-[13px] text-[#5b665f] dark:text-slate-400">
-              Étape suivante : ton nom d'utilisateur et ton mot de passe.
-            </Text>
           ) : null}
         </View>
       </FormScreen>

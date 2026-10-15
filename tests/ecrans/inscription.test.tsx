@@ -43,10 +43,9 @@ function remplirAcces(patch: Partial<typeof ACCES> = {}) {
 
 const continuer = () => fireEvent.press(screen.getByText('Continuer'));
 
-/** Profil (étape 1) → informations valides (étape 2) → accès (étape 3). */
+/** Profil et informations valides (étape 1) → accès (étape 2). */
 function allerAuxAcces() {
   afficher();
-  continuer();
   remplirInfos();
   continuer();
 }
@@ -68,14 +67,16 @@ beforeEach(() => {
   jest.spyOn(BackHandler, 'addEventListener');
 });
 
-describe('Inscription en trois étapes (livreur seulement)', () => {
-  it('étape 1 : profil Livreur choisi, progression 1/3, ni Fournisseur ni attente de validation', () => {
+describe('Inscription en deux étapes (livreur seulement)', () => {
+  it('étape 1 : profil Livreur choisi, informations, progression 1/2, ni Fournisseur ni attente de validation', () => {
     afficher();
-    expect(screen.getByText('Étape 1 sur 3')).toBeTruthy();
-    expect(screen.getByRole('header', { name: 'Créer ton compte' })).toBeTruthy();
+    expect(screen.getByText('Étape 1 sur 2')).toBeTruthy();
+    expect(screen.getByRole('header', { name: 'Profil et informations' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: 'Livreur' }).props.accessibilityState).toEqual({ checked: true });
     expect(screen.queryByText('Fournisseur')).toBeNull();
     expect(screen.getByText('Fournisseur ? Inscris-toi sur le portail web.')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Marc')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('marc')).toBeNull();
     expect(screen.queryByText(/valider/i)).toBeNull();
     fireEvent.press(screen.getByText('Se connecter'));
     expect(router.replace).toHaveBeenCalledWith('/(auth)/login');
@@ -87,35 +88,36 @@ describe('Inscription en trois étapes (livreur seulement)', () => {
     expect(router.back).toHaveBeenCalled();
   });
 
-  it('étape 2 vérifiée avant « Continuer » : message A7, on reste à l’étape 2', () => {
+  it('étape 1 vérifiée avant « Continuer » : message A7, on reste à l’étape 1', () => {
     afficher();
     continuer();
-    expect(screen.getByText('Étape 2 sur 3 · Livreur')).toBeTruthy();
+    expect(useDialogStore.getState().message).toBe('Le prénom doit contenir entre 2 et 50 caractères.');
+    expect(screen.getByText('Étape 1 sur 2')).toBeTruthy();
     expect(screen.getByText('10 chiffres, commence par 01, 05 ou 07')).toBeTruthy();
     remplirInfos({ contact: '071234' });
     continuer();
     expect(useDialogStore.getState().message).toBe('Le numéro doit contenir 10 chiffres et commencer par 01, 05 ou 07.');
-    expect(screen.getByText('Étape 2 sur 3 · Livreur')).toBeTruthy();
+    expect(screen.getByText('Étape 1 sur 2')).toBeTruthy();
     remplirInfos({ prenom: 'A' });
     continuer();
     expect(useDialogStore.getState().message).toBe('Le prénom doit contenir entre 2 et 50 caractères.');
     expect(screen.queryByPlaceholderText('marc')).toBeNull();
+    expect(screen.getByText('Étape 1 sur 2')).toBeTruthy();
   });
 
   it('retour (flèche et Android) : étape précédente, la saisie est gardée', () => {
     allerAuxAcces();
-    expect(screen.getByText('Étape 3 sur 3 · Livreur')).toBeTruthy();
+    expect(screen.getByText('Étape 2 sur 2')).toBeTruthy();
+    expect(screen.getByRole('header', { name: 'Accès' })).toBeTruthy();
     fireEvent.changeText(screen.getByPlaceholderText('marc'), 'awa');
     fireEvent.press(screen.getByLabelText('Étape précédente'));
-    expect(screen.getByText('Étape 2 sur 3 · Livreur')).toBeTruthy();
+    expect(screen.getByText('Étape 1 sur 2')).toBeTruthy();
     expect(screen.getByPlaceholderText('Marc').props.value).toBe('Awa');
     expect(screen.getByPlaceholderText('0712345678').props.value).toBe('0712345678');
     continuer();
     expect(screen.getByPlaceholderText('marc').props.value).toBe('awa');
     expect(retourAndroid()).toBe(true);
-    expect(screen.getByText('Étape 2 sur 3 · Livreur')).toBeTruthy();
-    expect(retourAndroid()).toBe(true);
-    expect(screen.getByText('Étape 1 sur 3')).toBeTruthy();
+    expect(screen.getByText('Étape 1 sur 2')).toBeTruthy();
     // Étape 1 : le retour Android n'est pas pris (retour normal à la connexion).
     expect(retourAndroid()).toBe(false);
   });
@@ -140,7 +142,7 @@ describe('Inscription en trois étapes (livreur seulement)', () => {
     expect([d.title, d.message]).toContain('Compte créé. Vous pouvez vous connecter.');
   });
 
-  it('règles A7 à l’étape 3 : message de la spec, rien n’est envoyé', () => {
+  it('règles A7 à l’étape 2 : message de la spec, rien n’est envoyé', () => {
     allerAuxAcces();
     remplirAcces({ password: '123', confirm: '123' });
     fireEvent.press(screen.getByText('Créer mon compte'));
