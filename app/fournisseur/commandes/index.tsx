@@ -94,7 +94,7 @@ export default function CommandesFournisseur() {
               <Text className="text-red-600 dark:text-red-400 text-sm">
                 {extractApiErrorMessage(q.error, 'Commandes indisponibles')}
               </Text>
-              <Pressable onPress={() => q.refetch()} className="self-start active:opacity-70">
+              <Pressable onPress={() => q.refetch()} accessibilityRole="button" className="self-start active:opacity-70">
                 <Text className="text-emerald-700 dark:text-emerald-400 font-bold text-[13px]">Réessayer</Text>
               </Pressable>
             </View>

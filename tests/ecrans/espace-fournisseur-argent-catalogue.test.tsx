@@ -728,6 +728,32 @@ describe('FM3 (corrections) : photo des produits du catalogue', () => {
     expect(dialog.success).toHaveBeenCalledWith('Photo supprimée');
   });
 
+  it('type déclaré d’après le type réel : un PNG réencodé en JPEG part en .jpg', async () => {
+    mockParams = { id: 'pf1' };
+    mockPick.mockResolvedValueOnce({
+      uri: 'file:///cache/x.jpg',
+      name: 'IMG_1.PNG',
+      mimeType: 'image/jpeg',
+      width: 1,
+      height: 1,
+    });
+    render(<ModifierProduitCatalogue />);
+    fireEvent.press(screen.getByLabelText('Choisir une photo'));
+    await waitFor(() => expect(mockEnvoyerPhoto.mutate).toHaveBeenCalled());
+    expect(mockEnvoyerPhoto.mutate.mock.calls[0][0]).toEqual({ ligneId: 'pf1', uri: 'file:///cache/x.jpg', name: 'IMG_1.jpg' });
+  });
+
+  it('profil illisible : message et « Réessayer » à la place de la gestion de la photo', () => {
+    mockParams = { id: 'pf1' };
+    const q = lecture(undefined, { isError: true, error: erreurBack('Profil indisponible') });
+    m('useFournisseurProfil').mockReturnValue(q);
+    render(<ModifierProduitCatalogue />);
+    expect(screen.getByText('Profil indisponible')).toBeTruthy();
+    expect(screen.queryByLabelText('Choisir une photo')).toBeNull();
+    fireEvent.press(screen.getByLabelText('Réessayer'));
+    expect(q.refetch).toHaveBeenCalled();
+  });
+
   it('produit d’un autre (ou du référentiel) : photo gérée par l’administrateur', () => {
     mockParams = { id: 'pf2' };
     render(<ModifierProduitCatalogue />);

@@ -18,7 +18,7 @@ import {
 } from '../../../../features/fournisseur/catalogue';
 import { lirePrixDeVente } from '../../../../features/fournisseur/gestion';
 import { useSupprimerPhotoCatalogue, useUploadPhotoCatalogue } from '../../../../features/photos/hooks';
-import { MESSAGE_PHOTO_ADMIN, verifierPhotoProduit } from '../../../../features/produits/photo';
+import { MESSAGE_PHOTO_ADMIN, lirePhotoProduit } from '../../../../features/produits/photo';
 import { pickImage } from '../../../../lib/image-picker';
 import { creerVerrou, lancerUneFois } from '../../../../features/commandes/verrou';
 import { useNetworkStore } from '../../../../stores/networkStore';
@@ -214,7 +214,8 @@ function Formulaire({ ligne }: { ligne: LigneCatalogueFournisseurResponse }) {
  */
 function PhotoDuProduit({ ligne }: { ligne: LigneCatalogueFournisseurResponse }) {
   const isOnline = useNetworkStore((s) => s.isOnline);
-  const profil = useFournisseurProfil().data;
+  const profilQ = useFournisseurProfil();
+  const profil = profilQ.data;
   const envoyer = useUploadPhotoCatalogue();
   const supprimer = useSupprimerPhotoCatalogue();
   const verrou = useRef(creerVerrou()).current;
@@ -227,15 +228,16 @@ function PhotoDuProduit({ ligne }: { ligne: LigneCatalogueFournisseurResponse })
   const choisir = async () => {
     const photo = await pickImage({ aspect: [1, 1] });
     if (!photo) return;
-    const refus = verifierPhotoProduit(photo);
-    if (refus) {
-      setErreur(refus);
+    // Type réel (JPEG ou PNG) : le nom envoyé en porte l'extension, d'où le type déclaré.
+    const lu = lirePhotoProduit(photo);
+    if (!lu.ok) {
+      setErreur(lu.erreur);
       return;
     }
     setErreur(null);
     lancerUneFois(verrou, (fin) =>
       envoyer.mutate(
-        { ligneId: ligne.id, uri: photo.uri, name: photo.name },
+        { ligneId: ligne.id, uri: photo.uri, name: lu.name },
         {
           onSuccess: () => dialog.success('Photo du produit mise à jour'),
           onError: (e: unknown) => setErreur(extractApiErrorMessage(e, 'Envoi de la photo impossible')),
@@ -265,7 +267,23 @@ function PhotoDuProduit({ ligne }: { ligne: LigneCatalogueFournisseurResponse })
   return (
     <View className="flex-row items-center gap-3">
       <ProduitVignette designation={ligne.produit.designation} photoUrl={ligne.produit.photoUrl} size={56} />
-      {modifiable === null ? null : modifiable ? (
+      {modifiable === null ? (
+        profilQ.isError ? (
+          <View className="flex-1 gap-1">
+            <Text className="text-[11px] text-red-600 dark:text-red-400">
+              {extractApiErrorMessage(profilQ.error, 'Ton profil n’a pas pu être lu : la photo ne peut pas être gérée.')}
+            </Text>
+            <Pressable
+              onPress={() => profilQ.refetch()}
+              accessibilityRole="button"
+              accessibilityLabel="Réessayer"
+              className="self-start active:opacity-70"
+            >
+              <Text className="text-[12px] font-bold text-emerald-700 dark:text-emerald-400">Réessayer</Text>
+            </Pressable>
+          </View>
+        ) : null
+      ) : modifiable ? (
         <View className="flex-1 gap-1">
           <Text className="text-[11px] text-slate-500 dark:text-slate-400">
             JPEG ou PNG, 10 Mo au plus. Enregistrée dès le choix.

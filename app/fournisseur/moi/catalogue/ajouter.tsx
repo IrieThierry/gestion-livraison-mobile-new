@@ -30,7 +30,7 @@ import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { dialog } from '../../../../lib/dialog';
 import { retourParent } from '../../../../lib/navigation-app';
 import { useUploadPhotoCatalogue } from '../../../../features/photos/hooks';
-import { MESSAGE_PHOTO_NON_ENVOYEE, verifierPhotoProduit } from '../../../../features/produits/photo';
+import { MESSAGE_PHOTO_NON_ENVOYEE, lirePhotoProduit } from '../../../../features/produits/photo';
 import { pickImage, type PickedImage } from '../../../../lib/image-picker';
 import type { LigneCatalogueFournisseurResponse, ProduitResponse } from '../../../../types/api';
 
@@ -70,9 +70,10 @@ export default function AjouterProduitCatalogue() {
   const choisirPhoto = async () => {
     const choisie = await pickImage({ aspect: [1, 1] });
     if (!choisie) return;
-    const refus = verifierPhotoProduit(choisie);
-    setErreurPhoto(refus);
-    if (!refus) setPhoto(choisie);
+    // Type réel (JPEG ou PNG) : le nom envoyé en porte l'extension, d'où le type déclaré.
+    const lu = lirePhotoProduit(choisie);
+    setErreurPhoto(lu.ok ? null : lu.erreur);
+    if (lu.ok) setPhoto({ ...choisie, name: lu.name });
   };
 
   const lignes = useMemo(() => lignesParProduit(catalogueQ.data), [catalogueQ.data]);
