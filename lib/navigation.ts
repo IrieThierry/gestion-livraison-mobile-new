@@ -160,6 +160,8 @@ export const ECRANS_RESPONSABLE: ReadonlySet<string> = new Set([
   'profil/apprentis/[id]',
   'profil/remises-apprentis',
   'stock/transferts/index',
+  // Localisation : positions de ses commerciaux (ouvert depuis Moi ou une notification).
+  'localiser',
 ]);
 
 export function estEcranResponsable(fichier: string): boolean {
@@ -379,6 +381,11 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
       'notifications-responsable': NOTIFICATIONS_RESPONSABLE,
     },
   },
+
+  // Localisation sur demande : Localiser (ouvert depuis Moi ou « Mes apprentis ») et l'écran
+  // de réponse de la cible (notification, bandeau de l'accueil).
+  localiser: { type: 'liste', parent: '/profil' },
+  'localisation/[id]': { type: 'fiche', parent: ACCUEIL, origines: { notifications: NOTIFICATIONS_LIVREUR } },
 };
 
 /**

@@ -8,7 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { Plus, Power, ChevronRight, ArrowRightLeft, KeyRound } from 'lucide-react-native';
+import { Plus, Power, ChevronRight, ArrowRightLeft, KeyRound, LocateFixed } from 'lucide-react-native';
 import { dialog } from '../../../../lib/dialog';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
@@ -31,6 +31,7 @@ import type { LivreurResponse } from '../../../../types/api';
 import { naviguer } from '../../../../lib/navigation-app';
 import { estResponsable, vocabulaire } from '../../../../features/organisation/regles';
 import { peutReaffecter } from '../../../../features/equipe/regles';
+import { peutLocaliser } from '../../../../features/localisation/etat';
 
 /**
  * « Mes apprentis » — page accessible depuis le Profil pour les livreurs
@@ -157,14 +158,30 @@ Il devra le changer à sa prochaine connexion.`,
     });
   };
 
+  // Localisation sur demande : positions du jour de l'équipe (écran Localiser).
+  const boutonLocaliser = peutLocaliser(user, q.data?.length ?? 0) ? (
+    <Pressable
+      onPress={() => naviguer('/(livreur)/localiser')}
+      accessibilityRole="button"
+      accessibilityLabel="Localiser"
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-70"
+    >
+      <LocateFixed color="#047857" size={14} />
+      <Text className="text-slate-700 dark:text-slate-300 text-xs font-bold">Localiser</Text>
+    </Pressable>
+  ) : null;
+
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <PageHeader
         title={v.mesApprentis}
         subtitle={`${q.data?.length ?? 0} ${(q.data?.length ?? 0) > 1 ? v.apprentis : v.apprenti}`}
         right={
-          lectureSeule ? undefined : (
+          lectureSeule ? (
+            boutonLocaliser
+          ) : (
           <View className="flex-row gap-2">
+            {boutonLocaliser}
             {/* P8 : réaffectation des clients (livreur principal indépendant). */}
             {peutReaffecter(user) ? (
               <Pressable

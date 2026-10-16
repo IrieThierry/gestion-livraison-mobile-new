@@ -101,3 +101,19 @@ describe('Mes apprentis : demandes « Mot de passe oublié » (M1)', () => {
     mockUser = { id: 'r1', prenom: 'Jean', nom: 'Racine', parentId: null };
   });
 });
+
+describe('Mes apprentis : bouton « Localiser »', () => {
+  it('livreur principal avec apprentis : ouvre Localiser', () => {
+    const { naviguer } = jest.requireMock('../../lib/navigation-app');
+    render(<ApprentisList />);
+    fireEvent.press(screen.getByLabelText('Localiser'));
+    expect(naviguer).toHaveBeenCalledWith('/(livreur)/localiser');
+  });
+
+  it('responsable (lecture seule) : bouton présent aussi', () => {
+    mockUser = { id: 'r1', prenom: 'Jean', nom: 'Racine', parentId: null, organisationId: 'o', organisationRole: 'RESPONSABLE' };
+    render(<ApprentisList />);
+    expect(screen.getByLabelText('Localiser')).toBeTruthy();
+    mockUser = { id: 'r1', prenom: 'Jean', nom: 'Racine', parentId: null };
+  });
+});

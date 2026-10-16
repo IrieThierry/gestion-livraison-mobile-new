@@ -1598,3 +1598,41 @@ export interface LigneCatalogueFournisseurResponse {
   /** Désignation modifiable : produit créé par ce fournisseur et proposé par lui seul. */
   renommable: boolean
 }
+
+// ---------------------------------------------------------------------------
+// Localisation sur demande acceptée (`/localisation`)
+// ---------------------------------------------------------------------------
+
+export type StatutDemandeLocalisation = 'EN_ATTENTE' | 'ACCEPTEE' | 'REFUSEE' | 'EXPIREE'
+
+/** État de la dernière demande du jour (dates ISO locales). */
+export interface EtatLocalisation {
+  demandeId: UUID
+  statut: StatutDemandeLocalisation
+  creeLe: string
+  expireLe: string
+  reponduLe: string | null
+  /** Dernière position partagée aujourd'hui `"lat,lng"` (même si la dernière demande est en attente). */
+  position: string | null
+  partageeLe: string | null
+  /** Client positionné le plus proche (moins de 1 km) ; null au-delà. */
+  repere: { client: string; quartier: string } | null
+}
+
+/** `GET /localisation/personnes`. */
+export interface PersonneLocalisable {
+  id: UUID
+  nom: string
+  prenom: string
+  photoUrl: string | null
+  etat: EtatLocalisation | null
+}
+
+/** `GET /localisation/demandes/recues` : demandes en attente qui visent l'utilisateur connecté. */
+export interface DemandeLocalisationRecue {
+  id: UUID
+  demandeurId: UUID
+  demandeurNom: string
+  creeLe: string
+  expireLe: string
+}
