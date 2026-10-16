@@ -129,7 +129,7 @@ export interface TacheFournisseur {
   nombre: number;
   titre: string;
   detail: string;
-  /** Écran ouvert par la ligne (onglet de l'espace fournisseur). */
+  /** Écran ouvert par la ligne (onglet de l'espace fournisseur, ou ses invitations). */
   lien: string;
 }
 
@@ -164,7 +164,7 @@ export function tachesFournisseur({
       nombre: invitations,
       titre: pluriel(invitations, 'invitation de livreur', 'invitations de livreurs'),
       detail: 'Accepte ou refuse les livreurs qui veulent travailler avec toi.',
-      lien: '/fournisseur/livreurs',
+      lien: '/fournisseur/livreurs/invitations',
     });
   }
   if (demandes > 0) {

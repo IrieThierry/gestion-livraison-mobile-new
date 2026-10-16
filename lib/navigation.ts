@@ -842,9 +842,18 @@ export const ROUTES_FOURNISSEUR: Readonly<Record<string, RouteApp>> = {
   index: { type: 'accueil', parent: null },
   // Cloche de l'Accueil, ou entrée « Notifications » de Moi (onglet masqué).
   notifications: { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
-  // Racines des onglets (FM2 : Commandes, Livreurs ; FM3 : Argent).
+  // Racines des onglets (Commandes, Livreurs ; FM3 : Argent).
   'commandes/index': { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
+  // FM2 : détail d'une commande reçue (liste, notification « commande reçue »).
+  'commandes/[id]': { type: 'fiche', parent: '/fournisseur/commandes' },
   'livreurs/index': { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
+  // FM2 : invitations (bouton de la liste, « À traiter », notification) et fiche d'un livreur partenaire.
+  'livreurs/invitations': { type: 'liste', parent: '/fournisseur/livreurs' },
+  'livreurs/[id]/index': { type: 'fiche', parent: '/fournisseur/livreurs' },
+  'livreurs/[id]/commandes/index': { type: 'liste', parent: '/fournisseur/livreurs/[id]' },
+  'livreurs/[id]/commandes/[commandeId]': { type: 'fiche', parent: '/fournisseur/livreurs/[id]/commandes' },
+  'livreurs/[id]/prix': { type: 'formulaire', parent: '/fournisseur/livreurs/[id]' },
+  'livreurs/[id]/versement': { type: 'formulaire', parent: '/fournisseur/livreurs/[id]' },
   'argent/index': { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
   'moi/index': { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
   'moi/infos': { type: 'formulaire', parent: '/fournisseur/moi' },

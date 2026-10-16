@@ -7,8 +7,6 @@ import NotificationsFournisseur from '../../app/fournisseur/notifications';
 import MoiFournisseur from '../../app/fournisseur/moi/index';
 import ModifierInfosFournisseur from '../../app/fournisseur/moi/infos';
 import ChangerMotDePasseFournisseur from '../../app/fournisseur/moi/password';
-import CommandesFournisseur from '../../app/fournisseur/commandes/index';
-import LivreursFournisseur from '../../app/fournisseur/livreurs/index';
 import ArgentFournisseur from '../../app/fournisseur/argent/index';
 import * as hooks from '../../features/fournisseur/hooks';
 import { authApi } from '../../features/auth/api';
@@ -205,17 +203,10 @@ describe('F1 : coque de l’espace fournisseur', () => {
     expect(m('useCommandesFournisseur')).not.toHaveBeenCalled();
   });
 
-  it('onglets Commandes, Livreurs et Argent : écrans minimaux (contenu à venir)', () => {
-    for (const [Ecran, titre] of [
-      [CommandesFournisseur, 'Commandes'],
-      [LivreursFournisseur, 'Livreurs'],
-      [ArgentFournisseur, 'Argent'],
-    ] as const) {
-      const { unmount } = rendu(<Ecran />);
-      expect(screen.getByText(titre)).toBeTruthy();
-      expect(screen.getByText(/arrive bientôt sur le mobile/)).toBeTruthy();
-      unmount();
-    }
+  it('onglet Argent : écran minimal (contenu à venir, FM3)', () => {
+    rendu(<ArgentFournisseur />);
+    expect(screen.getByText('Argent')).toBeTruthy();
+    expect(screen.getByText(/arrive bientôt sur le mobile/)).toBeTruthy();
   });
 });
 
@@ -252,7 +243,7 @@ describe('F2 : Accueil du fournisseur (synthèse du portail web)', () => {
     fireEvent.press(screen.getByLabelText('2 commandes à confirmer'));
     expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/commandes');
     fireEvent.press(screen.getByLabelText('1 invitation de livreur'));
-    expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/livreurs');
+    expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/livreurs/invitations');
     fireEvent.press(screen.getByLabelText('1 demande de modification'));
     expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/argent');
   });
@@ -331,7 +322,7 @@ describe('F2 : Notifications du fournisseur', () => {
     ...over,
   });
 
-  it('À traiter du fournisseur en haut, puis le fil ; une notification ouvre l’onglet de l’espace', () => {
+  it('À traiter du fournisseur en haut, puis le fil ; une notification ouvre son écran de l’espace', () => {
     mockFil = [
       notif({}),
       notif({ id: 'n2', type: 'INVITATION_RECUE', cible: { type: 'RELATION', id: 'r1', route: 'fournisseur.invitations' } }),
@@ -342,9 +333,9 @@ describe('F2 : Notifications du fournisseur', () => {
     expect(screen.getByText('Fil d’activité')).toBeTruthy();
     fireEvent.press(screen.getByTestId('notification-n1'));
     expect(mockMarquerLue).toHaveBeenCalledWith('n1');
-    expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/commandes', {});
+    expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/commandes/c5', {});
     fireEvent.press(screen.getByTestId('notification-n2'));
-    expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/livreurs', {});
+    expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/livreurs/invitations', {});
   });
 
   it('rien à traiter et fil vide : « Aucune notification »', () => {

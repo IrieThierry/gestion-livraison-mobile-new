@@ -597,7 +597,7 @@ export interface CommandeResponse {
   motifRefus: string | null
   dateLivraison: string | null // ISO
   montantLivre: number | null  // Σ des réceptions actives ; null tant qu'aucune réception
-  /** Σ qteCommandee × (prix particulier, sinon prix catalogue), remise non déduite ; calculé à la lecture. */
+  /** Σ qteCommandee × (prix particulier, sinon prix catalogue, + remise livreur partenaire) ; calculé à la lecture. */
   montantEstime?: number | null
   remiseLivreurLivree: number | null
   versementId: UUID | null     // non nul = réglée par un versement
@@ -1548,4 +1548,23 @@ export interface ReversementsSyntheseFournisseurResponse {
   annee: number
   mois: number
   aReverserAuxLivreurs: LigneLivreurDuResponse[]
+}
+
+/** Ligne de `GET /fournisseur/me/livreurs/{id}/prix-particuliers` : produit actif et prix de ce livreur. */
+export interface PrixParticulierLivreurResponse {
+  produitFournisseurId: UUID
+  produit: { id: UUID; code: string; designation: string }
+  prixDeBase: number
+  /** null : aucun prix particulier (le prix de base s'applique). */
+  prixParticulier: number | null
+}
+
+/** Corps de `POST /fournisseur/me/versements` (le fournisseur est celui du jeton). */
+export interface EnregistrerVersementFournisseurRequest {
+  livreurId: UUID
+  /** Commandes réglées ; vide ou absent = versement libre. */
+  commandeIds?: UUID[]
+  dateVersement?: string
+  montantVerse: number
+  commentaire?: string
 }

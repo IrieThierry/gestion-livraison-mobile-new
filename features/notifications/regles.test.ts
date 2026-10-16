@@ -194,10 +194,11 @@ describe('cibleMobile', () => {
     expect(cibleMobile(cible('commandes'), resp)).toBeNull();
   });
 
-  it('F2, fournisseur : ses routes ouvrent les onglets de son espace ; les autres, aucun écran', () => {
+  it('F2, fournisseur : commande → son détail, invitation → Invitations, demandes → Argent ; les autres, aucun écran', () => {
     const frn = { apprenti: false, responsable: false, fournisseur: true };
-    expect(cibleMobile(cible('fournisseur.commandes'), frn)).toEqual({ href: '/fournisseur/commandes', params: {} });
-    expect(cibleMobile(cible('fournisseur.invitations'), frn)).toEqual({ href: '/fournisseur/livreurs', params: {} });
+    expect(cibleMobile(cible('fournisseur.commandes'), frn)).toEqual({ href: '/fournisseur/commandes/x1', params: {} });
+    expect(cibleMobile(cible('fournisseur.commandes', null), frn)).toEqual({ href: '/fournisseur/commandes', params: {} });
+    expect(cibleMobile(cible('fournisseur.invitations'), frn)).toEqual({ href: '/fournisseur/livreurs/invitations', params: {} });
     expect(cibleMobile(cible('versements.demandes-modif'), frn)).toEqual({ href: '/fournisseur/argent', params: {} });
     for (const r of ['commandes', 'transferts', 'fournisseurs', 'clients', 'inconnue']) {
       expect(cibleMobile(cible(r), frn)).toBeNull();
@@ -205,6 +206,7 @@ describe('cibleMobile', () => {
     // « Mot de passe demandé » : pas d'apprentis chez le fournisseur.
     expect(cibleMobile({ ...cible('equipe'), type: 'MOT_DE_PASSE_DEMANDE' }, frn)).toBeNull();
     expect(hrefFournisseur('fournisseur.commandes')).toBe('/fournisseur/commandes');
+    expect(hrefFournisseur('fournisseur.commandes', 'c 1')).toBe('/fournisseur/commandes/c%201');
   });
 });
 

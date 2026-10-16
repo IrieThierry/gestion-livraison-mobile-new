@@ -92,7 +92,7 @@ describe('tachesFournisseur', () => {
     const t = tachesFournisseur({ commandes: 2, invitations: 1, demandes: 3 });
     expect(t.map((x) => [x.code, x.titre, x.lien])).toEqual([
       ['CMD', '2 commandes à confirmer', '/fournisseur/commandes'],
-      ['INV', '1 invitation de livreur', '/fournisseur/livreurs'],
+      ['INV', '1 invitation de livreur', '/fournisseur/livreurs/invitations'],
       ['VER', '3 demandes de modification', '/fournisseur/argent'],
     ]);
     expect(tachesFournisseur({ commandes: 1, invitations: 2, demandes: 1 }).map((x) => x.titre)).toEqual([

@@ -1,4 +1,4 @@
-import type { StatutDemandeModif } from '../../types/api';
+import type { StatutDemandeModif, UUID } from '../../types/api';
 
 /** Clés de cache de l'espace fournisseur (mêmes racines que le portail web). */
 export const fournisseurKeys = {
@@ -9,6 +9,12 @@ export const fournisseurKeys = {
   commandes: () => [...fournisseurKeys.all, 'commandes'] as const,
   /** Livreurs partenaires (dû, remise, blocage) ; les lectures par livreur sont sous cette clé. */
   partenaires: () => [...fournisseurKeys.all, 'partenaires'] as const,
+  commandesLivreur: (livreurId: UUID) => [...fournisseurKeys.partenaires(), 'commandes', livreurId] as const,
+  prixParticuliersLivreur: (livreurId: UUID) =>
+    [...fournisseurKeys.partenaires(), 'prix-particuliers', livreurId] as const,
+  /** Situation d'un versement (livreur, commandes cochées triées). */
+  situationVersement: (livreurId: UUID, cle: string) =>
+    [...fournisseurKeys.all, 'versement-situation', livreurId, cle] as const,
   invitations: () => [...fournisseurKeys.all, 'invitations'] as const,
   /** Sous la clé des invitations : invalider la liste rafraîchit aussi le compteur. */
   compteInvitations: () => [...fournisseurKeys.invitations(), 'compte'] as const,

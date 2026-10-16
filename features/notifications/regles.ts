@@ -276,15 +276,15 @@ function hrefDeRoute(route: string, id: string | null, ctx: ContexteCible): stri
  * F2 : écran de l'espace fournisseur de chaque route logique qui le concerne
  * (mêmes clés que le portail web : commandes reçues, invitations, demandes de
  * modification de versement). Null : pas d'écran (la notification est seulement
- * marquée lue). Les onglets s'ouvrent sur leur liste ; FM2 et FM3 y ajoutent
- * le détail (commande, invitations, demandes).
+ * marquée lue). Commande reçue : son détail (la liste sans identifiant) ;
+ * invitation : l'écran des invitations ; demandes : l'onglet Argent (FM3).
  */
-export function hrefFournisseur(route: string): string | null {
+export function hrefFournisseur(route: string, id?: string | null): string | null {
   switch (route) {
     case 'fournisseur.commandes':
-      return '/fournisseur/commandes';
+      return id ? `/fournisseur/commandes/${encodeURIComponent(id)}` : '/fournisseur/commandes';
     case 'fournisseur.invitations':
-      return '/fournisseur/livreurs';
+      return '/fournisseur/livreurs/invitations';
     case 'versements.demandes-modif':
       return '/fournisseur/argent';
     default:
@@ -302,8 +302,8 @@ export function cibleMobile(
   ctx: ContexteCible,
 ): CibleMobile | null {
   if (ctx.fournisseur) {
-    const lien = n.cible ? hrefFournisseur(n.cible.route) : null;
-    // Onglet de l'espace : retour à l'Accueil (ROUTES_FOURNISSEUR), sans origine.
+    const lien = n.cible ? hrefFournisseur(n.cible.route, n.cible.id) : null;
+    // Écran de l'espace : retour à son parent (ROUTES_FOURNISSEUR), sans origine.
     return lien ? { href: lien, params: {} } : null;
   }
   // M1 : « Mot de passe demandé » ouvre toujours la liste des apprentis ou commerciaux.

@@ -467,6 +467,20 @@ describe('Espace fournisseur (F1, F2) : routes et parents', () => {
     // Écran inconnu : Accueil du fournisseur.
     expect(parentFournisseur('/fournisseur/inconnu')).toBe(ACCUEIL_FOURNISSEUR);
   });
+
+  it('FM2 : détail de commande → Commandes ; Invitations et fiche → Livreurs ; écrans d’un livreur → sa fiche', () => {
+    expect(trouverRouteFournisseur('/fournisseur/commandes/c1')).toEqual({ fichier: 'commandes/[id]', params: { id: 'c1' } });
+    expect(parentFournisseur('/fournisseur/commandes/c1')).toBe('/fournisseur/commandes');
+    // « invitations » n'est jamais lu comme l'identifiant d'un livreur.
+    expect(trouverRouteFournisseur('/fournisseur/livreurs/invitations')?.fichier).toBe('livreurs/invitations');
+    expect(parentFournisseur('/fournisseur/livreurs/invitations')).toBe('/fournisseur/livreurs');
+    expect(trouverRouteFournisseur('/fournisseur/livreurs/l1')?.fichier).toBe('livreurs/[id]/index');
+    expect(parentFournisseur('/fournisseur/livreurs/l1')).toBe('/fournisseur/livreurs');
+    expect(parentFournisseur('/fournisseur/livreurs/l1/commandes')).toBe('/fournisseur/livreurs/l1');
+    expect(parentFournisseur('/fournisseur/livreurs/l1/commandes/c1')).toBe('/fournisseur/livreurs/l1/commandes');
+    expect(parentFournisseur('/fournisseur/livreurs/l1/prix')).toBe('/fournisseur/livreurs/l1');
+    expect(parentFournisseur('/fournisseur/livreurs/l1/versement')).toBe('/fournisseur/livreurs/l1');
+  });
 });
 
 describe('Plus d’écran d’attente de validation', () => {
