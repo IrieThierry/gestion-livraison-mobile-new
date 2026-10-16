@@ -24,6 +24,11 @@ import { revenirA } from '../../../lib/navigation-app';
  * de re-login) — c'est ce que fait aussi la web SettingsPage.
  */
 export default function ChangerMotDePasse() {
+  return <EcranChangerMotDePasse />;
+}
+
+/** Écran partagé avec l'espace fournisseur (F2, Moi) : `retour` = page Moi de l'espace. */
+export function EcranChangerMotDePasse({ retour = '/(livreur)/profil' }: { retour?: string }) {
   const [currentPassword, setCurrent] = useState('');
   const [newPassword, setNew] = useState('');
   const [confirmPassword, setConfirm] = useState('');
@@ -34,7 +39,7 @@ export default function ChangerMotDePasse() {
     mutationFn: authApi.changePassword,
     onSuccess: () => {
       dialog.success('Ton mot de passe a été mis à jour.');
-      revenirA('/(livreur)/profil');
+      revenirA(retour);
     },
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { message?: string } } };

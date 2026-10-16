@@ -22,6 +22,9 @@ export const MESSAGES_COMPTE = {
   prenomFormat: 'Le prénom ne doit contenir que des lettres, espaces, tirets, apostrophes ou points.',
   usernameLongueur: "Le nom d'utilisateur doit contenir entre 3 et 50 caractères.",
   inscriptionReussie: 'Compte créé. Vous pouvez vous connecter.',
+  // F1 : inscription d'un fournisseur (mêmes messages que le web et le back).
+  nomEntrepriseObligatoire: "Le nom de l'entreprise est obligatoire.",
+  nomEntrepriseTropLong: "Le nom de l'entreprise ne doit pas dépasser 100 caractères.",
 } as const;
 
 /** Règle existante des noms côté back : lettres, espaces, apostrophes, points, tirets. */
@@ -48,10 +51,37 @@ const email = z
   .optional()
   .transform((v) => v ?? '');
 
+/** Profils de l'inscription mobile (F1) : livreur ou fournisseur ; toute autre valeur devient LIVREUR. */
+export type ProfilInscription = 'LIVREUR' | 'FOURNISSEUR';
+const profilInscription = z
+  .unknown()
+  .transform((v): ProfilInscription => (v === 'FOURNISSEUR' ? 'FOURNISSEUR' : 'LIVREUR'));
+const nomEntreprise = z
+  .string()
+  .optional()
+  .transform((v) => (v ?? '').trim());
+
 /**
- * Inscription libre depuis le mobile : livreur seulement (le fournisseur
- * s'inscrit sur le portail web). Le profil envoyé est toujours LIVREUR, même
- * si une autre valeur est passée. `confirmPassword` est vérifié au submit.
+ * F1 : nom de l'entreprise, obligatoire pour un fournisseur seulement (2 à
+ * 100 caractères, espaces de début et de fin retirés), comme le web et le back.
+ */
+export function erreurNomEntreprise(profile: ProfilInscription, valeur: string | null | undefined): string | null {
+  if (profile !== 'FOURNISSEUR') return null;
+  const n = (valeur ?? '').trim().length;
+  if (n < 2) return MESSAGES_COMPTE.nomEntrepriseObligatoire;
+  if (n > 100) return MESSAGES_COMPTE.nomEntrepriseTropLong;
+  return null;
+}
+
+function verifierNomEntreprise(d: { profile: ProfilInscription; nomEntreprise: string }, ctx: z.RefinementCtx) {
+  const message = erreurNomEntreprise(d.profile, d.nomEntreprise);
+  if (message) ctx.addIssue({ code: 'custom', path: ['nomEntreprise'], message });
+}
+
+/**
+ * Inscription libre depuis le mobile : livreur ou fournisseur (F1, avec le
+ * nom de l'entreprise). Un profil inconnu devient LIVREUR. `confirmPassword`
+ * est vérifié au submit.
  */
 export const signupSchema = z
   .object({
@@ -62,8 +92,10 @@ export const signupSchema = z
     username: z.string().trim().min(3, MESSAGES_COMPTE.usernameLongueur).max(50, MESSAGES_COMPTE.usernameLongueur),
     password: motDePasse,
     confirmPassword: z.string(),
-    profile: z.unknown().transform((): 'LIVREUR' => 'LIVREUR'),
+    profile: profilInscription,
+    nomEntreprise,
   })
+  .superRefine(verifierNomEntreprise)
   .refine((d) => d.password === d.confirmPassword, {
     path: ['confirmPassword'],
     message: 'Les mots de passe ne correspondent pas',
@@ -72,16 +104,22 @@ export const signupSchema = z
 export type SignupInput = z.infer<typeof signupSchema>;
 
 /**
- * Inscription en trois étapes (profil, informations, accès) : chaque étape
+ * Inscription en deux étapes (profil et informations, accès) : l'étape 1
  * est vérifiée avant « Continuer », avec les mêmes règles et messages que
- * `signupSchema` (vérifié en entier à l'envoi).
+ * `signupSchema` (vérifié en entier à l'envoi). Fournisseur : le nom de
+ * l'entreprise, en haut du formulaire, est vérifié en premier par l'écran
+ * (`erreurNomEntreprise`), puis par ce schéma.
  */
-export const inscriptionInformationsSchema = z.object({
-  prenom: nomPersonne(MESSAGES_COMPTE.prenomLongueur, MESSAGES_COMPTE.prenomFormat),
-  nom: nomPersonne(MESSAGES_COMPTE.nomLongueur, MESSAGES_COMPTE.nomFormat),
-  contact,
-  email,
-});
+export const inscriptionInformationsSchema = z
+  .object({
+    profile: profilInscription,
+    nomEntreprise,
+    prenom: nomPersonne(MESSAGES_COMPTE.prenomLongueur, MESSAGES_COMPTE.prenomFormat),
+    nom: nomPersonne(MESSAGES_COMPTE.nomLongueur, MESSAGES_COMPTE.nomFormat),
+    contact,
+    email,
+  })
+  .superRefine(verifierNomEntreprise);
 
 
 /**

@@ -4,10 +4,11 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Redirect, Tabs, useNavigationContainerRef, useSegments } from 'expo-router';
 import {
   ACCUEIL_LIVREUR,
+  accueilDuProfil,
+  estProfilFournisseur,
   estProfilPortailWeb,
   GROUPE_LIVREUR,
   ongletVisible,
-  PORTAIL_WEB,
   redirectionRacine,
 } from '../../lib/navigation';
 import { estResponsable } from '../../features/organisation/regles';
@@ -59,9 +60,11 @@ export default function LivreurLayout() {
     startWatching();
   }, []);
 
-  // ADMIN / FOURNISSEUR : pas d'onglets livreur (aucune requête livreur
-  // lancée), écran « Utilisez le portail web » à la place.
-  if (estProfilPortailWeb(user?.profile)) return <Redirect href={PORTAIL_WEB as never} />;
+  // ADMIN (écran « Utilisez le portail web ») ou FOURNISSEUR (son espace, F1) :
+  // pas d'onglets livreur (aucune requête livreur lancée).
+  if (estProfilPortailWeb(user?.profile) || estProfilFournisseur(user?.profile)) {
+    return <Redirect href={accueilDuProfil(user?.profile) as never} />;
+  }
 
   // Responsable (O15) : garde au rendu. Un écran hors de son espace (lien
   // profond vers une vente…) n'est jamais monté : retour à son Accueil avant

@@ -36,6 +36,11 @@ import { libelleAbonnement } from '../../../features/abonnement/regles';
  * fiche client / fab, etc.) et persistés au prochain démarrage.
  */
 export default function ModifierInfos() {
+  return <EcranModifierInfos />;
+}
+
+/** Écran partagé avec l'espace fournisseur (F2, Moi) : `retour` = page Moi de l'espace. */
+export function EcranModifierInfos({ retour = '/(livreur)/profil' }: { retour?: string }) {
   const user = useAuthStore((s) => s.user);
 
   const [prenom, setPrenom] = useState(user?.prenom ?? '');
@@ -55,7 +60,7 @@ export default function ModifierInfos() {
       await AsyncStorage.setItem('user', JSON.stringify(merged));
 
       dialog.success('Tes informations ont été mises à jour.');
-      revenirA('/(livreur)/profil');
+      revenirA(retour);
     },
     onError: (err: unknown) => {
       dialog.error('Erreur', extractApiErrorMessage(err, 'Mise à jour impossible'));

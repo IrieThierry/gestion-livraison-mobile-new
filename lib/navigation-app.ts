@@ -5,6 +5,9 @@ import { useAuthStore } from '../stores/authStore';
 import { estResponsable } from '../features/organisation/regles';
 import {
   ACCUEIL,
+  ACCUEIL_FOURNISSEUR,
+  estCheminFournisseur,
+  parentFournisseur,
   actionNaviguer,
   actionOuvrir,
   actionRetour,
@@ -130,6 +133,8 @@ export function revenirApresEnregistrement(liste: string, origine?: string | nul
  * navigation n'est pas disponible.
  */
 export function retourParent(chemin?: string): boolean {
+  // F1 : espace fournisseur (piles par onglet, sans état d'onglets livreur).
+  if (chemin && estCheminFournisseur(chemin)) return retourFournisseur(chemin);
   const t = onglets();
   if (t && ref) {
     if (!ecranActif(t)) return false;
@@ -148,6 +153,22 @@ export function retourParent(chemin?: string): boolean {
     return false;
   }
   revenirA(parent);
+  return true;
+}
+
+/**
+ * Retour dans l'espace fournisseur (F1) : parent logique de
+ * `ROUTES_FOURNISSEUR`. Accueil → false (quitter l'application). Parent =
+ * Accueil → onglet Accueil. Sinon l'écran précédent de la pile s'il existe
+ * (c'est le parent : liste → fiche → formulaire, ou l'écran d'origine),
+ * à défaut le parent.
+ */
+export function retourFournisseur(chemin: string): boolean {
+  const parent = parentFournisseur(chemin);
+  if (parent === null) return false;
+  if (parent === ACCUEIL_FOURNISSEUR) router.navigate(ACCUEIL_FOURNISSEUR as never);
+  else if (router.canGoBack()) router.back();
+  else router.navigate(parent as never);
   return true;
 }
 

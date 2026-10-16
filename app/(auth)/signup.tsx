@@ -7,7 +7,13 @@ import { useMutation } from '@tanstack/react-query';
 import { ChevronLeft, Eye, EyeOff } from 'lucide-react-native';
 import { FormScreen } from '../../components/shared/FormScreen';
 import { authApi } from '../../features/auth/api';
-import { inscriptionInformationsSchema, MESSAGES_COMPTE, signupSchema } from '../../features/auth/schemas';
+import {
+  erreurNomEntreprise,
+  inscriptionInformationsSchema,
+  MESSAGES_COMPTE,
+  signupSchema,
+  type ProfilInscription,
+} from '../../features/auth/schemas';
 import { extractApiErrorMessage } from '../../lib/api-error';
 import { dialog } from '../../lib/dialog';
 import { creerVerrou, lancerUneFois } from '../../features/commandes/verrou';
@@ -25,13 +31,19 @@ const OMBRE_CARTE = {
 
 type Etape = 1 | 2;
 
-/** Profils proposés sur le mobile : livreur seulement (le fournisseur s'inscrit sur le portail web). */
-const PROFILS = [
+/** Profils proposés sur le mobile (F1) : livreur et fournisseur (l'entreprise s'inscrit sur le portail web). */
+const PROFILS: ReadonlyArray<{ id: ProfilInscription; court: string; titre: string; texte: string }> = [
   {
-    id: 'LIVREUR' as const,
+    id: 'LIVREUR',
     court: 'LIV',
     titre: 'Livreur',
     texte: 'Je livre mes clients avec mon camion, seul ou avec des apprentis.',
+  },
+  {
+    id: 'FOURNISSEUR',
+    court: 'FRN',
+    titre: 'Fournisseur',
+    texte: 'Je vends mes produits à des livreurs partenaires.',
   },
 ];
 
@@ -41,9 +53,10 @@ const TITRES: Record<Etape, string> = {
 };
 
 /**
- * Inscription libre d'un livreur en deux étapes, assortie à la connexion
- * (bandeau vert) : 1. profil et informations (prénom, nom, téléphone,
- * email facultatif), 2. accès (nom d'utilisateur, mot de passe,
+ * Inscription libre d'un livreur ou d'un fournisseur (F1) en deux étapes,
+ * assortie à la connexion (bandeau vert) : 1. profil (cartes « Livreur » et
+ * « Fournisseur ») et informations (nom de l'entreprise pour un fournisseur,
+ * prénom, nom, téléphone, email facultatif), 2. accès (nom d'utilisateur, mot de passe,
  * confirmation) puis « Créer mon compte ». L'étape 1 est vérifiée avant
  * « Continuer » ; le retour (flèche ou bouton Android) ramène à l'étape
  * précédente sans perdre la saisie, et à la connexion depuis l'étape 1.
@@ -53,7 +66,8 @@ const TITRES: Record<Etape, string> = {
 export default function Signup() {
   const insets = useSafeAreaInsets();
   const [etape, setEtape] = useState<Etape>(1);
-  const [profil, setProfil] = useState<'LIVREUR'>('LIVREUR');
+  const [profil, setProfil] = useState<ProfilInscription>('LIVREUR');
+  const [nomEntreprise, setNomEntreprise] = useState('');
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
   const [contact, setContact] = useState('');
@@ -103,7 +117,13 @@ export default function Signup() {
     dialog.warning('Champs invalides', message ?? 'Vérifie les informations saisies.');
 
   const continuer = () => {
-    const infos = inscriptionInformationsSchema.safeParse({ prenom, nom, contact, email });
+    // Fournisseur : le nom de l'entreprise, en haut du formulaire, d'abord.
+    const erreurEntreprise = erreurNomEntreprise(profil, nomEntreprise);
+    if (erreurEntreprise) {
+      avertir(erreurEntreprise);
+      return;
+    }
+    const infos = inscriptionInformationsSchema.safeParse({ profile: profil, nomEntreprise, prenom, nom, contact, email });
     if (!infos.success) {
       avertir(infos.error.issues[0]?.message);
       return;
@@ -121,6 +141,7 @@ export default function Signup() {
       password,
       confirmPassword,
       profile: profil,
+      nomEntreprise,
     });
     if (!parsed.success) {
       avertir(parsed.error.issues[0]?.message);
@@ -220,14 +241,19 @@ export default function Signup() {
                 </Pressable>
               );
             })}
-            <Text className="text-[13px] text-[#5b665f] dark:text-slate-400 text-center mt-1">
-              Fournisseur ? Inscris-toi sur le portail web.
-            </Text>
           </View>
           <View
             className="mt-4 mx-4 bg-white dark:bg-slate-900 rounded-3xl px-[18px] py-[22px] gap-3.5"
             style={OMBRE_CARTE}
           >
+                {profil === 'FOURNISSEUR' ? (
+                  <Champ
+                    label="Nom de l'entreprise"
+                    value={nomEntreprise}
+                    onChange={setNomEntreprise}
+                    placeholder="ex. Boulangerie 2000"
+                  />
+                ) : null}
                 <Champ label="Prénom" value={prenom} onChange={setPrenom} placeholder="Marc" />
                 <Champ label="Nom" value={nom} onChange={setNom} placeholder="Konan" />
                 <Champ

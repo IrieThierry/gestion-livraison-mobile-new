@@ -1483,3 +1483,69 @@ export interface NotificationResponse {
 export interface CompteNonLuesResponse {
   nonLues: number
 }
+
+// ---------------------------------------------------------------------------
+// Espace fournisseur (F1-F3) : routes `/fournisseur/me/**`, mêmes formes que le web
+// ---------------------------------------------------------------------------
+
+/** `GET /fournisseur/me/invitations` : invitation EN_ATTENTE adressée au fournisseur connecté. */
+export interface InvitationResponse {
+  id: UUID
+  dateInvitation: string
+  livreur: { id: UUID; nom: string; prenom: string; contact: string }
+}
+
+/** Ligne de `GET /fournisseur/me/livreurs-partenaires` : relation acceptée, bloqués compris. */
+export interface LivreurPartenaireDuResponse {
+  livreur: { id: UUID; nom: string; prenom: string | null; contact: string | null }
+  bloque: boolean
+  /** Remise livreur actuelle par unité (0 si aucune). */
+  remiseUnitaire: number
+  /** Σ (prix + remise) reçus. */
+  totalRecu: number
+  totalVerse: number
+  /** totalRecu − totalVerse ; négatif = avance. */
+  du: number
+  /** Remise livrée moins remise déjà reversée (hors dû). */
+  remiseAReverser: number
+  dernierVersement: string | null
+}
+
+/** Agrégat des versements d'un livreur (`topLivreurs` de la synthèse). */
+export interface LivreurPartenaireResponse {
+  livreurId: UUID
+  nom: string
+  prenom: string
+  totalVerse: number
+  remiseLivreurCumulee: number
+  nbVersements: number
+}
+
+/** `GET /fournisseur/me/synthese?mois=yyyy-MM`. */
+export interface SyntheseFournisseurResponse {
+  annee: number
+  mois: number
+  totalVerse: number
+  remiseLivreurCumuleeMois: number
+  remiseLivreurDejaReversee: number
+  remiseLivreurAReverser: number
+  nbVersements: number
+  nbLivreursActifs: number
+  topLivreurs: LivreurPartenaireResponse[]
+}
+
+export interface LigneLivreurDuResponse {
+  livreurId: UUID
+  prenom: string
+  nom: string
+  remiseLivreurCumuleeMois: number
+  detteCourante: number
+  montantNetAReverser: number
+}
+
+/** `GET /fournisseur/me/reversements-synthese?mois=yyyy-MM`. */
+export interface ReversementsSyntheseFournisseurResponse {
+  annee: number
+  mois: number
+  aReverserAuxLivreurs: LigneLivreurDuResponse[]
+}

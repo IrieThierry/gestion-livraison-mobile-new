@@ -207,3 +207,29 @@ describe('sans navigateur branché (repli sur le routeur)', () => {
     expect(retourParent('/')).toBe(false);
   });
 });
+
+describe('espace fournisseur (F1) : retour au parent logique', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('Accueil : rien (le système quitte l’application) ; onglet ou Notifications → Accueil', () => {
+    expect(retourParent('/fournisseur')).toBe(false);
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(retourParent('/fournisseur/commandes')).toBe(true);
+    expect(router.navigate).toHaveBeenLastCalledWith('/fournisseur');
+    expect(retourParent('/fournisseur/notifications')).toBe(true);
+    expect(router.navigate).toHaveBeenLastCalledWith('/fournisseur');
+  });
+
+  it('formulaire de Moi : écran précédent de la pile s’il existe, sinon Moi', () => {
+    (router.canGoBack as jest.Mock).mockReturnValueOnce(true);
+    expect(retourParent('/fournisseur/moi/infos')).toBe(true);
+    expect(router.back).toHaveBeenCalledTimes(1);
+    expect(retourParent('/fournisseur/moi/password')).toBe(true);
+    expect(router.navigate).toHaveBeenLastCalledWith('/fournisseur/moi');
+  });
+
+  it('revenirA après un enregistrement : la page Moi de l’espace', () => {
+    revenirA('/fournisseur/moi');
+    expect(router.dismissTo).toHaveBeenCalledWith('/fournisseur/moi');
+  });
+});

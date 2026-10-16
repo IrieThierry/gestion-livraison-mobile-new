@@ -26,8 +26,10 @@ export interface RegisterRequest {
   email: string;
   username: string;
   password: string;
-  /** Le mobile n'inscrit que des livreurs (le fournisseur s'inscrit sur le portail web). */
-  profile: 'LIVREUR';
+  /** F1 : livreur ou fournisseur (l'entreprise reste sur le portail web). */
+  profile: 'LIVREUR' | 'FOURNISSEUR';
+  /** Fournisseur seulement (2 à 100 caractères) : le back crée sa fiche (A6). */
+  nomEntreprise?: string;
 }
 
 export const authApi = {
@@ -38,13 +40,18 @@ export const authApi = {
   },
 
   /**
-   * Inscription libre d'un livreur : le back crée un compte utilisable tout
-   * de suite, avec un abonnement en essai. Réponse 201
-   * `{ message: 'Compte créé. Vous pouvez vous connecter.' }`.
+   * Inscription libre d'un livreur ou d'un fournisseur (F1) : le back crée un
+   * compte utilisable tout de suite, avec un abonnement en essai (et la fiche
+   * du fournisseur). Réponse 201
+   * `{ message: 'Compte créé. Vous pouvez vous connecter.' }`. Le nom de
+   * l'entreprise n'est envoyé que pour un fournisseur, comme sur le web.
    */
   register: async (input: SignupInput): Promise<{ message: string }> => {
-    const { confirmPassword: _confirm, ...payload } = input;
-    const body: RegisterRequest = { ...payload, profile: 'LIVREUR' };
+    const { confirmPassword: _confirm, nomEntreprise, ...payload } = input;
+    const body: RegisterRequest =
+      payload.profile === 'FOURNISSEUR'
+        ? { ...payload, profile: 'FOURNISSEUR', nomEntreprise: (nomEntreprise ?? '').trim() }
+        : { ...payload, profile: 'LIVREUR' };
     const { data } = await apiClient.post<{ message: string }>('/auth/register', body);
     return data;
   },
