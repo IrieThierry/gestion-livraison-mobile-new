@@ -74,8 +74,9 @@ export default function PrixParticuliersLivreur() {
 
 function LignePrix({ ligne, livreurId }: { ligne: PrixParticulierLivreurResponse; livreurId: UUID }) {
   const isOnline = useNetworkStore((s) => s.isOnline);
-  const mEnregistrer = useEnregistrerPrixParticulier();
-  const mSupprimer = useSupprimerPrixParticulier();
+  // Messages au niveau de la mutation : la liste relue peut remonter la ligne avant les rappels de mutate().
+  const mEnregistrer = useEnregistrerPrixParticulier(() => dialog.success('Prix particulier enregistré'));
+  const mSupprimer = useSupprimerPrixParticulier(() => dialog.success('Prix particulier supprimé'));
   const verrou = useRef(creerVerrou()).current;
   // Dernier prix confirmé par le back : un double appui traité avant la liste relue ne renvoie pas le même prix.
   const confirme = useRef<number | null>(ligne.prixParticulier);
@@ -107,7 +108,6 @@ function LignePrix({ ligne, livreurId }: { ligne: PrixParticulierLivreurResponse
           onSuccess: () => {
             confirme.current = valeur;
             setPrixConfirme(valeur);
-            dialog.success('Prix particulier enregistré');
           },
           onError: (e) => dialog.error('Erreur', extractApiErrorMessage(e, "Impossible d'enregistrer ce prix particulier")),
           onSettled: fin,
@@ -127,7 +127,6 @@ function LignePrix({ ligne, livreurId }: { ligne: PrixParticulierLivreurResponse
             confirme.current = null;
             setPrixConfirme(null);
             setSaisie('');
-            dialog.success('Prix particulier supprimé');
           },
           onError: (e) => dialog.error('Erreur', extractApiErrorMessage(e, 'Impossible de supprimer ce prix particulier')),
           onSettled: fin,

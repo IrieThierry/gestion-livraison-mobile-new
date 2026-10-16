@@ -6,6 +6,7 @@ import { accueilDuProfil, estProfilFournisseur } from '../../lib/navigation';
 import { useRetourMateriel } from '../../lib/navigation-app';
 import { listenersRacineOnglet } from '../../lib/onglets';
 import { OfflineBanner } from '../../components/shared/OfflineBanner';
+import { PreparationRecuBanner } from '../../components/shared/PreparationRecuBanner';
 import { useATraiterFournisseur } from '../../components/fournisseur/ATraiterFournisseur';
 import { useNetworkStore } from '../../stores/networkStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -46,6 +47,8 @@ function Onglets({ isDark, insetBas }: { isDark: boolean; insetBas: number }) {
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-slate-50 dark:bg-slate-950">
       <OfflineBanner />
+      {/* Reçu de reversement en préparation (Argent → Reversements). */}
+      <PreparationRecuBanner />
       <Tabs
         initialRouteName="index"
         backBehavior="firstRoute"

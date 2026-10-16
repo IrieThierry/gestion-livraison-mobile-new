@@ -29,7 +29,10 @@ import { useNetworkStore } from '../../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
 import { dialog } from '../../../../lib/dialog';
 import { retourParent } from '../../../../lib/navigation-app';
-import type { ProduitResponse } from '../../../../types/api';
+import { useUploadPhotoCatalogue } from '../../../../features/photos/hooks';
+import { MESSAGE_PHOTO_NON_ENVOYEE, verifierPhotoProduit } from '../../../../features/produits/photo';
+import { pickImage, type PickedImage } from '../../../../lib/image-picker';
+import type { LigneCatalogueFournisseurResponse, ProduitResponse } from '../../../../types/api';
 
 const LABEL = 'text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mb-2';
 const CHAMP =
@@ -60,6 +63,17 @@ export default function AjouterProduitCatalogue() {
   const [designation, setDesignation] = useState('');
   const [prix, setPrix] = useState('');
   const [tente, setTente] = useState(false);
+  const [photo, setPhoto] = useState<PickedImage | null>(null);
+  const [erreurPhoto, setErreurPhoto] = useState<string | null>(null);
+  const envoyerPhoto = useUploadPhotoCatalogue();
+
+  const choisirPhoto = async () => {
+    const choisie = await pickImage({ aspect: [1, 1] });
+    if (!choisie) return;
+    const refus = verifierPhotoProduit(choisie);
+    setErreurPhoto(refus);
+    if (!refus) setPhoto(choisie);
+  };
 
   const lignes = useMemo(() => lignesParProduit(catalogueQ.data), [catalogueQ.data]);
   const resultats = useMemo(
@@ -71,7 +85,7 @@ export default function AjouterProduitCatalogue() {
   const doublon = mode === 'nouveau' ? doublonDe(produitsQ.data, designation) : null;
   const lecturePrix = lirePrixDeVente(prix);
   const erreurNom = erreurDesignation(designation);
-  const enCours = activer.isPending || creer.isPending || reactiver.isPending;
+  const enCours = activer.isPending || creer.isPending || reactiver.isPending || envoyerPhoto.isPending;
   const aucunSelectionnable = resultats.length > 0 && resultats.every((p) => etatProduit(p, lignes) === 'deja');
 
   const choisir = (p: ProduitResponse) => {
@@ -118,8 +132,36 @@ export default function AjouterProduitCatalogue() {
     };
     if (mode === 'nouveau') {
       if (erreurNom || doublon) return;
+      const fichier = photo;
       lancerUneFois(verrou, (fin) =>
-        creer.mutate({ designation: nettoyerDesignation(designation), prixDeVente }, { ...options, onSettled: fin }),
+        creer.mutate(
+          { designation: nettoyerDesignation(designation), prixDeVente },
+          {
+            onSuccess: (ligneCreee?: LigneCatalogueFournisseurResponse) => {
+              if (!fichier || !ligneCreee) {
+                options.onSuccess();
+                fin();
+                return;
+              }
+              // Le produit est créé : un échec de la photo ne l'annule pas, elle s'ajoute ensuite depuis Modifier.
+              envoyerPhoto.mutate(
+                { ligneId: ligneCreee.id, uri: fichier.uri, name: fichier.name },
+                {
+                  onSuccess: options.onSuccess,
+                  onError: () => {
+                    dialog.warning('Photo non envoyée', MESSAGE_PHOTO_NON_ENVOYEE);
+                    retourParent(pathname);
+                  },
+                  onSettled: fin,
+                },
+              );
+            },
+            onError: (e: unknown) => {
+              options.onError(e);
+              fin();
+            },
+          },
+        ),
       );
       return;
     }
@@ -278,6 +320,44 @@ export default function AjouterProduitCatalogue() {
               ) : tente && erreurNom ? (
                 <Text className="text-[12px] text-red-600 dark:text-red-400 mt-1">{erreurNom}</Text>
               ) : null}
+
+              <Text className={`${LABEL} mt-4`}>Photo (facultative)</Text>
+              <View className="flex-row items-center gap-3">
+                <ProduitVignette designation={designation} photoUrl={photo?.uri} size={48} />
+                <View className="flex-1 gap-1">
+                  <Text className="text-[11px] text-slate-500 dark:text-slate-400">JPEG ou PNG, 10 Mo au plus.</Text>
+                  <View className="flex-row gap-3">
+                    <Pressable
+                      onPress={() => void choisirPhoto()}
+                      accessibilityRole="button"
+                      accessibilityLabel={photo ? 'Changer la photo' : 'Choisir une photo'}
+                      className="active:opacity-70"
+                    >
+                      <Text className="text-[12px] font-bold text-emerald-700 dark:text-emerald-400">
+                        {photo ? 'Changer la photo' : 'Choisir une photo'}
+                      </Text>
+                    </Pressable>
+                    {photo ? (
+                      <Pressable
+                        onPress={() => {
+                          setPhoto(null);
+                          setErreurPhoto(null);
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Retirer la photo"
+                        className="active:opacity-70"
+                      >
+                        <Text className="text-[12px] font-bold text-red-600 dark:text-red-400">Retirer la photo</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                  {erreurPhoto ? (
+                    <Text accessibilityRole="alert" className="text-[12px] text-red-600 dark:text-red-400">
+                      {erreurPhoto}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
             </View>
           )}
 

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { PageHeader } from '../shared/PageHeader';
 import { FormScreen } from '../shared/FormScreen';
@@ -74,12 +74,32 @@ export function DetailCommandeFournisseur({ id }: { id: UUID | undefined }) {
   const [erreurMotif, setErreurMotif] = useState<string | null>(null);
 
   const commande = q.data?.find((c) => c.id === id);
+  const refusable = !!commande && peutRefuser(commande);
+
+  // Lien profond (notification) sur une liste en cache qui n'a pas encore la commande :
+  // une relecture, une seule fois, avant d'afficher « introuvable ».
+  const [relue, setRelue] = useState(false);
+  const absente = !commande && !!q.data && !q.isLoading && !q.isFetching;
+  useEffect(() => {
+    if (absente && !relue) {
+      setRelue(true);
+      q.refetch();
+    }
+  }, [absente, relue, q]);
+
+  // La commande a changé de statut (relue) : le panneau Refuser n'a plus lieu d'être.
+  useEffect(() => {
+    if (!refusable) {
+      setMotif(null);
+      setErreurMotif(null);
+    }
+  }, [refusable]);
 
   if (!commande) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
         <PageHeader title="Commande" />
-        {q.isLoading ? (
+        {q.isLoading || q.isFetching || (absente && !relue) ? (
           <Text className="text-slate-400 text-sm px-4 pt-4">Chargement…</Text>
         ) : q.isError ? (
           <EmptyState title="Commande indisponible" message={extractApiErrorMessage(q.error, 'Commandes indisponibles')} />
@@ -194,7 +214,7 @@ export function DetailCommandeFournisseur({ id }: { id: UUID | undefined }) {
             </>
           ) : null}
 
-          {motif !== null ? (
+          {motif !== null && refusable ? (
             <View className={`${CARTE} p-4 mt-5`}>
               <Text className="font-extrabold text-slate-900 dark:text-white text-[14px]">
                 Refuser la commande {commande.reference}

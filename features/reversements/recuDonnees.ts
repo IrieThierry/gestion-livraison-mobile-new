@@ -70,6 +70,21 @@ async function commandesDeLaPeriode(r: ReversementRecord, editeur: EditeurRecu, 
     : get<CommandeResponse[]>('/commande/me', { fournisseurId: r.beneficiaireId, debut: p.debut, fin: p.fin });
 }
 
+/**
+ * FM3, espace fournisseur : détail d'un reversement fait à un livreur, comme le portail web
+ * (`recu-donnees.ts`, profil FOURNISSEUR) : toutes les commandes de ce livreur chez lui
+ * (la route n'a pas de période), filtrées ensuite sur la période. Pas de détail client.
+ */
+export async function chargerDetailRecuFournisseur(r: ReversementRecord): Promise<DetailRecu> {
+  const periode = periodeDuReversement(r);
+  if (!periode) return DETAIL_AUCUN;
+  if (r.type === 'CLIENT') throw new Error('Détail client non lisible depuis l’espace fournisseur');
+  const commandes = r.livreurId
+    ? await get<CommandeResponse[]>(`/fournisseur/me/livreurs/${r.livreurId}/commandes`, {})
+    : [];
+  return detailLivreur(commandes, { livreurId: null, fournisseurId: null }, periode);
+}
+
 /** Détail du reçu (« aucun » sans période). Rejette si une lecture échoue. */
 export async function chargerDetailRecu(r: ReversementRecord, editeur: EditeurRecu): Promise<DetailRecu> {
   const periode = periodeDuReversement(r);

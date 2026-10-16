@@ -1,5 +1,5 @@
 import { apiClient } from '../../lib/api-client';
-import { chargerDetailRecu } from './recuDonnees';
+import { chargerDetailRecu, chargerDetailRecuFournisseur } from './recuDonnees';
 import type { ReversementRecord } from '../../types/api';
 
 jest.mock('../../lib/api-client', () => ({ apiClient: { get: jest.fn() } }));
@@ -84,5 +84,46 @@ describe('chargerDetailRecu', () => {
   it('lecture en échec : l’erreur est propagée (l’appelant édite « Détail indisponible »)', async () => {
     get.mockRejectedValue(new Error('Network Error'));
     await expect(chargerDetailRecu(reversement({}), RACINE)).rejects.toThrow('Network Error');
+  });
+});
+
+describe('FM3 : chargerDetailRecuFournisseur (espace fournisseur, comme le portail web)', () => {
+  it('commandes du livreur chez le fournisseur (sans période côté route), filtrées sur le mois', async () => {
+    get.mockResolvedValueOnce({
+      data: [
+        {
+          id: 'c1',
+          reference: 'CMDE-1',
+          date: '2026-10-02T08:00:00',
+          livreur: { id: 'liv-1' },
+          fournisseur: { id: 'f1' },
+          receptions: [
+            {
+              annulee: false,
+              dateReception: '2026-10-03T08:00:00',
+              lignes: [{ produit: { id: 'p1', designation: 'Pain' }, quantite: 10, prixUnitaire: 200 }],
+            },
+            {
+              annulee: false,
+              dateReception: '2026-09-28T08:00:00',
+              lignes: [{ produit: { id: 'p1', designation: 'Pain' }, quantite: 5, prixUnitaire: 200 }],
+            },
+          ],
+        },
+      ],
+    });
+    const d = await chargerDetailRecuFournisseur(reversement({ type: 'FOURNISSEUR', beneficiaireId: 'liv-1' }));
+    expect(get).toHaveBeenCalledWith('/fournisseur/me/livreurs/liv-1/commandes', { params: {} });
+    expect(d).toEqual(expect.objectContaining({ type: 'livreur', totaux: { quantite: 10, montant: 2000 } }));
+  });
+
+  it('sans période : aucun détail ; sans livreur : détail vide ; client : non lisible', async () => {
+    await expect(
+      chargerDetailRecuFournisseur(reversement({ type: 'FOURNISSEUR', periodeMois: 0 as never })),
+    ).resolves.toEqual({ type: 'aucun' });
+    const vide = await chargerDetailRecuFournisseur(reversement({ type: 'FOURNISSEUR', livreurId: null }));
+    expect(vide).toEqual(expect.objectContaining({ type: 'livreur', commandes: [] }));
+    expect(get).not.toHaveBeenCalled();
+    await expect(chargerDetailRecuFournisseur(reversement({}))).rejects.toThrow();
   });
 });

@@ -7,6 +7,7 @@ import { EmptyState } from '../../../../components/shared/EmptyState';
 import { ProduitVignette } from '../../../../components/shared/ProduitVignette';
 import {
   useCatalogueFournisseur,
+  useFournisseurProfil,
   useModifierLigneCatalogue,
   useRenommerProduit,
 } from '../../../../features/fournisseur/hooks';
@@ -16,6 +17,9 @@ import {
   nettoyerDesignation,
 } from '../../../../features/fournisseur/catalogue';
 import { lirePrixDeVente } from '../../../../features/fournisseur/gestion';
+import { useSupprimerPhotoCatalogue, useUploadPhotoCatalogue } from '../../../../features/photos/hooks';
+import { MESSAGE_PHOTO_ADMIN, verifierPhotoProduit } from '../../../../features/produits/photo';
+import { pickImage } from '../../../../lib/image-picker';
 import { creerVerrou, lancerUneFois } from '../../../../features/commandes/verrou';
 import { useNetworkStore } from '../../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../../lib/api-error';
@@ -126,14 +130,12 @@ function Formulaire({ ligne }: { ligne: LigneCatalogueFournisseurResponse }) {
       <PageHeader title="Modifier le produit" subtitle={`${ligne.produit.code} · ${ligne.produit.designation}`} />
       <FormScreen>
         <View className="px-4 pt-3 gap-3">
-          <View className="flex-row items-center gap-3">
-            <ProduitVignette designation={ligne.produit.designation} photoUrl={ligne.produit.photoUrl} size={56} />
-            {!ligne.actif ? (
-              <Text className="flex-1 text-[12px] text-amber-700 dark:text-amber-400">
-                Produit inactif : ce prix s’appliquera à la réactivation.
-              </Text>
-            ) : null}
-          </View>
+          <PhotoDuProduit ligne={ligne} />
+          {!ligne.actif ? (
+            <Text className="text-[12px] text-amber-700 dark:text-amber-400">
+              Produit inactif : ce prix s’appliquera à la réactivation.
+            </Text>
+          ) : null}
 
           <View>
             <Text className={LABEL}>Désignation</Text>
@@ -182,10 +184,6 @@ function Formulaire({ ligne }: { ligne: LigneCatalogueFournisseurResponse }) {
             </Text>
           ) : null}
 
-          <Text className="text-[11px] text-slate-500 dark:text-slate-400">
-            La photo d’un produit se gère sur le portail web.
-          </Text>
-
           <Pressable
             onPress={enregistrer}
             disabled={desactive}
@@ -205,6 +203,110 @@ function Formulaire({ ligne }: { ligne: LigneCatalogueFournisseurResponse }) {
           </Pressable>
         </View>
       </FormScreen>
+    </View>
+  );
+}
+
+/**
+ * Photo du produit, enregistrée dès le choix (comme le web) : modifiable seulement pour un produit
+ * créé par ce fournisseur (le back refuse les autres, 403) ; sinon « gérée par l'administrateur ».
+ * Profil pas encore lu : rien à côté de la vignette.
+ */
+function PhotoDuProduit({ ligne }: { ligne: LigneCatalogueFournisseurResponse }) {
+  const isOnline = useNetworkStore((s) => s.isOnline);
+  const profil = useFournisseurProfil().data;
+  const envoyer = useUploadPhotoCatalogue();
+  const supprimer = useSupprimerPhotoCatalogue();
+  const verrou = useRef(creerVerrou()).current;
+  const [erreur, setErreur] = useState<string | null>(null);
+  const aUnePhoto = !!ligne.produit.photoUrl;
+  const modifiable = profil ? ligne.produit.creeParFournisseurId === profil.id : null;
+  const enCours = envoyer.isPending || supprimer.isPending;
+  const actif = isOnline && !enCours;
+
+  const choisir = async () => {
+    const photo = await pickImage({ aspect: [1, 1] });
+    if (!photo) return;
+    const refus = verifierPhotoProduit(photo);
+    if (refus) {
+      setErreur(refus);
+      return;
+    }
+    setErreur(null);
+    lancerUneFois(verrou, (fin) =>
+      envoyer.mutate(
+        { ligneId: ligne.id, uri: photo.uri, name: photo.name },
+        {
+          onSuccess: () => dialog.success('Photo du produit mise à jour'),
+          onError: (e: unknown) => setErreur(extractApiErrorMessage(e, 'Envoi de la photo impossible')),
+          onSettled: fin,
+        },
+      ),
+    );
+  };
+
+  const retirer = () =>
+    dialog.confirm({
+      title: 'Supprimer la photo ?',
+      message: 'Le produit retombera sur son initiale.',
+      confirmLabel: 'Supprimer',
+      destructive: true,
+      onConfirm: () =>
+        lancerUneFois(verrou, (fin) => {
+          setErreur(null);
+          supprimer.mutate(ligne.id, {
+            onSuccess: () => dialog.success('Photo supprimée'),
+            onError: (e: unknown) => setErreur(extractApiErrorMessage(e, 'Suppression de la photo impossible')),
+            onSettled: fin,
+          });
+        }),
+    });
+
+  return (
+    <View className="flex-row items-center gap-3">
+      <ProduitVignette designation={ligne.produit.designation} photoUrl={ligne.produit.photoUrl} size={56} />
+      {modifiable === null ? null : modifiable ? (
+        <View className="flex-1 gap-1">
+          <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+            JPEG ou PNG, 10 Mo au plus. Enregistrée dès le choix.
+          </Text>
+          <View className="flex-row flex-wrap gap-3">
+            <Pressable
+              onPress={() => void choisir()}
+              disabled={!actif}
+              accessibilityRole="button"
+              accessibilityLabel={aUnePhoto ? 'Changer la photo' : 'Choisir une photo'}
+              className={actif ? 'active:opacity-70' : 'opacity-40'}
+            >
+              {envoyer.isPending ? (
+                <ActivityIndicator color="#047857" size="small" />
+              ) : (
+                <Text className="text-[12px] font-bold text-emerald-700 dark:text-emerald-400">
+                  {aUnePhoto ? 'Changer la photo' : 'Choisir une photo'}
+                </Text>
+              )}
+            </Pressable>
+            {aUnePhoto ? (
+              <Pressable
+                onPress={retirer}
+                disabled={!actif}
+                accessibilityRole="button"
+                accessibilityLabel="Supprimer la photo"
+                className={actif ? 'active:opacity-70' : 'opacity-40'}
+              >
+                <Text className="text-[12px] font-bold text-red-600 dark:text-red-400">Supprimer la photo</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          {erreur ? (
+            <Text accessibilityRole="alert" className="text-[12px] text-red-600 dark:text-red-400">
+              {erreur}
+            </Text>
+          ) : null}
+        </View>
+      ) : (
+        <Text className="flex-1 text-[11px] text-slate-500 dark:text-slate-400">{MESSAGE_PHOTO_ADMIN}</Text>
+      )}
     </View>
   );
 }

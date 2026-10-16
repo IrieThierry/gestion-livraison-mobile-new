@@ -117,7 +117,9 @@ export function FormulaireVersementRecu({ livreurIdFixe }: { livreurIdFixe?: UUI
                 options={options}
                 onChange={(v) => {
                   setLivreurChoisi(v);
+                  // Commandes et montant (« Tout le dû ») propres au livreur précédent : remis à zéro.
                   setSelection(new Set());
+                  setMontant('');
                 }}
                 isLoading={partenairesQ.isLoading}
                 emptyMessage="Aucun livreur partenaire pour l’instant"

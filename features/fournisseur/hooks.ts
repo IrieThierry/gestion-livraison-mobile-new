@@ -194,21 +194,31 @@ function invaliderPrixParticuliers(qc: QueryClient) {
   ]);
 }
 
-export function useEnregistrerPrixParticulier() {
+/**
+ * `apresSucces` : appelé au niveau de la mutation (avant la relecture), donc même si la ligne
+ * de l'écran est remontée par la liste relue (les rappels de `mutate()` seraient alors perdus).
+ */
+export function useEnregistrerPrixParticulier(apresSucces?: () => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ pfId, livreurId, prix }: { pfId: UUID; livreurId: UUID; prix: number }) =>
       fournisseurMeApi.enregistrerPrixParticulier(pfId, livreurId, prix),
-    onSuccess: () => invaliderPrixParticuliers(qc),
+    onSuccess: () => {
+      apresSucces?.();
+      return invaliderPrixParticuliers(qc);
+    },
   });
 }
 
-export function useSupprimerPrixParticulier() {
+export function useSupprimerPrixParticulier(apresSucces?: () => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ pfId, livreurId }: { pfId: UUID; livreurId: UUID }) =>
       fournisseurMeApi.supprimerPrixParticulier(pfId, livreurId),
-    onSuccess: () => invaliderPrixParticuliers(qc),
+    onSuccess: () => {
+      apresSucces?.();
+      return invaliderPrixParticuliers(qc);
+    },
   });
 }
 

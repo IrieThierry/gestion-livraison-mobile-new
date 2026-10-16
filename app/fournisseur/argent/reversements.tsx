@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
-import { Check } from 'lucide-react-native';
+import { Check, FileText, X } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { SelecteurMois } from '../../../components/fournisseur/SelecteurMois';
@@ -24,7 +24,10 @@ import { useNetworkStore } from '../../../stores/networkStore';
 import { extractApiErrorMessage } from '../../../lib/api-error';
 import { dialog } from '../../../lib/dialog';
 import { formatDateLong, formatFCFA } from '../../../lib/format';
-import type { LigneLivreurDuResponse } from '../../../types/api';
+import { useAnnuaireRecuFournisseur, usePartagerRecuFournisseur } from '../../../features/reversements/useRecuFournisseur';
+import { partiesReversement } from '../../../features/reversements/recu';
+import { useRecuStore } from '../../../stores/recuStore';
+import type { LigneLivreurDuResponse, ReversementRecord } from '../../../types/api';
 
 const SECTION = 'text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400 mt-5 mb-2';
 const CARTE = 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg';
@@ -36,7 +39,8 @@ const CHAMP =
  * aux livreurs » du mois choisi (remise du mois, dette courante, net) avec
  * « Reverser » (montant proposé = net ; le dépasser n'est qu'un avertissement),
  * puis le total reversé et l'historique. Une ligne « Information (saisi par le
- * livreur) » n'est comptée dans aucun total.
+ * livreur) » n'est comptée dans aucun total. Reçu (PDF partagé) : proposé juste
+ * après l'enregistrement, et sur chaque ligne de l'historique, comme le web.
  */
 export default function ReversementsFournisseur() {
   const [mois, setMois] = useState(() => moisDe());
@@ -50,11 +54,16 @@ export default function ReversementsFournisseur() {
   const [enCours, setEnCours] = useState<LigneLivreurDuResponse | null>(null);
   const [montant, setMontant] = useState('');
   const [commentaire, setCommentaire] = useState('');
+  /** Dernier reversement enregistré : son reçu est proposé (sans bloquer). */
+  const [dernier, setDernier] = useState<ReversementRecord | null>(null);
 
   const lignes = syntheseQ.data?.aReverserAuxLivreurs ?? [];
   const totalAReverser = lignes.reduce((s, l) => s + (l.montantNetAReverser ?? 0), 0);
   const historique = useMemo(() => trierReversements(historiqueQ.data), [historiqueQ.data]);
   const total = totalReverse(historiqueQ.data);
+  const annuaire = useAnnuaireRecuFournisseur(lignes);
+  const partagerRecu = usePartagerRecuFournisseur(annuaire);
+  const preparation = useRecuStore((s) => s.preparation);
 
   const ouvrir = (l: LigneLivreurDuResponse) => {
     setEnCours(l);
@@ -71,8 +80,9 @@ export default function ReversementsFournisseur() {
     }
     lancerUneFois(verrou, (fin) =>
       m.mutate(r.valeur, {
-        onSuccess: () => {
+        onSuccess: (enregistre?: ReversementRecord) => {
           setEnCours(null);
+          setDernier(enregistre ?? null);
           dialog.success('Reversement enregistré');
         },
         onError: (e: unknown) => dialog.error('Erreur', extractApiErrorMessage(e, 'Création impossible')),
@@ -99,7 +109,40 @@ export default function ReversementsFournisseur() {
           />
         }
       >
-        <SelecteurMois mois={mois} onChange={setMois} />
+        <SelecteurMois
+          mois={mois}
+          onChange={(m2) => {
+            // Le montant proposé est le net du mois affiché : changer de mois ferme le panneau.
+            setEnCours(null);
+            setMois(m2);
+          }}
+        />
+
+        {dernier ? (
+          <View
+            accessibilityLabel="Reçu du reversement enregistré"
+            className="mt-4 p-3 rounded-lg border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/10 gap-2"
+          >
+            <View className="flex-row items-start gap-2">
+              <Text className="flex-1 text-[12px] text-slate-800 dark:text-slate-200">
+                {`Reversement de ${formatFCFA(Number(dernier.montant))} F à ${partiesReversement(dernier, annuaire).beneficiaire.nom} enregistré.`}
+              </Text>
+              <Pressable onPress={() => setDernier(null)} accessibilityRole="button" accessibilityLabel="Fermer" hitSlop={8}>
+                <X color="#64748b" size={16} />
+              </Pressable>
+            </View>
+            <Pressable
+              onPress={() => partagerRecu(dernier)}
+              disabled={preparation === dernier.id}
+              accessibilityRole="button"
+              accessibilityLabel="Partager le reçu"
+              className="self-start flex-row items-center gap-1 bg-emerald-700 rounded-md px-3 py-1.5 active:opacity-80"
+            >
+              {preparation === dernier.id ? <ActivityIndicator color="#fff" size="small" /> : <FileText color="#fff" size={13} />}
+              <Text className="text-white text-[12px] font-bold">Partager le reçu</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         <View className="flex-row items-center justify-between mt-5 mb-2">
           <Text className="text-[10px] uppercase tracking-wide font-semibold text-slate-500 dark:text-slate-400">
@@ -258,6 +301,17 @@ export default function ReversementsFournisseur() {
               {r.commentaire ? (
                 <Text className="text-[11px] italic text-slate-500 dark:text-slate-400 mt-1">{r.commentaire}</Text>
               ) : null}
+              <Pressable
+                onPress={() => partagerRecu(r)}
+                disabled={preparation === r.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Reçu du reversement de ${formatFCFA(Number(r.montant))} F à ${partiesReversement(r, annuaire).beneficiaire.nom}`}
+                accessibilityState={{ busy: preparation === r.id }}
+                className="self-start mt-2 flex-row items-center gap-1 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1 active:opacity-70"
+              >
+                {preparation === r.id ? <ActivityIndicator color="#047857" size="small" /> : <FileText color="#64748b" size={12} />}
+                <Text className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Reçu</Text>
+              </Pressable>
             </View>
           ))
         )}

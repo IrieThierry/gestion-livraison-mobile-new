@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ban, ChevronRight, ClipboardList, HandCoins, Percent, Tags, Unlock } from 'lucide-react-native';
@@ -47,6 +47,15 @@ export default function FicheLivreurPartenaire() {
   const [erreur, setErreur] = useState<string | null>(null);
 
   const p = q.data?.find((x) => x.livreur.id === id);
+  const bloque = !!p?.bloque;
+
+  // Livreur bloqué (relu, ici ou ailleurs) : ni remise ni blocage à saisir, le panneau ouvert se ferme.
+  useEffect(() => {
+    if (bloque) {
+      setPanneau(null);
+      setErreur(null);
+    }
+  }, [bloque]);
 
   if (!p) {
     return (
@@ -161,7 +170,7 @@ export default function FicheLivreurPartenaire() {
 
           <Chiffres partenaire={p} du={du} />
 
-          {panneau === 'remise' ? (
+          {panneau === 'remise' && !p.bloque ? (
             <PanneauSaisie
               titre={`Remise de ${nom}`}
               aide={`Montant par unité que tu rends à ce livreur, pour tous tes produits. Il est figé sur chaque commande à la saisie de la livraison. Remise actuelle : ${formatMontant(p.remiseUnitaire)} F.`}
@@ -204,7 +213,7 @@ export default function FicheLivreurPartenaire() {
             </PanneauSaisie>
           ) : null}
 
-          {panneau === 'bloquer' ? (
+          {panneau === 'bloquer' && !p.bloque ? (
             <PanneauSaisie
               titre={`Bloquer ${nom} ?`}
               aide="Ce livreur ne pourra plus passer de commande auprès de ta boutique. Tu pourras le débloquer à tout moment."

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import ArgentFournisseur from '../../app/fournisseur/argent/index';
 import VersementsRecus from '../../app/fournisseur/argent/versements/index';
 import NouveauVersementRecu from '../../app/fournisseur/argent/versements/nouveau';
@@ -52,6 +52,7 @@ jest.mock('../../stores/authStore', () => ({
 jest.mock('@react-native-community/datetimepicker', () => ({ __esModule: true, default: () => null }));
 
 jest.mock('../../features/fournisseur/hooks', () => ({
+  useFournisseurProfil: jest.fn(),
   useLivreursPartenaires: jest.fn(),
   useCommandesLivreurFournisseur: jest.fn(),
   useSituationVersementFournisseur: jest.fn(),
@@ -82,6 +83,23 @@ jest.mock('../../features/depenses/hooks', () => ({
 }));
 jest.mock('../../features/apprentis/hooks', () => ({ useApprentis: jest.fn() }));
 jest.mock('../../features/produits/hooks', () => ({ useProduits: jest.fn() }));
+const mockEnvoyerPhoto = { mutate: jest.fn(), isPending: false };
+const mockSupprimerPhoto = { mutate: jest.fn(), isPending: false };
+jest.mock('../../features/photos/hooks', () => ({
+  useUploadPhotoCatalogue: () => mockEnvoyerPhoto,
+  useSupprimerPhotoCatalogue: () => mockSupprimerPhoto,
+}));
+const mockPick = jest.fn();
+jest.mock('../../lib/image-picker', () => ({ pickImage: (...a: unknown[]) => mockPick(...a) }));
+const mockPartagerRecu = jest.fn();
+jest.mock('../../features/reversements/useRecuFournisseur', () => ({
+  useAnnuaireRecuFournisseur: () => ({
+    client: () => null,
+    livreur: (id: string) => (id === 'l1' ? { nom: 'Awa Yao', apprenti: false } : null),
+    fournisseur: () => 'Boulangerie 2000',
+  }),
+  usePartagerRecuFournisseur: () => mockPartagerRecu,
+}));
 
 const m = <T extends keyof typeof hooks>(nom: T) => hooks[nom] as unknown as jest.Mock;
 const md = <T extends keyof typeof demandesHooks>(nom: T) => demandesHooks[nom] as unknown as jest.Mock;
@@ -98,10 +116,10 @@ const lecture = (data: unknown, etat: Record<string, unknown> = {}) => ({
 
 type Options = { onSuccess?: (r?: unknown) => void; onError?: (e: unknown) => void; onSettled?: () => void };
 /** Mutation simulée : réussit (ou échoue avec `erreur`) tout de suite, puis libère le verrou. */
-function mutation(erreur?: unknown) {
+function mutation(erreur?: unknown, donnees?: unknown) {
   const mutate = jest.fn((_vars: unknown, o?: Options) => {
     if (erreur) o?.onError?.(erreur);
-    else o?.onSuccess?.();
+    else o?.onSuccess?.(donnees);
     o?.onSettled?.();
   });
   const mutateAsync = jest.fn(async () => {
@@ -169,7 +187,7 @@ const reversement = (over: Partial<ReversementRecord>): ReversementRecord => ({
 
 const ligne = (over: Partial<LigneCatalogueFournisseurResponse>): LigneCatalogueFournisseurResponse => ({
   id: 'pf1',
-  produit: { id: 'p1', code: 'PAIN', designation: 'Pain' },
+  produit: { id: 'p1', code: 'PAIN', designation: 'Pain', creeParFournisseurId: 'f1' },
   prixDeVente: 250,
   actif: true,
   dateDesactivation: null,
@@ -208,6 +226,16 @@ beforeEach(() => {
     mdep(nom).mockImplementation(() => muts[nom]);
   }
   m('useLivreursPartenaires').mockReturnValue(lecture([partenaire(AWA), partenaire(MARC)]));
+  m('useFournisseurProfil').mockReturnValue(lecture({ id: 'f1', libelle: 'Boulangerie 2000' }));
+  mockEnvoyerPhoto.mutate.mockImplementation((_v: unknown, o?: Options) => {
+    o?.onSuccess?.();
+    o?.onSettled?.();
+  });
+  mockSupprimerPhoto.mutate.mockImplementation((_v: unknown, o?: Options) => {
+    o?.onSuccess?.();
+    o?.onSettled?.();
+  });
+  mockPick.mockResolvedValue({ uri: 'file:///cache/pain.jpg', name: 'pain.jpg', width: 1, height: 1 });
   m('useCommandesLivreurFournisseur').mockReturnValue(lecture([]));
   m('useSituationVersementFournisseur').mockReturnValue(
     lecture({ nbCommandes: 0, valeurAchat: 0, remiseLivreurCumulee: 0, detteAvant: 8000, totalDu: 8000 }),
@@ -346,6 +374,7 @@ describe('FM3 : onglet Argent du fournisseur', () => {
     fireEvent.press(screen.getByText('Choisir un livreur partenaire'));
     fireEvent.press(screen.getByText('Marc Konan'));
     expect(m('useCommandesLivreurFournisseur')).toHaveBeenLastCalledWith('l2');
+    fireEvent.changeText(screen.getByLabelText('Montant versé'), '5000');
     expect(screen.getByText('Tout le dû (8 000)')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Enregistrer le versement'));
     expect(muts.useEnregistrerVersementFournisseur.mutate).toHaveBeenCalledTimes(1);
@@ -495,6 +524,43 @@ describe('FM3 : onglet Argent du fournisseur', () => {
   });
 });
 
+describe('FM3 (corrections) : reçu de reversement, remises à zéro', () => {
+  it('reçu : proposé après l’enregistrement, et sur chaque ligne de l’historique', () => {
+    const enregistre = reversement({ id: 'r9', montant: 6000 });
+    muts.useEnregistrerReversementFournisseur = mutation(undefined, enregistre);
+    render(<ReversementsFournisseur />);
+    fireEvent.press(screen.getByLabelText('Reçu du reversement de 3 000 F à Awa Yao'));
+    expect(mockPartagerRecu).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'r1' }));
+    fireEvent.press(screen.getByLabelText('Reverser à Awa Yao'));
+    fireEvent.press(screen.getByLabelText('Confirmer le reversement'));
+    expect(screen.getByText('Reversement de 6 000 F à Awa Yao enregistré.')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Partager le reçu'));
+    expect(mockPartagerRecu).toHaveBeenLastCalledWith(enregistre);
+    fireEvent.press(screen.getByLabelText('Fermer'));
+    expect(screen.queryByLabelText('Partager le reçu')).toBeNull();
+  });
+
+  it('reversement : changer de mois ferme le panneau (montant proposé du mois affiché)', () => {
+    render(<ReversementsFournisseur />);
+    fireEvent.press(screen.getByLabelText('Reverser à Awa Yao'));
+    expect(screen.getByLabelText('Montant du reversement')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Mois précédent'));
+    expect(screen.queryByLabelText('Montant du reversement')).toBeNull();
+  });
+
+  it('versement : changer de livreur remet le montant à zéro', () => {
+    render(<NouveauVersementRecu />);
+    fireEvent.press(screen.getByText('Choisir un livreur partenaire'));
+    fireEvent.press(screen.getByText('Awa Yao'));
+    fireEvent.press(screen.getByText('Tout le dû (8 000)'));
+    expect(screen.getByLabelText('Montant versé').props.value).toBe('8000');
+    // Le champ (le sous-titre de l'en-tête porte aussi le nom).
+    fireEvent.press(screen.getAllByText('Awa Yao').at(-1)!);
+    fireEvent.press(screen.getByText('Marc Konan'));
+    expect(screen.getByLabelText('Montant versé').props.value).toBe('');
+  });
+});
+
 describe('FM3 : catalogue du fournisseur (Moi)', () => {
   it('liste : actifs par défaut, filtres, prix et prix particuliers ; ajouter et modifier', () => {
     render(<CatalogueFournisseur />);
@@ -617,5 +683,76 @@ describe('FM3 : catalogue du fournisseur (Moi)', () => {
     mockParams = { id: 'inconnu' };
     render(<ModifierProduitCatalogue />);
     expect(screen.getByText('Produit introuvable')).toBeTruthy();
+  });
+});
+
+describe('FM3 (corrections) : photo des produits du catalogue', () => {
+  it('produit créé par lui : la photo choisie est enregistrée tout de suite sur la ligne', async () => {
+    mockParams = { id: 'pf1' };
+    render(<ModifierProduitCatalogue />);
+    fireEvent.press(screen.getByLabelText('Choisir une photo'));
+    await waitFor(() => expect(mockEnvoyerPhoto.mutate).toHaveBeenCalled());
+    expect(mockEnvoyerPhoto.mutate.mock.calls[0][0]).toEqual({ ligneId: 'pf1', uri: 'file:///cache/pain.jpg', name: 'pain.jpg' });
+    expect(dialog.success).toHaveBeenCalledWith('Photo du produit mise à jour');
+  });
+
+  it('format refusé : message, rien d’envoyé ; erreur du back affichée telle quelle', async () => {
+    mockParams = { id: 'pf1' };
+    mockPick.mockResolvedValueOnce({ uri: 'file:///cache/a.gif', name: 'a.gif', width: 1, height: 1 });
+    render(<ModifierProduitCatalogue />);
+    fireEvent.press(screen.getByLabelText('Choisir une photo'));
+    expect(await screen.findByText('Format non supporté : JPEG ou PNG uniquement.')).toBeTruthy();
+    expect(mockEnvoyerPhoto.mutate).not.toHaveBeenCalled();
+    mockEnvoyerPhoto.mutate.mockImplementationOnce((_v: unknown, o?: Options) => {
+      o?.onError?.(erreurBack('Photo refusée'));
+      o?.onSettled?.();
+    });
+    fireEvent.press(screen.getByLabelText('Choisir une photo'));
+    expect(await screen.findByText('Photo refusée')).toBeTruthy();
+  });
+
+  it('photo existante : la supprimer après confirmation', async () => {
+    mockParams = { id: 'pf1' };
+    m('useCatalogueFournisseur').mockReturnValue(
+      lecture([
+        ligne({
+          produit: { id: 'p1', code: 'PAIN', designation: 'Pain', creeParFournisseurId: 'f1', photoUrl: '/uploads/produit/p1.jpg' },
+        }),
+      ]),
+    );
+    render(<ModifierProduitCatalogue />);
+    expect(screen.getByLabelText('Changer la photo')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Supprimer la photo'));
+    await confirmer();
+    expect(mockSupprimerPhoto.mutate.mock.calls[0][0]).toBe('pf1');
+    expect(dialog.success).toHaveBeenCalledWith('Photo supprimée');
+  });
+
+  it('produit d’un autre (ou du référentiel) : photo gérée par l’administrateur', () => {
+    mockParams = { id: 'pf2' };
+    render(<ModifierProduitCatalogue />);
+    expect(screen.getByText("Photo gérée par l'administrateur.")).toBeTruthy();
+    expect(screen.queryByLabelText('Choisir une photo')).toBeNull();
+  });
+
+  it('créer un produit avec photo : la photo part sur la ligne créée ; son échec ne l’annule pas', async () => {
+    muts.useCreerEtActiverProduit = mutation(undefined, ligne({ id: 'pf9' }));
+    render(<AjouterProduitCatalogue />);
+    fireEvent.press(screen.getByText('Créer un nouveau produit'));
+    fireEvent.changeText(screen.getByLabelText('Désignation'), 'Pain maison');
+    fireEvent.changeText(screen.getByLabelText('Prix de vente au livreur'), '300');
+    fireEvent.press(screen.getByLabelText('Choisir une photo'));
+    expect(await screen.findByLabelText('Changer la photo')).toBeTruthy();
+    mockEnvoyerPhoto.mutate.mockImplementationOnce((_v: unknown, o?: Options) => {
+      o?.onError?.(erreurBack('Échec'));
+      o?.onSettled?.();
+    });
+    fireEvent.press(screen.getByLabelText('Créer'));
+    expect(mockEnvoyerPhoto.mutate.mock.calls[0][0]).toEqual({ ligneId: 'pf9', uri: 'file:///cache/pain.jpg', name: 'pain.jpg' });
+    expect(dialog.warning).toHaveBeenCalledWith(
+      'Photo non envoyée',
+      "Produit ajouté, mais la photo n'a pas pu être envoyée : ajoute-la depuis Modifier.",
+    );
+    expect(retourParent).toHaveBeenCalled();
   });
 });

@@ -68,6 +68,11 @@ export default function AccueilFournisseur() {
   const liv = resumeLivreurs(partenairesQ.data);
   const nbVersements = synthese?.nbVersements ?? 0;
 
+  // Tirer pour actualiser : l'indicateur suit toutes les lectures relancées, pas seulement la synthèse.
+  const enActualisation = [profilQ, syntheseQ, reversementsQ, commandesQ, partenairesQ].some(
+    (x) => x.isFetching && !x.isLoading,
+  );
+
   const actualiser = () => {
     profilQ.refetch();
     syntheseQ.refetch();
@@ -85,7 +90,7 @@ export default function AccueilFournisseur() {
       contentContainerStyle={{ paddingBottom: 24 }}
       refreshControl={
         <RefreshControl
-          refreshing={syntheseQ.isFetching && !syntheseQ.isLoading}
+          refreshing={enActualisation}
           onRefresh={actualiser}
           tintColor="#047857"
         />

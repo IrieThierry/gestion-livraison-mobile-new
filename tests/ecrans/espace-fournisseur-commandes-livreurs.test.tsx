@@ -302,10 +302,31 @@ describe('FM2 : onglet Commandes du fournisseur', () => {
     expect(muts.useConfirmerCommandeFournisseur.mutate).not.toHaveBeenCalled();
   });
 
-  it('commande introuvable', () => {
+  it('commande introuvable : la liste est relue une fois avant de le dire', () => {
     mockParams = { id: 'zz' };
+    const q = lecture(COMMANDES);
+    m('useCommandesFournisseur').mockReturnValue(q);
     rendu(<CommandeFournisseur />);
+    expect(q.refetch).toHaveBeenCalledTimes(1);
     expect(screen.getByText('Commande introuvable')).toBeTruthy();
+    expect(q.refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('pendant la relecture : Chargement, pas « introuvable »', () => {
+    mockParams = { id: 'zz' };
+    m('useCommandesFournisseur').mockReturnValue(lecture(COMMANDES, { isFetching: true }));
+    rendu(<CommandeFournisseur />);
+    expect(screen.getByText('Chargement…')).toBeTruthy();
+  });
+
+  it('panneau Refuser fermé quand la commande, relue, n’est plus refusable', () => {
+    mockParams = { id: 'c1' };
+    const vue = rendu(<CommandeFournisseur />);
+    fireEvent.press(screen.getByLabelText('Refuser'));
+    expect(screen.getByText(/sera informé du refus/)).toBeTruthy();
+    m('useCommandesFournisseur').mockReturnValue(lecture([commande({ statut: 'EN_RECEPTION' })]));
+    vue.rerender(<QueryClientProvider client={new QueryClient()}><CommandeFournisseur /></QueryClientProvider>);
+    expect(screen.queryByText(/sera informé du refus/)).toBeNull();
   });
 });
 
@@ -415,6 +436,19 @@ describe('FM2 : onglet Livreurs du fournisseur', () => {
     expect(muts.useDebloquerLivreur.mutate).toHaveBeenCalledWith('l2', expect.anything());
   });
 
+  it('fiche : le panneau Remise se ferme quand le livreur, relu, est bloqué', () => {
+    mockParams = { id: 'l1' };
+    const vue = rendu(<FicheLivreurPartenaire />);
+    fireEvent.press(screen.getByLabelText('Remise'));
+    expect(screen.getByLabelText('Remise livreur')).toBeTruthy();
+    const partenaires = (m('useLivreursPartenaires').mock.results.at(-1)?.value as { data: LivreurPartenaireDuResponse[] }).data;
+    m('useLivreursPartenaires').mockReturnValue(
+      lecture(partenaires.map((p) => (p.livreur.id === 'l1' ? { ...p, bloque: true } : p))),
+    );
+    vue.rerender(<QueryClientProvider client={new QueryClient()}><FicheLivreurPartenaire /></QueryClientProvider>);
+    expect(screen.queryByLabelText('Remise livreur')).toBeNull();
+  });
+
   it('fiche introuvable', () => {
     mockParams = { id: 'zz' };
     rendu(<FicheLivreurPartenaire />);
@@ -452,7 +486,11 @@ describe('FM2 : onglet Livreurs du fournisseur', () => {
     );
     fireEvent.press(screen.getByLabelText('Retirer le prix de Baguette'));
     expect(muts.useSupprimerPrixParticulier.mutate).toHaveBeenCalledWith({ pfId: 'pf1', livreurId: 'l1' }, expect.anything());
+    // Messages donnés au hook (niveau mutation, robustes au remontage de la ligne).
+    m('useSupprimerPrixParticulier').mock.calls.at(-1)[0]();
     expect(dialog.success).toHaveBeenCalledWith('Prix particulier supprimé');
+    m('useEnregistrerPrixParticulier').mock.calls.at(-1)[0]();
+    expect(dialog.success).toHaveBeenCalledWith('Prix particulier enregistré');
   });
 
   it('versement reçu : commandes à régler, situation, montant obligatoire, envoi puis retour', () => {
