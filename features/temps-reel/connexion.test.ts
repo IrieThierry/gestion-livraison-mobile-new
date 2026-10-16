@@ -1,4 +1,11 @@
-import { DELAIS_RECONNEXION_MS, ouvrirConnexion, urlWebSocket, useTempsReelStore } from './connexion';
+import {
+  DELAI_APRES_REFUS_MS,
+  DELAIS_RECONNEXION_MS,
+  SILENCE_MAX_MS,
+  ouvrirConnexion,
+  urlWebSocket,
+  useTempsReelStore,
+} from './connexion';
 
 class FauxWebSocket {
   static instances: FauxWebSocket[] = [];
@@ -35,9 +42,10 @@ const vider = async () => {
 
 function demarrer(token: string | null = 'jwt') {
   const onNotification = jest.fn();
+  const onPret = jest.fn();
   const lireToken = jest.fn(async () => token);
-  const c = ouvrirConnexion({ apiBase: 'https://api.test', lireToken, onNotification });
-  return { c, onNotification, lireToken };
+  const c = ouvrirConnexion({ apiBase: 'https://api.test', lireToken, onNotification, onPret });
+  return { c, onNotification, onPret, lireToken };
 }
 
 beforeEach(() => {
@@ -103,14 +111,99 @@ describe('ouvrirConnexion', () => {
     expect(FauxWebSocket.instances.length).toBe(n + 1);
   });
 
-  it('1008 (jeton refusé) reprogramme aussi avec attente', async () => {
+  it('1008 (jeton refusé) : attend le délai maximal (30 s) avant de se reconnecter', async () => {
+    expect(DELAI_APRES_REFUS_MS).toBe(30000);
     demarrer();
     await vider();
+    dernier().ouvrir();
     dernier().tomber(1008);
     expect(FauxWebSocket.instances.length).toBe(1);
+    jest.advanceTimersByTime(DELAI_APRES_REFUS_MS - 1);
+    await vider();
+    expect(FauxWebSocket.instances.length).toBe(1);
+    jest.advanceTimersByTime(1);
+    await vider();
+    expect(FauxWebSocket.instances.length).toBe(2);
+  });
+
+  it('onPret appelé à chaque pret ; ping ignoré', async () => {
+    const { onPret, onNotification } = demarrer();
+    await vider();
+    dernier().ouvrir();
+    dernier().recevoir({ type: 'pret' });
+    expect(onPret).toHaveBeenCalledTimes(1);
+    dernier().recevoir({ type: 'ping' });
+    expect(onPret).toHaveBeenCalledTimes(1);
+    expect(onNotification).not.toHaveBeenCalled();
+    expect(useTempsReelStore.getState().connecte).toBe(true);
+  });
+
+  it('chien de garde : 60 s sans message ferment le socket, connecte=false puis reconnexion', async () => {
+    expect(SILENCE_MAX_MS).toBe(60000);
+    demarrer();
+    await vider();
+    const ws = dernier();
+    ws.ouvrir();
+    ws.recevoir({ type: 'pret' });
+    jest.advanceTimersByTime(SILENCE_MAX_MS - 1);
+    expect(ws.closed).toBe(false);
+    expect(useTempsReelStore.getState().connecte).toBe(true);
+    jest.advanceTimersByTime(1);
+    expect(ws.closed).toBe(true);
+    expect(useTempsReelStore.getState().connecte).toBe(false);
     jest.advanceTimersByTime(DELAIS_RECONNEXION_MS[0]);
     await vider();
     expect(FauxWebSocket.instances.length).toBe(2);
+  });
+
+  it('chien de garde réarmé par chaque ping', async () => {
+    demarrer();
+    await vider();
+    const ws = dernier();
+    ws.ouvrir();
+    ws.recevoir({ type: 'pret' });
+    for (let i = 0; i < 4; i++) {
+      jest.advanceTimersByTime(25000);
+      ws.recevoir({ type: 'ping' });
+    }
+    jest.advanceTimersByTime(SILENCE_MAX_MS - 1);
+    expect(ws.closed).toBe(false);
+    expect(useTempsReelStore.getState().connecte).toBe(true);
+    jest.advanceTimersByTime(1);
+    expect(ws.closed).toBe(true);
+  });
+
+  it('chien de garde désarmé par mettreEnPause et fermer', async () => {
+    const { c } = demarrer();
+    await vider();
+    dernier().ouvrir();
+    c.mettreEnPause();
+    expect(jest.getTimerCount()).toBe(0);
+    c.reprendre();
+    await vider();
+    dernier().ouvrir();
+    c.fermer();
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('un constructeur WebSocket qui lève programme une reconnexion (pas de rejet non géré)', async () => {
+    let echecs = 1;
+    class SocketFragile extends FauxWebSocket {
+      constructor(url: string) {
+        if (echecs > 0) {
+          echecs -= 1;
+          throw new Error('SyntaxError');
+        }
+        super(url);
+      }
+    }
+    (global as unknown as { WebSocket: unknown }).WebSocket = SocketFragile;
+    demarrer();
+    await vider();
+    expect(FauxWebSocket.instances.length).toBe(0);
+    jest.advanceTimersByTime(DELAIS_RECONNEXION_MS[0]);
+    await vider();
+    expect(FauxWebSocket.instances.length).toBe(1);
   });
 
   it('relit le jeton à chaque connexion', async () => {

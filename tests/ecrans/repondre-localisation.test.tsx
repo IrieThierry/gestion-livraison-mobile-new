@@ -137,6 +137,35 @@ describe('Répondre à une demande de localisation', () => {
     expect(post).not.toHaveBeenCalled();
   });
 
+  it('double appui sur « Partager ma position » : une seule lecture GPS et un seul POST', async () => {
+    let fournir: (v: unknown) => void = () => {};
+    lire.mockImplementationOnce(() => new Promise((r) => (fournir = r)));
+    monter();
+    const bouton = await screen.findByText('Partager ma position');
+    await act(async () => {
+      fireEvent.press(bouton);
+      fireEvent.press(bouton);
+    });
+    await act(async () => fournir({ coords: { latitude: 5.35, longitude: -4.01 } }));
+    expect(await screen.findByText('Position partagée.')).toBeTruthy();
+    expect(lire).toHaveBeenCalledTimes(1);
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it('le verrou est libéré après un échec : le nouvel essai repart', async () => {
+    lire.mockRejectedValueOnce(new Error('DELAI'));
+    monter();
+    await act(async () => {
+      fireEvent.press(await screen.findByText('Partager ma position'));
+    });
+    expect(screen.getByText('Position introuvable, réessaie')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByText('Partager ma position'));
+    });
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
+    expect(lire).toHaveBeenCalledTimes(2);
+  });
+
   it('« Refuser » : POST refuser', async () => {
     monter();
     await act(async () => {

@@ -1616,7 +1616,7 @@ export interface EtatLocalisation {
   position: string | null
   partageeLe: string | null
   /** Client positionné le plus proche (moins de 1 km) ; null au-delà. */
-  repere: { client: string; quartier: string } | null
+  repere: { client: string; quartier: string | null } | null
 }
 
 /** `GET /localisation/personnes`. */

@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { MapPin } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { lireUnePosition } from '../../../features/localisation/gps';
+import { creerVerrou, lancerUneFois } from '../../../features/commandes/verrou';
 import { heure } from '../../../features/localisation/etat';
 import {
   useAccepterLocalisation,
@@ -49,9 +50,11 @@ export default function RepondreLocalisation() {
 
   const demande = (q.data ?? []).find((d) => d.id === id);
   const occupe = lecture || accepter.isPending || refuser.isPending;
+  // Verrou synchrone (pris avant la lecture GPS) : un double appui dans la même frame, avant le rendu
+  // de `occupe`, ne déclenche ni une seconde lecture GPS ni un second POST.
+  const verrou = useRef(creerVerrou()).current;
 
-  const onPartager = async () => {
-    if (!demande || occupe) return;
+  const partager = async (demandeId: string, fin: () => void) => {
     setErreur(null);
     setLecture(true);
     let position: string;
@@ -60,11 +63,12 @@ export default function RepondreLocalisation() {
     } catch (e) {
       setErreur(MESSAGES_GPS[(e as Error)?.message] ?? MESSAGES_GPS.DELAI);
       setLecture(false);
+      fin();
       return;
     }
     setLecture(false);
     accepter.mutate(
-      { id: demande.id, position },
+      { id: demandeId, position },
       {
         onSuccess: () => setIssue('partagee'),
         onError: (e) => {
@@ -72,20 +76,31 @@ export default function RepondreLocalisation() {
           setErreur(message);
           if (close) setIssue('close');
         },
+        onSettled: fin,
       },
     );
   };
 
+  const onPartager = () => {
+    if (!demande || occupe) return;
+    const demandeId = demande.id;
+    lancerUneFois(verrou, (fin) => void partager(demandeId, fin));
+  };
+
   const onRefuser = () => {
     if (!demande || occupe) return;
-    setErreur(null);
-    refuser.mutate(demande.id, {
-      onSuccess: () => setIssue('refusee'),
-      onError: (e) => {
-        const { message, close } = lireErreurEnvoi(e);
-        setErreur(message);
-        if (close) setIssue('close');
-      },
+    const demandeId = demande.id;
+    lancerUneFois(verrou, (fin) => {
+      setErreur(null);
+      refuser.mutate(demandeId, {
+        onSuccess: () => setIssue('refusee'),
+        onError: (e) => {
+          const { message, close } = lireErreurEnvoi(e);
+          setErreur(message);
+          if (close) setIssue('close');
+        },
+        onSettled: fin,
+      });
     });
   };
 

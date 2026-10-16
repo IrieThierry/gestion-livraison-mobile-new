@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { X } from 'lucide-react-native';
@@ -9,6 +9,8 @@ import { BoutonItineraire } from '../../components/shared/BoutonItineraire';
 import { buildHtmlPositions, positionsDuJour } from '../../features/localisation/carte';
 import { enAttente, libelleRepere, lignesEtat } from '../../features/localisation/etat';
 import { useDemanderLocalisation, usePersonnesLocalisables } from '../../features/localisation/hooks';
+import { useMaintenant } from '../../features/localisation/useMaintenant';
+import { creerVerrou, lancerUneFois } from '../../features/commandes/verrou';
 import { extractApiErrorMessage } from '../../lib/api-error';
 import { lirePosition } from '../../lib/position';
 import type { PersonneLocalisable } from '../../types/api';
@@ -24,7 +26,10 @@ export default function Localiser() {
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
   const [selection, setSelection] = useState<string | null>(null);
   const personnes = q.data ?? [];
-  const maintenant = new Date();
+  // Rafraîchi toutes les 30 s : « Redemander » se réactive à l'expiration même sans relecture.
+  const maintenant = useMaintenant();
+  // Double appui dans la même frame (avant le rendu de isPending) : une seule demande.
+  const verrou = useRef(creerVerrou()).current;
 
   const pins = useMemo(() => positionsDuJour(personnes), [personnes]);
   // La carte ne se recharge que si les marqueurs changent (pas à chaque relecture).
@@ -34,10 +39,13 @@ export default function Localiser() {
   const personneChoisie = personnes.find((p) => p.id === choisie?.id);
 
   const onDemander = (p: PersonneLocalisable) => {
-    setErreurs((e) => ({ ...e, [p.id]: '' }));
-    demander.mutate(p.id, {
-      onError: (err) =>
-        setErreurs((e) => ({ ...e, [p.id]: extractApiErrorMessage(err, 'La demande n’a pas pu être envoyée.') })),
+    lancerUneFois(verrou, (fin) => {
+      setErreurs((e) => ({ ...e, [p.id]: '' }));
+      demander.mutate(p.id, {
+        onError: (err) =>
+          setErreurs((e) => ({ ...e, [p.id]: extractApiErrorMessage(err, 'La demande n’a pas pu être envoyée.') })),
+        onSettled: fin,
+      });
     });
   };
 

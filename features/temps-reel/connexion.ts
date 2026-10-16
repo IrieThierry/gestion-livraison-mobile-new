@@ -3,6 +3,18 @@ import { create } from 'zustand';
 /** Délais avant chaque nouvelle tentative de connexion ; le dernier se répète. */
 export const DELAIS_RECONNEXION_MS = [1000, 2000, 5000, 10000, 30000];
 
+/** Après un refus d'authentification (fermeture 1008), on attend directement le délai maximal. */
+export const DELAI_APRES_REFUS_MS = DELAIS_RECONNEXION_MS[DELAIS_RECONNEXION_MS.length - 1];
+
+/** Code de fermeture WebSocket « policy violation » : authentification refusée ou attendue. */
+export const CODE_REFUS = 1008;
+
+/**
+ * Silence maximal toléré (le serveur envoie `{"type":"ping"}` toutes les 25 s) : au-delà, la connexion est tenue
+ * pour morte (connexion à moitié ouverte), le socket est fermé et l'on repasse au polling avec reconnexion.
+ */
+export const SILENCE_MAX_MS = 60_000;
+
 /** `http(s)://hôte[/]` -> `ws(s)://hôte/ws`. */
 export function urlWebSocket(apiBase: string): string {
   const base = apiBase.replace(/\/+$/, '');
@@ -28,6 +40,8 @@ interface Options {
   /** Lu à chaque (re)connexion : un jeton rafraîchi entre-temps est repris. */
   lireToken: () => Promise<string | null>;
   onNotification: (message: MessageNotification) => void;
+  /** Appelé à chaque `pret` : relire ce qui a pu être créé pendant que rien n'était ni lu ni poussé. */
+  onPret?: () => void;
 }
 
 export interface Connexion {
@@ -40,10 +54,11 @@ export interface Connexion {
 }
 
 /** Connexion WebSocket avec reconnexion à délai croissant. */
-export function ouvrirConnexion({ apiBase, lireToken, onNotification }: Options): Connexion {
+export function ouvrirConnexion({ apiBase, lireToken, onNotification, onPret }: Options): Connexion {
   const url = urlWebSocket(apiBase);
   let socket: WebSocket | null = null;
   let minuteur: ReturnType<typeof setTimeout> | null = null;
+  let garde: ReturnType<typeof setTimeout> | null = null;
   let indexDelai = 0;
   let arrete = false;
   let enPause = false;
@@ -55,7 +70,13 @@ export function ouvrirConnexion({ apiBase, lireToken, onNotification }: Options)
     minuteur = null;
   };
 
+  const arreterGarde = () => {
+    if (garde) clearTimeout(garde);
+    garde = null;
+  };
+
   const couperSocket = () => {
+    arreterGarde();
     const ws = socket;
     socket = null;
     useTempsReelStore.setState({ connecte: false });
@@ -87,13 +108,52 @@ export function ouvrirConnexion({ apiBase, lireToken, onNotification }: Options)
       programmer();
       return;
     }
-    const ws = new WebSocket(url);
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(url);
+    } catch {
+      socket = null;
+      programmer();
+      return;
+    }
     socket = ws;
+
+    /** Fin de ce socket (fermeture ou silence) : retour au polling et reconnexion. */
+    const perdu = (code?: number) => {
+      if (socket !== ws) return;
+      socket = null;
+      arreterGarde();
+      useTempsReelStore.setState({ connecte: false });
+      // Après 1008 (jeton expiré ou refusé), pas de rafale : le prochain appel API rafraîchit le jeton.
+      if (code === CODE_REFUS) indexDelai = DELAIS_RECONNEXION_MS.length - 1;
+      programmer();
+    };
+
+    /** Chien de garde : réarmé à chaque message reçu (pret, ping, notification…). */
+    const armerGarde = () => {
+      arreterGarde();
+      garde = setTimeout(() => {
+        garde = null;
+        if (socket !== ws) return;
+        // Un socket à moitié ouvert peut ne jamais émettre `close` : on n'attend pas l'événement.
+        ws.onclose = null;
+        try {
+          ws.close();
+        } catch {
+          // déjà fermé
+        }
+        perdu();
+      }, SILENCE_MAX_MS);
+    };
+
     ws.onopen = () => {
-      if (socket === ws) ws.send(JSON.stringify({ type: 'auth', token }));
+      if (socket !== ws) return;
+      armerGarde();
+      ws.send(JSON.stringify({ type: 'auth', token }));
     };
     ws.onmessage = (evt: MessageEvent) => {
       if (socket !== ws) return;
+      armerGarde();
       let message: { type?: string } | null;
       try {
         message = JSON.parse(String(evt.data));
@@ -103,16 +163,13 @@ export function ouvrirConnexion({ apiBase, lireToken, onNotification }: Options)
       if (message?.type === 'pret') {
         indexDelai = 0;
         useTempsReelStore.setState({ connecte: true });
+        onPret?.();
       } else if (message?.type === 'notification') {
         onNotification(message as MessageNotification);
       }
+      // `ping` et types inconnus : ignorés (le chien de garde est déjà réarmé).
     };
-    ws.onclose = () => {
-      if (socket !== ws) return;
-      socket = null;
-      useTempsReelStore.setState({ connecte: false });
-      programmer(); // y compris après 1008 (jeton expiré) : le prochain appel API le rafraîchit
-    };
+    ws.onclose = (evt?: { code?: number }) => perdu(evt?.code);
   }
 
   void connecter();

@@ -111,6 +111,23 @@ describe('useTempsReel', () => {
     expect(invalider).toHaveBeenCalledWith({ queryKey: ['localisation'] });
   });
 
+  it('pret : invalide notifications et localisation (trou avant pret)', async () => {
+    connecterUtilisateur('u1');
+    const { wrapper, invalider } = monter();
+    renderHook(() => useTempsReel(), { wrapper });
+    await vider();
+    act(() => {
+      dernier().onmessage?.({ data: JSON.stringify({ type: 'pret' }) });
+    });
+    expect(invalider).toHaveBeenCalledWith({ queryKey: ['notifications'] });
+    expect(invalider).toHaveBeenCalledWith({ queryKey: ['localisation'] });
+    invalider.mockClear();
+    act(() => {
+      dernier().onmessage?.({ data: JSON.stringify({ type: 'ping' }) });
+    });
+    expect(invalider).not.toHaveBeenCalled();
+  });
+
   it('AppState background : ferme sans reconnexion ; active : se reconnecte', async () => {
     connecterUtilisateur('u1');
     const { wrapper } = monter();

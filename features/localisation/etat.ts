@@ -44,7 +44,8 @@ export function libelleEtat(etat: EtatLocalisation | null | undefined, maintenan
 
 /** « près de Boutique Awa · Riviera 2 » ; vide sans repère. */
 export function libelleRepere(repere: EtatLocalisation['repere'] | undefined): string {
-  return repere ? `près de ${repere.client} · ${repere.quartier}` : '';
+  if (!repere) return '';
+  return repere.quartier ? `près de ${repere.client} · ${repere.quartier}` : `près de ${repere.client}`;
 }
 
 type UtilisateurLocalisation =

@@ -23,6 +23,11 @@ export function useTempsReel(): void {
     const connexion = ouvrirConnexion({
       apiBase: API_BASE_URL,
       lireToken: () => JetonsSession.get('access_token'),
+      // Ce qui a été créé entre la dernière relecture et « pret » n'a été ni relu (polling) ni poussé : on relit.
+      onPret: () => {
+        void qc.invalidateQueries({ queryKey: notificationKeys.all });
+        void qc.invalidateQueries({ queryKey: localisationKeys.all });
+      },
       onNotification: ({ notificationType }) => {
         void qc.invalidateQueries({ queryKey: notificationKeys.all });
         if (notificationType.startsWith('DEMANDE_LOCALISATION') || notificationType.startsWith('LOCALISATION_')) {

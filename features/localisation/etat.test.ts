@@ -53,6 +53,10 @@ describe('lignesEtat / libelleEtat (mêmes libellés que le web)', () => {
     expect(libelleRepere({ client: 'Boutique Awa', quartier: 'Riviera 2' })).toBe('près de Boutique Awa · Riviera 2');
     expect(libelleRepere(null)).toBe('');
   });
+
+  it('repère sans quartier : « près de <client> » sans « · null »', () => {
+    expect(libelleRepere({ client: 'Boutique Awa', quartier: null })).toBe('près de Boutique Awa');
+  });
 });
 
 describe('peutLocaliser', () => {

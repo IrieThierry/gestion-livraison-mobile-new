@@ -3,6 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Localiser from '../../app/(livreur)/localiser';
 import { apiClient } from '../../lib/api-client';
 import { ouvrirItineraire } from '../../lib/linking';
+import { useTempsReelStore } from '../../features/temps-reel/connexion';
+import { INTERVALLE_MAINTENANT_MS } from '../../features/localisation/useMaintenant';
 
 jest.mock('../../lib/api-client', () => ({
   apiClient: { get: jest.fn(), post: jest.fn() },
@@ -73,6 +75,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   jest.useRealTimers();
+  useTempsReelStore.setState({ connecte: false });
 });
 
 describe('Localiser', () => {
@@ -125,6 +128,43 @@ describe('Localiser', () => {
     });
     expect(await screen.findByText('Une demande est déjà en attente.')).toBeTruthy();
     expect(screen.queryByText('Itinéraire')).toBeNull();
+  });
+
+  it('double appui sur « Redemander » : une seule demande envoyée', async () => {
+    let terminer: (v: unknown) => void = () => {};
+    post.mockImplementationOnce(() => new Promise((r) => (terminer = r)));
+    monter();
+    const bouton = await screen.findByText('Redemander');
+    await act(async () => {
+      fireEvent.press(bouton);
+      fireEvent.press(bouton);
+    });
+    expect(post).toHaveBeenCalledTimes(1);
+    await act(async () => terminer({ status: 201, data: { id: 'd2' } }));
+  });
+
+  it('socket connecté (pas de relecture) : Redemander se réactive après l’expiration grâce au tic de 30 s', async () => {
+    jest.useFakeTimers({ now: new Date(2026, 9, 16, 14, 46, 50), advanceTimers: true });
+    useTempsReelStore.setState({ connecte: true });
+    personnes = [
+      {
+        id: 'p1',
+        prenom: 'Awa',
+        nom: 'Kone',
+        photoUrl: null,
+        etat: { ...ETAT_PARTAGE, statut: 'EN_ATTENTE', expireLe: '2026-10-16T14:47:00', reponduLe: null },
+      },
+    ];
+    monter();
+    expect(await screen.findByText('En attente de réponse… (expire à 14:47)')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Redemander' })).toBeDisabled();
+    const lectures = get.mock.calls.length;
+    await act(async () => {
+      jest.advanceTimersByTime(INTERVALLE_MAINTENANT_MS);
+    });
+    expect(get.mock.calls.length).toBe(lectures);
+    expect(screen.getByText('Sans réponse')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Redemander' })).not.toBeDisabled();
   });
 
   it('personne à localiser : aucune → message', async () => {
