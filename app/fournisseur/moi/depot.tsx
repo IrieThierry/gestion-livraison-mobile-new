@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import * as Location from 'expo-location';
 import { LocateFixed } from 'lucide-react-native';
@@ -31,8 +31,11 @@ export default function DepotFournisseur() {
   const [refus, setRefus] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
+  // Préremplit une seule fois par dépôt (pas à chaque relecture : les saisies en cours restent).
+  const idPrerempli = useRef<string | null>(null);
   useEffect(() => {
-    if (q.data) {
+    if (q.data && idPrerempli.current !== q.data.id) {
+      idPrerempli.current = q.data.id;
       setNom(q.data.nom);
       setAdresse(q.data.adresse ?? '');
       setPosition(q.data.position);
@@ -85,6 +88,7 @@ export default function DepotFournisseur() {
       onConfirm: () =>
         retirer.mutate(undefined, {
           onSuccess: () => {
+            idPrerempli.current = null;
             setNom(NOM_PAR_DEFAUT);
             setAdresse('');
             setPosition(null);

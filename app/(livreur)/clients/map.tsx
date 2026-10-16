@@ -11,6 +11,7 @@ import { PageHeader } from '../../../components/shared/PageHeader';
 import { BoutonItineraire } from '../../../components/shared/BoutonItineraire';
 import { useDepotsVisibles } from '../../../features/depot/hooks';
 import { lirePosition } from '../../../lib/position';
+import { jsonPourScript } from '../../../lib/webview';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { useClientsByLivreur, useEncoursByLivreur } from '../../../features/clients/hooks';
 import { indexerEncours, num } from '../../../features/encaissements/regles';
@@ -417,8 +418,8 @@ function buildHtml(pins: ClientPin[], depots: DepotPin[] = []): string {
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    var pins = ${JSON.stringify(pins)};
-    var depots = ${JSON.stringify(depots)};
+    var pins = ${jsonPourScript(pins)};
+    var depots = ${jsonPourScript(depots)};
 
     var satellite = L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',

@@ -512,7 +512,7 @@ export interface EnregistrerDepotRequest {
   adresse: string | null
 }
 
-export type StatutRelation ='EN_ATTENTE' | 'ACCEPTEE' | 'REFUSEE' | 'ANNULEE'
+export type StatutRelation = 'EN_ATTENTE' | 'ACCEPTEE' | 'REFUSEE' | 'ANNULEE'
 
 export interface RelationResume {
   id: UUID

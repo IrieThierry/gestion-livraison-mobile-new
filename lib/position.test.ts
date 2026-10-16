@@ -1,4 +1,4 @@
-import { lirePosition, urlGoogleMaps, urlWaze } from './position';
+import { formaterPosition, lirePosition, urlGoogleMaps, urlWaze } from './position';
 
 describe('lirePosition', () => {
   it('lit "lat,lng" avec espaces tolérés', () => {
@@ -28,5 +28,12 @@ describe('urls itinéraire', () => {
   });
   it('Waze', () => {
     expect(urlWaze({ lat: 5.35, lng: -4.01 })).toBe('https://waze.com/ul?ll=5.35,-4.01&navigate=yes');
+  });
+});
+
+describe('formaterPosition', () => {
+  it('arrondit à 6 décimales', () => {
+    expect(formaterPosition(5.3500004, -4.0099996)).toBe('5.35,-4.01');
+    expect(formaterPosition(5.123456789, -4.987654321)).toBe('5.123457,-4.987654');
   });
 });
