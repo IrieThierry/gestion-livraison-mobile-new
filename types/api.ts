@@ -1568,3 +1568,15 @@ export interface EnregistrerVersementFournisseurRequest {
   montantVerse: number
   commentaire?: string
 }
+
+/** Ligne du catalogue du fournisseur connecté (`GET /fournisseur/me/catalogue`). */
+export interface LigneCatalogueFournisseurResponse {
+  id: UUID
+  produit: ProduitResponse
+  prixDeVente: number
+  actif: boolean
+  dateDesactivation: string | null
+  nbPrixParticuliers: number
+  /** Désignation modifiable : produit créé par ce fournisseur et proposé par lui seul. */
+  renommable: boolean
+}

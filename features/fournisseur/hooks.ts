@@ -2,7 +2,14 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import { useAuthStore } from '../../stores/authStore';
 import { fournisseurMeApi } from './api';
 import { fournisseurKeys } from './keys';
-import type { EnregistrerVersementFournisseurRequest, UUID } from '../../types/api';
+import { reversementsApi } from '../reversements/api';
+import { reversementKeys } from '../reversements/keys';
+import { produitKeys } from '../produits/keys';
+import type {
+  EnregistrerReversementRequest,
+  EnregistrerVersementFournisseurRequest,
+  UUID,
+} from '../../types/api';
 
 /** Requêtes de l'espace fournisseur : seulement pour un compte FOURNISSEUR connecté. */
 function useEstFournisseur(): boolean {
@@ -183,7 +190,7 @@ export function useSupprimerRemiseLivreur() {
 function invaliderPrixParticuliers(qc: QueryClient) {
   return Promise.all([
     qc.invalidateQueries({ queryKey: fournisseurKeys.partenaires() }),
-    qc.invalidateQueries({ queryKey: [...fournisseurKeys.all, 'catalogue'] }),
+    qc.invalidateQueries({ queryKey: fournisseurKeys.catalogue() }),
   ]);
 }
 
@@ -253,5 +260,115 @@ export function useRefuserInvitation() {
   return useMutation({
     mutationFn: (id: UUID) => fournisseurMeApi.refuserInvitation(id),
     onSettled: () => invaliderInvitations(qc),
+  });
+}
+
+// ─── FM3 : Argent ────────────────────────────────────────────────────────
+
+/** Versements reçus du mois (`yyyy-MM`), ou de toutes les périodes sans mois. */
+export function useVersementsFournisseur(mois?: string) {
+  const actif = useEstFournisseur();
+  return useQuery({
+    queryKey: fournisseurKeys.versements(mois),
+    queryFn: () => fournisseurMeApi.versements(mois),
+    staleTime: 30_000,
+    enabled: actif,
+  });
+}
+
+/** Historique des reversements de remise aux livreurs. */
+export function useReversementsFournisseur() {
+  const actif = useEstFournisseur();
+  return useQuery({
+    queryKey: fournisseurKeys.reversements(),
+    queryFn: fournisseurMeApi.reversements,
+    staleTime: 60_000,
+    enabled: actif,
+  });
+}
+
+/**
+ * Reversement de remise à un livreur (type FOURNISSEUR, bénéficiaire = le livreur), même route
+ * que le web (`POST /reversement`) : la synthèse « à reverser » et l'historique sont relus.
+ */
+export function useEnregistrerReversementFournisseur() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (p: EnregistrerReversementRequest) => reversementsApi.enregistrer(p),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: reversementKeys.all });
+      qc.invalidateQueries({ queryKey: fournisseurKeys.all });
+    },
+  });
+}
+
+// ─── FM3 : catalogue ─────────────────────────────────────────────────────
+
+export function useCatalogueFournisseur() {
+  const actif = useEstFournisseur();
+  return useQuery({
+    queryKey: fournisseurKeys.catalogue(),
+    queryFn: fournisseurMeApi.catalogue,
+    staleTime: 0,
+    enabled: actif,
+  });
+}
+
+/** Après une écriture du catalogue : le catalogue, et les prix particuliers (sous les partenaires). */
+function invaliderCatalogue(qc: QueryClient, referentiel = false) {
+  qc.invalidateQueries({ queryKey: fournisseurKeys.catalogue() });
+  qc.invalidateQueries({ queryKey: fournisseurKeys.partenaires() });
+  // Produit créé ou renommé : le référentiel (liste « Ajouter un produit ») est relu.
+  if (referentiel) qc.invalidateQueries({ queryKey: produitKeys.all });
+}
+
+export function useActiverProduitCatalogue() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (p: { produitId: UUID; prixDeVente: number }) => fournisseurMeApi.activerProduit(p),
+    onSuccess: () => invaliderCatalogue(qc),
+  });
+}
+
+export function useCreerEtActiverProduit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (p: { designation: string; prixDeVente: number }) => fournisseurMeApi.creerEtActiverProduit(p),
+    onSuccess: () => invaliderCatalogue(qc, true),
+  });
+}
+
+export function useModifierLigneCatalogue() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ pfId, prixDeVente }: { pfId: UUID; prixDeVente: number }) =>
+      fournisseurMeApi.modifierLigne(pfId, { prixDeVente }),
+    onSuccess: () => invaliderCatalogue(qc),
+  });
+}
+
+export function useDesactiverLigneCatalogue() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (pfId: UUID) => fournisseurMeApi.desactiverLigne(pfId),
+    onSuccess: () => invaliderCatalogue(qc),
+  });
+}
+
+export function useReactiverLigneCatalogue() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ pfId, prixDeVente }: { pfId: UUID; prixDeVente?: number }) =>
+      fournisseurMeApi.reactiverLigne(pfId, prixDeVente === undefined ? undefined : { prixDeVente }),
+    onSuccess: () => invaliderCatalogue(qc),
+  });
+}
+
+export function useRenommerProduit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ produitId, designation }: { produitId: UUID; designation: string }) =>
+      fournisseurMeApi.renommerProduit(produitId, designation),
+    onSuccess: () => invaliderCatalogue(qc, true),
   });
 }

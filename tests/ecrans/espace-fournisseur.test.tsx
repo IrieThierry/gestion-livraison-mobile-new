@@ -7,7 +7,6 @@ import NotificationsFournisseur from '../../app/fournisseur/notifications';
 import MoiFournisseur from '../../app/fournisseur/moi/index';
 import ModifierInfosFournisseur from '../../app/fournisseur/moi/infos';
 import ChangerMotDePasseFournisseur from '../../app/fournisseur/moi/password';
-import ArgentFournisseur from '../../app/fournisseur/argent/index';
 import * as hooks from '../../features/fournisseur/hooks';
 import { authApi } from '../../features/auth/api';
 import { naviguer, ouvrir, revenirA } from '../../lib/navigation-app';
@@ -202,12 +201,6 @@ describe('F1 : coque de l’espace fournisseur', () => {
     expect(screen.queryByText(/onglet:/)).toBeNull();
     expect(m('useCommandesFournisseur')).not.toHaveBeenCalled();
   });
-
-  it('onglet Argent : écran minimal (contenu à venir, FM3)', () => {
-    rendu(<ArgentFournisseur />);
-    expect(screen.getByText('Argent')).toBeTruthy();
-    expect(screen.getByText(/arrive bientôt sur le mobile/)).toBeTruthy();
-  });
 });
 
 describe('F2 : Accueil du fournisseur (synthèse du portail web)', () => {
@@ -237,7 +230,7 @@ describe('F2 : Accueil du fournisseur (synthèse du portail web)', () => {
     expect(m('useSyntheseFournisseur')).toHaveBeenCalledWith(mois);
   });
 
-  it('À traiter : commandes à confirmer, invitations, demandes ; chaque ligne ouvre son onglet', () => {
+  it('À traiter : commandes à confirmer, invitations, demandes ; chaque ligne ouvre son écran', () => {
     rendu(<AccueilFournisseur />);
     expect(screen.getByText('À traiter')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('2 commandes à confirmer'));
@@ -245,7 +238,7 @@ describe('F2 : Accueil du fournisseur (synthèse du portail web)', () => {
     fireEvent.press(screen.getByLabelText('1 invitation de livreur'));
     expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/livreurs/invitations');
     fireEvent.press(screen.getByLabelText('1 demande de modification'));
-    expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/argent');
+    expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/argent/versements/demandes');
   });
 
   it('cloche : non lues en badge, sinon pastille « à traiter » ; ouvre les Notifications', () => {
@@ -349,7 +342,7 @@ describe('F2 : Notifications du fournisseur', () => {
 });
 
 describe('F2 : onglet Moi du fournisseur', () => {
-  it('entreprise et compte, liens Mes infos, mot de passe, Notifications', () => {
+  it('entreprise et compte, liens Mes infos, mot de passe, catalogue, Notifications', () => {
     mockNonLues = 3;
     rendu(<MoiFournisseur />);
     expect(screen.getByText('Boulangerie 2000')).toBeTruthy();
@@ -359,6 +352,8 @@ describe('F2 : onglet Moi du fournisseur', () => {
     expect(naviguer).toHaveBeenLastCalledWith('/fournisseur/moi/infos');
     fireEvent.press(screen.getByLabelText('Changer le mot de passe'));
     expect(naviguer).toHaveBeenLastCalledWith('/fournisseur/moi/password');
+    fireEvent.press(screen.getByLabelText('Mon catalogue'));
+    expect(naviguer).toHaveBeenLastCalledWith('/fournisseur/moi/catalogue');
     expect(screen.getByText('3 non lues')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Notifications'));
     expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/notifications');

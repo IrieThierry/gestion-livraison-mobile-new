@@ -277,7 +277,8 @@ function hrefDeRoute(route: string, id: string | null, ctx: ContexteCible): stri
  * (mêmes clés que le portail web : commandes reçues, invitations, demandes de
  * modification de versement). Null : pas d'écran (la notification est seulement
  * marquée lue). Commande reçue : son détail (la liste sans identifiant) ;
- * invitation : l'écran des invitations ; demandes : l'onglet Argent (FM3).
+ * invitation : l'écran des invitations ; demandes de modification : leur
+ * écran (Argent → Versements reçus).
  */
 export function hrefFournisseur(route: string, id?: string | null): string | null {
   switch (route) {
@@ -286,7 +287,7 @@ export function hrefFournisseur(route: string, id?: string | null): string | nul
     case 'fournisseur.invitations':
       return '/fournisseur/livreurs/invitations';
     case 'versements.demandes-modif':
-      return '/fournisseur/argent';
+      return '/fournisseur/argent/versements/demandes';
     default:
       return null;
   }

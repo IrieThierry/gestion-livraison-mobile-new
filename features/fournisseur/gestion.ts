@@ -113,6 +113,15 @@ export function lireRemiseLivreur(saisie: string): LectureMontant {
   return lireMontant(saisie, 'La remise livreur', 'La remise livreur ne peut pas être négative.');
 }
 
+/** FM3 : prix de vente d'une ligne du catalogue (obligatoire, > 0, 2 décimales), comme le web. */
+export function lirePrixDeVente(saisie: string): LectureMontant {
+  const negatif = 'Le prix de vente doit être supérieur à 0.';
+  if (saisie.trim() === '') return { ok: false, erreur: negatif };
+  const lecture = lireMontant(saisie, 'Le prix de vente', negatif);
+  if (lecture.ok && lecture.valeur <= 0) return { ok: false, erreur: negatif };
+  return lecture;
+}
+
 export const MESSAGE_PRIX_PARTICULIER_VIDE = 'Renseigne un prix particulier.';
 
 /** Prix particulier : obligatoire et strictement positif (2 décimales). */

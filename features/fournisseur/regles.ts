@@ -173,7 +173,7 @@ export function tachesFournisseur({
       nombre: demandes,
       titre: pluriel(demandes, 'demande de modification', 'demandes de modification'),
       detail: 'Versements : approuve ou rejette les demandes de tes livreurs.',
-      lien: '/fournisseur/argent',
+      lien: '/fournisseur/argent/versements/demandes',
     });
   }
   return taches;

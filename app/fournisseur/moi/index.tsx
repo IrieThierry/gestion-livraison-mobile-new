@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { Bell, Camera, Check, ChevronRight, KeyRound, LogOut, Moon, Smartphone, Sun, UserCog } from 'lucide-react-native';
+import { Bell, BookOpen, Camera, Check, ChevronRight, KeyRound, LogOut, Moon, Smartphone, Sun, UserCog } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { Avatar } from '../../../components/shared/Avatar';
 import { InterrupteurBiometrie } from '../../../components/profil/InterrupteurBiometrie';
@@ -26,7 +26,8 @@ const CARTE = 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-sl
 /**
  * F2, onglet 5 « Moi » du fournisseur : son entreprise et son compte
  * (informations, téléphone, photo, mot de passe, biométrie), les
- * Notifications, le thème et la déconnexion. Le catalogue s'y ajoute (FM3).
+ * catalogue (produits, prix de vente, activation), les Notifications, le
+ * thème et la déconnexion.
  */
 export default function MoiFournisseur() {
   const user = useAuthStore((s) => s.user);
@@ -107,12 +108,19 @@ export default function MoiFournisseur() {
           <Text className={TITRE}>Activité</Text>
           <View className={CARTE}>
             <Ligne
+              Icone={BookOpen}
+              couleur="#047857"
+              titre="Mon catalogue"
+              detail="Tes produits, ton prix de vente, activation"
+              onPress={() => naviguer('/fournisseur/moi/catalogue')}
+              premiere
+            />
+            <Ligne
               Icone={Bell}
               couleur="#2563eb"
               titre="Notifications"
               detail={nonLues > 0 ? `${badgeNonLues(nonLues)} non lue${nonLues > 1 ? 's' : ''}` : 'Commandes, invitations, versements'}
               onPress={() => ouvrir(NOTIFICATIONS_FOURNISSEUR)}
-              premiere
             />
           </View>
 

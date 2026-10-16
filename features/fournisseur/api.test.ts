@@ -1,6 +1,7 @@
 import { apiClient } from '../../lib/api-client';
 import { authApi } from '../auth/api';
 import { fournisseurMeApi } from './api';
+import { demandesModifApi, demandesModifApiDe } from '../demandes-modif/api';
 
 jest.mock('../../lib/api-client', () => ({
   apiClient: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn() },
@@ -107,6 +108,65 @@ describe('FM2 : commandes, livreurs partenaires, invitations (routes du portail 
     expect(post).toHaveBeenLastCalledWith('/fournisseur/me/invitations/i1/accepter');
     await fournisseurMeApi.refuserInvitation('i1');
     expect(post).toHaveBeenLastCalledWith('/fournisseur/me/invitations/i1/refuser');
+  });
+});
+
+describe('FM3 : argent et catalogue (routes du portail web)', () => {
+  it('versements reçus du mois ou de toutes les périodes ; reversements', async () => {
+    await fournisseurMeApi.versements('2026-10');
+    expect(get).toHaveBeenLastCalledWith('/fournisseur/me/versements', { params: { mois: '2026-10' } });
+    await fournisseurMeApi.versements();
+    expect(get).toHaveBeenLastCalledWith('/fournisseur/me/versements', { params: undefined });
+    await fournisseurMeApi.reversements();
+    expect(get).toHaveBeenLastCalledWith('/fournisseur/me/reversements');
+  });
+
+  it('catalogue trié par désignation ; ajouter, créer, modifier, désactiver, réactiver, renommer', async () => {
+    get.mockResolvedValueOnce({
+      data: [
+        { id: 'b', produit: { designation: 'Pain' } },
+        { id: 'a', produit: { designation: 'Baguette' } },
+      ],
+    });
+    expect((await fournisseurMeApi.catalogue()).map((l) => l.id)).toEqual(['a', 'b']);
+    expect(get).toHaveBeenLastCalledWith('/fournisseur/me/catalogue');
+    await fournisseurMeApi.activerProduit({ produitId: 'p1', prixDeVente: 250 });
+    expect(post).toHaveBeenLastCalledWith('/fournisseur/me/catalogue', { produitId: 'p1', prixDeVente: 250 });
+    await fournisseurMeApi.creerEtActiverProduit({ designation: 'Pain maison', prixDeVente: 300 });
+    expect(post).toHaveBeenLastCalledWith('/fournisseur/me/catalogue/nouveau-produit', {
+      designation: 'Pain maison',
+      prixDeVente: 300,
+    });
+    await fournisseurMeApi.modifierLigne('pf1', { prixDeVente: 275 });
+    expect(put).toHaveBeenLastCalledWith('/fournisseur/me/catalogue/pf1', { prixDeVente: 275 });
+    await fournisseurMeApi.desactiverLigne('pf1');
+    expect(post).toHaveBeenLastCalledWith('/fournisseur/me/catalogue/pf1/desactiver');
+    await fournisseurMeApi.reactiverLigne('pf1');
+    expect(post).toHaveBeenLastCalledWith('/fournisseur/me/catalogue/pf1/reactiver', {});
+    await fournisseurMeApi.reactiverLigne('pf1', { prixDeVente: 260 });
+    expect(post).toHaveBeenLastCalledWith('/fournisseur/me/catalogue/pf1/reactiver', { prixDeVente: 260 });
+    await fournisseurMeApi.renommerProduit('p1', 'Pain complet');
+    expect(put).toHaveBeenLastCalledWith('/fournisseur/me/produits/p1/designation', { designation: 'Pain complet' });
+  });
+
+  it('demandes de modification : routes du livreur ou du fournisseur selon le rôle', async () => {
+    const fournisseur = demandesModifApiDe('fournisseur');
+    await fournisseur.lister();
+    expect(get).toHaveBeenLastCalledWith('/fournisseur/me/demandes-modif-versement');
+    await fournisseur.creer({ versementId: 'v1', payloadModif: { montantVerse: 10 }, motifDemande: 'Erreur' });
+    expect(post).toHaveBeenLastCalledWith('/fournisseur/me/demandes-modif-versement', {
+      versementId: 'v1',
+      payloadModif: { montantVerse: 10 },
+      motifDemande: 'Erreur',
+    });
+    await fournisseur.approuver('d1');
+    expect(put).toHaveBeenLastCalledWith('/fournisseur/me/demandes-modif-versement/d1/approuver');
+    await fournisseur.rejeter('d1', 'Montant juste');
+    expect(put).toHaveBeenLastCalledWith('/fournisseur/me/demandes-modif-versement/d1/rejeter', {
+      motifDecision: 'Montant juste',
+    });
+    await demandesModifApi.approuver('d2');
+    expect(put).toHaveBeenLastCalledWith('/livreur/me/demandes-modif-versement/d2/approuver');
   });
 });
 

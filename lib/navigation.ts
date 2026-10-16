@@ -855,9 +855,21 @@ export const ROUTES_FOURNISSEUR: Readonly<Record<string, RouteApp>> = {
   'livreurs/[id]/prix': { type: 'formulaire', parent: '/fournisseur/livreurs/[id]' },
   'livreurs/[id]/versement': { type: 'formulaire', parent: '/fournisseur/livreurs/[id]' },
   'argent/index': { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
+  // FM3 : versements reçus (et leurs demandes de modification), reversements, dépenses.
+  'argent/versements/index': { type: 'liste', parent: '/fournisseur/argent' },
+  'argent/versements/nouveau': { type: 'formulaire', parent: '/fournisseur/argent/versements' },
+  'argent/versements/demandes': { type: 'liste', parent: '/fournisseur/argent/versements' },
+  'argent/versements/modifier': { type: 'formulaire', parent: '/fournisseur/argent/versements' },
+  'argent/reversements': { type: 'liste', parent: '/fournisseur/argent' },
+  'argent/depenses/index': { type: 'liste', parent: '/fournisseur/argent' },
+  'argent/depenses/nouvelle': { type: 'formulaire', parent: '/fournisseur/argent/depenses' },
   'moi/index': { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
   'moi/infos': { type: 'formulaire', parent: '/fournisseur/moi' },
   'moi/password': { type: 'formulaire', parent: '/fournisseur/moi' },
+  // FM3 : catalogue (Moi) ; « ajouter » est plus précis que [id].
+  'moi/catalogue/index': { type: 'liste', parent: '/fournisseur/moi' },
+  'moi/catalogue/ajouter': { type: 'formulaire', parent: '/fournisseur/moi/catalogue' },
+  'moi/catalogue/[id]': { type: 'formulaire', parent: '/fournisseur/moi/catalogue' },
 };
 
 /** Vrai pour un chemin de l'espace fournisseur (`/fournisseur`, `/fournisseur/…`). */

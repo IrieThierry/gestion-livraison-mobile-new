@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { View, Text, FlatList, Pressable, RefreshControl } from 'react-native';
 import { dialog } from '../../../../lib/dialog';
 import { Plus, Trash2, Fuel, Wrench, FileText, MoreHorizontal } from 'lucide-react-native';
@@ -15,13 +15,16 @@ import {
   idCible,
   optionsDepenses,
   type CibleDepenses,
+  type OptionDepenses,
 } from '../../../../features/depenses/regles';
 import { useApprentis } from '../../../../features/apprentis/hooks';
 import { estMembreOrganisation } from '../../../../features/organisation/regles';
 import { useAuthStore } from '../../../../stores/authStore';
+import { creerVerrou, lancerUneFois } from '../../../../features/commandes/verrou';
 import { formatFCFA, formatDateShort } from '../../../../lib/format';
 import type { DepenseResponse } from '../../../../types/api';
 import { naviguer } from '../../../../lib/navigation-app';
+import { extractApiErrorMessage } from '../../../../lib/api-error';
 
 const CATEGORIE_META: Record<
   string,
@@ -47,10 +50,35 @@ export default function DepensesList() {
     () => optionsDepenses(user, membre, membre ? [] : qApprentis.data),
     [user, membre, qApprentis.data],
   );
+  return (
+    <EcranDepenses
+      options={options}
+      optionsEnChargement={qApprentis.isLoading}
+      nouvelle="/(livreur)/cash/depenses/nouvelle"
+    />
+  );
+}
+
+/**
+ * Liste des dépenses, partagée avec le fournisseur (FM3 : mêmes routes
+ * `/depense`, sans sélecteur d'équipe). `options` vide : pas de sélecteur.
+ */
+export function EcranDepenses({
+  options,
+  optionsEnChargement = false,
+  nouvelle,
+}: {
+  options: OptionDepenses[];
+  optionsEnChargement?: boolean;
+  /** Écran « Nouvelle dépense » de l'espace. */
+  nouvelle: string;
+}) {
+  const user = useAuthStore((s) => s.user);
   const [cibleSaisie, setCibleSaisie] = useState<CibleDepenses>(CIBLE_MOI);
   const cible = cibleRetenue(options, cibleSaisie);
   const q = useDepenses(undefined, undefined, cible);
   const m = useDeleteDepense();
+  const verrou = useRef(creerVerrou()).current;
   const userId = user?.id ?? '';
 
   const total = useMemo(
@@ -74,7 +102,13 @@ export default function DepensesList() {
       message: d.libelle,
       confirmLabel: 'Supprimer',
       destructive: true,
-      onConfirm: () => m.mutate(d.id),
+      onConfirm: () =>
+        lancerUneFois(verrou, (fin) =>
+          m.mutate(d.id, {
+            onSettled: fin,
+            onError: (err: unknown) => dialog.error('Erreur', extractApiErrorMessage(err, 'Suppression impossible')),
+          }),
+        ),
     });
   };
 
@@ -85,7 +119,7 @@ export default function DepensesList() {
         subtitle={`${q.data?.length ?? 0} dépense${(q.data?.length ?? 0) > 1 ? 's' : ''} · ${formatFCFA(total)} FCFA`}
         right={
           <Pressable
-            onPress={() => naviguer('/(livreur)/cash/depenses/nouvelle')}
+            onPress={() => naviguer(nouvelle)}
             className="bg-emerald-700 px-3 py-1.5 rounded-md flex-row items-center gap-1 active:opacity-80"
           >
             <Plus color="#fff" size={14} />
@@ -101,7 +135,7 @@ export default function DepensesList() {
             value={idCible(cible)}
             options={options}
             onChange={(id) => setCibleSaisie(cibleDepuisId(id))}
-            isLoading={qApprentis.isLoading}
+            isLoading={optionsEnChargement}
           />
         </View>
       ) : null}
@@ -119,7 +153,10 @@ export default function DepensesList() {
         }
         ListEmptyComponent={
           q.isLoading ? null : q.isError ? (
-            <EmptyState title="Chargement impossible" message="Les dépenses n’ont pas pu être lues." />
+            <EmptyState
+              title="Chargement impossible"
+              message={extractApiErrorMessage(q.error, 'Les dépenses n’ont pas pu être lues.')}
+            />
           ) : (
             <EmptyState
               title="Aucune dépense"

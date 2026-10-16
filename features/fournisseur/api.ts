@@ -7,9 +7,12 @@ import type {
   EnregistrerVersementFournisseurRequest,
   FournisseurResponse,
   InvitationResponse,
+  LigneCatalogueFournisseurResponse,
   LivreurPartenaireDuResponse,
   PrixParticulierLivreurResponse,
+  ProduitResponse,
   RelationResponse,
+  ReversementRecord,
   ReversementsSyntheseFournisseurResponse,
   SituationVersementResponse,
   StatutDemandeModif,
@@ -130,4 +133,56 @@ export const fournisseurMeApi = {
 
   refuserInvitation: async (id: UUID): Promise<RelationResponse> =>
     (await apiClient.post<RelationResponse>(`/fournisseur/me/invitations/${id}/refuser`)).data,
+
+  // ─── FM3 : Argent ───────────────────────────────────────────────────────
+
+  /** Versements reçus du mois (`yyyy-MM`), ou de toutes les périodes sans mois. */
+  versements: async (mois?: string): Promise<VersementResponse[]> =>
+    (
+      await apiClient.get<VersementResponse[]>('/fournisseur/me/versements', {
+        params: mois ? { mois } : undefined,
+      })
+    ).data ?? [],
+
+  /** Reversements de remise faits aux livreurs (saisis par le fournisseur, ou « reçus » notés par le livreur). */
+  reversements: async (): Promise<ReversementRecord[]> =>
+    (await apiClient.get<ReversementRecord[]>('/fournisseur/me/reversements')).data ?? [],
+
+  // ─── FM3 : catalogue ────────────────────────────────────────────────────
+
+  /** Lignes du catalogue (actives et inactives), par désignation. */
+  catalogue: async (): Promise<LigneCatalogueFournisseurResponse[]> =>
+    trierParProduit((await apiClient.get<LigneCatalogueFournisseurResponse[]>('/fournisseur/me/catalogue')).data ?? []),
+
+  /** Ajoute un produit du référentiel (ou réactive la ligne inactive avec ces valeurs). */
+  activerProduit: async (payload: { produitId: UUID; prixDeVente: number }): Promise<LigneCatalogueFournisseurResponse> =>
+    (await apiClient.post<LigneCatalogueFournisseurResponse>('/fournisseur/me/catalogue', payload)).data,
+
+  /** Crée le produit dans le référentiel et l'active chez le fournisseur (une seule transaction). */
+  creerEtActiverProduit: async (payload: {
+    designation: string;
+    prixDeVente: number;
+  }): Promise<LigneCatalogueFournisseurResponse> =>
+    (await apiClient.post<LigneCatalogueFournisseurResponse>('/fournisseur/me/catalogue/nouveau-produit', payload))
+      .data,
+
+  /** Remplace le prix de vente de la ligne (active ou non). */
+  modifierLigne: async (pfId: UUID, payload: { prixDeVente: number }): Promise<LigneCatalogueFournisseurResponse> =>
+    (await apiClient.put<LigneCatalogueFournisseurResponse>(`/fournisseur/me/catalogue/${pfId}`, payload)).data,
+
+  desactiverLigne: async (pfId: UUID): Promise<LigneCatalogueFournisseurResponse> =>
+    (await apiClient.post<LigneCatalogueFournisseurResponse>(`/fournisseur/me/catalogue/${pfId}/desactiver`)).data,
+
+  /** Réactive la ligne ; prix absent = prix de la ligne conservé. */
+  reactiverLigne: async (pfId: UUID, valeurs?: { prixDeVente?: number }): Promise<LigneCatalogueFournisseurResponse> =>
+    (
+      await apiClient.post<LigneCatalogueFournisseurResponse>(
+        `/fournisseur/me/catalogue/${pfId}/reactiver`,
+        valeurs ?? {},
+      )
+    ).data,
+
+  /** Nouvelle désignation d'un produit renommable (créé par ce fournisseur, proposé par lui seul). */
+  renommerProduit: async (produitId: UUID, designation: string): Promise<ProduitResponse> =>
+    (await apiClient.put<ProduitResponse>(`/fournisseur/me/produits/${produitId}/designation`, { designation })).data,
 };

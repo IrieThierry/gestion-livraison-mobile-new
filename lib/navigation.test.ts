@@ -481,6 +481,25 @@ describe('Espace fournisseur (F1, F2) : routes et parents', () => {
     expect(parentFournisseur('/fournisseur/livreurs/l1/prix')).toBe('/fournisseur/livreurs/l1');
     expect(parentFournisseur('/fournisseur/livreurs/l1/versement')).toBe('/fournisseur/livreurs/l1');
   });
+
+  it('FM3 : écrans d’Argent → leur rubrique ; catalogue → Moi ; « ajouter » n’est pas un identifiant', () => {
+    expect(parentFournisseur('/fournisseur/argent/versements')).toBe('/fournisseur/argent');
+    expect(parentFournisseur('/fournisseur/argent/versements/nouveau')).toBe('/fournisseur/argent/versements');
+    expect(parentFournisseur('/fournisseur/argent/versements/demandes')).toBe('/fournisseur/argent/versements');
+    expect(parentFournisseur('/fournisseur/argent/versements/modifier?versementId=v1')).toBe(
+      '/fournisseur/argent/versements',
+    );
+    expect(parentFournisseur('/fournisseur/argent/reversements')).toBe('/fournisseur/argent');
+    expect(parentFournisseur('/fournisseur/argent/depenses')).toBe('/fournisseur/argent');
+    expect(parentFournisseur('/fournisseur/argent/depenses/nouvelle')).toBe('/fournisseur/argent/depenses');
+    expect(parentFournisseur('/fournisseur/moi/catalogue')).toBe('/fournisseur/moi');
+    expect(trouverRouteFournisseur('/fournisseur/moi/catalogue/ajouter')?.fichier).toBe('moi/catalogue/ajouter');
+    expect(trouverRouteFournisseur('/fournisseur/moi/catalogue/pf1')).toEqual({
+      fichier: 'moi/catalogue/[id]',
+      params: { id: 'pf1' },
+    });
+    expect(parentFournisseur('/fournisseur/moi/catalogue/pf1')).toBe('/fournisseur/moi/catalogue');
+  });
 });
 
 describe('Plus d’écran d’attente de validation', () => {

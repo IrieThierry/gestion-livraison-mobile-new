@@ -18,6 +18,12 @@ export const fournisseurKeys = {
   invitations: () => [...fournisseurKeys.all, 'invitations'] as const,
   /** Sous la clé des invitations : invalider la liste rafraîchit aussi le compteur. */
   compteInvitations: () => [...fournisseurKeys.invitations(), 'compte'] as const,
+  /** Toutes les listes de demandes (en attente pour le badge, toutes pour l'écran). */
+  demandesModifRacine: () => [...fournisseurKeys.all, 'demandes-modif-versement'] as const,
   demandesModif: (statut?: StatutDemandeModif) =>
-    [...fournisseurKeys.all, 'demandes-modif-versement', statut ?? 'tous'] as const,
+    [...fournisseurKeys.demandesModifRacine(), statut ?? 'tous'] as const,
+  /** FM3 : versements reçus d'un mois (ou de toutes les périodes). */
+  versements: (mois?: string) => [...fournisseurKeys.all, 'versements', mois ?? 'all'] as const,
+  reversements: () => [...fournisseurKeys.all, 'reversements'] as const,
+  catalogue: () => [...fournisseurKeys.all, 'catalogue'] as const,
 };
