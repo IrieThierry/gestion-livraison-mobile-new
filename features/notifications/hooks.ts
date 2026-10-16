@@ -10,6 +10,7 @@ import { useFocusEffect } from 'expo-router';
 import type { NotificationResponse, UUID } from '../../types/api';
 import { notificationsApi } from './api';
 import { curseurSuivant, INTERVALLE_NOTIFICATIONS_MS } from './regles';
+import { useTempsReelConnecte } from '../temps-reel/connexion';
 
 export const notificationKeys = {
   all: ['notifications'] as const,
@@ -19,24 +20,26 @@ export const notificationKeys = {
 
 type Fil = InfiniteData<NotificationResponse[], string | undefined>;
 
-/** Fil paginé (curseur = id de la dernière reçue), relu toutes les 30 s. */
+/** Fil paginé (curseur = id de la dernière reçue), relu toutes les 30 s (sauf temps réel connecté). */
 export function useFilNotifications(enabled = true) {
+  const connecte = useTempsReelConnecte();
   return useInfiniteQuery({
     queryKey: notificationKeys.fil(),
     queryFn: ({ pageParam }) => notificationsApi.lister(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (derniere: NotificationResponse[]) => curseurSuivant(derniere),
-    refetchInterval: INTERVALLE_NOTIFICATIONS_MS,
+    refetchInterval: connecte ? false : INTERVALLE_NOTIFICATIONS_MS,
     enabled,
   });
 }
 
-/** Compteur de non lues (badge de la cloche), relu toutes les 30 s. */
+/** Compteur de non lues (badge de la cloche), relu toutes les 30 s (sauf temps réel connecté). */
 export function useNombreNonLues(enabled = true) {
+  const connecte = useTempsReelConnecte();
   return useQuery({
     queryKey: notificationKeys.compte(),
     queryFn: notificationsApi.compterNonLues,
-    refetchInterval: INTERVALLE_NOTIFICATIONS_MS,
+    refetchInterval: connecte ? false : INTERVALLE_NOTIFICATIONS_MS,
     enabled,
   });
 }
