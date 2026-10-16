@@ -498,7 +498,21 @@ export interface FournisseurResponse {
   contact: string
 }
 
-export type StatutRelation = 'EN_ATTENTE' | 'ACCEPTEE' | 'REFUSEE' | 'ANNULEE'
+/** Dépôt d'un fournisseur ou d'une organisation ; `position` = `"lat,lng"`. */
+export interface Depot {
+  id: UUID
+  nom: string
+  position: string
+  adresse: string | null
+}
+
+export interface EnregistrerDepotRequest {
+  nom: string
+  position: string
+  adresse: string | null
+}
+
+export type StatutRelation ='EN_ATTENTE' | 'ACCEPTEE' | 'REFUSEE' | 'ANNULEE'
 
 export interface RelationResume {
   id: UUID
@@ -515,6 +529,8 @@ export interface FournisseurAvecRelation extends FournisseurResponse {
   du: number | null
   /** Remise que le fournisseur doit encore reverser au livreur ; mêmes règles que `du`. */
   remiseARecevoir: number | null
+  /** Dépôt du fournisseur (relation acceptée) ; null sinon. */
+  depot?: Depot | null
 }
 
 /** Réponse de l'invitation et de l'annulation. */
@@ -591,6 +607,8 @@ export interface CommandeResponse {
   reference: string
   livreur: LivreurResponse
   fournisseur: FournisseurResponse
+  /** Dépôt du fournisseur, ou null. */
+  depot?: Depot | null
   statut: StatutCommande
   date: string                 // ISO — date de la commande
   dateDecision: string | null  // ISO — confirmation ou refus

@@ -3,6 +3,7 @@ import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { dialog } from '../../../../lib/dialog';
 import { PageHeader } from '../../../../components/shared/PageHeader';
+import { BoutonItineraire } from '../../../../components/shared/BoutonItineraire';
 import { FormScreen } from '../../../../components/shared/FormScreen';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import {
@@ -189,6 +190,14 @@ export default function CommandeDetail() {
             Passée le {formatDateLong(commande.date)}
             {commande.dateLivraison ? ` · livrée le ${formatDateLong(commande.dateLivraison)}` : ''}
           </Text>
+          {commande.depot ? (
+            <View className="mt-3 gap-1.5">
+              <Text className="text-[11px] text-slate-600 dark:text-slate-300">
+                {`Dépôt : ${commande.depot.nom}${commande.depot.adresse ? ` · ${commande.depot.adresse}` : ''}`}
+              </Text>
+              <BoutonItineraire position={commande.depot.position} />
+            </View>
+          ) : null}
           {commande.livreeManuellement && commande.livreePar ? (
             <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
               Passée à Livrée par {commande.livreePar.nom}

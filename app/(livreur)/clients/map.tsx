@@ -8,6 +8,9 @@ import {
 import { WebView } from 'react-native-webview';
 import { Phone, MapPin, X, AlertCircle } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
+import { BoutonItineraire } from '../../../components/shared/BoutonItineraire';
+import { useDepotsVisibles } from '../../../features/depot/hooks';
+import { lirePosition } from '../../../lib/position';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { useClientsByLivreur, useEncoursByLivreur } from '../../../features/clients/hooks';
 import { indexerEncours, num } from '../../../features/encaissements/regles';
@@ -15,7 +18,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import { callPhone, navigateTo } from '../../../lib/linking';
 import { formatMontant } from '../../../lib/format';
 import { extractApiErrorMessage } from '../../../lib/api-error';
-import type { ClientResponse } from '../../../types/api';
+import type { ClientResponse, Depot } from '../../../types/api';
 import { naviguer } from '../../../lib/navigation-app';
 
 interface ClientPin {
@@ -30,6 +33,15 @@ interface ClientPin {
   solde: number;
   /** false si l'encours serveur n'a pas pu être lu (ne pas afficher « à jour »). */
   soldeConnu: boolean;
+}
+
+interface DepotPin {
+  id: string;
+  nom: string;
+  adresse: string;
+  position: string;
+  lat: number;
+  lng: number;
 }
 
 function parseLatLng(s: string | null | undefined): { lat: number; lng: number } | null {
@@ -62,7 +74,21 @@ export default function ClientsMap() {
   const qC = useClientsByLivreur(livreurId);
   const qEncours = useEncoursByLivreur(livreurId);
 
+  const qDepots = useDepotsVisibles();
+
   const [selected, setSelected] = useState<ClientPin | null>(null);
+  const [depotSelectionne, setDepotSelectionne] = useState<DepotPin | null>(null);
+
+  const depots = useMemo<DepotPin[]>(
+    () =>
+      (qDepots.data ?? [])
+        .map((d: Depot) => {
+          const p = lirePosition(d.position);
+          return p ? { id: d.id, nom: d.nom, adresse: d.adresse ?? '', position: d.position, lat: p.lat, lng: p.lng } : null;
+        })
+        .filter((d): d is DepotPin => d !== null),
+    [qDepots.data],
+  );
 
   const pins = useMemo<ClientPin[]>(() => {
     const encours = indexerEncours(qEncours.data);
@@ -95,7 +121,7 @@ export default function ClientsMap() {
   const enDette = pins.filter((p) => p.color === 'debt').length;
   const enCredit = pins.filter((p) => p.color === 'credit').length;
 
-  const html = useMemo(() => buildHtml(pins), [pins]);
+  const html = useMemo(() => buildHtml(pins, depots), [pins, depots]);
 
   if (qC.isLoading) {
     return (
@@ -105,7 +131,7 @@ export default function ClientsMap() {
     );
   }
 
-  if (pins.length === 0) {
+  if (pins.length === 0 && depots.length === 0) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
         <PageHeader title="Carte des clients" subtitle={`${totalClients} clients au total`} />
@@ -159,7 +185,16 @@ export default function ClientsMap() {
               const msg = JSON.parse(event.nativeEvent.data);
               if (msg.type === 'CLIENT_TAP') {
                 const pin = pins.find((p) => p.id === msg.id);
-                if (pin) setSelected(pin);
+                if (pin) {
+                  setDepotSelectionne(null);
+                  setSelected(pin);
+                }
+              } else if (msg.type === 'DEPOT_TAP') {
+                const depot = depots.find((d) => d.id === msg.id);
+                if (depot) {
+                  setSelected(null);
+                  setDepotSelectionne(depot);
+                }
               }
             } catch {
               /* ignore — message non-JSON */
@@ -172,6 +207,34 @@ export default function ClientsMap() {
           }
         />
       </View>
+
+      {depotSelectionne ? (
+        <View className="absolute bottom-4 left-4 right-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-lg">
+          <View className="flex-row items-start gap-2">
+            <View className="flex-1">
+              <Text className="font-extrabold text-slate-900 dark:text-white text-base">
+                {depotSelectionne.nom}
+              </Text>
+              {depotSelectionne.adresse ? (
+                <Text className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  {depotSelectionne.adresse}
+                </Text>
+              ) : null}
+            </View>
+            <Pressable
+              onPress={() => setDepotSelectionne(null)}
+              hitSlop={10}
+              accessibilityLabel="Fermer"
+              className="active:opacity-60 p-1"
+            >
+              <X color="#94a3b8" size={18} />
+            </Pressable>
+          </View>
+          <View className="mt-3">
+            <BoutonItineraire position={depotSelectionne.position} />
+          </View>
+        </View>
+      ) : null}
 
       {/* Bottom sheet — affiché quand un pin est tapé */}
       {selected ? (
@@ -301,7 +364,7 @@ function ClientBottomSheet({
  * Génère le HTML Leaflet avec tous les pins. Auto-fit bounds. Chaque
  * marker poste un message au RN au tap pour qu'on ouvre la bottom sheet.
  */
-function buildHtml(pins: ClientPin[]): string {
+function buildHtml(pins: ClientPin[], depots: DepotPin[] = []): string {
   // Couleurs des pins selon le solde — gradient + bordure blanche pour
   // un look moderne. Inline dans le JS du WebView.
   const COLOR_DEBT = '#ef4444'; // rouge — doit
@@ -341,6 +404,13 @@ function buildHtml(pins: ClientPin[]): string {
     .pin-debt   { background: linear-gradient(180deg, ${COLOR_DEBT}, #b91c1c); }
     .pin-credit { background: linear-gradient(180deg, ${COLOR_CREDIT}, #047857); }
     .pin-ok     { background: linear-gradient(180deg, ${COLOR_OK}, #1e40af); }
+    .depot {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: #d97706; border: 3px solid #fff;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; line-height: 1;
+    }
   </style>
 </head>
 <body>
@@ -348,6 +418,7 @@ function buildHtml(pins: ClientPin[]): string {
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     var pins = ${JSON.stringify(pins)};
+    var depots = ${JSON.stringify(depots)};
 
     var satellite = L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -400,7 +471,24 @@ function buildHtml(pins: ClientPin[]): string {
       bounds.extend([p.lat, p.lng]);
     });
 
-    if (pins.length > 0) {
+    // Dépôts : icône entrepôt distincte, toujours affichés
+    depots.forEach(function(d) {
+      var icon = L.divIcon({
+        className: '',
+        html: '<div class="depot">&#127981;</div>',
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
+      });
+      var marker = L.marker([d.lat, d.lng], { icon: icon, zIndexOffset: 500 }).addTo(map);
+      marker.on('click', function() {
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'DEPOT_TAP', id: d.id }));
+        }
+      });
+      bounds.extend([d.lat, d.lng]);
+    });
+
+    if (pins.length > 0 || depots.length > 0) {
       // Ajustement aux bornes — petit padding pour ne pas coller aux bords
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
     }

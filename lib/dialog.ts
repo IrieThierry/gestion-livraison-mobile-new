@@ -97,6 +97,23 @@ export const dialog = {
     });
   },
 
+  /** Choix entre plusieurs options (ex : Google Maps / Waze), avec Annuler. */
+  choix(params: {
+    title: string;
+    message?: string;
+    options: Array<{ label: string; onPress: () => void }>;
+  }) {
+    useDialogStore.getState().show({
+      variant: 'info',
+      title: params.title,
+      message: params.message,
+      actions: [
+        ...params.options.map((o) => ({ label: o.label, style: 'primary' as const, onPress: o.onPress })),
+        { label: 'Annuler', style: 'secondary' as const },
+      ],
+    });
+  },
+
   /** Ferme le dialog manuellement. */
   hide() {
     useDialogStore.getState().hide();

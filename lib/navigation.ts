@@ -866,6 +866,7 @@ export const ROUTES_FOURNISSEUR: Readonly<Record<string, RouteApp>> = {
   'moi/index': { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
   'moi/infos': { type: 'formulaire', parent: '/fournisseur/moi' },
   'moi/password': { type: 'formulaire', parent: '/fournisseur/moi' },
+  'moi/depot': { type: 'formulaire', parent: '/fournisseur/moi' },
   // FM3 : catalogue (Moi) ; « ajouter » est plus précis que [id].
   'moi/catalogue/index': { type: 'liste', parent: '/fournisseur/moi' },
   'moi/catalogue/ajouter': { type: 'formulaire', parent: '/fournisseur/moi/catalogue' },
