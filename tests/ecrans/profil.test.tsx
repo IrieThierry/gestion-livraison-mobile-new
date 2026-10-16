@@ -28,6 +28,8 @@ jest.mock('../../lib/biometrie-choix', () => ({
   lireChoixBiometrie: jest.fn(async () => null),
   enregistrerChoixBiometrie: jest.fn(async () => undefined),
 }));
+let mockApprentis: unknown[] | undefined = [];
+jest.mock('../../features/apprentis/hooks', () => ({ useApprentis: () => ({ data: mockApprentis }) }));
 jest.mock('../../stores/themeStore', () => ({
   useThemeStore: (sel: (s: unknown) => unknown) => sel({ theme: 'system', setTheme: jest.fn() }),
 }));
@@ -35,6 +37,7 @@ jest.mock('../../stores/themeStore', () => ({
 beforeEach(() => {
   jest.clearAllMocks();
   mockUser = { id: 'liv-1', prenom: 'Awa', nom: 'Kone', username: 'awa', parentId: null };
+  mockApprentis = [];
 });
 
 describe('Onglet Moi', () => {
@@ -161,5 +164,40 @@ describe('Profil : déverrouillage biométrique (S4)', () => {
     });
     expect(enregistrerChoixBiometrie).toHaveBeenLastCalledWith('awa', 'refusee');
     expect(Biometric.authenticate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('« Localiser mon équipe »', () => {
+  const ENTREE = 'Localiser mon équipe';
+
+  it('livreur principal avec apprentis : entrée visible, ouvre Localiser', () => {
+    mockApprentis = [{ id: 'a1' }];
+    render(<Profil />);
+    fireEvent.press(screen.getByText(ENTREE));
+    expect(naviguer).toHaveBeenLastCalledWith('/(livreur)/localiser');
+  });
+
+  it('livreur principal sans apprenti : pas d entrée', () => {
+    render(<Profil />);
+    expect(screen.queryByText(ENTREE)).toBeNull();
+  });
+
+  it('apprenti : pas d entrée', () => {
+    mockUser = { ...mockUser, parentId: 'p' };
+    mockApprentis = [{ id: 'a1' }];
+    render(<Profil />);
+    expect(screen.queryByText(ENTREE)).toBeNull();
+  });
+
+  it('commercial : entrée visible', () => {
+    mockUser = { ...mockUser, parentId: 'r', organisationId: 'o', organisationRole: 'COMMERCIAL' };
+    render(<Profil />);
+    expect(screen.getByText(ENTREE)).toBeTruthy();
+  });
+
+  it('responsable : entrée visible', () => {
+    mockUser = { ...mockUser, parentId: null, organisationId: 'o', organisationRole: 'RESPONSABLE' };
+    render(<Profil />);
+    expect(screen.getByText(ENTREE)).toBeTruthy();
   });
 });

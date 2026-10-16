@@ -14,6 +14,7 @@ import { useThemeStore } from '../stores/themeStore';
 import { useNetworkStore } from '../stores/networkStore';
 import { AppDialog } from '../components/shared/AppDialog';
 import { redirectionRacine } from '../lib/navigation';
+import { useTempsReel } from '../features/temps-reel/useTempsReel';
 
 // ---- TanStack Query : focus + online managers branchés sur React Native ----
 // Sur le web, react-query écoute `window.focus` et `navigator.onLine`. En
@@ -68,6 +69,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const hydrate = useAuthStore((s) => s.hydrate);
   const hydrateTheme = useThemeStore((s) => s.hydrate);
   const segments = useSegments();
+
+  // Temps réel : un seul socket pour l'utilisateur connecté (repli sur le polling si coupé).
+  useTempsReel();
 
   useEffect(() => {
     hydrate();

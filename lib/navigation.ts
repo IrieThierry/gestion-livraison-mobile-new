@@ -160,6 +160,8 @@ export const ECRANS_RESPONSABLE: ReadonlySet<string> = new Set([
   'profil/apprentis/[id]',
   'profil/remises-apprentis',
   'stock/transferts/index',
+  // Localisation : positions de ses commerciaux (ouvert depuis Moi ou une notification).
+  'localiser',
 ]);
 
 export function estEcranResponsable(fichier: string): boolean {
@@ -379,6 +381,11 @@ export const ROUTES: Readonly<Record<string, RouteApp>> = {
       'notifications-responsable': NOTIFICATIONS_RESPONSABLE,
     },
   },
+
+  // Localisation sur demande : Localiser (ouvert depuis Moi ou « Mes apprentis ») et l'écran
+  // de réponse de la cible (notification, bandeau de l'accueil).
+  localiser: { type: 'liste', parent: '/profil' },
+  'localisation/[id]': { type: 'fiche', parent: ACCUEIL, origines: { notifications: NOTIFICATIONS_LIVREUR } },
 };
 
 /**
@@ -866,6 +873,7 @@ export const ROUTES_FOURNISSEUR: Readonly<Record<string, RouteApp>> = {
   'moi/index': { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
   'moi/infos': { type: 'formulaire', parent: '/fournisseur/moi' },
   'moi/password': { type: 'formulaire', parent: '/fournisseur/moi' },
+  'moi/depot': { type: 'formulaire', parent: '/fournisseur/moi' },
   // FM3 : catalogue (Moi) ; « ajouter » est plus précis que [id].
   'moi/catalogue/index': { type: 'liste', parent: '/fournisseur/moi' },
   'moi/catalogue/ajouter': { type: 'formulaire', parent: '/fournisseur/moi/catalogue' },

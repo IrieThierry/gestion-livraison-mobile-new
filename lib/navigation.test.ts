@@ -64,7 +64,7 @@ function ecrans(): string[] {
 
 /** État d'onglets factice : `actif` affiché, piles fournies. */
 function onglets(actif: string, piles: Record<string, RouteEtat[]> = {}): EtatNavigateur {
-  const noms = ['index', 'clients', 'fab', 'livraisons', 'profil', 'cash', 'stock', 'previsions', 'clotures', 'notifications'];
+  const noms = ['index', 'clients', 'fab', 'livraisons', 'profil', 'cash', 'stock', 'previsions', 'clotures', 'notifications', 'localiser', 'localisation'];
   return {
     key: 'tabs',
     index: noms.indexOf(actif),
@@ -689,5 +689,41 @@ describe('Mot de passe provisoire (M1)', () => {
       notifications: '/previsions/echues',
       'notifications-responsable': '/notifications',
     });
+  });
+});
+
+describe('Localisation sur demande', () => {
+  const LIV = { apprenti: false };
+
+  it('écran de réponse ouvert par une notification : pile propre, retour aux Notifications', () => {
+    const depuisNotifs = onglets('previsions', { previsions: [r('echues')] });
+    const action = actionOuvrir(depuisNotifs, '/(livreur)/localisation/d1', { depuis: 'notifications' }, LIV);
+    const p = pileApres(action, 'localisation');
+    expect(p.actif).toBe('localisation');
+    expect(p.noms).toEqual(['[id]']);
+    expect(p.route.state?.routes[0].params).toEqual({ id: 'd1', depuis: 'notifications' });
+
+    const affiche = onglets('localisation', { localisation: [r('[id]', { id: 'd1', depuis: 'notifications' })] });
+    expect(pileApres(actionRetour(affiche, LIV), 'previsions').actif).toBe('previsions');
+    // Depuis le bandeau de l'accueil : retour à l'accueil.
+    const duBandeau = onglets('localisation', { localisation: [r('[id]', { id: 'd1' })] });
+    expect(actionRetour(duBandeau, LIV)).toEqual({ type: 'JUMP_TO', payload: { name: 'index' }, target: 'tabs' });
+  });
+
+  it('Localiser : onglet d un seul écran, retour à Moi ; ouvert au responsable (pas l écran de réponse)', () => {
+    expect(actionOuvrir(onglets('profil', { profil: [r('index')] }), '/(livreur)/localiser', undefined, LIV)).toEqual({
+      type: 'JUMP_TO',
+      payload: { name: 'localiser' },
+      target: 'tabs',
+    });
+    expect(parentDe({ fichier: 'localiser', params: {} }, LIV)).toBe('/profil');
+    expect(estEcranResponsable('localiser')).toBe(true);
+    expect(estEcranResponsable('localisation/[id]')).toBe(false);
+  });
+
+  it('onglets masqués déclarés dans le layout', () => {
+    const layout = fs.readFileSync(path.join(__dirname, '..', 'app', '(livreur)', '_layout.tsx'), 'utf8');
+    expect(layout).toContain('<Tabs.Screen name="localiser" options={{ href: null }} />');
+    expect(layout).toContain('<Tabs.Screen name="localisation" options={{ href: null }} />');
   });
 });

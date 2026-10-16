@@ -183,6 +183,9 @@ export default function LivreurLayout() {
         <Tabs.Screen name="stock" options={{ href: null }} />
         <Tabs.Screen name="previsions" options={{ href: null }} />
         <Tabs.Screen name="clotures" options={{ href: null }} />
+        {/* Localisation sur demande : Localiser et écran de réponse (pile propre). */}
+        <Tabs.Screen name="localiser" options={{ href: null }} />
+        <Tabs.Screen name="localisation" options={{ href: null }} />
       </Tabs>
       {!responsable ? <FabSheet open={fabOpen} onClose={() => setFabOpen(false)} /> : null}
     </SafeAreaView>

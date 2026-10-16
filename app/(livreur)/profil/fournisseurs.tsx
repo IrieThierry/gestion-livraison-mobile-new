@@ -3,6 +3,7 @@ import { ScrollView, View, Text, Pressable, ActivityIndicator, RefreshControl } 
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { SearchInput } from '../../../components/shared/SearchInput';
+import { BoutonItineraire } from '../../../components/shared/BoutonItineraire';
 import { AUCUN_RESULTAT, filtrerRecherche } from '../../../lib/recherche';
 import { useAuthStore } from '../../../stores/authStore';
 import { useNetworkStore } from '../../../stores/networkStore';
@@ -155,6 +156,14 @@ export default function MesFournisseurs() {
                         {LIBELLES_ETAT[etat]}
                       </Text>
                     </View>
+                    {f.depot ? (
+                      <View className="mt-2 gap-1.5">
+                        <Text className="text-[11px] text-slate-600 dark:text-slate-300">
+                          {`Dépôt : ${f.depot.nom}${f.depot.adresse ? ` · ${f.depot.adresse}` : ''}`}
+                        </Text>
+                        <BoutonItineraire position={f.depot.position} />
+                      </View>
+                    ) : null}
                     {montants && f.du != null ? (
                       <Text
                         className="text-[12px] font-bold text-slate-800 dark:text-slate-200 mt-1"

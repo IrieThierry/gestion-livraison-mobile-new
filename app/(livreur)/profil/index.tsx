@@ -24,6 +24,7 @@ import {
   ArrowLeftRight,
   Monitor,
   FilePen,
+  LocateFixed,
 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { Avatar } from '../../../components/shared/Avatar';
@@ -34,6 +35,8 @@ import { naviguer } from '../../../lib/navigation-app';
 import { DEPUIS_MOI } from '../../../lib/navigation';
 import { estCommercial, estMembreOrganisation, estResponsable, vocabulaire } from '../../../features/organisation/regles';
 import { PRIX_FIXES_PAR_PRINCIPAL } from '../../../features/prix/plancher';
+import { useApprentis } from '../../../features/apprentis/hooks';
+import { peutLocaliser } from '../../../features/localisation/etat';
 
 const THEMES: Array<{
   key: Theme;
@@ -50,6 +53,8 @@ export default function Profil() {
   const logout = useAuthStore((s) => s.logout);
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
+  // Localiser : le livreur principal indépendant n'y a accès que s'il a des apprentis.
+  const apprentis = useApprentis();
 
   if (!user) return null;
 
@@ -59,6 +64,7 @@ export default function Profil() {
   const commercial = estCommercial(user);
   // Responsable (O15) : espace en lecture, ses deux actions (déchargements, remises) ; la gestion est sur le web.
   const responsable = estResponsable(user);
+  const localiser = peutLocaliser(user, apprentis.data?.length ?? 0);
 
   const onLogout = () => {
     dialog.confirm({
@@ -214,6 +220,25 @@ export default function Profil() {
                     </Text>
                     <Text className="text-[11px] text-slate-500 dark:text-slate-400">
                       {responsable ? 'Consulte tes commerciaux et leur activité' : membre ? 'Crée et gère les comptes de tes commerciaux' : 'Crée et gère les comptes de tes apprentis livreurs'}
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight color="#94a3b8" size={18} />
+              </Pressable>
+            ) : null}
+            {/* Localisation sur demande : responsable, commercial, principal avec apprentis. */}
+            {localiser ? (
+              <Pressable
+                onPress={() => naviguer('/(livreur)/localiser')}
+                accessibilityRole="button"
+                className="flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 active:opacity-70"
+              >
+                <View className="flex-row items-center gap-3">
+                  <LocateFixed color="#047857" size={20} />
+                  <View>
+                    <Text className="font-extrabold text-slate-900 dark:text-white">Localiser mon équipe</Text>
+                    <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Demande leur position, avec leur accord
                     </Text>
                   </View>
                 </View>

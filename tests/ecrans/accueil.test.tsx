@@ -75,6 +75,7 @@ jest.mock('../../features/demandes-modif/hooks', () => ({
 }));
 
 let mockAbonnement: unknown = { statut: 'ESSAI', formule: 'LIVREUR', herite: false };
+jest.mock('../../components/localisation/BandeauDemandesRecues', () => ({ BandeauDemandesRecues: () => null }));
 jest.mock('../../features/abonnement/hooks', () => ({
   useMonAbonnement: () => ({ data: mockAbonnement, isLoading: false, isError: false, refetch: jest.fn() }),
 }));

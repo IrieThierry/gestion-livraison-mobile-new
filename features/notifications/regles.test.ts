@@ -244,3 +244,32 @@ describe('« Mot de passe demandé » (M1)', () => {
     expect(apparenceNotification(n)).toMatchObject({ domaine: 'compte', ton: 'neutre', couleur: '#047857' });
   });
 });
+
+describe('localisation (notifications)', () => {
+  const n = (route: string, id: string | null) => notif({ type: 'X', cible: { type: 'LOCALISATION', id, route } });
+
+  it('demande reçue → écran de réponse ; partagée ou refusée → Localiser', () => {
+    const livreur = { apprenti: false, responsable: false };
+    expect(cibleMobile(n('localisation.demande', 'd 1'), livreur)).toEqual({
+      href: '/(livreur)/localisation/d%201',
+      params: { depuis: 'notifications' },
+    });
+    expect(cibleMobile(n('localisation', 'p1'), livreur)).toEqual({
+      href: '/(livreur)/localiser',
+      params: { depuis: 'notifications' },
+    });
+    // Apprenti ciblé par son principal : l'écran de réponse s'ouvre aussi.
+    expect(cibleMobile(n('localisation.demande', 'd1'), { apprenti: true, responsable: false })?.href).toBe(
+      '/(livreur)/localisation/d1',
+    );
+  });
+
+  it('responsable : Localiser s ouvre (son espace) ; demande sans id : aucun écran', () => {
+    const resp = { apprenti: false, responsable: true };
+    expect(cibleMobile(n('localisation', 'p1'), resp)).toEqual({
+      href: '/(livreur)/localiser',
+      params: { depuis: 'notifications-responsable' },
+    });
+    expect(cibleMobile(n('localisation.demande', null), { apprenti: false, responsable: false })).toBeNull();
+  });
+});

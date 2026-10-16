@@ -41,6 +41,7 @@ import { extractApiErrorMessage } from '../../lib/api-error';
 import { ouvrir } from '../../lib/navigation-app';
 import { estMembreOrganisation, estResponsable } from '../../features/organisation/regles';
 import { TableauDeBordResponsable } from '../../components/responsable/TableauDeBordResponsable';
+import { BandeauDemandesRecues } from '../../components/localisation/BandeauDemandesRecues';
 
 /**
  * Accueil : tableau de bord pour le responsable d'une organisation (son
@@ -212,6 +213,8 @@ function Tournee() {
         </View>
 
         <AbonnementExpireBanner />
+        {/* Demandes de position reçues : ouvre l'écran de réponse. */}
+        <BandeauDemandesRecues />
 
         {/* Hero card — solde du jour with sub-cards */}
         <View

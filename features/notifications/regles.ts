@@ -230,7 +230,7 @@ export interface CibleMobile {
 }
 
 /**
- * Écran mobile du livreur pour chacune des 13 routes logiques du back. Null :
+ * Écran mobile du livreur pour chacune des routes logiques du back. Null :
  * pas d'écran du livreur (routes `fournisseur.*` : `hrefFournisseur` ; demandes
  * de chargement du responsable : portail web).
  */
@@ -263,6 +263,11 @@ function hrefDeRoute(route: string, id: string | null, ctx: ContexteCible): stri
     case 'organisation.commerciaux':
     case 'demandes-reinitialisation':
       return '/(livreur)/profil/apprentis';
+    // Localisation : demande reçue → écran de réponse ; partagée ou refusée → Localiser.
+    case 'localisation.demande':
+      return id ? `/(livreur)/localisation/${encodeURIComponent(id)}` : null;
+    case 'localisation':
+      return '/(livreur)/localiser';
     // Espace fournisseur (hrefFournisseur) ; demandes de chargement du responsable : portail web.
     case 'fournisseur.commandes':
     case 'fournisseur.invitations':
