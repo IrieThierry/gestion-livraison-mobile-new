@@ -6,6 +6,7 @@ import {
   champsModifies,
   construireDemandeModif,
   estADecider,
+  estADeciderPour,
   libelleDemandeur,
   separerDemandes,
   validerMotifRejet,
@@ -54,6 +55,17 @@ describe('N7 : demandes de modification de versement', () => {
     ]);
     expect(enAttente.map((d) => d.id)).toEqual(['recue', 'ancienne', 'mienne']);
     expect(historique.map((d) => d.id)).toEqual(['h2', 'h1']);
+  });
+
+  it('FM3, fournisseur : décide des demandes du livreur ; les siennes sont « initiées par moi »', () => {
+    const duLivreur = demande('l', { demandeurType: 'LIVREUR', demandeurLibelle: 'Awa Yao', createdAt: '2026-10-08T09:00:00' });
+    const mienne = demande('f', { createdAt: '2026-10-12T09:00:00' });
+    expect(estADeciderPour('fournisseur')(duLivreur)).toBe(true);
+    expect(estADeciderPour('fournisseur')(mienne)).toBe(false);
+    expect(separerDemandes([mienne, duLivreur], 'fournisseur').enAttente.map((d) => d.id)).toEqual(['l', 'f']);
+    expect(libelleDemandeur(mienne, 'fournisseur')).toBe('Initiée par moi');
+    expect(libelleDemandeur(duLivreur, 'fournisseur')).toBe('Initiée par Awa Yao');
+    expect(libelleDemandeur({ ...duLivreur, demandeurLibelle: null }, 'fournisseur')).toBe('Initiée par le livreur');
   });
 
   it('initiateur', () => {

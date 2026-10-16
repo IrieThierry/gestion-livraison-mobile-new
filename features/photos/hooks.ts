@@ -61,3 +61,25 @@ export function useSupprimerPhotoClient() {
     },
   });
 }
+
+/**
+ * FM3 : photo du produit d'une ligne du catalogue du fournisseur (`id` = ligne). La photo d'un
+ * produit figure dans toutes les réponses produit : toutes les lectures sont marquées périmées,
+ * comme le web. Les messages sont affichés par l'écran.
+ */
+export function useUploadPhotoCatalogue() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ligneId, uri, name }: { ligneId: UUID; uri: string; name?: string }) =>
+      photosApi.uploadPhotoCatalogue(ligneId, uri, name),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+export function useSupprimerPhotoCatalogue() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ligneId: UUID) => photosApi.supprimerPhotoCatalogue(ligneId),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}

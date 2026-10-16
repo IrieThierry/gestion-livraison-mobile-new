@@ -59,4 +59,19 @@ export const photosApi = {
   supprimerPhotoClient: async (clientId: UUID): Promise<void> => {
     await apiClient.delete(`/client/${clientId}/photo`);
   },
+
+  /** FM3, fournisseur : photo du produit d'une ligne de son catalogue (produit qu'il a créé, 403 sinon). */
+  uploadPhotoCatalogue: async (ligneId: UUID, uri: string, name?: string): Promise<PhotoUploadResponse> => {
+    const { data } = await apiClient.post<PhotoUploadResponse>(
+      `/fournisseur/me/catalogue/${ligneId}/photo`,
+      asFormData(uri, name),
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return data;
+  },
+
+  /** Le back répond le texte « Photo supprimée » : il n'est pas lu comme du JSON (comme le web). */
+  supprimerPhotoCatalogue: async (ligneId: UUID): Promise<void> => {
+    await apiClient.delete(`/fournisseur/me/catalogue/${ligneId}/photo`, { responseType: 'text' });
+  },
 };

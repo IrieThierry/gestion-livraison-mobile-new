@@ -4,9 +4,9 @@ import { Monitor, LogOut } from 'lucide-react-native';
 import { useAuthStore } from '../stores/authStore';
 
 /**
- * Écran d'un compte ADMIN ou FOURNISSEUR connecté sur le mobile : l'app est
- * réservée aux livreurs, ces comptes travaillent sur le portail web. Remplace
- * les onglets livreur (routage : `redirectionRacine` de lib/navigation).
+ * Écran d'un compte ADMIN connecté sur le mobile : l'app est réservée aux
+ * livreurs et aux fournisseurs (F1), l'administrateur travaille sur le portail
+ * web. Remplace les onglets livreur (routage : `redirectionRacine` de lib/navigation).
  */
 export default function PortailWeb() {
   const user = useAuthStore((s) => s.user);
@@ -23,7 +23,7 @@ export default function PortailWeb() {
             Utilisez le portail web
           </Text>
           <Text className="text-sm text-slate-600 dark:text-slate-400 text-center leading-5">
-            {user?.prenom ? `Bonjour ${user.prenom}, l` : 'L'}'application mobile est réservée aux livreurs.
+            {user?.prenom ? `Bonjour ${user.prenom}, l` : 'L'}'application mobile est réservée aux livreurs et aux fournisseurs.
             Connectez-vous au portail web pour gérer votre compte.
           </Text>
           <Pressable

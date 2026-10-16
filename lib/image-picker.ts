@@ -7,6 +7,10 @@ export interface PickedImage {
   name: string;
   width: number;
   height: number;
+  /** Taille en octets, quand le système la donne. */
+  fileSize?: number;
+  /** Type réel du fichier (ex. `image/jpeg`), quand le système le donne. */
+  mimeType?: string;
 }
 
 /**
@@ -105,5 +109,7 @@ function toPickedImage(
     name: fileName,
     width: asset.width ?? 0,
     height: asset.height ?? 0,
+    fileSize: asset.fileSize,
+    mimeType: asset.mimeType,
   };
 }

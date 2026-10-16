@@ -115,7 +115,7 @@ describe('Connexion : écran d’arrivée selon le profil', () => {
   it.each([
     ['LIVREUR', '/(livreur)'],
     ['ADMIN', '/portail-web'],
-    ['FOURNISSEUR', '/portail-web'],
+    ['FOURNISSEUR', '/fournisseur'],
   ])('%s → %s', async (profile, cible) => {
     login.mockResolvedValue(reponse(profile));
     await connecter();

@@ -6,8 +6,15 @@ import {
   ecranApresConnexion,
   MOT_DE_PASSE_PROVISOIRE,
   accueilDuProfil,
+  ACCUEIL_FOURNISSEUR,
+  estCheminFournisseur,
+  estProfilFournisseur,
   estProfilPortailWeb,
+  GROUPE_FOURNISSEUR,
+  parentFournisseur,
   PORTAIL_WEB,
+  ROUTES_FOURNISSEUR,
+  trouverRouteFournisseur,
   redirectionRacine,
   actionNaviguer,
   actionOuvrir,
@@ -348,28 +355,52 @@ describe('état racine', () => {
   });
 });
 
-describe('Profil : écran « Utilisez le portail web »', () => {
+describe('Profil : portail web (ADMIN), espace fournisseur (F1), onglets livreur', () => {
   const livreur = { profile: 'LIVREUR' };
+  const fournisseur = { profile: 'FOURNISSEUR' };
 
-  it('ADMIN et FOURNISSEUR vont au portail web, le livreur (ou un profil absent) aux onglets', () => {
+  it('ADMIN va au portail web, FOURNISSEUR à son espace, le livreur (ou un profil absent) aux onglets', () => {
     expect(estProfilPortailWeb('ADMIN')).toBe(true);
-    expect(estProfilPortailWeb('FOURNISSEUR')).toBe(true);
+    expect(estProfilPortailWeb('FOURNISSEUR')).toBe(false);
     expect(estProfilPortailWeb('LIVREUR')).toBe(false);
     expect(estProfilPortailWeb(undefined)).toBe(false);
+    expect(estProfilFournisseur('FOURNISSEUR')).toBe(true);
+    expect(estProfilFournisseur('ADMIN')).toBe(false);
+    expect(estProfilFournisseur(undefined)).toBe(false);
     expect(accueilDuProfil('ADMIN')).toBe(PORTAIL_WEB);
-    expect(accueilDuProfil('FOURNISSEUR')).toBe(PORTAIL_WEB);
+    expect(accueilDuProfil('FOURNISSEUR')).toBe(ACCUEIL_FOURNISSEUR);
     expect(accueilDuProfil('LIVREUR')).toBe(ACCUEIL_LIVREUR);
+    expect(accueilDuProfil(null)).toBe(ACCUEIL_LIVREUR);
+    expect(ACCUEIL_FOURNISSEUR).toBe('/fournisseur');
+  });
+
+  it('après la connexion : le fournisseur arrive dans son espace (ou sur le mot de passe provisoire)', () => {
+    expect(ecranApresConnexion(fournisseur)).toBe(ACCUEIL_FOURNISSEUR);
+    expect(ecranApresConnexion({ ...fournisseur, motDePasseProvisoire: true })).toBe(MOT_DE_PASSE_PROVISOIRE);
   });
 
   it('redirection racine selon la session et le profil', () => {
     expect(redirectionRacine(null, '(livreur)')).toBe('/(auth)/login');
     expect(redirectionRacine(null, 'portail-web')).toBe('/(auth)/login');
+    expect(redirectionRacine(null, GROUPE_FOURNISSEUR)).toBe('/(auth)/login');
     expect(redirectionRacine(null, '(auth)')).toBeNull();
     expect(redirectionRacine(livreur, '(auth)')).toBe(ACCUEIL_LIVREUR);
     expect(redirectionRacine({ profile: 'ADMIN' }, '(auth)')).toBe(PORTAIL_WEB);
-    expect(redirectionRacine({ profile: 'FOURNISSEUR' }, '(livreur)')).toBe(PORTAIL_WEB);
-    expect(redirectionRacine({ profile: 'FOURNISSEUR' }, 'portail-web')).toBeNull();
+    expect(redirectionRacine({ profile: 'ADMIN' }, '(livreur)')).toBe(PORTAIL_WEB);
+    expect(redirectionRacine({ profile: 'ADMIN' }, GROUPE_FOURNISSEUR)).toBe(PORTAIL_WEB);
+    expect(redirectionRacine({ profile: 'ADMIN' }, 'portail-web')).toBeNull();
+    // F1 : le fournisseur n'est plus envoyé au portail web, il reste dans son espace.
+    expect(redirectionRacine(fournisseur, '(auth)')).toBe(ACCUEIL_FOURNISSEUR);
+    expect(redirectionRacine(fournisseur, '(livreur)')).toBe(ACCUEIL_FOURNISSEUR);
+    expect(redirectionRacine(fournisseur, 'portail-web')).toBe(ACCUEIL_FOURNISSEUR);
+    expect(redirectionRacine(fournisseur, 'mot-de-passe-provisoire')).toBe(ACCUEIL_FOURNISSEUR);
+    expect(redirectionRacine(fournisseur, GROUPE_FOURNISSEUR)).toBeNull();
+    expect(redirectionRacine(fournisseur, GROUPE_FOURNISSEUR, [GROUPE_FOURNISSEUR, 'commandes'])).toBeNull();
+    expect(redirectionRacine({ ...fournisseur, motDePasseProvisoire: true }, GROUPE_FOURNISSEUR)).toBe(
+      MOT_DE_PASSE_PROVISOIRE,
+    );
     expect(redirectionRacine(livreur, 'portail-web')).toBe(ACCUEIL_LIVREUR);
+    expect(redirectionRacine(livreur, GROUPE_FOURNISSEUR)).toBe(ACCUEIL_LIVREUR);
     expect(redirectionRacine(livreur, '(livreur)')).toBeNull();
   });
 
@@ -379,6 +410,95 @@ describe('Profil : écran « Utilisez le portail web »', () => {
     expect(PORTAIL_WEB).toBe('/portail-web');
     const layout = fs.readFileSync(path.join(racine, '_layout.tsx'), 'utf8');
     expect(layout).toMatch(/<Stack\.Screen name="portail-web" \/>/);
+    expect(layout).toMatch(/<Stack\.Screen name="fournisseur" \/>/);
+  });
+});
+
+/** Fichiers d'écran de app/fournisseur (hors _layout), sans extension. */
+function ecransFournisseur(): string[] {
+  const racine = path.join(__dirname, '..', 'app', 'fournisseur');
+  const out: string[] = [];
+  const parcourir = (dir: string) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) parcourir(p);
+      else if (/\.tsx$/.test(e.name) && e.name !== '_layout.tsx')
+        out.push(path.relative(racine, p).replace(/\\/g, '/').replace(/\.tsx$/, ''));
+    }
+  };
+  parcourir(racine);
+  return out.sort();
+}
+
+describe('Espace fournisseur (F1, F2) : routes et parents', () => {
+  it('chaque écran de app/fournisseur est déclaré dans ROUTES_FOURNISSEUR, et réciproquement', () => {
+    expect(ecransFournisseur()).toEqual(Object.keys(ROUTES_FOURNISSEUR).sort());
+  });
+
+  it('les cinq onglets (Accueil, Commandes, Livreurs, Argent, Moi) et Notifications hors barre', () => {
+    const layout = fs.readFileSync(path.join(__dirname, '..', 'app', 'fournisseur', '_layout.tsx'), 'utf8');
+    for (const nom of ['index', 'commandes', 'livreurs', 'argent', 'moi']) expect(layout).toContain(`name="${nom}"`);
+    expect(layout).toMatch(/name="notifications" options=\{\{ href: null \}\}/);
+  });
+
+  it('chemins de l’espace et écran correspondant', () => {
+    expect(estCheminFournisseur('/fournisseur')).toBe(true);
+    expect(estCheminFournisseur('/fournisseur/moi/infos')).toBe(true);
+    expect(estCheminFournisseur('/fournisseurs')).toBe(false);
+    expect(estCheminFournisseur('/profil/fournisseurs')).toBe(false);
+    expect(trouverRouteFournisseur('/fournisseur')?.fichier).toBe('index');
+    expect(trouverRouteFournisseur('/fournisseur/commandes')?.fichier).toBe('commandes/index');
+    expect(trouverRouteFournisseur('/fournisseur/moi/password')?.fichier).toBe('moi/password');
+    expect(trouverRouteFournisseur('/fournisseur/inconnu')).toBeNull();
+    // Jamais confondus avec les écrans du livreur.
+    expect(trouverRoute('/fournisseur')).toBeNull();
+    expect(trouverRoute('/fournisseur/notifications')).toBeNull();
+  });
+
+  it('parent logique : Accueil → aucun ; onglet ou Notifications → Accueil ; formulaire de Moi → Moi', () => {
+    expect(parentFournisseur('/fournisseur')).toBeNull();
+    expect(parentFournisseur('/fournisseur/commandes')).toBe(ACCUEIL_FOURNISSEUR);
+    expect(parentFournisseur('/fournisseur/livreurs')).toBe(ACCUEIL_FOURNISSEUR);
+    expect(parentFournisseur('/fournisseur/argent')).toBe(ACCUEIL_FOURNISSEUR);
+    expect(parentFournisseur('/fournisseur/moi')).toBe(ACCUEIL_FOURNISSEUR);
+    expect(parentFournisseur('/fournisseur/notifications')).toBe(ACCUEIL_FOURNISSEUR);
+    expect(parentFournisseur('/fournisseur/moi/infos')).toBe('/fournisseur/moi');
+    expect(parentFournisseur('/fournisseur/moi/password')).toBe('/fournisseur/moi');
+    // Écran inconnu : Accueil du fournisseur.
+    expect(parentFournisseur('/fournisseur/inconnu')).toBe(ACCUEIL_FOURNISSEUR);
+  });
+
+  it('FM2 : détail de commande → Commandes ; Invitations et fiche → Livreurs ; écrans d’un livreur → sa fiche', () => {
+    expect(trouverRouteFournisseur('/fournisseur/commandes/c1')).toEqual({ fichier: 'commandes/[id]', params: { id: 'c1' } });
+    expect(parentFournisseur('/fournisseur/commandes/c1')).toBe('/fournisseur/commandes');
+    // « invitations » n'est jamais lu comme l'identifiant d'un livreur.
+    expect(trouverRouteFournisseur('/fournisseur/livreurs/invitations')?.fichier).toBe('livreurs/invitations');
+    expect(parentFournisseur('/fournisseur/livreurs/invitations')).toBe('/fournisseur/livreurs');
+    expect(trouverRouteFournisseur('/fournisseur/livreurs/l1')?.fichier).toBe('livreurs/[id]/index');
+    expect(parentFournisseur('/fournisseur/livreurs/l1')).toBe('/fournisseur/livreurs');
+    expect(parentFournisseur('/fournisseur/livreurs/l1/commandes')).toBe('/fournisseur/livreurs/l1');
+    expect(parentFournisseur('/fournisseur/livreurs/l1/commandes/c1')).toBe('/fournisseur/livreurs/l1/commandes');
+    expect(parentFournisseur('/fournisseur/livreurs/l1/prix')).toBe('/fournisseur/livreurs/l1');
+    expect(parentFournisseur('/fournisseur/livreurs/l1/versement')).toBe('/fournisseur/livreurs/l1');
+  });
+
+  it('FM3 : écrans d’Argent → leur rubrique ; catalogue → Moi ; « ajouter » n’est pas un identifiant', () => {
+    expect(parentFournisseur('/fournisseur/argent/versements')).toBe('/fournisseur/argent');
+    expect(parentFournisseur('/fournisseur/argent/versements/nouveau')).toBe('/fournisseur/argent/versements');
+    expect(parentFournisseur('/fournisseur/argent/versements/demandes')).toBe('/fournisseur/argent/versements');
+    expect(parentFournisseur('/fournisseur/argent/versements/modifier?versementId=v1')).toBe(
+      '/fournisseur/argent/versements',
+    );
+    expect(parentFournisseur('/fournisseur/argent/reversements')).toBe('/fournisseur/argent');
+    expect(parentFournisseur('/fournisseur/argent/depenses')).toBe('/fournisseur/argent');
+    expect(parentFournisseur('/fournisseur/argent/depenses/nouvelle')).toBe('/fournisseur/argent/depenses');
+    expect(parentFournisseur('/fournisseur/moi/catalogue')).toBe('/fournisseur/moi');
+    expect(trouverRouteFournisseur('/fournisseur/moi/catalogue/ajouter')?.fichier).toBe('moi/catalogue/ajouter');
+    expect(trouverRouteFournisseur('/fournisseur/moi/catalogue/pf1')).toEqual({
+      fichier: 'moi/catalogue/[id]',
+      params: { id: 'pf1' },
+    });
+    expect(parentFournisseur('/fournisseur/moi/catalogue/pf1')).toBe('/fournisseur/moi/catalogue');
   });
 });
 

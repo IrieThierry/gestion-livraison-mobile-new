@@ -597,7 +597,7 @@ export interface CommandeResponse {
   motifRefus: string | null
   dateLivraison: string | null // ISO
   montantLivre: number | null  // Σ des réceptions actives ; null tant qu'aucune réception
-  /** Σ qteCommandee × (prix particulier, sinon prix catalogue), remise non déduite ; calculé à la lecture. */
+  /** Σ qteCommandee × (prix particulier, sinon prix catalogue, + remise livreur partenaire) ; calculé à la lecture. */
   montantEstime?: number | null
   remiseLivreurLivree: number | null
   versementId: UUID | null     // non nul = réglée par un versement
@@ -1482,4 +1482,101 @@ export interface NotificationResponse {
 
 export interface CompteNonLuesResponse {
   nonLues: number
+}
+
+// ---------------------------------------------------------------------------
+// Espace fournisseur (F1-F3) : routes `/fournisseur/me/**`, mêmes formes que le web
+// ---------------------------------------------------------------------------
+
+/** `GET /fournisseur/me/invitations` : invitation EN_ATTENTE adressée au fournisseur connecté. */
+export interface InvitationResponse {
+  id: UUID
+  dateInvitation: string
+  livreur: { id: UUID; nom: string; prenom: string; contact: string }
+}
+
+/** Ligne de `GET /fournisseur/me/livreurs-partenaires` : relation acceptée, bloqués compris. */
+export interface LivreurPartenaireDuResponse {
+  livreur: { id: UUID; nom: string; prenom: string | null; contact: string | null }
+  bloque: boolean
+  /** Remise livreur actuelle par unité (0 si aucune). */
+  remiseUnitaire: number
+  /** Σ (prix + remise) reçus. */
+  totalRecu: number
+  totalVerse: number
+  /** totalRecu − totalVerse ; négatif = avance. */
+  du: number
+  /** Remise livrée moins remise déjà reversée (hors dû). */
+  remiseAReverser: number
+  dernierVersement: string | null
+}
+
+/** Agrégat des versements d'un livreur (`topLivreurs` de la synthèse). */
+export interface LivreurPartenaireResponse {
+  livreurId: UUID
+  nom: string
+  prenom: string
+  totalVerse: number
+  remiseLivreurCumulee: number
+  nbVersements: number
+}
+
+/** `GET /fournisseur/me/synthese?mois=yyyy-MM`. */
+export interface SyntheseFournisseurResponse {
+  annee: number
+  mois: number
+  totalVerse: number
+  remiseLivreurCumuleeMois: number
+  remiseLivreurDejaReversee: number
+  remiseLivreurAReverser: number
+  nbVersements: number
+  nbLivreursActifs: number
+  topLivreurs: LivreurPartenaireResponse[]
+}
+
+export interface LigneLivreurDuResponse {
+  livreurId: UUID
+  prenom: string
+  nom: string
+  remiseLivreurCumuleeMois: number
+  detteCourante: number
+  montantNetAReverser: number
+}
+
+/** `GET /fournisseur/me/reversements-synthese?mois=yyyy-MM`. */
+export interface ReversementsSyntheseFournisseurResponse {
+  annee: number
+  mois: number
+  aReverserAuxLivreurs: LigneLivreurDuResponse[]
+}
+
+/** Ligne de `GET /fournisseur/me/livreurs/{id}/prix-particuliers` : produit actif et prix de ce livreur. */
+export interface PrixParticulierLivreurResponse {
+  produitFournisseurId: UUID
+  produit: { id: UUID; code: string; designation: string }
+  prixDeBase: number
+  /** null : aucun prix particulier (le prix de base s'applique). */
+  prixParticulier: number | null
+}
+
+/** Corps de `POST /fournisseur/me/versements` (le fournisseur est celui du jeton). */
+export interface EnregistrerVersementFournisseurRequest {
+  livreurId: UUID
+  /** Commandes réglées ; vide ou absent = versement libre. */
+  commandeIds?: UUID[]
+  dateVersement?: string
+  montantVerse: number
+  commentaire?: string
+}
+
+/** Ligne du catalogue du fournisseur connecté (`GET /fournisseur/me/catalogue`). */
+export interface LigneCatalogueFournisseurResponse {
+  id: UUID
+  produit: ProduitResponse
+  prixDeVente: number
+  actif: boolean
+  dateDesactivation: string | null
+  nbPrixParticuliers: number
+  /** Désignation modifiable : produit créé par ce fournisseur et proposé par lui seul. */
+  renommable: boolean
 }

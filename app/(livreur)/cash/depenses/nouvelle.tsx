@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { DatePickerField } from '../../../../components/shared/DatePickerField';
 import { useCreateDepense } from '../../../../features/depenses/hooks';
 import type { DepenseCategorie } from '../../../../types/api';
 import { useRetourListe } from '../../../../lib/useRetourListe';
+import { creerVerrou, lancerUneFois } from '../../../../features/commandes/verrou';
 
 const CATEGORIES: Array<{
   key: DepenseCategorie;
@@ -30,8 +31,14 @@ const CATEGORIES: Array<{
 ];
 
 export default function NouvelleDepense() {
-  const m = useCreateDepense();
   const retourListe = useRetourListe('/(livreur)/cash/depenses');
+  return <EcranNouvelleDepense onEnregistree={retourListe} />;
+}
+
+/** Saisie d'une dépense, partagée avec le fournisseur (FM3) : `onEnregistree` ramène à la liste. */
+export function EcranNouvelleDepense({ onEnregistree }: { onEnregistree: () => void }) {
+  const m = useCreateDepense();
+  const verrou = useRef(creerVerrou()).current;
   const today = new Date().toISOString().slice(0, 10);
 
   const [libelle, setLibelle] = useState('');
@@ -55,23 +62,27 @@ export default function NouvelleDepense() {
       dialog.warning('Champ requis', 'Date requise');
       return;
     }
-    m.mutate(
-      {
-        libelle: libelle.trim(),
-        categorie,
-        montant: n,
-        dateDepense,
-        commentaire: commentaire.trim() || undefined,
-      },
-      {
-        onSuccess: () => {
-          retourListe();
-          dialog.success('Dépense enregistrée');
+    const jour = dateDepense;
+    lancerUneFois(verrou, (fin) =>
+      m.mutate(
+        {
+          libelle: libelle.trim(),
+          categorie,
+          montant: n,
+          dateDepense: jour,
+          commentaire: commentaire.trim() || undefined,
         },
-        onError: (err: unknown) => {
-          dialog.error('Erreur', extractApiErrorMessage(err, 'Échec'));
+        {
+          onSettled: fin,
+          onSuccess: () => {
+            onEnregistree();
+            dialog.success('Dépense enregistrée');
+          },
+          onError: (err: unknown) => {
+            dialog.error('Erreur', extractApiErrorMessage(err, 'Échec'));
+          },
         },
-      },
+      ),
     );
   };
 

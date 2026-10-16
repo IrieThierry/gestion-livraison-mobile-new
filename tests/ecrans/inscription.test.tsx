@@ -67,14 +67,16 @@ beforeEach(() => {
   jest.spyOn(BackHandler, 'addEventListener');
 });
 
-describe('Inscription en deux étapes (livreur seulement)', () => {
-  it('étape 1 : profil Livreur choisi, informations, progression 1/2, ni Fournisseur ni attente de validation', () => {
+describe('Inscription en deux étapes (livreur ou fournisseur)', () => {
+  it('étape 1 : profil Livreur choisi par défaut, carte Fournisseur à côté, progression 1/2, pas d’attente de validation', () => {
     afficher();
     expect(screen.getByText('Étape 1 sur 2')).toBeTruthy();
     expect(screen.getByRole('header', { name: 'Profil et informations' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: 'Livreur' }).props.accessibilityState).toEqual({ checked: true });
-    expect(screen.queryByText('Fournisseur')).toBeNull();
-    expect(screen.getByText('Fournisseur ? Inscris-toi sur le portail web.')).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Fournisseur' }).props.accessibilityState).toEqual({ checked: false });
+    // F1 : plus de renvoi au portail web, ni de nom d'entreprise pour un livreur.
+    expect(screen.queryByText('Fournisseur ? Inscris-toi sur le portail web.')).toBeNull();
+    expect(screen.queryByText("Nom de l'entreprise")).toBeNull();
     expect(screen.getByPlaceholderText('Marc')).toBeTruthy();
     expect(screen.queryByPlaceholderText('marc')).toBeNull();
     expect(screen.queryByText(/valider/i)).toBeNull();
@@ -188,5 +190,58 @@ describe('Inscription en deux étapes (livreur seulement)', () => {
       useDialogStore.getState().actions!.find((a) => a.label === 'Se connecter')!.onPress!();
     });
     expect(router.replace).toHaveBeenCalledWith('/(auth)/login');
+  });
+});
+
+describe('Inscription d’un fournisseur (F1)', () => {
+  const choisirFournisseur = () => fireEvent.press(screen.getByRole('radio', { name: 'Fournisseur' }));
+
+  it('carte Fournisseur : champ « Nom de l’entreprise » en haut du formulaire, vérifié avant « Continuer »', () => {
+    afficher();
+    choisirFournisseur();
+    expect(screen.getByRole('radio', { name: 'Fournisseur' }).props.accessibilityState).toEqual({ checked: true });
+    expect(screen.getByText("Nom de l'entreprise")).toBeTruthy();
+    remplirInfos();
+    continuer();
+    expect(useDialogStore.getState().message).toBe("Le nom de l'entreprise est obligatoire.");
+    expect(screen.getByText('Étape 1 sur 2')).toBeTruthy();
+    fireEvent.changeText(screen.getByPlaceholderText('ex. Boulangerie 2000'), 'x'.repeat(101));
+    continuer();
+    expect(useDialogStore.getState().message).toBe("Le nom de l'entreprise ne doit pas dépasser 100 caractères.");
+    expect(screen.getByText('Étape 1 sur 2')).toBeTruthy();
+  });
+
+  it('envoie le profil FOURNISSEUR et le nom de l’entreprise (espaces retirés), un seul envoi', async () => {
+    register.mockResolvedValue({ message: 'Compte créé. Vous pouvez vous connecter.' });
+    afficher();
+    choisirFournisseur();
+    fireEvent.changeText(screen.getByPlaceholderText('ex. Boulangerie 2000'), '  Boulangerie 2000 ');
+    remplirInfos();
+    continuer();
+    expect(screen.getByText('Étape 2 sur 2')).toBeTruthy();
+    remplirAcces();
+    fireEvent.press(screen.getByText('Créer mon compte'));
+    fireEvent.press(screen.getByLabelText('Créer mon compte'));
+    await waitFor(() => expect(useDialogStore.getState().open).toBe(true));
+    expect(register).toHaveBeenCalledTimes(1);
+    expect(register.mock.calls[0][0]).toMatchObject({
+      prenom: 'Awa',
+      nom: 'Kone',
+      contact: '0712345678',
+      username: 'awa',
+      profile: 'FOURNISSEUR',
+      nomEntreprise: 'Boulangerie 2000',
+    });
+    expect(useDialogStore.getState().variant).toBe('success');
+  });
+
+  it('revenir à Livreur : le nom de l’entreprise disparaît et n’est plus exigé', () => {
+    afficher();
+    choisirFournisseur();
+    fireEvent.press(screen.getByRole('radio', { name: 'Livreur' }));
+    expect(screen.queryByText("Nom de l'entreprise")).toBeNull();
+    remplirInfos();
+    continuer();
+    expect(screen.getByText('Étape 2 sur 2')).toBeTruthy();
   });
 });

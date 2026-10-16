@@ -220,6 +220,8 @@ export interface ContexteCible {
   apprenti: boolean;
   /** Responsable d'une organisation : seuls les écrans de son espace s'ouvrent. */
   responsable: boolean;
+  /** F1 : compte fournisseur, les écrans s'ouvrent dans son espace (`/fournisseur/…`). */
+  fournisseur?: boolean;
 }
 
 export interface CibleMobile {
@@ -228,9 +230,9 @@ export interface CibleMobile {
 }
 
 /**
- * Écran mobile de chacune des 13 routes logiques du back. Null : pas
- * d'écran sur le mobile (espace fournisseur, demandes de chargement du
- * responsable : portail web).
+ * Écran mobile du livreur pour chacune des 13 routes logiques du back. Null :
+ * pas d'écran du livreur (routes `fournisseur.*` : `hrefFournisseur` ; demandes
+ * de chargement du responsable : portail web).
  */
 function hrefDeRoute(route: string, id: string | null, ctx: ContexteCible): string | null {
   switch (route) {
@@ -261,10 +263,31 @@ function hrefDeRoute(route: string, id: string | null, ctx: ContexteCible): stri
     case 'organisation.commerciaux':
     case 'demandes-reinitialisation':
       return '/(livreur)/profil/apprentis';
-    // Espace fournisseur et responsable : portail web.
+    // Espace fournisseur (hrefFournisseur) ; demandes de chargement du responsable : portail web.
     case 'fournisseur.commandes':
     case 'fournisseur.invitations':
     case 'organisation.demandes-chargement':
+    default:
+      return null;
+  }
+}
+
+/**
+ * F2 : écran de l'espace fournisseur de chaque route logique qui le concerne
+ * (mêmes clés que le portail web : commandes reçues, invitations, demandes de
+ * modification de versement). Null : pas d'écran (la notification est seulement
+ * marquée lue). Commande reçue : son détail (la liste sans identifiant) ;
+ * invitation : l'écran des invitations ; demandes de modification : leur
+ * écran (Argent → Versements reçus).
+ */
+export function hrefFournisseur(route: string, id?: string | null): string | null {
+  switch (route) {
+    case 'fournisseur.commandes':
+      return id ? `/fournisseur/commandes/${encodeURIComponent(id)}` : '/fournisseur/commandes';
+    case 'fournisseur.invitations':
+      return '/fournisseur/livreurs/invitations';
+    case 'versements.demandes-modif':
+      return '/fournisseur/argent/versements/demandes';
     default:
       return null;
   }
@@ -279,6 +302,11 @@ export function cibleMobile(
   n: Pick<NotificationResponse, 'cible'> & Partial<Pick<NotificationResponse, 'type'>>,
   ctx: ContexteCible,
 ): CibleMobile | null {
+  if (ctx.fournisseur) {
+    const lien = n.cible ? hrefFournisseur(n.cible.route, n.cible.id) : null;
+    // Écran de l'espace : retour à son parent (ROUTES_FOURNISSEUR), sans origine.
+    return lien ? { href: lien, params: {} } : null;
+  }
   // M1 : « Mot de passe demandé » ouvre toujours la liste des apprentis ou commerciaux.
   const href =
     n.type === TYPE_MOT_DE_PASSE_DEMANDE

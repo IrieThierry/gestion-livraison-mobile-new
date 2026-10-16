@@ -62,6 +62,21 @@ export function useAnnuaireRecu(): AnnuaireRecu {
 export function usePartagerRecu() {
   const annuaire = useAnnuaireRecu();
   const user = useAuthStore((s) => s.user);
+  const charger = useCallback(
+    (r: ReversementRecord) =>
+      user
+        ? chargerDetailRecu(r, { id: user.id, parentId: user.parentId ?? null })
+        : Promise.reject(new Error('Session absente')),
+    [user],
+  );
+  return usePartageRecuAvec(annuaire, charger);
+}
+
+/**
+ * Cœur du partage d'un reçu, commun au livreur et au fournisseur (FM3) : l'annuaire
+ * des noms et la lecture du détail de la période sont fournis par l'appelant.
+ */
+export function usePartageRecuAvec(annuaire: AnnuaireRecu, charger: (r: ReversementRecord) => Promise<DetailRecu>) {
   const verrou = useRef(creerVerrou()).current;
   return useCallback(
     (r: ReversementRecord, connu?: { beneficiaire?: string; payeur?: string }) => {
@@ -77,10 +92,7 @@ export function usePartagerRecu() {
             const parties = partiesReversement(r, annuaire);
             const completer = (p: PartieRecu, nom?: string): PartieRecu =>
               nom && p.nom === NON_PRECISE ? { ...p, nom } : p;
-            const detail: DetailRecu = await (user
-              ? chargerDetailRecu(r, { id: user.id, parentId: user.parentId ?? null })
-              : Promise.reject(new Error('Session absente'))
-            ).catch(() => {
+            const detail: DetailRecu = await charger(r).catch(() => {
               indisponible = true;
               return DETAIL_EN_ECHEC;
             });
@@ -109,6 +121,6 @@ export function usePartagerRecu() {
           });
       });
     },
-    [annuaire, user, verrou],
+    [annuaire, charger, verrou],
   );
 }

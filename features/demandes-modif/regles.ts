@@ -8,6 +8,7 @@ import type {
 } from '../../types/api';
 import type { Resultat } from '../commandes/regles';
 import { formatDateLong, formatFCFA } from '../../lib/format';
+import type { RoleDemandes } from './api';
 
 /**
  * N7 : règles pures des demandes de modification de versement (livreur).
@@ -26,29 +27,48 @@ export const MOTIF_DEMANDE_OBLIGATOIRE = 'Le motif de la demande est obligatoire
 export const AUCUNE_MODIFICATION = 'Indique au moins un champ à modifier.';
 export const MONTANT_INVALIDE = 'Le montant versé doit être un nombre positif ou nul.';
 
+/** Type du demandeur dont les demandes sont initiées « par moi » pour ce rôle. */
+const MOI: Record<RoleDemandes, DemandeModificationVersementResponse['demandeurType']> = {
+  livreur: 'LIVREUR',
+  fournisseur: 'FOURNISSEUR',
+};
+
+/**
+ * Demande à décider : en attente et initiée par l'autre partie (par le fournisseur pour
+ * le livreur, par le livreur pour le fournisseur).
+ */
+export const estADeciderPour =
+  (role: RoleDemandes) => (d: Pick<DemandeModificationVersementResponse, 'statut' | 'demandeurType'>) =>
+    d.statut === 'PENDING' && d.demandeurType !== MOI[role];
+
 /** Demande que le livreur doit décider : en attente et initiée par le fournisseur. */
-export const estADecider = (d: Pick<DemandeModificationVersementResponse, 'statut' | 'demandeurType'>) =>
-  d.statut === 'PENDING' && d.demandeurType === 'FOURNISSEUR';
+export const estADecider = estADeciderPour('livreur');
 
 const recentEnPremier = (a: DemandeModificationVersementResponse, b: DemandeModificationVersementResponse) =>
   (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
 
 /** En attente (à décider d'abord) et historique (décidées), du plus récent au plus ancien. */
-export function separerDemandes(demandes: DemandeModificationVersementResponse[]): {
+export function separerDemandes(
+  demandes: DemandeModificationVersementResponse[],
+  role: RoleDemandes = 'livreur',
+): {
   enAttente: DemandeModificationVersementResponse[];
   historique: DemandeModificationVersementResponse[];
 } {
   const enAttente = demandes
     .filter((d) => d.statut === 'PENDING')
-    .sort((a, b) => Number(estADecider(b)) - Number(estADecider(a)) || recentEnPremier(a, b));
+    .sort((a, b) => Number(estADeciderPour(role)(b)) - Number(estADeciderPour(role)(a)) || recentEnPremier(a, b));
   const historique = demandes.filter((d) => d.statut !== 'PENDING').sort(recentEnPremier);
   return { enAttente, historique };
 }
 
-/** « Initiée par moi » ou par le fournisseur (libellé renvoyé par le back). */
-export function libelleDemandeur(d: Pick<DemandeModificationVersementResponse, 'demandeurType' | 'demandeurLibelle'>): string {
-  if (d.demandeurType === 'LIVREUR') return 'Initiée par moi';
-  return `Initiée par ${d.demandeurLibelle ?? 'le fournisseur'}`;
+/** « Initiée par moi » ou par l'autre partie (libellé renvoyé par le back). */
+export function libelleDemandeur(
+  d: Pick<DemandeModificationVersementResponse, 'demandeurType' | 'demandeurLibelle'>,
+  role: RoleDemandes = 'livreur',
+): string {
+  if (d.demandeurType === MOI[role]) return 'Initiée par moi';
+  return `Initiée par ${d.demandeurLibelle ?? (role === 'livreur' ? 'le fournisseur' : 'le livreur')}`;
 }
 
 export interface ChampModifie {

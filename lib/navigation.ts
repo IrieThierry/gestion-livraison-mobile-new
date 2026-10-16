@@ -29,24 +29,39 @@
  */
 
 // ---------------------------------------------------------------------------
-// Profil : livreur (onglets) ou portail web (ADMIN, FOURNISSEUR)
+// Profil : livreur (onglets), fournisseur (son espace) ou portail web (ADMIN)
 // ---------------------------------------------------------------------------
 
 /** Groupe des onglets du livreur (cible après la connexion d'un livreur). */
 export const ACCUEIL_LIVREUR = '/(livreur)';
 
 /**
+ * F1 : espace du fournisseur (`app/fournisseur/`, onglets du bas). Dossier
+ * (et non groupe) : ses chemins `/fournisseur/…` ne se mêlent jamais à ceux
+ * du livreur (`/profil`, `/notifications`…), comme sur le portail web.
+ */
+export const ACCUEIL_FOURNISSEUR = '/fournisseur';
+
+/** Premier segment de route de l'espace fournisseur (nom de la route dans la pile racine). */
+export const GROUPE_FOURNISSEUR = 'fournisseur';
+
+/**
  * Écran « Utilisez le portail web » (`app/portail-web.tsx`, déclaré dans la
- * pile racine) : un compte ADMIN ou FOURNISSEUR n'a pas d'espace sur mobile.
+ * pile racine) : un compte ADMIN n'a pas d'espace sur mobile.
  */
 export const PORTAIL_WEB = '/portail-web';
 
 /** Premier segment de route de l'écran portail web. */
 const SEGMENT_PORTAIL_WEB = 'portail-web';
 
-/** ADMIN et FOURNISSEUR utilisent le portail web ; un profil absent (ancienne session) reste livreur. */
+/** Seul l'ADMIN utilise le portail web ; un profil absent (ancienne session) reste livreur. */
 export function estProfilPortailWeb(profile: string | null | undefined): boolean {
-  return profile === 'ADMIN' || profile === 'FOURNISSEUR';
+  return profile === 'ADMIN';
+}
+
+/** F1 : compte fournisseur (son espace sur le mobile). */
+export function estProfilFournisseur(profile: string | null | undefined): boolean {
+  return profile === 'FOURNISSEUR';
 }
 
 /**
@@ -55,7 +70,9 @@ export function estProfilPortailWeb(profile: string | null | undefined): boolean
  * Accueil y est le tableau de bord de son espace (O15).
  */
 export function accueilDuProfil(profile: string | null | undefined): string {
-  return estProfilPortailWeb(profile) ? PORTAIL_WEB : ACCUEIL_LIVREUR;
+  if (estProfilPortailWeb(profile)) return PORTAIL_WEB;
+  if (estProfilFournisseur(profile)) return ACCUEIL_FOURNISSEUR;
+  return ACCUEIL_LIVREUR;
 }
 
 /**
@@ -89,9 +106,10 @@ function estResponsableOrganisation(user: UtilisateurRedirection): boolean {
 
 /**
  * Redirection de la pile racine (`AuthGate`) : non connecté hors `(auth)` →
- * connexion ; connecté dans `(auth)` → écran de son profil ; ADMIN ou
- * FOURNISSEUR hors du portail web → portail web ; livreur sur le portail
- * web → onglets. Responsable d'une organisation (O15) : hors des écrans de
+ * connexion ; connecté dans `(auth)` → écran de son profil ; ADMIN hors du
+ * portail web → portail web ; FOURNISSEUR hors de son espace → son Accueil
+ * (F1) ; livreur sur le portail web ou dans l'espace fournisseur → onglets.
+ * Responsable d'une organisation (O15) : hors des écrans de
  * son espace (`ECRANS_RESPONSABLE`, d'après `segments`, les segments de
  * route d'expo-router) → son Accueil. Null : rester où l'on est.
  */
@@ -107,10 +125,10 @@ export function redirectionRacine(
   if (user.motDePasseProvisoire) return surProvisoire ? null : MOT_DE_PASSE_PROVISOIRE;
   if (surProvisoire) return accueilDuProfil(user.profile);
   if (dansAuth) return accueilDuProfil(user.profile);
-  const portail = estProfilPortailWeb(user.profile);
-  if (portail && premierSegment !== SEGMENT_PORTAIL_WEB) return PORTAIL_WEB;
-  if (!portail && premierSegment === SEGMENT_PORTAIL_WEB) return ACCUEIL_LIVREUR;
-  if (!portail && premierSegment === GROUPE_LIVREUR && segments && estResponsableOrganisation(user)) {
+  if (estProfilPortailWeb(user.profile)) return premierSegment === SEGMENT_PORTAIL_WEB ? null : PORTAIL_WEB;
+  if (estProfilFournisseur(user.profile)) return premierSegment === GROUPE_FOURNISSEUR ? null : ACCUEIL_FOURNISSEUR;
+  if (premierSegment === SEGMENT_PORTAIL_WEB || premierSegment === GROUPE_FOURNISSEUR) return ACCUEIL_LIVREUR;
+  if (premierSegment === GROUPE_LIVREUR && segments && estResponsableOrganisation(user)) {
     const chemin = `/${segments.slice(1).filter((s) => s !== 'index').join('/')}`;
     if (chemin === ACCUEIL) return null;
     const cible = trouverRoute(chemin);
@@ -803,4 +821,106 @@ export function actionNaviguer(
   const present = aplatir(onglet).slice(0, -1).some((e) => e.chemin === chemin);
   if (present && Object.keys(requete).length === 0) return actionRevenirA(onglets, href, ctx);
   return 'push';
+}
+
+// ---------------------------------------------------------------------------
+// Espace fournisseur (F1, F2) : onglets Accueil, Commandes, Livreurs, Argent, Moi
+// ---------------------------------------------------------------------------
+
+/** Notifications du fournisseur (cloche de l'Accueil, entrée de Moi). */
+export const NOTIFICATIONS_FOURNISSEUR = '/fournisseur/notifications';
+
+/**
+ * Écrans du fournisseur, par fichier (relatif à `app/fournisseur`, sans
+ * extension) → type et parent (chemin complet, `/fournisseur/…`). Chaque
+ * fichier d'écran doit y figurer (test). Même règle que le livreur : fiche
+ * ou formulaire → sa liste, liste (racine d'onglet) → Accueil. Une origine
+ * (`origines`, paramètre `depuis`) peut changer le parent d'un écran
+ * (`parentFournisseur` avec les paramètres de l'écran).
+ */
+export const ROUTES_FOURNISSEUR: Readonly<Record<string, RouteApp>> = {
+  index: { type: 'accueil', parent: null },
+  // Cloche de l'Accueil, ou entrée « Notifications » de Moi (onglet masqué).
+  notifications: { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
+  // Racines des onglets (Commandes, Livreurs ; FM3 : Argent).
+  'commandes/index': { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
+  // FM2 : détail d'une commande reçue (liste, notification « commande reçue »).
+  'commandes/[id]': { type: 'fiche', parent: '/fournisseur/commandes' },
+  'livreurs/index': { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
+  // FM2 : invitations (bouton de la liste, « À traiter », notification) et fiche d'un livreur partenaire.
+  'livreurs/invitations': { type: 'liste', parent: '/fournisseur/livreurs' },
+  'livreurs/[id]/index': { type: 'fiche', parent: '/fournisseur/livreurs' },
+  'livreurs/[id]/commandes/index': { type: 'liste', parent: '/fournisseur/livreurs/[id]' },
+  'livreurs/[id]/commandes/[commandeId]': { type: 'fiche', parent: '/fournisseur/livreurs/[id]/commandes' },
+  'livreurs/[id]/prix': { type: 'formulaire', parent: '/fournisseur/livreurs/[id]' },
+  'livreurs/[id]/versement': { type: 'formulaire', parent: '/fournisseur/livreurs/[id]' },
+  'argent/index': { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
+  // FM3 : versements reçus (et leurs demandes de modification), reversements, dépenses.
+  'argent/versements/index': { type: 'liste', parent: '/fournisseur/argent' },
+  'argent/versements/nouveau': { type: 'formulaire', parent: '/fournisseur/argent/versements' },
+  'argent/versements/demandes': { type: 'liste', parent: '/fournisseur/argent/versements' },
+  'argent/versements/modifier': { type: 'formulaire', parent: '/fournisseur/argent/versements' },
+  'argent/reversements': { type: 'liste', parent: '/fournisseur/argent' },
+  'argent/depenses/index': { type: 'liste', parent: '/fournisseur/argent' },
+  'argent/depenses/nouvelle': { type: 'formulaire', parent: '/fournisseur/argent/depenses' },
+  'moi/index': { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
+  'moi/infos': { type: 'formulaire', parent: '/fournisseur/moi' },
+  'moi/password': { type: 'formulaire', parent: '/fournisseur/moi' },
+  // FM3 : catalogue (Moi) ; « ajouter » est plus précis que [id].
+  'moi/catalogue/index': { type: 'liste', parent: '/fournisseur/moi' },
+  'moi/catalogue/ajouter': { type: 'formulaire', parent: '/fournisseur/moi/catalogue' },
+  'moi/catalogue/[id]': { type: 'formulaire', parent: '/fournisseur/moi/catalogue' },
+};
+
+/** Vrai pour un chemin de l'espace fournisseur (`/fournisseur`, `/fournisseur/…`). */
+export function estCheminFournisseur(chemin: string): boolean {
+  const { chemin: c } = normaliserHref(chemin);
+  return c === ACCUEIL_FOURNISSEUR || c.startsWith(`${ACCUEIL_FOURNISSEUR}/`);
+}
+
+/** Écran du fournisseur correspondant à un chemin concret (`/fournisseur/commandes` → `commandes/index`). */
+export function trouverRouteFournisseur(chemin: string): Cible | null {
+  const { chemin: c } = normaliserHref(chemin);
+  if (!estCheminFournisseur(c)) return null;
+  const segments = c.split('/').filter(Boolean).slice(1);
+  let meilleur: { cible: Cible; fixes: number } | null = null;
+  for (const fichier of Object.keys(ROUTES_FOURNISSEUR)) {
+    const m = motif(fichier);
+    if (m.length !== segments.length) continue;
+    const params: Parametres = {};
+    let fixes = 0;
+    let ok = true;
+    for (let i = 0; i < m.length; i++) {
+      const dyn = /^\[(.+)\]$/.exec(m[i]);
+      if (dyn) params[dyn[1]] = decodeURIComponent(segments[i]);
+      else if (m[i] === segments[i]) fixes++;
+      else {
+        ok = false;
+        break;
+      }
+    }
+    if (ok && (!meilleur || fixes > meilleur.fixes)) meilleur = { cible: { fichier, params }, fixes };
+  }
+  return meilleur?.cible ?? null;
+}
+
+/**
+ * Parent logique d'un écran du fournisseur (chemin complet), d'après
+ * `ROUTES_FOURNISSEUR` et son origine (`depuis`) ; null pour l'Accueil. Un
+ * écran inconnu remonte à l'Accueil du fournisseur.
+ */
+export function parentFournisseur(chemin: string, params: Parametres = {}): string | null {
+  const cible = trouverRouteFournisseur(chemin);
+  if (!cible) return ACCUEIL_FOURNISSEUR;
+  const p = { ...cible.params, ...normaliserHref(chemin).requete, ...params };
+  const route = ROUTES_FOURNISSEUR[cible.fichier];
+  if (route.parent === null) return null;
+  const depuis = p.depuis;
+  const origine =
+    typeof depuis === 'string' && route.origines && Object.prototype.hasOwnProperty.call(route.origines, depuis)
+      ? route.origines[depuis as Origine]
+      : undefined;
+  const gabarit = origine ?? (typeof route.parent === 'function' ? route.parent({ apprenti: false }) : route.parent);
+  const { chemin: parent } = normaliserHref(gabarit, p);
+  return parent.includes('[') ? ACCUEIL_FOURNISSEUR : parent;
 }

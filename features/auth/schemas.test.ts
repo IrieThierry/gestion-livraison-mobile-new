@@ -1,6 +1,7 @@
 import {
   changePasswordSchema,
   contactValide,
+  erreurNomEntreprise,
   FORMAT_CONTACT,
   loginSchema,
   signupSchema,
@@ -43,10 +44,30 @@ describe('signupSchema (règles A7, profil LIVREUR imposé)', () => {
     return r.success ? null : r.error.issues[0]?.message;
   };
 
-  it('accepte un livreur valide et impose le profil LIVREUR', () => {
-    const r = signupSchema.safeParse({ ...valide, profile: 'FOURNISSEUR' });
+  it('accepte un livreur valide ; un profil inconnu (ou absent) devient LIVREUR', () => {
+    for (const profile of [undefined, 'LIVREUR', 'ADMIN', 'ENTREPRISE']) {
+      const r = signupSchema.safeParse({ ...valide, profile });
+      expect(r.success).toBe(true);
+      if (r.success) expect(r.data.profile).toBe('LIVREUR');
+    }
+  });
+
+  it('F1 : fournisseur avec le nom de l’entreprise (2 à 100 caractères, espaces retirés), messages du web', () => {
+    const r = signupSchema.safeParse({ ...valide, profile: 'FOURNISSEUR', nomEntreprise: '  Boulangerie 2000 ' });
     expect(r.success).toBe(true);
-    if (r.success) expect(r.data.profile).toBe('LIVREUR');
+    if (r.success) {
+      expect(r.data.profile).toBe('FOURNISSEUR');
+      expect(r.data.nomEntreprise).toBe('Boulangerie 2000');
+    }
+    expect(message({ profile: 'FOURNISSEUR' })).toBe("Le nom de l'entreprise est obligatoire.");
+    expect(message({ profile: 'FOURNISSEUR', nomEntreprise: ' A ' })).toBe("Le nom de l'entreprise est obligatoire.");
+    expect(message({ profile: 'FOURNISSEUR', nomEntreprise: 'x'.repeat(101) })).toBe(
+      "Le nom de l'entreprise ne doit pas dépasser 100 caractères.",
+    );
+    // Livreur : le nom de l'entreprise n'est pas vérifié.
+    expect(message({ profile: 'LIVREUR', nomEntreprise: '' })).toBeNull();
+    expect(erreurNomEntreprise('LIVREUR', '')).toBeNull();
+    expect(erreurNomEntreprise('FOURNISSEUR', 'AB')).toBeNull();
   });
 
   it('mot de passe trop court : message de la spec', () => {
