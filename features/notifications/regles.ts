@@ -293,6 +293,9 @@ export function hrefFournisseur(route: string, id?: string | null): string | nul
       return '/fournisseur/livreurs/invitations';
     case 'versements.demandes-modif':
       return '/fournisseur/argent/versements/demandes';
+    // « Mot de passe demandé » d'un commis : la liste de ses commis (Moi → Mes commis).
+    case 'equipe':
+      return '/fournisseur/moi/commis';
     default:
       return null;
   }

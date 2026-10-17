@@ -500,6 +500,29 @@ describe('Espace fournisseur (F1, F2) : routes et parents', () => {
     });
     expect(parentFournisseur('/fournisseur/moi/catalogue/pf1')).toBe('/fournisseur/moi/catalogue');
   });
+
+  it('Commis du fournisseur : Mes commis → Moi ; Mes clients → Argent ; récapitulatif → Accueil', () => {
+    expect(parentFournisseur('/fournisseur/moi/commis')).toBe('/fournisseur/moi');
+    expect(parentFournisseur('/fournisseur/moi/commis/nouveau')).toBe('/fournisseur/moi/commis');
+    expect(parentFournisseur('/fournisseur/argent/clients')).toBe('/fournisseur/argent');
+    // « nouveau » n'est jamais lu comme l'identifiant d'un client.
+    expect(trouverRouteFournisseur('/fournisseur/argent/clients/nouveau')?.fichier).toBe('argent/clients/nouveau');
+    expect(parentFournisseur('/fournisseur/argent/clients/nouveau')).toBe('/fournisseur/argent/clients');
+    expect(trouverRouteFournisseur('/fournisseur/argent/clients/k1')).toEqual({
+      fichier: 'argent/clients/[id]/index',
+      params: { id: 'k1' },
+    });
+    expect(parentFournisseur('/fournisseur/argent/clients/k1')).toBe('/fournisseur/argent/clients');
+    expect(parentFournisseur('/fournisseur/argent/clients/k1/prix')).toBe('/fournisseur/argent/clients/k1');
+    expect(parentFournisseur('/fournisseur/argent/clients/k1/versement')).toBe('/fournisseur/argent/clients/k1');
+    expect(parentFournisseur('/fournisseur/argent/clients/k1/modifier')).toBe('/fournisseur/argent/clients/k1');
+    expect(parentFournisseur('/fournisseur/recapitulatif')).toBe(ACCUEIL_FOURNISSEUR);
+  });
+
+  it('le récapitulatif est un écran de l’espace, hors barre d’onglets', () => {
+    const layout = fs.readFileSync(path.join(__dirname, '..', 'app', 'fournisseur', '_layout.tsx'), 'utf8');
+    expect(layout).toMatch(/name="recapitulatif" options=\{\{ href: null \}\}/);
+  });
 });
 
 describe('Plus d’écran d’attente de validation', () => {

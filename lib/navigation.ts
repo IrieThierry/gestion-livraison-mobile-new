@@ -878,6 +878,18 @@ export const ROUTES_FOURNISSEUR: Readonly<Record<string, RouteApp>> = {
   'moi/catalogue/index': { type: 'liste', parent: '/fournisseur/moi' },
   'moi/catalogue/ajouter': { type: 'formulaire', parent: '/fournisseur/moi/catalogue' },
   'moi/catalogue/[id]': { type: 'formulaire', parent: '/fournisseur/moi/catalogue' },
+  // Commis du fournisseur : Mes commis (Moi) et sa création.
+  'moi/commis/index': { type: 'liste', parent: '/fournisseur/moi' },
+  'moi/commis/nouveau': { type: 'formulaire', parent: '/fournisseur/moi/commis' },
+  // Mes clients (Argent) : fiche (sorties, versements, dû), prix, versement, modification ; « nouveau » est plus précis que [id].
+  'argent/clients/index': { type: 'liste', parent: '/fournisseur/argent' },
+  'argent/clients/nouveau': { type: 'formulaire', parent: '/fournisseur/argent/clients' },
+  'argent/clients/[id]/index': { type: 'fiche', parent: '/fournisseur/argent/clients' },
+  'argent/clients/[id]/modifier': { type: 'formulaire', parent: '/fournisseur/argent/clients/[id]' },
+  'argent/clients/[id]/prix': { type: 'formulaire', parent: '/fournisseur/argent/clients/[id]' },
+  'argent/clients/[id]/versement': { type: 'formulaire', parent: '/fournisseur/argent/clients/[id]' },
+  // Récapitulatif des remises : depuis l'Accueil ou Livreurs (onglet masqué).
+  recapitulatif: { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
 };
 
 /** Vrai pour un chemin de l'espace fournisseur (`/fournisseur`, `/fournisseur/…`). */

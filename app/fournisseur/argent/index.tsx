@@ -1,5 +1,5 @@
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
-import { FilePen, HandCoins, Plus, Receipt, Undo2 } from 'lucide-react-native';
+import { FilePen, HandCoins, Plus, Receipt, Undo2, UsersRound } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EntreeRubrique } from '../../../components/fournisseur/EntreeRubrique';
 import {
@@ -71,6 +71,17 @@ export default function ArgentFournisseur() {
             detail="Approuve, rejette ou suis les demandes sur les versements"
             badge={aDecider}
             onPress={() => naviguer('/fournisseur/argent/versements/demandes')}
+          />
+        </View>
+
+        <Text className={SECTION}>Clients du guichet</Text>
+        <View className="gap-2">
+          <EntreeRubrique
+            Icone={UsersRound}
+            couleur="#2563eb"
+            titre="Mes clients"
+            detail="Ce qu’ils te doivent, leurs prix et leurs versements"
+            onPress={() => naviguer('/fournisseur/argent/clients')}
           />
         </View>
 

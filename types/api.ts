@@ -1636,3 +1636,128 @@ export interface DemandeLocalisationRecue {
   creeLe: string
   expireLe: string
 }
+
+// ─── Commis du fournisseur, clients et récapitulatif des remises ───────────
+
+export interface CommisResponse {
+  id: UUID;
+  nom: string;
+  prenom: string;
+  contact: string;
+  username: string;
+  actif: boolean;
+  photoUrl: string | null;
+}
+
+export interface CreerCommisRequest {
+  nom: string;
+  prenom: string;
+  contact: string;
+  username: string;
+  password: string;
+}
+
+export interface ClientFournisseurResponse {
+  id: UUID;
+  nom: string;
+  contact: string | null;
+  actif: boolean;
+  du: number;
+}
+
+export interface PrixClientResponse {
+  produitFournisseurId: UUID;
+  designation: string;
+  photoUrl: string | null;
+  prixCatalogue: number;
+  /** Null = le prix du catalogue s'applique. */
+  prixClient: number | null;
+}
+
+export interface LigneSortieClientResponse {
+  produitFournisseurId: UUID;
+  designation: string;
+  photoUrl: string | null;
+  quantite: number;
+  prixUnitaire: number;
+  montant: number;
+}
+
+export interface SortieClientResponse {
+  id: UUID;
+  client: { id: UUID; nom: string };
+  date: string;
+  creeLe: string;
+  auteur: { id: UUID; nom: string; prenom: string };
+  annulee: boolean;
+  annuleeLe: string | null;
+  lignes: LigneSortieClientResponse[];
+  montant: number;
+}
+
+export type ModeVersementClient = 'ESPECES' | 'MOBILE_MONEY' | 'VIREMENT' | 'AUTRE';
+
+export interface VersementClientResponse {
+  id: UUID;
+  clientId: UUID;
+  montant: number;
+  date: string;
+  mode: ModeVersementClient;
+  commentaire: string | null;
+  creeLe: string;
+}
+
+export interface SituationClientResponse {
+  client: ClientFournisseurResponse;
+  sorties: SortieClientResponse[];
+  versements: VersementClientResponse[];
+  totalSorties: number;
+  totalVerse: number;
+  du: number;
+}
+
+export interface EnregistrerVersementClientRequest {
+  montant: number;
+  date?: string;
+  mode: ModeVersementClient;
+  commentaire?: string;
+}
+
+export type StatutRemiseCommis = 'EN_ATTENTE' | 'CONFIRMEE' | 'REFUSEE' | 'ANNULEE';
+
+export interface RemiseCommisResponse {
+  id: UUID;
+  commandeId: UUID;
+  commandeNumero: string;
+  livreur: { id: UUID; nom: string; prenom: string };
+  commis: { id: UUID; nom: string; prenom: string };
+  statut: StatutRemiseCommis;
+  lignes: Array<{ produitFournisseurId: UUID; designation: string; photoUrl: string | null; quantite: number }>;
+  creeLe: string;
+  reponduLe: string | null;
+  motif: string | null;
+}
+
+export interface RecapitulatifProduitResponse {
+  produitFournisseurId: UUID;
+  designation: string | null;
+  photoUrl: string | null;
+  totalConfirme: number;
+  totalClients: number;
+  parLivreur: Array<{ livreurId: UUID; nom: string | null; quantite: number }>;
+  parClient: Array<{ clientId: UUID; nom: string | null; quantite: number }>;
+}
+
+export interface RecapitulatifRemisesResponse {
+  produits: RecapitulatifProduitResponse[];
+  enAttente: RemiseCommisResponse[];
+  refusees: RemiseCommisResponse[];
+}
+
+export interface FiltresRecapitulatif {
+  debut: string;
+  fin: string;
+  commisId?: UUID;
+  livreurId?: UUID;
+  clientId?: UUID;
+}

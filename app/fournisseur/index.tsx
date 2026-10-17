@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { Bell, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react-native';
+import { Bell, ChevronLeft, ChevronRight, ClipboardList, TrendingUp } from 'lucide-react-native';
+import { EntreeRubrique } from '../../components/fournisseur/EntreeRubrique';
 import { Avatar } from '../../components/shared/Avatar';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { AbonnementExpireBanner } from '../../components/shared/AbonnementExpireBanner';
@@ -25,7 +26,7 @@ import { badgeNonLues, libelleCloche } from '../../features/notifications/regles
 import { extractApiErrorMessage } from '../../lib/api-error';
 import { formatMontant } from '../../lib/format';
 import { NOTIFICATIONS_FOURNISSEUR } from '../../lib/navigation';
-import { ouvrir } from '../../lib/navigation-app';
+import { naviguer, ouvrir } from '../../lib/navigation-app';
 import { useAuthStore } from '../../stores/authStore';
 
 const SECTION = 'text-[10px] uppercase tracking-wider font-extrabold text-slate-500 dark:text-slate-400 mt-5 mb-2';
@@ -132,6 +133,17 @@ export default function AccueilFournisseur() {
         </View>
 
         <AbonnementExpireBanner />
+
+        {/* Ce que les commis ont remis aux livreurs et aux clients (aussi : produits livrés par livreur). */}
+        <View className="mt-4">
+          <EntreeRubrique
+            Icone={ClipboardList}
+            couleur="#0f766e"
+            titre="Récapitulatif des remises"
+            detail="Quantités remises par produit, filtre livreur"
+            onPress={() => naviguer('/fournisseur/recapitulatif')}
+          />
+        </View>
 
         {/* Mois de la synthèse */}
         <View className="flex-row items-center justify-between mt-5">

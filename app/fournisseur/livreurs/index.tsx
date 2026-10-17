@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
-import { ChevronRight, MailOpen } from 'lucide-react-native';
+import { ChevronRight, ClipboardList, MailOpen } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { EmptyState } from '../../../components/shared/EmptyState';
 import { SearchInput } from '../../../components/shared/SearchInput';
@@ -49,6 +49,23 @@ export default function LivreursFournisseur() {
               <Text className="text-white text-[11px] font-bold">{nbInvitations > 99 ? '99+' : nbInvitations}</Text>
             </View>
           ) : null}
+          <ChevronRight color="#94a3b8" size={16} />
+        </Pressable>
+        <Pressable
+          onPress={() => naviguer('/fournisseur/recapitulatif')}
+          accessibilityRole="button"
+          accessibilityLabel="Récapitulatif des remises"
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3.5 flex-row items-center gap-3 active:opacity-70"
+        >
+          <View className="w-9 h-9 rounded-full items-center justify-center bg-teal-700">
+            <ClipboardList color="#ffffff" size={16} />
+          </View>
+          <View className="flex-1">
+            <Text className="font-extrabold text-slate-900 dark:text-white text-[13px]">Récapitulatif des remises</Text>
+            <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+              Produits remis et quantités, par livreur
+            </Text>
+          </View>
           <ChevronRight color="#94a3b8" size={16} />
         </Pressable>
         <SearchInput value={recherche} onChangeText={setRecherche} placeholder="Nom ou contact…" />

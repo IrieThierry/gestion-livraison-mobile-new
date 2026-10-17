@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { Bell, BookOpen, Camera, Check, ChevronRight, KeyRound, LogOut, Moon, Smartphone, Sun, UserCog, Warehouse } from 'lucide-react-native';
+import { Bell, BookOpen, Camera, Check, ChevronRight, KeyRound, LogOut, Moon, Smartphone, Sun, UserCog, UsersRound, Warehouse } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
 import { Avatar } from '../../../components/shared/Avatar';
 import { InterrupteurBiometrie } from '../../../components/profil/InterrupteurBiometrie';
@@ -114,6 +114,13 @@ export default function MoiFournisseur() {
               detail="Tes produits, ton prix de vente, activation"
               onPress={() => naviguer('/fournisseur/moi/catalogue')}
               premiere
+            />
+            <Ligne
+              Icone={UsersRound}
+              couleur="#7c3aed"
+              titre="Mes commis"
+              detail="Comptes de tes commis, mots de passe"
+              onPress={() => naviguer('/fournisseur/moi/commis')}
             />
             <Ligne
               Icone={Warehouse}

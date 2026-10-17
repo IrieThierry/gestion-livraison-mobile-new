@@ -206,8 +206,12 @@ describe('cibleMobile', () => {
     for (const r of ['commandes', 'transferts', 'fournisseurs', 'clients', 'inconnue']) {
       expect(cibleMobile(cible(r), frn)).toBeNull();
     }
-    // « Mot de passe demandé » : pas d'apprentis chez le fournisseur.
-    expect(cibleMobile({ ...cible('equipe'), type: 'MOT_DE_PASSE_DEMANDE' }, frn)).toBeNull();
+    // « Mot de passe demandé » d'un commis : ouvre « Mes commis » (pas d'apprentis chez le fournisseur).
+    expect(cibleMobile({ ...cible('equipe'), type: 'MOT_DE_PASSE_DEMANDE' }, frn)).toEqual({
+      href: '/fournisseur/moi/commis',
+      params: {},
+    });
+    expect(hrefFournisseur('equipe')).toBe('/fournisseur/moi/commis');
     expect(hrefFournisseur('fournisseur.commandes')).toBe('/fournisseur/commandes');
     expect(hrefFournisseur('fournisseur.commandes', 'c 1')).toBe('/fournisseur/commandes/c%201');
   });
