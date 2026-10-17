@@ -76,6 +76,11 @@ jest.mock('../../features/demandes-modif/hooks', () => ({
 
 let mockAbonnement: unknown = { statut: 'ESSAI', formule: 'LIVREUR', herite: false };
 jest.mock('../../components/localisation/BandeauDemandesRecues', () => ({ BandeauDemandesRecues: () => null }));
+// Remises du commis à confirmer : le bandeau lit lui-même ses remises (actif hors organisation).
+jest.mock('../../components/livreur/BandeauRemisesCommis', () => {
+  const { Text } = jest.requireActual('react-native');
+  return { BandeauRemisesCommis: ({ actif }: { actif: boolean }) => <Text>{`bandeau-remises-commis:${actif}`}</Text> };
+});
 jest.mock('../../features/abonnement/hooks', () => ({
   useMonAbonnement: () => ({ data: mockAbonnement, isLoading: false, isError: false, refetch: jest.fn() }),
 }));
@@ -288,5 +293,18 @@ describe('Accueil : bandeau abonnement expiré', () => {
     render(<Tournee />);
     expect(screen.queryByText('Compte en attente de validation')).toBeNull();
     expect(screen.getByLabelText('Notifications : 0 non lue')).toBeTruthy();
+  });
+});
+
+describe('Accueil : bandeau des remises du commis', () => {
+  it('affiché pour le livreur (titulaire comme apprenti), inactif pour un membre d’organisation', () => {
+    render(<Tournee />);
+    expect(screen.getByText('bandeau-remises-commis:true')).toBeTruthy();
+  });
+
+  it('membre d’organisation : bandeau inactif', () => {
+    mockUser = { ...mockUser, parentId: 'r1', organisationId: 'o1', organisationRole: 'COMMERCIAL' };
+    render(<Tournee />);
+    expect(screen.getByText('bandeau-remises-commis:false')).toBeTruthy();
   });
 });

@@ -624,9 +624,14 @@ export interface CommandeResponse {
   affectePar: PersonneRef | null
   dateAffectation: string | null
   receptions: ReceptionCommandeResponse[]
-  livreeManuellement: boolean  // « Passer à Livrée »
+  livreeManuellement: boolean  // « Passer à Livrée » ou « Commande terminée » du commis
+  /** Auteur du passage à Livrée : le livreur, ou le commis pour une commande terminée. */
   livreePar: PersonneRef | null
   dateLivree: string | null
+  /** Le fournisseur a au moins un commis actif : le livreur confirme ses remises au lieu de réceptionner. */
+  gereeParCommis?: boolean
+  /** Remises du commis en attente de confirmation sur cette commande. */
+  remisesEnAttente?: number
 }
 
 export interface CreerCommandeRequest {

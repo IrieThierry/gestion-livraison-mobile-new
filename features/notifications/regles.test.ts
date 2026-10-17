@@ -177,6 +177,14 @@ describe('cibleMobile', () => {
     }
   });
 
+  it('remise du commis à confirmer, commande terminée : détail de la commande (titulaire et apprenti)', () => {
+    for (const type of ['REMISE_COMMIS_A_CONFIRMER', 'COMMANDE_TERMINEE']) {
+      const n = notif({ type, cible: { type: 'COMMANDE', id: 'c9', route: 'commandes' } });
+      expect(cibleMobile(n, livreur)).toEqual({ href: '/(livreur)/cash/commandes/c9', params: depuis });
+      expect(cibleMobile(n, { apprenti: true, responsable: false })?.href).toBe('/(livreur)/cash/commandes/c9');
+    }
+  });
+
   it('commande sans id : liste (à réceptionner pour l’apprenti)', () => {
     expect(cibleMobile(cible('commandes', null), livreur)?.href).toBe('/(livreur)/cash/commandes');
     expect(cibleMobile(cible('commandes', null), { apprenti: true, responsable: false })?.href).toBe(

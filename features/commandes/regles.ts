@@ -40,19 +40,27 @@ export const estTitulaireCommande = (
   user: { id: UUID; parentId?: UUID | null } | null | undefined,
 ) => !!user && !user.parentId && c.livreur.id === user.id;
 
-/** Réception possible (titulaire ou apprenti affecté) : commande confirmée ou en réception. */
+/**
+ * Fournisseur avec au moins un commis actif : les remises passent par son commis,
+ * le livreur les confirme ; il ne réceptionne plus, ne passe plus à Livrée et ne
+ * corrige plus de réception (le back refuse aussi).
+ */
+export const estGereeParCommis = (c: CommandeResponse) => c.gereeParCommis === true;
+
+/** Réception possible (titulaire ou apprenti affecté) : commande confirmée ou en réception, sans commis. */
 export const peutReceptionner = (c: CommandeResponse) =>
-  c.statut === 'CONFIRMEE' || c.statut === 'EN_RECEPTION';
+  !estGereeParCommis(c) && (c.statut === 'CONFIRMEE' || c.statut === 'EN_RECEPTION');
 
-/** « Passer à Livrée » : seulement une commande en réception. */
-export const peutPasserLivree = (c: CommandeResponse) => c.statut === 'EN_RECEPTION';
+/** « Passer à Livrée » : seulement une commande en réception, sans commis. */
+export const peutPasserLivree = (c: CommandeResponse) =>
+  !estGereeParCommis(c) && c.statut === 'EN_RECEPTION';
 
-/** Modifier / annuler une réception : titulaire, réception active, commande non réglée. */
+/** Modifier / annuler une réception : titulaire, réception active, commande non réglée, sans commis. */
 export const peutCorrigerReception = (
   c: CommandeResponse,
   r: ReceptionCommandeResponse,
   estTitulaire: boolean,
-) => estTitulaire && !r.annulee && c.versementId === null;
+) => estTitulaire && !r.annulee && c.versementId === null && !estGereeParCommis(c);
 
 const STATUTS_APPRENTI_MODIFIABLE: StatutCommande[] = ['ENVOYEE', 'CONFIRMEE', 'EN_RECEPTION'];
 

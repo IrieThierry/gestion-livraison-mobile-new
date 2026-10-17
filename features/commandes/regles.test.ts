@@ -166,6 +166,18 @@ describe('droits de réception', () => {
     }
   });
 
+  it('fournisseur avec commis (gereeParCommis) : ni réception, ni « Passer à Livrée », ni correction', () => {
+    expect(peutReceptionner(commandeFixture({ statut: 'CONFIRMEE', gereeParCommis: true }))).toBe(false);
+    expect(peutReceptionner(commandeFixture({ statut: 'EN_RECEPTION', gereeParCommis: true }))).toBe(false);
+    expect(peutPasserLivree(commandeFixture({ statut: 'EN_RECEPTION', gereeParCommis: true }))).toBe(false);
+    const c = commandeFixture({ statut: 'EN_RECEPTION', gereeParCommis: true });
+    expect(peutCorrigerReception(c, receptionFixture(), true)).toBe(false);
+    // Sans commis (ou dernier commis désactivé) : rien ne change.
+    expect(peutReceptionner(commandeFixture({ statut: 'CONFIRMEE', gereeParCommis: false }))).toBe(true);
+    expect(peutPasserLivree(commandeFixture({ statut: 'EN_RECEPTION', gereeParCommis: false }))).toBe(true);
+    expect(peutCorrigerReception({ ...c, gereeParCommis: false }, receptionFixture(), true)).toBe(true);
+  });
+
   it('titulaire : livreur principal de la commande', () => {
     const c = commandeFixture(); // livreur l-1
     expect(estTitulaireCommande(c, { id: 'l-1', parentId: null })).toBe(true);

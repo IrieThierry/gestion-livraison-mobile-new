@@ -111,6 +111,25 @@ describe('useTempsReel', () => {
     expect(invalider).toHaveBeenCalledWith({ queryKey: ['localisation'] });
   });
 
+  it('notification de remise du commis ou de commande terminée : relit les commandes (remises comprises)', async () => {
+    connecterUtilisateur('u1');
+    const { wrapper, invalider } = monter();
+    renderHook(() => useTempsReel(), { wrapper });
+    await vider();
+    const ws = dernier();
+    act(() => {
+      ws.onmessage?.({ data: JSON.stringify({ type: 'notification', id: '1', notificationType: 'LIVRAISON_X' }) });
+    });
+    expect(invalider).not.toHaveBeenCalledWith({ queryKey: ['commandes'] });
+    for (const type of ['REMISE_COMMIS_A_CONFIRMER', 'COMMANDE_TERMINEE']) {
+      invalider.mockClear();
+      act(() => {
+        ws.onmessage?.({ data: JSON.stringify({ type: 'notification', id: type, notificationType: type }) });
+      });
+      expect(invalider).toHaveBeenCalledWith({ queryKey: ['commandes'] });
+    }
+  });
+
   it('pret : invalide notifications et localisation (trou avant pret)', async () => {
     connecterUtilisateur('u1');
     const { wrapper, invalider } = monter();
@@ -121,6 +140,7 @@ describe('useTempsReel', () => {
     });
     expect(invalider).toHaveBeenCalledWith({ queryKey: ['notifications'] });
     expect(invalider).toHaveBeenCalledWith({ queryKey: ['localisation'] });
+    expect(invalider).toHaveBeenCalledWith({ queryKey: ['commandes', 'remises-a-confirmer'] });
     invalider.mockClear();
     act(() => {
       dernier().onmessage?.({ data: JSON.stringify({ type: 'ping' }) });

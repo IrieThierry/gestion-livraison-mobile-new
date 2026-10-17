@@ -42,6 +42,7 @@ import { ouvrir } from '../../lib/navigation-app';
 import { estMembreOrganisation, estResponsable } from '../../features/organisation/regles';
 import { TableauDeBordResponsable } from '../../components/responsable/TableauDeBordResponsable';
 import { BandeauDemandesRecues } from '../../components/localisation/BandeauDemandesRecues';
+import { BandeauRemisesCommis } from '../../components/livreur/BandeauRemisesCommis';
 
 /**
  * Accueil : tableau de bord pour le responsable d'une organisation (son
@@ -215,6 +216,8 @@ function Tournee() {
         <AbonnementExpireBanner />
         {/* Demandes de position reçues : ouvre l'écran de réponse. */}
         <BandeauDemandesRecues />
+        {/* Remises du commis du fournisseur à confirmer (pas de commande fournisseur en organisation). */}
+        <BandeauRemisesCommis actif={!organisation} />
 
         {/* Hero card — solde du jour with sub-cards */}
         <View
