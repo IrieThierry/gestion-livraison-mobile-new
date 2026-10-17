@@ -113,6 +113,8 @@ function Onglets({ isDark, insetBas }: { isDark: boolean; insetBas: number }) {
         />
         {/* Hors barre : cloche de l'Accueil, entrée « Notifications » de Moi. */}
         <Tabs.Screen name="notifications" options={{ href: null }} />
+        {/* Récapitulatif des remises : depuis l'Accueil et Livreurs, hors barre. */}
+        <Tabs.Screen name="recapitulatif" options={{ href: null }} />
       </Tabs>
     </SafeAreaView>
   );

@@ -49,6 +49,15 @@ interface DialogState extends Partial<ShowDialogParams> {
  */
 export const useDialogStore = create<DialogState>((set) => ({
   open: false,
-  show: (params) => set({ ...params, open: true }),
+  // Les paramètres facultatifs sont remis à zéro à chaque affichage : sinon l'`autoDismissMs`
+  // d'un `dialog.success` précédent refermerait la fenêtre suivante.
+  show: (params) =>
+    set({
+      message: undefined,
+      actions: undefined,
+      autoDismissMs: undefined,
+      ...params,
+      open: true,
+    }),
   hide: () => set({ open: false }),
 }));

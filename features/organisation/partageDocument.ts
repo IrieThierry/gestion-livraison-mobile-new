@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { urlAbsolue } from '../../lib/api-url';
+import { urlPhoto } from '../../lib/api-url';
 import { partagerPdf } from '../etats/partage';
 import type { AvoirResponse, FactureResponse } from '../../types/api';
 import { genererHtmlAvoir, genererHtmlFacture, nomFichierAvoir, nomFichierFacture } from './documents';
@@ -15,7 +15,7 @@ function typeImage(url: string): string {
  * Sans logo, ou si le téléchargement échoue, le document sort sans logo.
  */
 export async function chargerLogo(logoUrl: string | null | undefined): Promise<string | null> {
-  const url = urlAbsolue(logoUrl);
+  const url = urlPhoto(logoUrl);
   const dossier = FileSystem.cacheDirectory;
   if (!url || !dossier) return null;
   try {

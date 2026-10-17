@@ -5,8 +5,11 @@ import { useAuthStore } from '../stores/authStore';
 import { estResponsable } from '../features/organisation/regles';
 import {
   ACCUEIL,
+  ACCUEIL_COMMIS,
   ACCUEIL_FOURNISSEUR,
+  estCheminCommis,
   estCheminFournisseur,
+  parentCommis,
   parentFournisseur,
   actionNaviguer,
   actionOuvrir,
@@ -135,6 +138,8 @@ export function revenirApresEnregistrement(liste: string, origine?: string | nul
 export function retourParent(chemin?: string): boolean {
   // F1 : espace fournisseur (piles par onglet, sans état d'onglets livreur).
   if (chemin && estCheminFournisseur(chemin)) return retourFournisseur(chemin);
+  // Espace commis : même règle, d'après ROUTES_COMMIS.
+  if (chemin && estCheminCommis(chemin)) return retourCommis(chemin);
   const t = onglets();
   if (t && ref) {
     if (!ecranActif(t)) return false;
@@ -164,9 +169,17 @@ export function retourParent(chemin?: string): boolean {
  * à défaut le parent.
  */
 export function retourFournisseur(chemin: string): boolean {
-  const parent = parentFournisseur(chemin);
+  return retourDansLEspace(parentFournisseur(chemin), ACCUEIL_FOURNISSEUR);
+}
+
+/** Retour dans l'espace commis : parent logique de `ROUTES_COMMIS` (même règle que le fournisseur). */
+export function retourCommis(chemin: string): boolean {
+  return retourDansLEspace(parentCommis(chemin), ACCUEIL_COMMIS);
+}
+
+function retourDansLEspace(parent: string | null, accueil: string): boolean {
   if (parent === null) return false;
-  if (parent === ACCUEIL_FOURNISSEUR) router.navigate(ACCUEIL_FOURNISSEUR as never);
+  if (parent === accueil) router.navigate(accueil as never);
   else if (router.canGoBack()) router.back();
   else router.navigate(parent as never);
   return true;

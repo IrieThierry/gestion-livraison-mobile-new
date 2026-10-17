@@ -233,3 +233,24 @@ describe('espace fournisseur (F1) : retour au parent logique', () => {
     expect(router.dismissTo).toHaveBeenCalledWith('/fournisseur/moi');
   });
 });
+
+describe('espace commis : retour au parent logique', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('saisie d’une remise (flèche, retour Android) → sa commande ; commande → Commandes ; Commandes → quitter', () => {
+    // Chemin tel que le donne usePathname (sans requête).
+    expect(retourParent('/commis/commandes/c1/remise')).toBe(true);
+    expect(router.navigate).toHaveBeenLastCalledWith('/commis/commandes/c1');
+    (router.canGoBack as jest.Mock).mockReturnValueOnce(true);
+    expect(retourParent('/commis/commandes/c1/remise')).toBe(true);
+    expect(router.back).toHaveBeenCalledTimes(1);
+    expect(retourParent('/commis/commandes/c1')).toBe(true);
+    expect(router.navigate).toHaveBeenLastCalledWith('/commis');
+    expect(retourParent('/commis')).toBe(false);
+  });
+
+  it('après l’envoi d’une remise : revenirA ramène à la commande', () => {
+    revenirA('/commis/commandes/c1');
+    expect(router.dismissTo).toHaveBeenCalledWith('/commis/commandes/c1');
+  });
+});

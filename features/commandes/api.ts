@@ -6,6 +6,7 @@ import type {
   LivreurResponse,
   ProduitFournisseurResponse,
   ReceptionCommandeResponse,
+  RemiseCommisResponse,
   ReceptionnerCommandeRequest,
   UUID,
 } from '../../types/api';
@@ -73,4 +74,20 @@ export const commandesApi = {
         params: { fournisseurId },
       })
     ).data,
+
+  /** Remises du commis du fournisseur sur cette commande (titulaire, apprenti affecté). */
+  remisesCommis: async (id: UUID): Promise<RemiseCommisResponse[]> =>
+    (await apiClient.get<RemiseCommisResponse[]>(`/commande/${id}/remises-commis`)).data,
+
+  /** Remises du commis en attente de confirmation par le livreur connecté. */
+  remisesAConfirmer: async (): Promise<RemiseCommisResponse[]> =>
+    (await apiClient.get<RemiseCommisResponse[]>('/commande/remises-a-confirmer')).data,
+
+  /** Confirmer : la remise devient une réception de la commande (définitive). */
+  confirmerRemise: async (remiseId: UUID): Promise<RemiseCommisResponse> =>
+    (await apiClient.post<RemiseCommisResponse>(`/commande/remises-commis/${remiseId}/confirmer`)).data,
+
+  /** Refuser avec un motif (obligatoire) : le commis est notifié et ressaisit. */
+  refuserRemise: async (remiseId: UUID, motif: string): Promise<RemiseCommisResponse> =>
+    (await apiClient.post<RemiseCommisResponse>(`/commande/remises-commis/${remiseId}/refuser`, { motif })).data,
 };

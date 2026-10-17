@@ -5,6 +5,7 @@ import { Redirect, Tabs, useNavigationContainerRef, useSegments } from 'expo-rou
 import {
   ACCUEIL_LIVREUR,
   accueilDuProfil,
+  estProfilCommis,
   estProfilFournisseur,
   estProfilPortailWeb,
   GROUPE_LIVREUR,
@@ -60,9 +61,9 @@ export default function LivreurLayout() {
     startWatching();
   }, []);
 
-  // ADMIN (écran « Utilisez le portail web ») ou FOURNISSEUR (son espace, F1) :
-  // pas d'onglets livreur (aucune requête livreur lancée).
-  if (estProfilPortailWeb(user?.profile) || estProfilFournisseur(user?.profile)) {
+  // ADMIN (écran « Utilisez le portail web »), FOURNISSEUR (son espace, F1) ou
+  // COMMIS (son espace) : pas d'onglets livreur (aucune requête livreur lancée).
+  if (estProfilPortailWeb(user?.profile) || estProfilFournisseur(user?.profile) || estProfilCommis(user?.profile)) {
     return <Redirect href={accueilDuProfil(user?.profile) as never} />;
   }
 

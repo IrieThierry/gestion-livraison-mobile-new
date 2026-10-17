@@ -18,7 +18,7 @@ import {
   type OptionDepenses,
 } from '../../../../features/depenses/regles';
 import { useApprentis } from '../../../../features/apprentis/hooks';
-import { estMembreOrganisation } from '../../../../features/organisation/regles';
+import { estCommercial, vocabulaire } from '../../../../features/organisation/regles';
 import { useAuthStore } from '../../../../stores/authStore';
 import { creerVerrou, lancerUneFois } from '../../../../features/commandes/verrou';
 import { formatFCFA, formatDateShort } from '../../../../lib/format';
@@ -38,17 +38,19 @@ const CATEGORIE_META: Record<
 
 /**
  * Dépenses. S5 : le livreur principal indépendant choisit « Moi », « Équipe »
- * ou un apprenti actif ; chaque ligne d'un autre auteur indique « par … » et
- * reste en lecture seule (seul l'auteur supprime). L'apprenti et les membres
- * d'une organisation ne voient que leurs dépenses, sans sélecteur.
+ * ou un apprenti actif ; le responsable, « Moi », « Équipe » ou un commercial.
+ * Chaque ligne d'un autre auteur indique « par … » et reste en lecture seule
+ * (seul l'auteur supprime). L'apprenti et le commercial ne voient que leurs
+ * dépenses, sans sélecteur.
  */
 export default function DepensesList() {
   const user = useAuthStore((s) => s.user);
-  const membre = estMembreOrganisation(user);
+  const commercial = estCommercial(user);
+  const libelleMembre = vocabulaire(user).Apprenti;
   const qApprentis = useApprentis();
   const options = useMemo(
-    () => optionsDepenses(user, membre, membre ? [] : qApprentis.data),
-    [user, membre, qApprentis.data],
+    () => optionsDepenses(user, commercial, commercial ? [] : qApprentis.data, libelleMembre),
+    [user, commercial, qApprentis.data, libelleMembre],
   );
   return (
     <EcranDepenses

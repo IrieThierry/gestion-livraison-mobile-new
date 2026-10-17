@@ -1,9 +1,10 @@
 import type { DepenseResponse, UUID } from '../../types/api';
 
 /**
- * S5 : dépenses de l'équipe. Le livreur principal indépendant choisit
- * « Moi », « Équipe » (lui et ses apprentis) ou un apprenti actif.
- * L'apprenti et les membres d'une organisation n'ont pas de sélecteur.
+ * S5 : dépenses de l'équipe. Le livreur principal indépendant et le responsable
+ * d'une organisation choisissent « Moi », « Équipe » (eux et leurs apprentis /
+ * commerciaux) ou un apprenti / commercial actif. L'apprenti et le commercial
+ * n'ont pas de sélecteur.
  */
 export type CibleDepenses = { type: 'moi' } | { type: 'equipe' } | { type: 'apprenti'; id: UUID };
 
@@ -27,19 +28,21 @@ export function cibleDepuisId(id: string | null | undefined): CibleDepenses {
 
 /**
  * Options du sélecteur : vide (pas de sélecteur) pour un apprenti ou un
- * membre d'organisation ; sinon Moi, Équipe, puis les apprentis actifs.
+ * commercial ; sinon Moi, Équipe, puis les apprentis (commerciaux du responsable) actifs.
+ * `libelleMembre` : libellé de repli d'un membre sans nom (« Apprenti » / « Commercial »).
  */
 export function optionsDepenses(
   user: { id: UUID; parentId?: UUID | null } | null | undefined,
-  membreOrganisation: boolean,
+  commercial: boolean,
   apprentis: ReadonlyArray<{ id: UUID; nom?: string | null; prenom?: string | null; actif?: boolean }> | undefined,
+  libelleMembre = 'Apprenti',
 ): OptionDepenses[] {
-  if (!user || user.parentId || membreOrganisation) return [];
+  if (!user || user.parentId || commercial) return [];
   const actifs = (apprentis ?? [])
     .filter((a) => a.actif !== false)
     .map((a) => ({
       id: idCible({ type: 'apprenti', id: a.id }),
-      label: `${a.prenom ?? ''} ${a.nom ?? ''}`.replace(/\s+/g, ' ').trim() || 'Apprenti',
+      label: `${a.prenom ?? ''} ${a.nom ?? ''}`.replace(/\s+/g, ' ').trim() || libelleMembre,
     }))
     .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
   return [{ id: 'moi', label: 'Moi' }, { id: 'equipe', label: 'Équipe' }, ...actifs];

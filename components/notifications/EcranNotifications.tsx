@@ -36,7 +36,7 @@ import { creerVerrou, lancerUneFois } from '../../features/commandes/verrou';
 import { estResponsable } from '../../features/organisation/regles';
 import { useAuthStore } from '../../stores/authStore';
 import { ouvrir } from '../../lib/navigation-app';
-import { estProfilFournisseur } from '../../lib/navigation';
+import { estProfilCommis, estProfilFournisseur } from '../../lib/navigation';
 import { dialog } from '../../lib/dialog';
 import { extractApiErrorMessage } from '../../lib/api-error';
 import type { NotificationResponse } from '../../types/api';
@@ -47,7 +47,8 @@ type Ligne = { cle: string; groupe: string } | { cle: string; notification: Noti
 
 /**
  * N8 : écran Notifications façon Facebook, commun au livreur (cloche de
- * l'Accueil), au fournisseur (son espace, F2) et au responsable (son onglet).
+ * l'Accueil), au fournisseur (son espace, F2), au commis (son espace) et au
+ * responsable (son onglet).
  * En haut, « À traiter » : les
  * actions rapides fournies par l'écran. Puis le fil, du plus récent au plus
  * ancien, en groupes « Nouveau » (non lues), « Aujourd'hui », « Plus tôt » ;
@@ -111,7 +112,12 @@ export function EcranNotifications({
 
   if (!user) return null;
 
-  const ctx = { apprenti: !!user.parentId, responsable: estResponsable(user), fournisseur: estProfilFournisseur(user.profile) };
+  const ctx = {
+    apprenti: !!user.parentId,
+    responsable: estResponsable(user),
+    fournisseur: estProfilFournisseur(user.profile),
+    commis: estProfilCommis(user.profile),
+  };
 
   const onAppui = (n: NotificationResponse) => {
     if (!n.lue) marquerLue.mutate(n.id);

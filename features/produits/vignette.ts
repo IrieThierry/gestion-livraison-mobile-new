@@ -1,4 +1,4 @@
-import { urlAbsolue } from '../../lib/api-url';
+import { urlPhoto } from '../../lib/api-url';
 
 /**
  * Vignette d'un produit : sa photo si elle existe, sinon l'initiale de sa
@@ -33,5 +33,5 @@ export function teinteProduit(designation: string | null | undefined): { fond: s
 
 /** URL affichable de la photo du produit (chemin relatif du back préfixé), ou null. */
 export function urlPhotoProduit(photoUrl: string | null | undefined): string | null {
-  return urlAbsolue(photoUrl);
+  return urlPhoto(photoUrl);
 }

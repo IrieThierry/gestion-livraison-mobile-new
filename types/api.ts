@@ -624,9 +624,14 @@ export interface CommandeResponse {
   affectePar: PersonneRef | null
   dateAffectation: string | null
   receptions: ReceptionCommandeResponse[]
-  livreeManuellement: boolean  // « Passer à Livrée »
+  livreeManuellement: boolean  // « Passer à Livrée » ou « Commande terminée » du commis
+  /** Auteur du passage à Livrée : le livreur, ou le commis pour une commande terminée. */
   livreePar: PersonneRef | null
   dateLivree: string | null
+  /** Le fournisseur a au moins un commis actif : le livreur confirme ses remises au lieu de réceptionner. */
+  gereeParCommis?: boolean
+  /** Remises du commis en attente de confirmation sur cette commande. */
+  remisesEnAttente?: number
 }
 
 export interface CreerCommandeRequest {
@@ -1635,4 +1640,190 @@ export interface DemandeLocalisationRecue {
   demandeurNom: string
   creeLe: string
   expireLe: string
+}
+
+// ─── Commis du fournisseur, clients et récapitulatif des remises ───────────
+
+export interface CommisResponse {
+  id: UUID;
+  nom: string;
+  prenom: string;
+  contact: string;
+  username: string;
+  actif: boolean;
+  photoUrl: string | null;
+}
+
+export interface CreerCommisRequest {
+  nom: string;
+  prenom: string;
+  contact: string;
+  username: string;
+  password: string;
+}
+
+/** `PUT /fournisseur/me/commis/{id}` : mêmes règles qu'à la création, sans le mot de passe. */
+export type ModifierCommisRequest = Omit<CreerCommisRequest, 'password'>;
+
+export interface ClientFournisseurResponse {
+  id: UUID;
+  nom: string;
+  contact: string | null;
+  actif: boolean;
+  du: number;
+}
+
+export interface PrixClientResponse {
+  produitFournisseurId: UUID;
+  designation: string;
+  photoUrl: string | null;
+  prixCatalogue: number;
+  /** Null = le prix du catalogue s'applique. */
+  prixClient: number | null;
+}
+
+export interface LigneSortieClientResponse {
+  produitFournisseurId: UUID;
+  designation: string;
+  photoUrl: string | null;
+  quantite: number;
+  prixUnitaire: number;
+  montant: number;
+}
+
+export interface SortieClientResponse {
+  id: UUID;
+  client: { id: UUID; nom: string };
+  date: string;
+  creeLe: string;
+  auteur: { id: UUID; nom: string; prenom: string };
+  annulee: boolean;
+  annuleeLe: string | null;
+  lignes: LigneSortieClientResponse[];
+  montant: number;
+}
+
+export type ModeVersementClient = 'ESPECES' | 'MOBILE_MONEY' | 'VIREMENT' | 'AUTRE';
+
+export interface VersementClientResponse {
+  id: UUID;
+  clientId: UUID;
+  montant: number;
+  date: string;
+  mode: ModeVersementClient;
+  commentaire: string | null;
+  creeLe: string;
+}
+
+export interface SituationClientResponse {
+  client: ClientFournisseurResponse;
+  sorties: SortieClientResponse[];
+  versements: VersementClientResponse[];
+  totalSorties: number;
+  totalVerse: number;
+  du: number;
+}
+
+export interface EnregistrerVersementClientRequest {
+  montant: number;
+  date?: string;
+  mode: ModeVersementClient;
+  commentaire?: string;
+}
+
+export type StatutRemiseCommis = 'EN_ATTENTE' | 'CONFIRMEE' | 'REFUSEE' | 'ANNULEE';
+
+export interface RemiseCommisResponse {
+  id: UUID;
+  commandeId: UUID;
+  commandeNumero: string;
+  livreur: { id: UUID; nom: string; prenom: string };
+  commis: { id: UUID; nom: string; prenom: string };
+  statut: StatutRemiseCommis;
+  lignes: Array<{ produitFournisseurId: UUID; designation: string; photoUrl: string | null; quantite: number }>;
+  creeLe: string;
+  reponduLe: string | null;
+  motif: string | null;
+}
+
+export interface RecapitulatifProduitResponse {
+  produitFournisseurId: UUID;
+  designation: string | null;
+  photoUrl: string | null;
+  totalConfirme: number;
+  totalClients: number;
+  parLivreur: Array<{ livreurId: UUID; nom: string | null; quantite: number }>;
+  parClient: Array<{ clientId: UUID; nom: string | null; quantite: number }>;
+}
+
+export interface RecapitulatifRemisesResponse {
+  produits: RecapitulatifProduitResponse[];
+  enAttente: RemiseCommisResponse[];
+  refusees: RemiseCommisResponse[];
+}
+
+// ─── Espace commis (/commis/me) : quantités seulement, jamais de prix ni de montant ───
+
+export interface PersonneCommisResponse {
+  id: UUID;
+  nom: string;
+  prenom: string;
+}
+
+export type StatutCommandeCommis = 'CONFIRMEE' | 'EN_RECEPTION' | 'LIVREE';
+
+export interface LigneCommandeCommisResponse {
+  produitFournisseurId: UUID;
+  designation: string;
+  photoUrl: string | null;
+  /** Quantité commandée (0 pour un produit ajouté hors commande). */
+  commande: number;
+  remisConfirme: number;
+  enAttente: number;
+}
+
+export interface CommandeCommisResponse {
+  id: UUID;
+  numero: string;
+  date: string;
+  statut: StatutCommandeCommis;
+  livreur: PersonneCommisResponse;
+  lignes: LigneCommandeCommisResponse[];
+  remisesEnAttente: number;
+}
+
+export interface CatalogueCommisResponse {
+  produitFournisseurId: UUID;
+  produitId: UUID;
+  designation: string;
+  photoUrl: string | null;
+}
+
+export interface LigneQuantiteRequest {
+  produitFournisseurId: UUID;
+  quantite: number;
+}
+
+export interface ClientCommisResponse {
+  id: UUID;
+  nom: string;
+}
+
+export interface SortieCommisResponse {
+  id: UUID;
+  client: { id: UUID; nom: string };
+  date: string;
+  creeLe: string;
+  auteur: PersonneCommisResponse;
+  annulee: boolean;
+  annuleeLe: string | null;
+  lignes: Array<{ produitFournisseurId: UUID; designation: string; photoUrl: string | null; quantite: number }>;
+}
+
+export interface FiltresRecapitulatif {
+  debut: string;
+  fin: string;
+  commisId?: UUID;
+  livreurId?: UUID;
+  clientId?: UUID;
 }

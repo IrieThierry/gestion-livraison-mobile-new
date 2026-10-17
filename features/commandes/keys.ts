@@ -11,4 +11,8 @@ export const commandeKeys = {
   aReceptionner: () => [...commandeKeys.all, 'a-receptionner'] as const,
   apprentisAffectables: (fournisseurId: string) =>
     [...commandeKeys.all, 'apprentis-affectables', fournisseurId] as const,
+  /** Remises du commis d'une commande (sous `all` : toute écriture sur les commandes les relit). */
+  remisesCommis: (id: string) => [...commandeKeys.all, 'remises-commis', id] as const,
+  /** Remises du commis en attente de confirmation par le livreur connecté (bandeau d'accueil). */
+  remisesAConfirmer: () => [...commandeKeys.all, 'remises-a-confirmer'] as const,
 };

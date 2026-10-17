@@ -127,3 +127,25 @@ describe('contrat API réceptions et affectation', () => {
     });
   });
 });
+
+describe('contrat API remises du commis (côté livreur)', () => {
+  it('liste les remises du commis d’une commande', async () => {
+    await commandesApi.remisesCommis('c-1');
+    expect(get).toHaveBeenCalledWith('/commande/c-1/remises-commis');
+  });
+
+  it('liste les remises à confirmer (titulaire et apprenti affecté)', async () => {
+    await commandesApi.remisesAConfirmer();
+    expect(get).toHaveBeenCalledWith('/commande/remises-a-confirmer');
+  });
+
+  it('confirme une remise : POST sans corps', async () => {
+    await commandesApi.confirmerRemise('r-1');
+    expect(post).toHaveBeenCalledWith('/commande/remises-commis/r-1/confirmer');
+  });
+
+  it('refuse une remise avec son motif', async () => {
+    await commandesApi.refuserRemise('r-1', 'Il manque 2 sacs');
+    expect(post).toHaveBeenCalledWith('/commande/remises-commis/r-1/refuser', { motif: 'Il manque 2 sacs' });
+  });
+});

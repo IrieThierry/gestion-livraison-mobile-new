@@ -65,6 +65,20 @@ export function estProfilFournisseur(profile: string | null | undefined): boolea
 }
 
 /**
+ * Espace du commis d'un fournisseur (`app/commis/`, onglets du bas) : il n'a
+ * ni onglets livreur ni espace fournisseur.
+ */
+export const ACCUEIL_COMMIS = '/commis';
+
+/** Premier segment de route de l'espace commis (nom de la route dans la pile racine). */
+export const GROUPE_COMMIS = 'commis';
+
+/** Compte commis d'un fournisseur (son espace sur le mobile). */
+export function estProfilCommis(profile: string | null | undefined): boolean {
+  return profile === 'COMMIS';
+}
+
+/**
  * Écran d'arrivée après la connexion selon le profil. Le responsable d'une
  * organisation (profil LIVREUR) arrive lui aussi sur `(livreur)` : son
  * Accueil y est le tableau de bord de son espace (O15).
@@ -72,6 +86,7 @@ export function estProfilFournisseur(profile: string | null | undefined): boolea
 export function accueilDuProfil(profile: string | null | undefined): string {
   if (estProfilPortailWeb(profile)) return PORTAIL_WEB;
   if (estProfilFournisseur(profile)) return ACCUEIL_FOURNISSEUR;
+  if (estProfilCommis(profile)) return ACCUEIL_COMMIS;
   return ACCUEIL_LIVREUR;
 }
 
@@ -108,7 +123,9 @@ function estResponsableOrganisation(user: UtilisateurRedirection): boolean {
  * Redirection de la pile racine (`AuthGate`) : non connecté hors `(auth)` →
  * connexion ; connecté dans `(auth)` → écran de son profil ; ADMIN hors du
  * portail web → portail web ; FOURNISSEUR hors de son espace → son Accueil
- * (F1) ; livreur sur le portail web ou dans l'espace fournisseur → onglets.
+ * (F1) ; COMMIS hors de son espace → son espace (jamais les onglets livreur
+ * ni l'espace fournisseur) ; livreur sur le portail web, dans l'espace
+ * fournisseur ou commis → onglets.
  * Responsable d'une organisation (O15) : hors des écrans de
  * son espace (`ECRANS_RESPONSABLE`, d'après `segments`, les segments de
  * route d'expo-router) → son Accueil. Null : rester où l'on est.
@@ -127,7 +144,9 @@ export function redirectionRacine(
   if (dansAuth) return accueilDuProfil(user.profile);
   if (estProfilPortailWeb(user.profile)) return premierSegment === SEGMENT_PORTAIL_WEB ? null : PORTAIL_WEB;
   if (estProfilFournisseur(user.profile)) return premierSegment === GROUPE_FOURNISSEUR ? null : ACCUEIL_FOURNISSEUR;
-  if (premierSegment === SEGMENT_PORTAIL_WEB || premierSegment === GROUPE_FOURNISSEUR) return ACCUEIL_LIVREUR;
+  if (estProfilCommis(user.profile)) return premierSegment === GROUPE_COMMIS ? null : ACCUEIL_COMMIS;
+  if (premierSegment === SEGMENT_PORTAIL_WEB || premierSegment === GROUPE_FOURNISSEUR || premierSegment === GROUPE_COMMIS)
+    return ACCUEIL_LIVREUR;
   if (premierSegment === GROUPE_LIVREUR && segments && estResponsableOrganisation(user)) {
     const chemin = `/${segments.slice(1).filter((s) => s !== 'index').join('/')}`;
     if (chemin === ACCUEIL) return null;
@@ -878,21 +897,34 @@ export const ROUTES_FOURNISSEUR: Readonly<Record<string, RouteApp>> = {
   'moi/catalogue/index': { type: 'liste', parent: '/fournisseur/moi' },
   'moi/catalogue/ajouter': { type: 'formulaire', parent: '/fournisseur/moi/catalogue' },
   'moi/catalogue/[id]': { type: 'formulaire', parent: '/fournisseur/moi/catalogue' },
+  // Commis du fournisseur : Mes commis (Moi), sa création et sa modification ; « nouveau » est plus précis que [id].
+  'moi/commis/index': { type: 'liste', parent: '/fournisseur/moi' },
+  'moi/commis/nouveau': { type: 'formulaire', parent: '/fournisseur/moi/commis' },
+  'moi/commis/[id]': { type: 'formulaire', parent: '/fournisseur/moi/commis' },
+  // Mes clients (Argent) : fiche (sorties, versements, dû), prix, versement, modification ; « nouveau » est plus précis que [id].
+  'argent/clients/index': { type: 'liste', parent: '/fournisseur/argent' },
+  'argent/clients/nouveau': { type: 'formulaire', parent: '/fournisseur/argent/clients' },
+  'argent/clients/[id]/index': { type: 'fiche', parent: '/fournisseur/argent/clients' },
+  'argent/clients/[id]/modifier': { type: 'formulaire', parent: '/fournisseur/argent/clients/[id]' },
+  'argent/clients/[id]/prix': { type: 'formulaire', parent: '/fournisseur/argent/clients/[id]' },
+  'argent/clients/[id]/versement': { type: 'formulaire', parent: '/fournisseur/argent/clients/[id]' },
+  // Récapitulatif des remises : depuis l'Accueil ou Livreurs (onglet masqué).
+  recapitulatif: { type: 'liste', parent: ACCUEIL_FOURNISSEUR },
 };
 
-/** Vrai pour un chemin de l'espace fournisseur (`/fournisseur`, `/fournisseur/…`). */
-export function estCheminFournisseur(chemin: string): boolean {
+/** Vrai pour un chemin d'un espace (`/fournisseur`, `/fournisseur/…`). */
+function estCheminDeLEspace(racine: string, chemin: string): boolean {
   const { chemin: c } = normaliserHref(chemin);
-  return c === ACCUEIL_FOURNISSEUR || c.startsWith(`${ACCUEIL_FOURNISSEUR}/`);
+  return c === racine || c.startsWith(`${racine}/`);
 }
 
-/** Écran du fournisseur correspondant à un chemin concret (`/fournisseur/commandes` → `commandes/index`). */
-export function trouverRouteFournisseur(chemin: string): Cible | null {
+/** Écran d'un espace (fournisseur, commis) correspondant à un chemin concret ; les segments fixes priment. */
+function trouverRouteDeLEspace(racine: string, table: Readonly<Record<string, RouteApp>>, chemin: string): Cible | null {
   const { chemin: c } = normaliserHref(chemin);
-  if (!estCheminFournisseur(c)) return null;
+  if (!estCheminDeLEspace(racine, c)) return null;
   const segments = c.split('/').filter(Boolean).slice(1);
   let meilleur: { cible: Cible; fixes: number } | null = null;
-  for (const fichier of Object.keys(ROUTES_FOURNISSEUR)) {
+  for (const fichier of Object.keys(table)) {
     const m = motif(fichier);
     if (m.length !== segments.length) continue;
     const params: Parametres = {};
@@ -912,16 +944,17 @@ export function trouverRouteFournisseur(chemin: string): Cible | null {
   return meilleur?.cible ?? null;
 }
 
-/**
- * Parent logique d'un écran du fournisseur (chemin complet), d'après
- * `ROUTES_FOURNISSEUR` et son origine (`depuis`) ; null pour l'Accueil. Un
- * écran inconnu remonte à l'Accueil du fournisseur.
- */
-export function parentFournisseur(chemin: string, params: Parametres = {}): string | null {
-  const cible = trouverRouteFournisseur(chemin);
-  if (!cible) return ACCUEIL_FOURNISSEUR;
+/** Parent logique d'un écran d'un espace (chemin complet) ; null pour son Accueil, son Accueil pour un écran inconnu. */
+function parentDansLEspace(
+  racine: string,
+  table: Readonly<Record<string, RouteApp>>,
+  chemin: string,
+  params: Parametres,
+): string | null {
+  const cible = trouverRouteDeLEspace(racine, table, chemin);
+  if (!cible) return racine;
   const p = { ...cible.params, ...normaliserHref(chemin).requete, ...params };
-  const route = ROUTES_FOURNISSEUR[cible.fichier];
+  const route = table[cible.fichier];
   if (route.parent === null) return null;
   const depuis = p.depuis;
   const origine =
@@ -930,5 +963,69 @@ export function parentFournisseur(chemin: string, params: Parametres = {}): stri
       : undefined;
   const gabarit = origine ?? (typeof route.parent === 'function' ? route.parent({ apprenti: false }) : route.parent);
   const { chemin: parent } = normaliserHref(gabarit, p);
-  return parent.includes('[') ? ACCUEIL_FOURNISSEUR : parent;
+  return parent.includes('[') ? racine : parent;
+}
+
+/** Vrai pour un chemin de l'espace fournisseur (`/fournisseur`, `/fournisseur/…`). */
+export function estCheminFournisseur(chemin: string): boolean {
+  return estCheminDeLEspace(ACCUEIL_FOURNISSEUR, chemin);
+}
+
+/** Écran du fournisseur correspondant à un chemin concret (`/fournisseur/commandes` → `commandes/index`). */
+export function trouverRouteFournisseur(chemin: string): Cible | null {
+  return trouverRouteDeLEspace(ACCUEIL_FOURNISSEUR, ROUTES_FOURNISSEUR, chemin);
+}
+
+/**
+ * Parent logique d'un écran du fournisseur (chemin complet), d'après
+ * `ROUTES_FOURNISSEUR` et son origine (`depuis`) ; null pour l'Accueil. Un
+ * écran inconnu remonte à l'Accueil du fournisseur.
+ */
+export function parentFournisseur(chemin: string, params: Parametres = {}): string | null {
+  return parentDansLEspace(ACCUEIL_FOURNISSEUR, ROUTES_FOURNISSEUR, chemin, params);
+}
+
+// ---------------------------------------------------------------------------
+// Espace commis : onglets Commandes, Clients, Récap, Moi
+// ---------------------------------------------------------------------------
+
+/** Notifications du commis (cloche des Commandes, entrée de Moi). */
+export const NOTIFICATIONS_COMMIS = '/commis/notifications';
+
+/**
+ * Écrans du commis, par fichier (relatif à `app/commis`, sans extension) →
+ * type et parent (chemin complet, `/commis/…`). Chaque fichier d'écran doit
+ * y figurer (test). Même règle que le fournisseur : fiche ou formulaire → sa
+ * liste, liste (racine d'onglet) → Accueil (les Commandes).
+ */
+export const ROUTES_COMMIS: Readonly<Record<string, RouteApp>> = {
+  // Onglet Commandes : les commandes à servir, filtrables par livreur.
+  index: { type: 'accueil', parent: null },
+  notifications: { type: 'liste', parent: ACCUEIL_COMMIS },
+  // Détail d'une commande (remises, « Commande terminée ») et saisie d'une remise : l'identifiant est
+  // dans le chemin, la remise remonte donc toujours à sa commande (flèche, retour Android, après l'envoi).
+  'commandes/[id]/index': { type: 'fiche', parent: ACCUEIL_COMMIS },
+  'commandes/[id]/remise': { type: 'formulaire', parent: '/commis/commandes/[id]' },
+  'remise-sans-commande': { type: 'formulaire', parent: ACCUEIL_COMMIS },
+  // Onglet Clients : clients, sorties du jour et saisie d'une sortie.
+  'clients/index': { type: 'liste', parent: ACCUEIL_COMMIS },
+  'clients/sortie': { type: 'formulaire', parent: '/commis/clients' },
+  recapitulatif: { type: 'liste', parent: ACCUEIL_COMMIS },
+  'moi/index': { type: 'liste', parent: ACCUEIL_COMMIS },
+  'moi/password': { type: 'formulaire', parent: '/commis/moi' },
+};
+
+/** Vrai pour un chemin de l'espace commis (`/commis`, `/commis/…`). */
+export function estCheminCommis(chemin: string): boolean {
+  return estCheminDeLEspace(ACCUEIL_COMMIS, chemin);
+}
+
+/** Écran du commis correspondant à un chemin concret (`/commis/commandes/c1` → `commandes/[id]`). */
+export function trouverRouteCommis(chemin: string): Cible | null {
+  return trouverRouteDeLEspace(ACCUEIL_COMMIS, ROUTES_COMMIS, chemin);
+}
+
+/** Parent logique d'un écran du commis (chemin complet) ; null pour l'Accueil. */
+export function parentCommis(chemin: string, params: Parametres = {}): string | null {
+  return parentDansLEspace(ACCUEIL_COMMIS, ROUTES_COMMIS, chemin, params);
 }

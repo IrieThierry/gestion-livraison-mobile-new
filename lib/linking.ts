@@ -1,6 +1,6 @@
 import { Linking } from 'react-native';
 import { dialog } from './dialog';
-import { lirePosition, urlGoogleMaps, urlWaze } from './position';
+import { lirePosition, urlGoogleMaps } from './position';
 
 /**
  * Open the phone dialer prefilled with the given number.
@@ -37,23 +37,13 @@ export function navigateTo(lat: number, lng: number, _label?: string): void {
 }
 
 /**
- * Itinéraire vers une position `"lat,lng"` : l'utilisateur choisit Google Maps
- * ou Waze. Position vide ou invalide : ne fait rien.
+ * Itinéraire vers une position `"lat,lng"` : ouvre Google Maps directement,
+ * sans choix. Position vide ou invalide : ne fait rien.
  */
 export function ouvrirItineraire(position: string): void {
   const point = lirePosition(position);
   if (!point) return;
-  const ouvrirUrl = (url: string) => () => {
-    Linking.openURL(url).catch(() => {
-      dialog.error('Itinéraire', "Impossible d'ouvrir l'application de navigation.");
-    });
-  };
-  dialog.choix({
-    title: 'Itinéraire',
-    message: 'Ouvrir avec',
-    options: [
-      { label: 'Google Maps', onPress: ouvrirUrl(urlGoogleMaps(point)) },
-      { label: 'Waze', onPress: ouvrirUrl(urlWaze(point)) },
-    ],
+  Linking.openURL(urlGoogleMaps(point)).catch(() => {
+    dialog.error('Itinéraire', "Impossible d'ouvrir l'application de navigation.");
   });
 }
