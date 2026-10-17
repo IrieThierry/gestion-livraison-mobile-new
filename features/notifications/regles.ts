@@ -222,6 +222,8 @@ export interface ContexteCible {
   responsable: boolean;
   /** F1 : compte fournisseur, les écrans s'ouvrent dans son espace (`/fournisseur/…`). */
   fournisseur?: boolean;
+  /** Compte commis : les écrans s'ouvrent dans son espace (`/commis/…`). */
+  commis?: boolean;
 }
 
 export interface CibleMobile {
@@ -271,6 +273,7 @@ function hrefDeRoute(route: string, id: string | null, ctx: ContexteCible): stri
     // Espace fournisseur (hrefFournisseur) ; demandes de chargement du responsable : portail web.
     case 'fournisseur.commandes':
     case 'fournisseur.invitations':
+    case 'commis.commandes':
     case 'organisation.demandes-chargement':
     default:
       return null;
@@ -302,6 +305,21 @@ export function hrefFournisseur(route: string, id?: string | null): string | nul
 }
 
 /**
+ * Écran de l'espace commis de chaque route logique qui le concerne : remise
+ * refusée par le livreur (`commis.commandes`) → la commande, où la remise
+ * refusée montre son motif ; sans identifiant, la liste des commandes. Null :
+ * pas d'écran (la notification est seulement marquée lue).
+ */
+export function hrefCommis(route: string, id?: string | null): string | null {
+  switch (route) {
+    case 'commis.commandes':
+      return id ? `/commis/commandes/${encodeURIComponent(id)}` : '/commis';
+    default:
+      return null;
+  }
+}
+
+/**
  * Écran ouvert par l'appui sur une notification (avec `depuis` pour que le
  * retour ramène aux Notifications), ou null si aucun écran mobile ne lui
  * correspond (la notification est seulement marquée lue).
@@ -310,6 +328,11 @@ export function cibleMobile(
   n: Pick<NotificationResponse, 'cible'> & Partial<Pick<NotificationResponse, 'type'>>,
   ctx: ContexteCible,
 ): CibleMobile | null {
+  if (ctx.commis) {
+    const lien = n.cible ? hrefCommis(n.cible.route, n.cible.id) : null;
+    // Écran de l'espace : retour à son parent (ROUTES_COMMIS), sans origine.
+    return lien ? { href: lien, params: {} } : null;
+  }
   if (ctx.fournisseur) {
     const lien = n.cible ? hrefFournisseur(n.cible.route, n.cible.id) : null;
     // Écran de l'espace : retour à son parent (ROUTES_FOURNISSEUR), sans origine.

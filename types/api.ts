@@ -1754,6 +1754,64 @@ export interface RecapitulatifRemisesResponse {
   refusees: RemiseCommisResponse[];
 }
 
+// ─── Espace commis (/commis/me) : quantités seulement, jamais de prix ni de montant ───
+
+export interface PersonneCommisResponse {
+  id: UUID;
+  nom: string;
+  prenom: string;
+}
+
+export type StatutCommandeCommis = 'CONFIRMEE' | 'EN_RECEPTION' | 'LIVREE';
+
+export interface LigneCommandeCommisResponse {
+  produitFournisseurId: UUID;
+  designation: string;
+  photoUrl: string | null;
+  /** Quantité commandée (0 pour un produit ajouté hors commande). */
+  commande: number;
+  remisConfirme: number;
+  enAttente: number;
+}
+
+export interface CommandeCommisResponse {
+  id: UUID;
+  numero: string;
+  date: string;
+  statut: StatutCommandeCommis;
+  livreur: PersonneCommisResponse;
+  lignes: LigneCommandeCommisResponse[];
+  remisesEnAttente: number;
+}
+
+export interface CatalogueCommisResponse {
+  produitFournisseurId: UUID;
+  produitId: UUID;
+  designation: string;
+  photoUrl: string | null;
+}
+
+export interface LigneQuantiteRequest {
+  produitFournisseurId: UUID;
+  quantite: number;
+}
+
+export interface ClientCommisResponse {
+  id: UUID;
+  nom: string;
+}
+
+export interface SortieCommisResponse {
+  id: UUID;
+  client: { id: UUID; nom: string };
+  date: string;
+  creeLe: string;
+  auteur: PersonneCommisResponse;
+  annulee: boolean;
+  annuleeLe: string | null;
+  lignes: Array<{ produitFournisseurId: UUID; designation: string; photoUrl: string | null; quantite: number }>;
+}
+
 export interface FiltresRecapitulatif {
   debut: string;
   fin: string;

@@ -84,7 +84,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     // Compute the next route synchronously, then hide splash AFTER navigation
     // so the user never sees a flash of the wrong screen.
     // ADMIN : écran « Utilisez le portail web » ; FOURNISSEUR : son espace
-    // (`app/fournisseur`, F1) au lieu des onglets livreur (lib/navigation, redirectionRacine).
+    // (`app/fournisseur`, F1) au lieu des onglets livreur (lib/navigation, redirectionRacine) ;
+    // COMMIS : son espace (`app/commis`), jamais les onglets livreur ni l'espace fournisseur.
     // Responsable d'une organisation : hors des écrans de son espace → son Accueil (O15).
     const cible = redirectionRacine(user, segments[0], segments);
     if (cible) router.replace(cible as never);
@@ -156,6 +157,7 @@ export default function RootLayout() {
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(livreur)" />
             <Stack.Screen name="fournisseur" />
+            <Stack.Screen name="commis" />
             <Stack.Screen name="portail-web" />
             <Stack.Screen name="mot-de-passe-provisoire" options={{ gestureEnabled: false }} />
           </Stack>

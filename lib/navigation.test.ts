@@ -7,6 +7,14 @@ import {
   MOT_DE_PASSE_PROVISOIRE,
   accueilDuProfil,
   ACCUEIL_FOURNISSEUR,
+  ACCUEIL_COMMIS,
+  estCheminCommis,
+  estProfilCommis,
+  GROUPE_COMMIS,
+  NOTIFICATIONS_COMMIS,
+  parentCommis,
+  ROUTES_COMMIS,
+  trouverRouteCommis,
   estCheminFournisseur,
   estProfilFournisseur,
   estProfilPortailWeb,
@@ -522,6 +530,95 @@ describe('Espace fournisseur (F1, F2) : routes et parents', () => {
   it('le récapitulatif est un écran de l’espace, hors barre d’onglets', () => {
     const layout = fs.readFileSync(path.join(__dirname, '..', 'app', 'fournisseur', '_layout.tsx'), 'utf8');
     expect(layout).toMatch(/name="recapitulatif" options=\{\{ href: null \}\}/);
+  });
+});
+
+/** Fichiers d'écran de app/commis (hors _layout), sans extension. */
+function ecransCommis(): string[] {
+  const racine = path.join(__dirname, '..', 'app', 'commis');
+  const out: string[] = [];
+  const parcourir = (dir: string) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) parcourir(p);
+      else if (/\.tsx$/.test(e.name) && e.name !== '_layout.tsx')
+        out.push(path.relative(racine, p).replace(/\\/g, '/').replace(/\.tsx$/, ''));
+    }
+  };
+  parcourir(racine);
+  return out.sort();
+}
+
+describe('Espace commis : profil, redirection, routes et parents', () => {
+  const commis = { profile: 'COMMIS' };
+
+  it('le commis arrive dans son espace, jamais dans les onglets livreur ni chez le fournisseur', () => {
+    expect(estProfilCommis('COMMIS')).toBe(true);
+    expect(estProfilCommis('LIVREUR')).toBe(false);
+    expect(estProfilCommis('FOURNISSEUR')).toBe(false);
+    expect(estProfilCommis(undefined)).toBe(false);
+    expect(ACCUEIL_COMMIS).toBe('/commis');
+    expect(GROUPE_COMMIS).toBe('commis');
+    expect(accueilDuProfil('COMMIS')).toBe(ACCUEIL_COMMIS);
+    expect(ecranApresConnexion(commis)).toBe(ACCUEIL_COMMIS);
+    expect(ecranApresConnexion({ ...commis, motDePasseProvisoire: true })).toBe(MOT_DE_PASSE_PROVISOIRE);
+    expect(redirectionRacine(commis, '(auth)')).toBe(ACCUEIL_COMMIS);
+    expect(redirectionRacine(commis, '(livreur)')).toBe(ACCUEIL_COMMIS);
+    expect(redirectionRacine(commis, '(livreur)', ['(livreur)', 'cash', 'commandes'])).toBe(ACCUEIL_COMMIS);
+    expect(redirectionRacine(commis, GROUPE_FOURNISSEUR)).toBe(ACCUEIL_COMMIS);
+    expect(redirectionRacine(commis, 'portail-web')).toBe(ACCUEIL_COMMIS);
+    expect(redirectionRacine(commis, 'mot-de-passe-provisoire')).toBe(ACCUEIL_COMMIS);
+    expect(redirectionRacine(commis, GROUPE_COMMIS)).toBeNull();
+    expect(redirectionRacine(commis, GROUPE_COMMIS, [GROUPE_COMMIS, 'commandes', '[id]'])).toBeNull();
+    expect(redirectionRacine({ ...commis, motDePasseProvisoire: true }, GROUPE_COMMIS)).toBe(MOT_DE_PASSE_PROVISOIRE);
+    // Les autres profils n'entrent jamais dans l'espace commis.
+    expect(redirectionRacine({ profile: 'LIVREUR' }, GROUPE_COMMIS)).toBe(ACCUEIL_LIVREUR);
+    expect(redirectionRacine({ profile: 'FOURNISSEUR' }, GROUPE_COMMIS)).toBe(ACCUEIL_FOURNISSEUR);
+    expect(redirectionRacine({ profile: 'ADMIN' }, GROUPE_COMMIS)).toBe(PORTAIL_WEB);
+    expect(redirectionRacine(null, GROUPE_COMMIS)).toBe('/(auth)/login');
+  });
+
+  it('l’espace est déclaré dans la pile racine ; les layouts livreur et fournisseur renvoient le commis chez lui', () => {
+    const racine = path.join(__dirname, '..', 'app');
+    expect(fs.readFileSync(path.join(racine, '_layout.tsx'), 'utf8')).toMatch(/<Stack\.Screen name="commis" \/>/);
+    expect(fs.readFileSync(path.join(racine, '(livreur)', '_layout.tsx'), 'utf8')).toContain('estProfilCommis(user?.profile)');
+    const layout = fs.readFileSync(path.join(racine, 'commis', '_layout.tsx'), 'utf8');
+    expect(layout).toContain('estProfilCommis(user.profile)');
+  });
+
+  it('chaque écran de app/commis est déclaré dans ROUTES_COMMIS, et réciproquement', () => {
+    expect(ecransCommis()).toEqual(Object.keys(ROUTES_COMMIS).sort());
+  });
+
+  it('quatre onglets (Commandes, Clients, Récap, Moi) ; commande, remise sans commande et Notifications hors barre', () => {
+    const layout = fs.readFileSync(path.join(__dirname, '..', 'app', 'commis', '_layout.tsx'), 'utf8');
+    for (const nom of ['index', 'clients', 'recapitulatif', 'moi']) expect(layout).toContain(`name="${nom}"`);
+    for (const nom of ['commandes', 'remise-sans-commande', 'notifications'])
+      expect(layout).toContain(`name="${nom}" options={{ href: null }}`);
+  });
+
+  it('chemins de l’espace et parents logiques', () => {
+    expect(estCheminCommis('/commis')).toBe(true);
+    expect(estCheminCommis('/commis/clients')).toBe(true);
+    expect(estCheminCommis('/commissions')).toBe(false);
+    expect(estCheminCommis('/fournisseur/moi/commis')).toBe(false);
+    expect(trouverRouteCommis('/commis')?.fichier).toBe('index');
+    expect(trouverRouteCommis('/commis/commandes/c1')).toEqual({ fichier: 'commandes/[id]', params: { id: 'c1' } });
+    // « remise » n'est jamais lu comme l'identifiant d'une commande.
+    expect(trouverRouteCommis('/commis/commandes/remise')?.fichier).toBe('commandes/remise');
+    expect(trouverRoute('/commis')).toBeNull();
+    expect(trouverRouteFournisseur('/commis')).toBeNull();
+    expect(parentCommis('/commis')).toBeNull();
+    expect(parentCommis('/commis/commandes/c1')).toBe(ACCUEIL_COMMIS);
+    expect(parentCommis('/commis/commandes/remise?commandeId=c1')).toBe('/commis/commandes/c1');
+    expect(parentCommis('/commis/remise-sans-commande')).toBe(ACCUEIL_COMMIS);
+    expect(parentCommis('/commis/clients')).toBe(ACCUEIL_COMMIS);
+    expect(parentCommis('/commis/clients/sortie')).toBe('/commis/clients');
+    expect(parentCommis('/commis/recapitulatif')).toBe(ACCUEIL_COMMIS);
+    expect(parentCommis('/commis/moi')).toBe(ACCUEIL_COMMIS);
+    expect(parentCommis('/commis/moi/password')).toBe('/commis/moi');
+    expect(parentCommis(NOTIFICATIONS_COMMIS)).toBe(ACCUEIL_COMMIS);
+    expect(parentCommis('/commis/inconnu')).toBe(ACCUEIL_COMMIS);
   });
 });
 

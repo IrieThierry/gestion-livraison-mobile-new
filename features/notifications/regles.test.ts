@@ -5,6 +5,7 @@ import {
   badgeNonLues,
   cibleMobile,
   hrefFournisseur,
+  hrefCommis,
   curseurSuivant,
   grouperNotifications,
   heureRelative,
@@ -214,6 +215,24 @@ describe('cibleMobile', () => {
     expect(hrefFournisseur('equipe')).toBe('/fournisseur/moi/commis');
     expect(hrefFournisseur('fournisseur.commandes')).toBe('/fournisseur/commandes');
     expect(hrefFournisseur('fournisseur.commandes', 'c 1')).toBe('/fournisseur/commandes/c%201');
+  });
+
+  it('commis : remise refusée → la commande dans son espace (motif affiché) ; jamais un écran livreur ou fournisseur', () => {
+    const cms = { apprenti: false, responsable: false, commis: true };
+    const refusee = notif({
+      type: 'REMISE_COMMIS_REFUSEE',
+      cible: { type: 'COMMANDE', id: 'c1', route: 'commis.commandes' },
+    });
+    expect(cibleMobile(refusee, cms)).toEqual({ href: '/commis/commandes/c1', params: {} });
+    expect(cibleMobile(cible('commis.commandes', null), cms)).toEqual({ href: '/commis', params: {} });
+    expect(hrefCommis('commis.commandes', 'c 1')).toBe('/commis/commandes/c%201');
+    for (const r of ['commandes', 'fournisseur.commandes', 'equipe', 'transferts', 'inconnue']) {
+      expect(cibleMobile(cible(r), cms)).toBeNull();
+    }
+    expect(cibleMobile({ ...cible('equipe'), type: 'MOT_DE_PASSE_DEMANDE' }, cms)).toBeNull();
+    // Hors espace commis, la route n'ouvre rien.
+    expect(cibleMobile(refusee, { apprenti: false, responsable: false })).toBeNull();
+    expect(cibleMobile(refusee, { apprenti: false, responsable: false, fournisseur: true })).toBeNull();
   });
 });
 
