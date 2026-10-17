@@ -1,5 +1,5 @@
 import { View, Text, Image } from 'react-native';
-import { urlAbsolue } from '../../lib/api-url';
+import { urlPhoto } from '../../lib/api-url';
 
 /**
  * Avatar rond : photo de l'utilisateur si `photoUrl` est renseignée, sinon
@@ -21,7 +21,7 @@ export function Avatar({
   const initials = `${prenom?.[0] ?? ''}${nom?.[0] ?? ''}`.toUpperCase();
   // Le back renvoie un chemin relatif (`/uploads/utilisateur/…`) : on le
   // résout en URL absolue à l'affichage.
-  const uri = urlAbsolue(photoUrl);
+  const uri = urlPhoto(photoUrl);
   const hasPhoto = !!uri;
   return (
     <View

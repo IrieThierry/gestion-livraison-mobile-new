@@ -230,28 +230,25 @@ describe('F2 : Accueil du fournisseur (synthèse du portail web)', () => {
     expect(m('useSyntheseFournisseur')).toHaveBeenCalledWith(mois);
   });
 
-  it('À traiter : commandes à confirmer, invitations, demandes ; chaque ligne ouvre son écran', () => {
+  it('accueil sans bloc « À traiter » (ni lignes, ni erreurs de rubrique)', () => {
     rendu(<AccueilFournisseur />);
-    expect(screen.getByText('À traiter')).toBeTruthy();
-    fireEvent.press(screen.getByLabelText('2 commandes à confirmer'));
-    expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/commandes');
-    fireEvent.press(screen.getByLabelText('1 invitation de livreur'));
-    expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/livreurs/invitations');
-    fireEvent.press(screen.getByLabelText('1 demande de modification'));
-    expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/argent/versements/demandes');
+    expect(screen.queryByText('À traiter')).toBeNull();
+    expect(screen.queryByLabelText('2 commandes à confirmer')).toBeNull();
+    expect(screen.queryByLabelText('1 invitation de livreur')).toBeNull();
   });
 
-  it('cloche : non lues en badge, sinon pastille « à traiter » ; ouvre les Notifications', () => {
+  it('cloche : seules les non lues en badge, sans pastille orange ; ouvre les Notifications', () => {
     mockNonLues = 4;
     const { unmount } = rendu(<AccueilFournisseur />);
-    const cloche = screen.getByLabelText('Notifications : 4 non lues, 4 à traiter');
+    const cloche = screen.getByLabelText('Notifications : 4 non lues');
     expect(within(cloche).getByText('4')).toBeTruthy();
     fireEvent.press(cloche);
     expect(ouvrir).toHaveBeenLastCalledWith('/fournisseur/notifications');
     unmount();
     mockNonLues = 0;
     rendu(<AccueilFournisseur />);
-    expect(screen.getByTestId('cloche-a-traiter')).toBeTruthy();
+    expect(screen.queryByTestId('cloche-a-traiter')).toBeNull();
+    expect(screen.getByLabelText('Notifications : 0 non lue')).toBeTruthy();
   });
 
   it('vide : rien à traiter (pas de bloc), aucun versement ni reversement ce mois', () => {
@@ -287,8 +284,7 @@ describe('F2 : Accueil du fournisseur (synthèse du portail web)', () => {
     expect(screen.getByText('Abonnement expiré.')).toBeTruthy();
     fireEvent.press(screen.getByText('Réessayer'));
     expect(refetch).toHaveBeenCalled();
-    // Rubrique « À traiter » en erreur signalée, tuiles des commandes sans chiffre.
-    expect(screen.getByText('Commandes à confirmer indisponibles')).toBeTruthy();
+    expect(screen.queryByText('Commandes à confirmer indisponibles')).toBeNull();
     expect(screen.getByLabelText('En attente : —')).toBeTruthy();
   });
 

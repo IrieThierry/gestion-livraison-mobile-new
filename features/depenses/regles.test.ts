@@ -42,6 +42,14 @@ describe('S5 : dépenses de l’équipe (règles)', () => {
     expect(optionsDepenses(null, false, apprentis)).toEqual([]);
   });
 
+  it('responsable d’organisation : Moi, Équipe et ses commerciaux (libellé de repli « Commercial »)', () => {
+    expect(optionsDepenses(principal, false, [{ id: 'c1', prenom: '', nom: '' }], 'Commercial')).toEqual([
+      { id: 'moi', label: 'Moi' },
+      { id: 'equipe', label: 'Équipe' },
+      { id: 'apprenti:c1', label: 'Commercial' },
+    ]);
+  });
+
   it('cible : aller-retour d’identifiant, et repli sur Moi hors options', () => {
     expect(cibleDepuisId(idCible({ type: 'apprenti', id: 'a1' }))).toEqual({ type: 'apprenti', id: 'a1' });
     expect(cibleDepuisId('equipe')).toEqual({ type: 'equipe' });

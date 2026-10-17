@@ -4,7 +4,6 @@ import { Bell, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react-native
 import { Avatar } from '../../components/shared/Avatar';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { AbonnementExpireBanner } from '../../components/shared/AbonnementExpireBanner';
-import { ListeATraiter, useATraiterFournisseur } from '../../components/fournisseur/ATraiterFournisseur';
 import {
   useCommandesFournisseur,
   useFournisseurProfil,
@@ -40,7 +39,7 @@ const nomLivreur = (p: { prenom?: string | null; nom?: string | null }) => `${p.
  * portail web (mois choisi : total reçu, remise livreur à reverser et déjà
  * reversée, livreurs actifs, « À reverser aux livreurs », top livreurs),
  * plus les chiffres des commandes (en attente, livrées) et des livreurs (dû,
- * remises à reverser), le bloc « À traiter » et la cloche des notifications.
+ * remises à reverser) et la cloche des notifications.
  */
 export default function AccueilFournisseur() {
   const user = useAuthStore((s) => s.user);
@@ -51,13 +50,11 @@ export default function AccueilFournisseur() {
   const reversementsQ = useReversementsSyntheseFournisseur(mois);
   const commandesQ = useCommandesFournisseur();
   const partenairesQ = useLivreursPartenaires();
-  const aTraiter = useATraiterFournisseur();
   const aboQ = useMonAbonnement();
   const nonLuesQ = useNombreNonLues(!!user);
-  // Retour sur l'Accueil : badge et « À traiter » relus (comme l'Accueil du livreur).
+  // Retour sur l'Accueil : badge relu (comme l'Accueil du livreur).
   useRelireAuFocus(() => {
     nonLuesQ.refetch();
-    aTraiter.relire();
   });
 
   if (!user) return null;
@@ -79,7 +76,6 @@ export default function AccueilFournisseur() {
     reversementsQ.refetch();
     commandesQ.refetch();
     partenairesQ.refetch();
-    aTraiter.relire();
     aboQ.refetch();
     nonLuesQ.refetch();
   };
@@ -110,7 +106,7 @@ export default function AccueilFournisseur() {
               hitSlop={6}
               onPress={() => ouvrir(NOTIFICATIONS_FOURNISSEUR)}
               accessibilityRole="button"
-              accessibilityLabel={libelleCloche(nonLues, aTraiter.total)}
+              accessibilityLabel={libelleCloche(nonLues, 0)}
               className="w-10 h-10 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 items-center justify-center active:opacity-70"
             >
               <Bell color="#475569" size={18} />
@@ -121,11 +117,6 @@ export default function AccueilFournisseur() {
                 >
                   <Text className="text-white text-[9px] font-bold">{badgeNonLues(nonLues)}</Text>
                 </View>
-              ) : aTraiter.total > 0 ? (
-                <View
-                  testID="cloche-a-traiter"
-                  className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-amber-500 border border-white dark:border-slate-900"
-                />
               ) : null}
             </Pressable>
             <Pressable
@@ -141,14 +132,6 @@ export default function AccueilFournisseur() {
         </View>
 
         <AbonnementExpireBanner />
-
-        {/* À traiter : seulement s'il y a une rubrique (ou une erreur de lecture). */}
-        {aTraiter.taches.length > 0 || aTraiter.erreurs.length > 0 ? (
-          <>
-            <Text className={SECTION}>À traiter</Text>
-            <ListeATraiter taches={aTraiter.taches} erreurs={aTraiter.erreurs} onOuvrir={(t) => ouvrir(t.lien)} />
-          </>
-        ) : null}
 
         {/* Mois de la synthèse */}
         <View className="flex-row items-center justify-between mt-5">

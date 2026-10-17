@@ -8,7 +8,7 @@ import {
   Image,
 } from 'react-native';
 import { dialog } from '../../../lib/dialog';
-import { urlAbsolue } from '../../../lib/api-url';
+import { urlPhoto } from '../../../lib/api-url';
 import { useMutation } from '@tanstack/react-query';
 import { Save, Camera, Trash2 } from 'lucide-react-native';
 import { PageHeader } from '../../../components/shared/PageHeader';
@@ -101,7 +101,7 @@ export function EcranModifierInfos({ retour = '/(livreur)/profil' }: { retour?: 
 
   const initials = `${user.prenom?.[0] ?? ''}${user.nom?.[0] ?? ''}`.toUpperCase();
   // Chemin relatif du back (`/uploads/utilisateur/…`) résolu à l'affichage.
-  const photoUri = urlAbsolue(user.photoUrl);
+  const photoUri = urlPhoto(user.photoUrl);
   const hasPhoto = !!photoUri;
 
   const onSubmit = () => {

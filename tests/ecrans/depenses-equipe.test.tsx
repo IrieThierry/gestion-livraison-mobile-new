@@ -131,7 +131,7 @@ describe('Dépenses de l’équipe (S5)', () => {
     expect(await screen.findByText('Plein du matin')).toBeTruthy();
     expect(screen.queryByText('Dépenses de')).toBeNull();
     unmount();
-    mockUser = { id: 'P', prenom: 'Rita', nom: 'R', parentId: null, organisationId: 'o1', organisationRole: 'RESPONSABLE' };
+    mockUser = { id: 'P', prenom: 'Rita', nom: 'R', parentId: 'X', organisationId: 'o1', organisationRole: 'COMMERCIAL' };
     rendre();
     expect(await screen.findByText('Plein du matin')).toBeTruthy();
     expect(screen.queryByText('Dépenses de')).toBeNull();
@@ -139,5 +139,20 @@ describe('Dépenses de l’équipe (S5)', () => {
       expect(call[1].params.equipe).toBeUndefined();
       expect(call[1].params.livreurId).toBeUndefined();
     }
+  });
+
+  it('responsable : sélecteur Moi / Équipe / commercial, dépense d’un commercial sans action', async () => {
+    mockUser = { id: 'P', prenom: 'Rita', nom: 'R', parentId: null, organisationId: 'o1', organisationRole: 'RESPONSABLE' };
+    mockApprentis = [{ id: 'a1', prenom: 'Awa', nom: 'TRAORÉ', actif: true }];
+    rendre();
+    await screen.findByText('Plein du matin');
+    expect(screen.getByText('Dépenses de')).toBeTruthy();
+    expect(screen.getByLabelText('Supprimer Plein du matin')).toBeTruthy();
+    choisir('Awa TRAORÉ');
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith('/depense', expect.objectContaining({ params: expect.objectContaining({ livreurId: 'a1' }) })),
+    );
+    expect(await screen.findByText('Vidange')).toBeTruthy();
+    expect(screen.queryByLabelText('Supprimer Vidange')).toBeNull();
   });
 });
