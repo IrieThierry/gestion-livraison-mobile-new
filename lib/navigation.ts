@@ -1001,9 +1001,10 @@ export const ROUTES_COMMIS: Readonly<Record<string, RouteApp>> = {
   // Onglet Commandes : les commandes à servir, filtrables par livreur.
   index: { type: 'accueil', parent: null },
   notifications: { type: 'liste', parent: ACCUEIL_COMMIS },
-  // Détail d'une commande (remises, « Commande terminée ») et saisie d'une remise ; « remise » est plus précis que [id].
-  'commandes/[id]': { type: 'fiche', parent: ACCUEIL_COMMIS },
-  'commandes/remise': { type: 'formulaire', parent: '/commis/commandes/[commandeId]' },
+  // Détail d'une commande (remises, « Commande terminée ») et saisie d'une remise : l'identifiant est
+  // dans le chemin, la remise remonte donc toujours à sa commande (flèche, retour Android, après l'envoi).
+  'commandes/[id]/index': { type: 'fiche', parent: ACCUEIL_COMMIS },
+  'commandes/[id]/remise': { type: 'formulaire', parent: '/commis/commandes/[id]' },
   'remise-sans-commande': { type: 'formulaire', parent: ACCUEIL_COMMIS },
   // Onglet Clients : clients, sorties du jour et saisie d'une sortie.
   'clients/index': { type: 'liste', parent: ACCUEIL_COMMIS },

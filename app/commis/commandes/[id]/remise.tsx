@@ -1,17 +1,17 @@
 import { useRef, useState } from 'react';
 import { Text, View } from 'react-native';
-import { useLocalSearchParams, usePathname } from 'expo-router';
-import { PageHeader } from '../../../components/shared/PageHeader';
-import { FormScreen } from '../../../components/shared/FormScreen';
-import { BoutonEnvoyer, SaisieProduits } from '../../../components/commis/ElementsCommis';
-import { useCatalogueCommis, useCommandesCommis, useRemettre } from '../../../features/commis/hooks';
-import { lignesSaisies, nomPersonne, resumeLignes, saisieEnvoyable } from '../../../features/commis/regles';
-import { creerVerrou, lancerUneFois } from '../../../features/commandes/verrou';
-import { useNetworkStore } from '../../../stores/networkStore';
-import { retourParent } from '../../../lib/navigation-app';
-import { dialog } from '../../../lib/dialog';
-import { extractApiErrorMessage } from '../../../lib/api-error';
-import type { UUID } from '../../../types/api';
+import { useLocalSearchParams } from 'expo-router';
+import { PageHeader } from '../../../../components/shared/PageHeader';
+import { FormScreen } from '../../../../components/shared/FormScreen';
+import { BoutonEnvoyer, SaisieProduits } from '../../../../components/commis/ElementsCommis';
+import { useCatalogueCommis, useCommandesCommis, useRemettre } from '../../../../features/commis/hooks';
+import { lignesSaisies, nomPersonne, resumeLignes, saisieEnvoyable } from '../../../../features/commis/regles';
+import { creerVerrou, lancerUneFois } from '../../../../features/commandes/verrou';
+import { useNetworkStore } from '../../../../stores/networkStore';
+import { revenirA } from '../../../../lib/navigation-app';
+import { dialog } from '../../../../lib/dialog';
+import { extractApiErrorMessage } from '../../../../lib/api-error';
+import type { UUID } from '../../../../types/api';
 
 /**
  * Nouvelle remise sur une commande : une quantité par produit de la commande
@@ -22,8 +22,9 @@ import type { UUID } from '../../../types/api';
  * du livreur.
  */
 export default function RemiseCommande() {
-  const { commandeId } = useLocalSearchParams<{ commandeId: string }>();
-  const pathname = usePathname();
+  // L'identifiant est dans le chemin (`/commis/commandes/<id>/remise`) : la flèche
+  // d'en-tête et le retour Android remontent à la commande (ROUTES_COMMIS).
+  const { id: commandeId } = useLocalSearchParams<{ id: string }>();
   const commande = useCommandesCommis().data?.find((c) => c.id === commandeId);
   const catalogue = useCatalogueCommis().data ?? [];
   const m = useRemettre();
@@ -53,7 +54,8 @@ export default function RemiseCommande() {
             { commandeId: commande.id, lignes },
             {
               onSuccess: () => {
-                retourParent(pathname);
+                // Retour à la commande, où la remise apparaît « En attente de confirmation ».
+                revenirA(`/commis/commandes/${commande.id}`);
                 dialog.success('Remise envoyée', 'Elle attend la confirmation du livreur.');
               },
               onError: (e) => dialog.error('Remise impossible', extractApiErrorMessage(e, 'La remise n’a pas pu être envoyée.')),

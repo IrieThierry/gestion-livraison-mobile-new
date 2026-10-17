@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import CommandesCommis from '../../app/commis/index';
-import CommandeCommis from '../../app/commis/commandes/[id]';
-import RemiseCommande from '../../app/commis/commandes/remise';
+import CommandeCommis from '../../app/commis/commandes/[id]/index';
+import RemiseCommande from '../../app/commis/commandes/[id]/remise';
 import RemiseSansCommande from '../../app/commis/remise-sans-commande';
 import ClientsCommis from '../../app/commis/clients/index';
 import SortieClient from '../../app/commis/clients/sortie';
@@ -9,13 +9,14 @@ import RecapitulatifCommis from '../../app/commis/recapitulatif';
 import MoiCommis from '../../app/commis/moi/index';
 import * as hooks from '../../features/commis/hooks';
 import { dialog } from '../../lib/dialog';
-import { naviguer, ouvrir } from '../../lib/navigation-app';
+import { naviguer, ouvrir, retourParent, revenirA } from '../../lib/navigation-app';
 import { jourIso } from '../../lib/periode';
 
 let mockParams: Record<string, string> = {};
+let mockPathname = '/commis';
 jest.mock('../../lib/api-client', () => ({ apiClient: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn() } }));
 jest.mock('expo-router', () => ({
-  usePathname: () => '/commis',
+  usePathname: () => mockPathname,
   useLocalSearchParams: () => mockParams,
   router: { push: jest.fn(), back: jest.fn(), navigate: jest.fn(), replace: jest.fn(), canGoBack: () => true },
 }));
@@ -101,6 +102,7 @@ let m: Record<string, ReturnType<typeof mutation>>;
 beforeEach(() => {
   jest.clearAllMocks();
   mockParams = {};
+  mockPathname = '/commis';
   m = {};
   for (const n of ['useRemettre', 'useRemettreSansCommande', 'useAnnulerRemise', 'useTerminerCommande', 'useSortir', 'useAnnulerSortie'] as const) {
     m[n] = mutation();
@@ -178,7 +180,7 @@ describe('Détail d’une commande (commis)', () => {
     render(<CommandeCommis />);
     expect(screen.getByLabelText('Riz 25 kg : commandé 10, remis 4, en attente 6')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Nouvelle remise'));
-    expect(naviguer).toHaveBeenCalledWith('/commis/commandes/remise', { commandeId: 'c1' });
+    expect(naviguer).toHaveBeenCalledWith('/commis/commandes/c1/remise');
   });
 
   it('« Commande terminée » : confirmation puis un seul POST ; message 400 du serveur affiché tel quel', () => {
@@ -207,7 +209,15 @@ describe('Détail d’une commande (commis)', () => {
 
 describe('Saisie d’une remise sur une commande', () => {
   beforeEach(() => {
-    mockParams = { commandeId: 'c1' };
+    // Route /commis/commandes/[id]/remise : usePathname donne le chemin sans requête.
+    mockParams = { id: 'c1' };
+    mockPathname = '/commis/commandes/c1/remise';
+  });
+
+  it('flèche retour : remonte à la commande (chemin avec son identifiant)', () => {
+    render(<RemiseCommande />);
+    fireEvent.press(screen.getByLabelText('Retour'));
+    expect(retourParent).toHaveBeenCalledWith('/commis/commandes/c1/remise');
   });
 
   it('rien de saisi → Envoyer désactivé', () => {
@@ -243,6 +253,13 @@ describe('Saisie d’une remise sur une commande', () => {
         { produitFournisseurId: 'pf3', quantite: 3 },
       ],
     });
+    // Après l'envoi : retour à la commande, où la remise attend la confirmation.
+    act(() => {
+      m.useRemettre.mutate.mock.calls[0][1].onSuccess();
+      m.useRemettre.mutate.mock.calls[0][1].onSettled();
+    });
+    expect(revenirA).toHaveBeenCalledWith('/commis/commandes/c1');
+    expect(dialog.success).toHaveBeenCalled();
   });
 });
 

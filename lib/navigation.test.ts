@@ -582,8 +582,14 @@ describe('Espace commis : profil, redirection, routes et parents', () => {
     const racine = path.join(__dirname, '..', 'app');
     expect(fs.readFileSync(path.join(racine, '_layout.tsx'), 'utf8')).toMatch(/<Stack\.Screen name="commis" \/>/);
     expect(fs.readFileSync(path.join(racine, '(livreur)', '_layout.tsx'), 'utf8')).toContain('estProfilCommis(user?.profile)');
+    // Espace fournisseur : tout profil autre que FOURNISSEUR est renvoyé à son accueil (/commis pour un commis).
+    expect(fs.readFileSync(path.join(racine, 'fournisseur', '_layout.tsx'), 'utf8')).toContain(
+      'if (user && !estProfilFournisseur(user.profile)) return <Redirect href={accueilDuProfil(user.profile) as never} />;',
+    );
+    expect(accueilDuProfil('COMMIS')).toBe(ACCUEIL_COMMIS);
+    // Espace commis : gardé de la même façon contre les autres profils.
     const layout = fs.readFileSync(path.join(racine, 'commis', '_layout.tsx'), 'utf8');
-    expect(layout).toContain('estProfilCommis(user.profile)');
+    expect(layout).toContain('if (user && !estProfilCommis(user.profile)) return <Redirect href={accueilDuProfil(user.profile) as never} />;');
   });
 
   it('chaque écran de app/commis est déclaré dans ROUTES_COMMIS, et réciproquement', () => {
@@ -603,14 +609,14 @@ describe('Espace commis : profil, redirection, routes et parents', () => {
     expect(estCheminCommis('/commissions')).toBe(false);
     expect(estCheminCommis('/fournisseur/moi/commis')).toBe(false);
     expect(trouverRouteCommis('/commis')?.fichier).toBe('index');
-    expect(trouverRouteCommis('/commis/commandes/c1')).toEqual({ fichier: 'commandes/[id]', params: { id: 'c1' } });
-    // « remise » n'est jamais lu comme l'identifiant d'une commande.
-    expect(trouverRouteCommis('/commis/commandes/remise')?.fichier).toBe('commandes/remise');
+    expect(trouverRouteCommis('/commis/commandes/c1')).toEqual({ fichier: 'commandes/[id]/index', params: { id: 'c1' } });
+    // La saisie d'une remise porte l'identifiant de sa commande dans le chemin (usePathname n'a pas la requête).
+    expect(trouverRouteCommis('/commis/commandes/c1/remise')).toEqual({ fichier: 'commandes/[id]/remise', params: { id: 'c1' } });
     expect(trouverRoute('/commis')).toBeNull();
     expect(trouverRouteFournisseur('/commis')).toBeNull();
     expect(parentCommis('/commis')).toBeNull();
     expect(parentCommis('/commis/commandes/c1')).toBe(ACCUEIL_COMMIS);
-    expect(parentCommis('/commis/commandes/remise?commandeId=c1')).toBe('/commis/commandes/c1');
+    expect(parentCommis('/commis/commandes/c1/remise')).toBe('/commis/commandes/c1');
     expect(parentCommis('/commis/remise-sans-commande')).toBe(ACCUEIL_COMMIS);
     expect(parentCommis('/commis/clients')).toBe(ACCUEIL_COMMIS);
     expect(parentCommis('/commis/clients/sortie')).toBe('/commis/clients');

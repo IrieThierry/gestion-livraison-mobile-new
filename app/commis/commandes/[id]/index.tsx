@@ -2,23 +2,23 @@ import { useRef } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { CheckCheck, PackagePlus } from 'lucide-react-native';
-import { PageHeader } from '../../../components/shared/PageHeader';
-import { FormScreen } from '../../../components/shared/FormScreen';
-import { CARTE_COMMIS, CarteRemise, SECTION_COMMIS, TableauQuantites } from '../../../components/commis/ElementsCommis';
+import { PageHeader } from '../../../../components/shared/PageHeader';
+import { FormScreen } from '../../../../components/shared/FormScreen';
+import { CARTE_COMMIS, CarteRemise, SECTION_COMMIS, TableauQuantites } from '../../../../components/commis/ElementsCommis';
 import {
   useAnnulerRemise,
   useCommandesCommis,
   useRemisesCommande,
   useTerminerCommande,
-} from '../../../features/commis/hooks';
-import { dateHeure, libelleStatutCommande, nomPersonne } from '../../../features/commis/regles';
-import { creerVerrou, lancerUneFois } from '../../../features/commandes/verrou';
-import { useNetworkStore } from '../../../stores/networkStore';
-import { ACCUEIL_COMMIS } from '../../../lib/navigation';
-import { naviguer, ouvrir } from '../../../lib/navigation-app';
-import { dialog } from '../../../lib/dialog';
-import { extractApiErrorMessage } from '../../../lib/api-error';
-import type { RemiseCommisResponse } from '../../../types/api';
+} from '../../../../features/commis/hooks';
+import { dateHeure, libelleStatutCommande, nomPersonne } from '../../../../features/commis/regles';
+import { creerVerrou, lancerUneFois } from '../../../../features/commandes/verrou';
+import { useNetworkStore } from '../../../../stores/networkStore';
+import { ACCUEIL_COMMIS } from '../../../../lib/navigation';
+import { naviguer, ouvrir } from '../../../../lib/navigation-app';
+import { dialog } from '../../../../lib/dialog';
+import { extractApiErrorMessage } from '../../../../lib/api-error';
+import type { RemiseCommisResponse } from '../../../../types/api';
 
 /**
  * Détail d'une commande (commis) : par produit, commandé / remis (confirmé) /
@@ -113,7 +113,7 @@ export default function CommandeCommis() {
               </View>
               <View className="gap-2 mt-3">
                 <Pressable
-                  onPress={() => naviguer('/commis/commandes/remise', { commandeId: commande.id })}
+                  onPress={() => naviguer(`/commis/commandes/${commande.id}/remise`)}
                   disabled={!actif}
                   accessibilityRole="button"
                   accessibilityLabel="Nouvelle remise"
