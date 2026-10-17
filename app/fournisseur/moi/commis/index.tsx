@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Share, Text, View } from 'react-native';
-import { KeyRound, Plus, Power } from 'lucide-react-native';
+import { KeyRound, Pencil, Plus, Power } from 'lucide-react-native';
 import { PageHeader } from '../../../../components/shared/PageHeader';
 import { EmptyState } from '../../../../components/shared/EmptyState';
 import {
@@ -20,7 +20,7 @@ import { naviguer } from '../../../../lib/navigation-app';
 import type { CommisResponse } from '../../../../types/api';
 
 /**
- * Moi → Mes commis : les commis de l'entreprise. Création, désactivation et
+ * Moi → Mes commis : les commis de l'entreprise. Création, modification, désactivation et
  * réactivation, réinitialisation du mot de passe (le mot de passe provisoire
  * n'est affiché qu'une fois) et demandes « Mot de passe oublié ».
  */
@@ -174,6 +174,7 @@ Il ne sera plus affiché après la fermeture de cette fenêtre.`,
             actifReseau={isOnline}
             demande={!!demandeEnAttenteDe(demandesQ.data, item.id)}
             onToggle={() => onToggle(item)}
+            onModifier={() => naviguer(`/fournisseur/moi/commis/${item.id}`)}
             onReset={() => onReset(item)}
             onIgnorer={() => onIgnorer(item)}
           />
@@ -188,6 +189,7 @@ function LigneCommis({
   actifReseau,
   demande,
   onToggle,
+  onModifier,
   onReset,
   onIgnorer,
 }: {
@@ -195,6 +197,7 @@ function LigneCommis({
   actifReseau: boolean;
   demande: boolean;
   onToggle: () => void;
+  onModifier: () => void;
   onReset: () => void;
   onIgnorer: () => void;
 }) {
@@ -243,6 +246,15 @@ function LigneCommis({
           {commis.contact ? ` · ${commis.contact}` : ''}
         </Text>
       </View>
+      <Pressable
+        onPress={onModifier}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel={`Modifier ${nom}`}
+        className="p-2 rounded-md active:opacity-60 bg-slate-100 dark:bg-slate-800"
+      >
+        <Pencil color="#64748b" size={14} />
+      </Pressable>
       <Pressable
         onPress={onReset}
         disabled={!actifReseau}

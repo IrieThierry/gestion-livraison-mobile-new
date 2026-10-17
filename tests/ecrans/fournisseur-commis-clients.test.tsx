@@ -2,12 +2,14 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Share } from 'react-native';
 import CommisFournisseur from '../../app/fournisseur/moi/commis/index';
 import NouveauCommis from '../../app/fournisseur/moi/commis/nouveau';
+import ModifierCommis from '../../app/fournisseur/moi/commis/[id]';
 import ClientsFournisseur from '../../app/fournisseur/argent/clients/index';
 import NouveauClient from '../../app/fournisseur/argent/clients/nouveau';
 import FicheClient from '../../app/fournisseur/argent/clients/[id]/index';
 import PrixClient from '../../app/fournisseur/argent/clients/[id]/prix';
 import VersementClient from '../../app/fournisseur/argent/clients/[id]/versement';
 import Recapitulatif from '../../app/fournisseur/recapitulatif';
+import { DatePickerField } from '../../components/shared/DatePickerField';
 import * as commis from '../../features/fournisseur/commis';
 import * as clients from '../../features/fournisseur/clients';
 import * as recap from '../../features/fournisseur/recapitulatif';
@@ -45,6 +47,7 @@ jest.mock('../../features/fournisseur/commis', () => ({
   useCommisFournisseur: jest.fn(),
   useDemandesMotDePasseCommis: jest.fn(),
   useCreerCommis: jest.fn(),
+  useModifierCommis: jest.fn(),
   useBasculerCommis: jest.fn(),
   useReinitialiserMotDePasseCommis: jest.fn(),
   useIgnorerDemandeCommis: jest.fn(),
@@ -96,7 +99,7 @@ beforeEach(() => {
   mockEnLigne = true;
   mutations = {};
   for (const [lib, hooks] of [
-    [commis, ['useCreerCommis', 'useBasculerCommis', 'useReinitialiserMotDePasseCommis', 'useIgnorerDemandeCommis']],
+    [commis, ['useCreerCommis', 'useModifierCommis', 'useBasculerCommis', 'useReinitialiserMotDePasseCommis', 'useIgnorerDemandeCommis']],
     [clients, ['useCreerClientFournisseur', 'useModifierClientFournisseur', 'useFixerPrixClient', 'useRetirerPrixClient', 'useEnregistrerVersementClient', 'useAnnulerSortieClient']],
   ] as const) {
     for (const h of hooks) {
@@ -121,6 +124,8 @@ describe('Mes commis (mobile)', () => {
     expect(screen.getAllByText('DÉSACTIVÉ')).toHaveLength(1);
     fireEvent.press(screen.getByLabelText('Nouveau commis'));
     expect(naviguer).toHaveBeenCalledWith('/fournisseur/moi/commis/nouveau');
+    fireEvent.press(screen.getByLabelText('Modifier Awa Koné'));
+    expect(naviguer).toHaveBeenCalledWith('/fournisseur/moi/commis/c1');
   });
 
   it('désactiver demande confirmation, puis envoie une seule fois', () => {
@@ -210,6 +215,42 @@ describe('Nouveau commis (mobile)', () => {
   });
 });
 
+describe('Modifier un commis (mobile)', () => {
+  beforeEach(() => {
+    mockParams = { id: 'c1' };
+  });
+
+  it('formulaire prérempli sans mot de passe ; téléphone invalide : message, aucun envoi', () => {
+    render(<ModifierCommis />);
+    expect(screen.getByLabelText('Prénom').props.value).toBe('Awa');
+    expect(screen.getByLabelText("Nom d'utilisateur").props.value).toBe('awa');
+    expect(screen.queryByLabelText('Mot de passe provisoire')).toBeNull();
+    fireEvent.changeText(screen.getByLabelText('Téléphone'), '0612345678');
+    fireEvent.press(screen.getByLabelText('Enregistrer le commis'));
+    expect(dialog.warning).toHaveBeenCalledWith('Champ invalide', 'Le numéro doit contenir 10 chiffres et commencer par 01, 05 ou 07.');
+    expect(mutations.useModifierCommis.mutate).not.toHaveBeenCalled();
+  });
+
+  it('modification : PUT identité, identifiant en minuscules, envoi unique malgré un double appui', () => {
+    render(<ModifierCommis />);
+    fireEvent.changeText(screen.getByLabelText('Téléphone'), '0501020304');
+    fireEvent.changeText(screen.getByLabelText("Nom d'utilisateur"), ' Awa.Kone ');
+    fireEvent.press(screen.getByLabelText('Enregistrer le commis'));
+    fireEvent.press(screen.getByLabelText('Enregistrer le commis'));
+    expect(mutations.useModifierCommis.mutate).toHaveBeenCalledTimes(1);
+    expect(mutations.useModifierCommis.mutate.mock.calls[0][0]).toEqual({
+      id: 'c1',
+      payload: { prenom: 'Awa', nom: 'Koné', contact: '0501020304', username: 'awa.kone' },
+    });
+  });
+
+  it('commis inconnu : « Commis introuvable. »', () => {
+    mockParams = { id: 'zz' };
+    render(<ModifierCommis />);
+    expect(screen.getByText('Commis introuvable.')).toBeTruthy();
+  });
+});
+
 describe('Mes clients (mobile)', () => {
   it('dû en rouge quand il est positif, neutre à zéro', () => {
     render(<ClientsFournisseur />);
@@ -284,6 +325,12 @@ describe('Versement d’un client (mobile)', () => {
     fireEvent.press(screen.getByLabelText('Enregistrer le versement'));
     expect(dialog.warning).toHaveBeenCalledWith('Champ invalide', 'Le montant doit être supérieur à 0.');
     expect(mutations.useEnregistrerVersementClient.mutate).not.toHaveBeenCalled();
+  });
+
+  it('date du versement bornée à aujourd’hui (le back refuse une date future)', () => {
+    render(<VersementClient />);
+    const max = screen.UNSAFE_getByType(DatePickerField).props.maximumDate as Date;
+    expect(jourIso(max)).toBe(jourIso(new Date()));
   });
 
   it('mode de paiement, commentaire, date du jour, envoi unique', () => {

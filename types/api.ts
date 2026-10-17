@@ -1662,6 +1662,9 @@ export interface CreerCommisRequest {
   password: string;
 }
 
+/** `PUT /fournisseur/me/commis/{id}` : mêmes règles qu'à la création, sans le mot de passe. */
+export type ModifierCommisRequest = Omit<CreerCommisRequest, 'password'>;
+
 export interface ClientFournisseurResponse {
   id: UUID;
   nom: string;

@@ -897,9 +897,10 @@ export const ROUTES_FOURNISSEUR: Readonly<Record<string, RouteApp>> = {
   'moi/catalogue/index': { type: 'liste', parent: '/fournisseur/moi' },
   'moi/catalogue/ajouter': { type: 'formulaire', parent: '/fournisseur/moi/catalogue' },
   'moi/catalogue/[id]': { type: 'formulaire', parent: '/fournisseur/moi/catalogue' },
-  // Commis du fournisseur : Mes commis (Moi) et sa création.
+  // Commis du fournisseur : Mes commis (Moi), sa création et sa modification ; « nouveau » est plus précis que [id].
   'moi/commis/index': { type: 'liste', parent: '/fournisseur/moi' },
   'moi/commis/nouveau': { type: 'formulaire', parent: '/fournisseur/moi/commis' },
+  'moi/commis/[id]': { type: 'formulaire', parent: '/fournisseur/moi/commis' },
   // Mes clients (Argent) : fiche (sorties, versements, dû), prix, versement, modification ; « nouveau » est plus précis que [id].
   'argent/clients/index': { type: 'liste', parent: '/fournisseur/argent' },
   'argent/clients/nouveau': { type: 'formulaire', parent: '/fournisseur/argent/clients' },

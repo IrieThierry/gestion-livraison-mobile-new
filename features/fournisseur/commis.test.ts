@@ -1,6 +1,13 @@
 import { apiClient } from '../../lib/api-client';
 import { authApi } from '../auth/api';
-import { commisApi, commisSchema, nomCommis, payloadCommis } from './commis';
+import {
+  commisApi,
+  commisModificationSchema,
+  commisSchema,
+  nomCommis,
+  payloadCommis,
+  payloadModificationCommis,
+} from './commis';
 
 jest.mock('../../lib/api-client', () => ({
   apiClient: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn() },
@@ -49,6 +56,14 @@ describe('Commis du fournisseur : validation du formulaire (mêmes règles que l
     });
   });
 
+  it('modification : mêmes règles sans mot de passe, identifiant en minuscules', () => {
+    const { password: _ignore, ...identite } = valide;
+    expect(commisModificationSchema.safeParse({ ...identite, contact: '0612345678' }).success).toBe(false);
+    expect(commisModificationSchema.safeParse({ ...identite, username: 'ab' }).success).toBe(false);
+    const parsed = commisModificationSchema.parse({ ...identite, username: ' Awa.K ' });
+    expect(payloadModificationCommis(parsed)).toEqual({ prenom: 'Awa', nom: 'Koné', contact: '0701020304', username: 'awa.k' });
+  });
+
   it('nom complet', () => {
     expect(nomCommis({ prenom: 'Awa', nom: 'Koné' })).toBe('Awa Koné');
   });
@@ -60,6 +75,9 @@ describe('Commis du fournisseur : API (routes du back)', () => {
     expect(get).toHaveBeenLastCalledWith('/fournisseur/me/commis');
     await commisApi.creer({ ...valide, username: 'awa.kone' });
     expect(post).toHaveBeenLastCalledWith('/fournisseur/me/commis', { ...valide, username: 'awa.kone' });
+    const identite = { prenom: 'Awa', nom: 'Koné', contact: '0701020304', username: 'awa.k' };
+    await commisApi.modifier('c1', identite);
+    expect(put).toHaveBeenLastCalledWith('/fournisseur/me/commis/c1', identite);
     await commisApi.basculer('c1', false);
     expect(put).toHaveBeenLastCalledWith('/fournisseur/me/commis/c1/actif', { actif: false });
     post.mockResolvedValueOnce({ data: { tempPassword: 'Xy7kP2qa', message: 'ok' } });

@@ -512,6 +512,9 @@ describe('Espace fournisseur (F1, F2) : routes et parents', () => {
   it('Commis du fournisseur : Mes commis → Moi ; Mes clients → Argent ; récapitulatif → Accueil', () => {
     expect(parentFournisseur('/fournisseur/moi/commis')).toBe('/fournisseur/moi');
     expect(parentFournisseur('/fournisseur/moi/commis/nouveau')).toBe('/fournisseur/moi/commis');
+    expect(trouverRouteFournisseur('/fournisseur/moi/commis/nouveau')?.fichier).toBe('moi/commis/nouveau');
+    expect(trouverRouteFournisseur('/fournisseur/moi/commis/c1')).toEqual({ fichier: 'moi/commis/[id]', params: { id: 'c1' } });
+    expect(parentFournisseur('/fournisseur/moi/commis/c1')).toBe('/fournisseur/moi/commis');
     expect(parentFournisseur('/fournisseur/argent/clients')).toBe('/fournisseur/argent');
     // « nouveau » n'est jamais lu comme l'identifiant d'un client.
     expect(trouverRouteFournisseur('/fournisseur/argent/clients/nouveau')?.fichier).toBe('argent/clients/nouveau');

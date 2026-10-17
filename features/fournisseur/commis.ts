@@ -5,10 +5,16 @@ import { authApi } from '../auth/api';
 import { apprentiSchema } from '../auth/schemas';
 import { demandesReinitialisationKeys } from '../apprentis/keys';
 import { fournisseurKeys } from './keys';
-import type { CommisResponse, CreerCommisRequest, DemandeReinitialisationResponse, UUID } from '../../types/api';
+import type {
+  CommisResponse,
+  CreerCommisRequest,
+  DemandeReinitialisationResponse,
+  ModifierCommisRequest,
+  UUID,
+} from '../../types/api';
 
 /**
- * Commis du fournisseur (mobile) : création, activation, mot de passe. Mêmes
+ * Commis du fournisseur (mobile) : création, modification, activation, mot de passe. Mêmes
  * routes et mêmes règles que le portail web (`/fournisseur/me/commis`).
  */
 
@@ -27,6 +33,20 @@ export function payloadCommis(v: CommisSaisie): CreerCommisRequest {
   };
 }
 
+/** Modification : mêmes règles, sans le mot de passe (il se change par « Réinitialiser »). */
+export const commisModificationSchema = commisSchema.omit({ password: true });
+export type CommisModificationSaisie = ReturnType<typeof commisModificationSchema.parse>;
+
+/** Corps de la modification : identifiant en minuscules, comme à la création. */
+export function payloadModificationCommis(v: CommisModificationSaisie): ModifierCommisRequest {
+  return {
+    prenom: v.prenom.trim(),
+    nom: v.nom.trim(),
+    contact: v.contact.trim(),
+    username: v.username.trim().toLowerCase(),
+  };
+}
+
 export const nomCommis = (c: { prenom?: string | null; nom?: string | null }): string =>
   `${c.prenom ?? ''} ${c.nom ?? ''}`.trim();
 
@@ -35,6 +55,9 @@ export const commisApi = {
 
   creer: async (payload: CreerCommisRequest): Promise<CommisResponse> =>
     (await apiClient.post<CommisResponse>('/fournisseur/me/commis', payload)).data,
+
+  modifier: async (id: UUID, payload: ModifierCommisRequest): Promise<CommisResponse> =>
+    (await apiClient.put<CommisResponse>(`/fournisseur/me/commis/${id}`, payload)).data,
 
   basculer: async (id: UUID, actif: boolean): Promise<CommisResponse> =>
     (await apiClient.put<CommisResponse>(`/fournisseur/me/commis/${id}/actif`, { actif })).data,
@@ -78,6 +101,14 @@ export function useCreerCommis() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: commisApi.creer,
+    onSuccess: () => qc.invalidateQueries({ queryKey: commisKeys.liste() }),
+  });
+}
+
+export function useModifierCommis() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: UUID; payload: ModifierCommisRequest }) => commisApi.modifier(id, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: commisKeys.liste() }),
   });
 }
